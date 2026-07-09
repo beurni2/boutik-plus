@@ -15,6 +15,12 @@ Format per entry:
 - Bootstrapped from the pinned clone: `/docs` (all seven canon documents), `/CLAUDE.md` + `/AGENTS.md` (byte-identical, sha256 `faa0c040…`), `/WORK-ORDERS/WO-B0.1.md`, this fresh `/JOURNAL.md`.
 - Pending / next: WO-B0.1 on branch `e0/wo-b0.1` — consumption pre-flight per `/CONSUMING.md`, then the workspace + CI harness to DoD.
 
+## 2026-07-09 · CI infra patch — red Actions runs on main · done (founder-directed)
+- **Cause (diagnosed with evidence before changing anything):** both Actions runs on `main` died in ~8–9s at `pnpm install --frozen-lockfile` — the only step that fetches `platform-contracts` (all four `@platform/*` git deps + the workspace override point at `https://github.com/beurni2/platform-contracts.git`). The canon repo is private; the GitHub runner fetches anonymously. Reproduced locally under the runner's condition (`GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_TERMINAL_PROMPT=0 git ls-remote …`): `fatal: could not read Username for 'https://github.com': terminal prompts disabled`, exit 128.
+- **Fix (founder ruling: option (b) fine-grained READ-ONLY PAT approved; making the repo public and vendoring rejected):** one CI-only step inserted immediately before the install step — a `git config --global url.…insteadOf` rewrite injecting `secrets.PLATFORM_CONTRACTS_READ_TOKEN` for the `platform-contracts` URL, in the runner's ephemeral git config only. No token material in any committed file, log, or lockfile URL (verified: the secret name appears once, in `ci.yml`, as a `secrets.` reference). Commit `8a1a835` directly on `main` — founder-approved exception for this one commit.
+- **Verification:** the proof is the Actions run on `main`, visible only to the founder — founder verifies the run.
+- **Follow-up (tracked):** bake this auth step into `platform-contracts/CONSUMING.md` at its next touch, so every future app repo carries it from birth.
+
 ## 2026-07-09 · WO-B0.1 · done (founder review PASS)
 - **Founder review verdict on `e0/wo-b0.1`: PASS.** Merged into `main` with merge commit `06897d6` ("merge(e0): WO-B0.1 boutik-plus foundation — founder review passed"), pushed. Origin confirmed by `git ls-remote`: `refs/heads/main` = `06897d6…`, `refs/heads/e0/wo-b0.1` = `45903a1…`.
 - Tag check at merge time: platform-contracts origin still has **no tags** (`git ls-remote --tags` empty) — the sha pin `b10f4822` stands, unchanged.
