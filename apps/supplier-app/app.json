@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Boutik+",
+    "slug": "boutik-plus-supplier",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FAF7F2",
+    "platforms": ["android"],
+    "android": {
+      "package": "bf.boutikplus.supplier"
+    }
+  }
+}

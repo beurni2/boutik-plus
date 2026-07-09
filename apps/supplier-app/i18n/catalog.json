@@ -1,0 +1,20 @@
+[
+  {
+    "key": "app.title",
+    "fr": "Boutik+",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "onboarding.free_listing",
+    "fr": "Listez vos produits gratuitement. Boutik+ et Shop+ ne gagnent que lorsque votre produit est vendu.",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
+    "key": "shell.offline_pending",
+    "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
+    "register": "neutral",
+    "screenClass": "status"
+  }
+]
