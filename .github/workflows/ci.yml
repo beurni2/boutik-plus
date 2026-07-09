@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Authorize read access to platform-contracts (CI-only)
+        run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Run every invariant gate (positives + negative fixtures)
