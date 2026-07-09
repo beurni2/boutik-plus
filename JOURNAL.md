@@ -15,6 +15,11 @@ Format per entry:
 - Bootstrapped from the pinned clone: `/docs` (all seven canon documents), `/CLAUDE.md` + `/AGENTS.md` (byte-identical, sha256 `faa0c040…`), `/WORK-ORDERS/WO-B0.1.md`, this fresh `/JOURNAL.md`.
 - Pending / next: WO-B0.1 on branch `e0/wo-b0.1` — consumption pre-flight per `/CONSUMING.md`, then the workspace + CI harness to DoD.
 
+## 2026-07-09 · WO-B0.1 · done (founder review PASS)
+- **Founder review verdict on `e0/wo-b0.1`: PASS.** Merged into `main` with merge commit `06897d6` ("merge(e0): WO-B0.1 boutik-plus foundation — founder review passed"), pushed. Origin confirmed by `git ls-remote`: `refs/heads/main` = `06897d6…`, `refs/heads/e0/wo-b0.1` = `45903a1…`.
+- Tag check at merge time: platform-contracts origin still has **no tags** (`git ls-remote --tags` empty) — the sha pin `b10f4822` stands, unchanged.
+- **Tracked follow-ups:** ① emulator-boot evidence for the app shell, once the founder names the reference device profile (Contract §7.3 E0 deliverable); ② move the pin `#b10f4822…` → `#v0.1.0` everywhere (dependencies + workspace override) in the first version-bump PR, once the tag lands on origin.
+
 ## 2026-07-09 · WO-B0.1 · in-review (built + verified; merge reserved to the founder's reviewer)
 - **Built on branch `e0/wo-b0.1`,** small conventional commits (workspace → ADR-001 → commerce-core → observability → flags-client → services → app shell → gate harness → verifier fixes).
 - **What stands:** pnpm/Turborepo workspace pinning all four `@platform/*` at sha `b10f4822` (dependencies + `pnpm-workspace.yaml` override, 42 lockfile pin lines) · local `@boutik/commerce-core` = fixture builders over the pinned waterfall only (ADR-001: **no authoritative order state machine, decided at E1 wiring**) · six Workers service stubs (health endpoints, canon types imported from the pin, no features) · Expo supplier-app shell on the `boutik-plus` ui-tokens theme, strings only from the app i18n catalog (register + screenClass tags) · structured logger with `correlation_id` proven through a hello-world request (header → log line → response header, asserted in tests) · read-only flag/kill-switch client stub (§7.2: checkout · dispatch · payout · category) · `.github/workflows/ci.yml` runs install → build → `run-gates.sh` on every PR.
