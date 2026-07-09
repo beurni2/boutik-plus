@@ -15,7 +15,13 @@ Format per entry:
 - Bootstrapped from the pinned clone: `/docs` (all seven canon documents), `/CLAUDE.md` + `/AGENTS.md` (byte-identical, sha256 `faa0c040…`), `/WORK-ORDERS/WO-B0.1.md`, this fresh `/JOURNAL.md`.
 - Pending / next: WO-B0.1 on branch `e0/wo-b0.1` — consumption pre-flight per `/CONSUMING.md`, then the workspace + CI harness to DoD.
 
-## 2026-07-09 · CI red — actual causes from the Actions logs · blocked-on-founder (PAT rejected)
+## 2026-07-09 · CI GREEN on main · done
+- **Run #9 (workflow_dispatch on `a2712ae`, run id 29044678132): `conclusion: success`** — full pipeline (install with the pinned canon fetch, build, tests, all gates) in ~99s. First green Actions run of the repo.
+- **Final root cause of the PAT layer:** the diagnostic step printed `token length: 0 · token prefix: EMPTY — secret missing in this repo · API probe: 401` (run #8, id 29043348722) — `PLATFORM_CONTRACTS_READ_TOKEN` did not exist as an Actions repository secret in `boutik-plus`. Founder added it; run #9 went green with no further change.
+- Full red-CI chain, each layer proven by its run log: ① `pnpm/action-setup` version conflict (runs #1–4, fixed `0d775e3`) → ② empty secret presented as blank credential — GitHub "Invalid username or token" (runs #5–8) → ③ secret added → green. The temporary non-secret diagnostic (`a2712ae`) is removed again now that CI is green.
+- Follow-up already tracked: bake the PAT auth step into `platform-contracts/CONSUMING.md` at its next touch.
+
+## 2026-07-09 · CI red — actual causes from the Actions logs · blocked-on-founder (PAT rejected → resolved above)
 - **Correction of the record (previous entry below):** the Actions job logs show the red runs never reached `pnpm install` — every run through #4 died in seconds at `pnpm/action-setup@v4`: *"Error: Multiple versions of pnpm specified: version 10 in the GitHub Action config … version pnpm@10.33.0 in the package.json"*. The anonymous-fetch diagnosis below was therefore not the first cause; the PAT step had never been exercised. Fixed in `0d775e3` (drop the action's `version` input; `packageManager` is the single source).
 - **Run #5 (`0d775e3`, run id 29040910501) reached the real fetch and surfaced the second layer:** the auth step ran, pnpm resolved 631 packages, then `git fetch --depth 1 origin b10f4822…` failed with **`remote: Invalid username or token. Password authentication is not supported for Git operations.`** A credential WAS presented (anonymous would read "could not read Username", as in the local repro) — **GitHub rejected the token in `PLATFORM_CONTRACTS_READ_TOKEN`.** Blocked on founder: verify the fine-grained PAT (repository access explicitly includes `beurni2/platform-contracts` · Repository permissions → Contents: Read-only · not expired · value pasted exactly).
 - `workflow_dispatch:` added to `ci.yml` so the run can be retried from the Actions UI (or by the CTO session) after the secret is fixed — no push needed.
