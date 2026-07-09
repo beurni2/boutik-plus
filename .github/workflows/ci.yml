@@ -18,6 +18,23 @@ jobs:
           cache: pnpm
       - name: Authorize read access to platform-contracts (CI-only)
         run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+      - name: Preflight canon access (TEMPORARY diagnostic — prints no secret material)
+        env:
+          T: ${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}
+        run: |
+          echo "token length: ${#T}"
+          case "$T" in
+            github_pat_*) echo "token prefix: github_pat_ (fine-grained PAT)";;
+            ghp_*)        echo "token prefix: ghp_ (classic PAT)";;
+            "")           echo "token prefix: EMPTY — secret missing in this repo";;
+            *)            echo "token prefix: UNRECOGNIZED (not a GitHub token prefix)";;
+          esac
+          echo "API probe (200=token ok + repo visible, 401=token invalid, 404=token ok but repo NOT granted): $(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $T" https://api.github.com/repos/beurni2/platform-contracts)"
+          if git ls-remote https://github.com/beurni2/platform-contracts >/dev/null 2>&1; then
+            echo "git fetch via insteadOf rewrite: OK"
+          else
+            echo "git fetch via insteadOf rewrite: FAILED"
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Run every invariant gate (positives + negative fixtures)
