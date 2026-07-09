@@ -37,14 +37,14 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typeScale.title.size,
     lineHeight: theme.typeScale.title.lineHeight,
-    fontWeight: '700',
+    fontWeight: theme.typeScale.title.weight,
     textAlign: 'center',
   },
   card: {
     backgroundColor: theme.colors.surfaceRaised,
     borderRadius: theme.radius.lg,
     borderColor: theme.colors.line,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: theme.spacing.xl,
   },
   message: {

@@ -14,7 +14,14 @@ if (!file) {
   console.error('usage: money-reconciliation.mjs <quote-money.json>');
   process.exit(2);
 }
-const quote = JSON.parse(readFileSync(file, 'utf8'));
+let quote;
+try {
+  quote = JSON.parse(readFileSync(file, 'utf8'));
+} catch (err) {
+  // exit 2 = the gate could not run — never confusable with a gate failure (1)
+  console.error(`money-reconciliation: cannot read fixture ${file}: ${String(err)}`);
+  process.exit(2);
+}
 try {
   assertQuoteReconciles(quote);
 } catch (err) {

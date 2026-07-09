@@ -59,10 +59,32 @@ export function scanForPatterns(roots, patterns) {
   return hits;
 }
 
-/** Standard gate entrypoint: scan, report, exit non-zero on any hit. */
+/** Count scannable files under the roots (a scan of nothing proves nothing). */
+export function countScannedFiles(roots) {
+  let count = 0;
+  for (const root of roots) {
+    try {
+      statSync(root);
+    } catch {
+      continue;
+    }
+    for (const _ of walkFiles(root)) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Standard gate entrypoint: scan, report, exit 1 on any hit. Exit 2 when
+ * zero files were scanned — a deleted/renamed target must read as "gate
+ * could not run", never as a pass (verifier finding, 2026-07-09).
+ */
 export function runScanGate({ gateName, invariant, patterns, defaultRoots = DEFAULT_ROOTS }) {
   const args = process.argv.slice(2);
   const roots = args.length > 0 ? args : defaultRoots;
+  if (countScannedFiles(roots) === 0) {
+    console.error(`${gateName} ERROR — no scannable files under ${roots.join(', ')}; refusing to pass on an empty scan`);
+    process.exit(2);
+  }
   const hits = scanForPatterns(roots, patterns);
   if (hits.length === 0) {
     console.log(`${gateName} OK — no banned pattern in ${roots.join(', ')} (${invariant})`);

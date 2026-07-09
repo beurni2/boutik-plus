@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { DEFAULT_ROOTS, scanForPatterns, walkFiles } from './scan.mjs';
+import { DEFAULT_ROOTS, countScannedFiles, scanForPatterns, walkFiles } from './scan.mjs';
 
 /**
  * CI gate: imaging-architecture stubs (B+I-11, Ten Laws #5).
@@ -37,6 +37,10 @@ const BANNED_LIBS = [
 
 const args = process.argv.slice(2);
 const roots = args.length > 0 ? args : DEFAULT_ROOTS;
+if (countScannedFiles(roots) === 0) {
+  console.error(`imaging-architecture ERROR — no scannable files under ${roots.join(', ')}; refusing to pass on an empty scan`);
+  process.exit(2);
+}
 const problems = [];
 
 // (a) dependency scan over workspace package manifests

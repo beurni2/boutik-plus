@@ -12,6 +12,9 @@ FAILED=0
 log() { printf '\n=== %s ===\n' "$1"; }
 capture() {
   # capture <name> <expected: pass|fail> <command...>
+  # expected=fail requires exit code EXACTLY 1 (the gate-failure code): a
+  # crashed or misinvoked gate (exit 2+) must never pass for a working
+  # negative fixture (verifier finding, 2026-07-09).
   local name="$1" expected="$2"; shift 2
   local out rc
   out="$("$@" 2>&1)"; rc=$?
@@ -21,7 +24,7 @@ capture() {
   fi
   printf '%s\n(exit code: %d)\n' "$out" "$rc"
   if [ "$expected" = pass ] && [ $rc -ne 0 ]; then echo "GATE FAILED (expected pass): $name"; FAILED=1; fi
-  if [ "$expected" = fail ] && [ $rc -eq 0 ]; then echo "GATE FAILED (expected the negative fixture to fail): $name"; FAILED=1; fi
+  if [ "$expected" = fail ] && [ $rc -ne 1 ]; then echo "GATE FAILED (expected the negative fixture to fail with exit 1, got $rc): $name"; FAILED=1; fi
 }
 
 cd "$ROOT"
