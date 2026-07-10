@@ -97,23 +97,21 @@ export class SeraRefusalEmitterMock implements MockAdapter {
 
   /**
    * The FULL canonical seller-fault refusal signal. Payload keys and event
-   * name match sera's WO-1.3 emission exactly (custody-spine.ts: payload
-   * {order_id, faultClass, failed_checks}); the envelope ids/actor are
-   * mock-local, keyed per order like sera's `fault-<orderId>` command key.
-   * Deterministic command_id: re-emitting the same seed IS a redelivery, so
-   * consumers can prove duplicate absorption against the real at-least-once
-   * shape. ⚠ Cross-repo flag (verifier finding 3): because the REAL emission
-   * is keyed per order, a genuine second refusal on the same order would
-   * absorb as a duplicate today — sera needs per-attempt uniqueness before
-   * repeat-fault thresholds can be reached in production.
+   * name match sera's emission exactly (custody-spine.ts, per-attempt as of
+   * sera WO-2.7 item 3: payload {order_id, faultClass, failed_checks,
+   * attempt}; command key `fault-<orderId>-a<attempt>`); the envelope
+   * actor is mock-local. Deterministic per (seed, attempt): re-emitting the
+   * SAME attempt IS a redelivery (duplicate absorption provable), while a
+   * genuine post-correction second refusal (attempt 2) is a NEW countable
+   * event — the WO-2.6 verifier's finding-3 gap, closed upstream.
    */
-  emitRefusalSignal(seed: string, failedChecks: readonly string[]): PlatformEvent {
+  emitRefusalSignal(seed: string, failedChecks: readonly string[], attempt = 1): PlatformEvent {
     return PlatformEventSchema.parse({
       name: 'protection.claim_opened.v1',
       envelope: {
-        command_id: `cmd_fault-order_${seed}`,
+        command_id: `fault-order_${seed}-a${attempt}`,
         correlation_id: `corr_${seed}`,
-        aggregateVersion: 3,
+        aggregateVersion: 2 + attempt,
         actor: 'mock:sera-refusal-emitter',
         serverTime: AT,
         version: 'v1',
@@ -122,6 +120,7 @@ export class SeraRefusalEmitterMock implements MockAdapter {
         order_id: `order_${seed}`,
         faultClass: 'seller',
         failed_checks: [...failedChecks],
+        attempt,
       },
     });
   }

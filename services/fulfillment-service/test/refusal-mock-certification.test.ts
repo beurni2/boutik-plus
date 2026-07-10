@@ -13,13 +13,16 @@ describe('Séra pickup-refusal emitter mock — certified by the pinned §3 suit
     }
   });
 
-  it('exposes the FULL canonical refusal event in sera\'s emission shape — fault attributed, deterministic redelivery', () => {
+  it('exposes the FULL canonical refusal event in sera\'s per-attempt emission shape — fault attributed, deterministic redelivery', () => {
     const mock = new SeraRefusalEmitterMock();
     const signal = mock.emitRefusalSignal('t1', ['colour', 'qty']);
     expect(signal.name).toBe('protection.claim_opened.v1');
-    expect(signal.payload).toEqual({ order_id: 'order_t1', faultClass: 'seller', failed_checks: ['colour', 'qty'] });
-    // Re-emission of the same seed carries the SAME command_id — a true
-    // at-least-once redelivery for consumer duplicate-absorption tests.
+    expect(signal.payload).toEqual({ order_id: 'order_t1', faultClass: 'seller', failed_checks: ['colour', 'qty'], attempt: 1 });
+    expect(signal.envelope.command_id).toBe('fault-order_t1-a1');
+    // Re-emission of the same (seed, attempt) carries the SAME command_id —
+    // a true at-least-once redelivery for duplicate-absorption tests.
     expect(mock.emitRefusalSignal('t1', ['colour', 'qty']).envelope.command_id).toBe(signal.envelope.command_id);
+    // A genuine second attempt is a NEW countable command (sera WO-2.7).
+    expect(mock.emitRefusalSignal('t1', ['damage'], 2).envelope.command_id).toBe('fault-order_t1-a2');
   });
 });

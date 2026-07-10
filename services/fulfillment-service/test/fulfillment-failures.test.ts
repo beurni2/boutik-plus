@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FulfillmentBook, FULFILLMENT_AGING_POLICY_V1 } from '../src/fulfillment.js';
+import { FulfillmentBook, FULFILLMENT_AGING_POLICY_V2 } from '../src/fulfillment.js';
 import { ProtectionDesk, PROTECTION_CLAIM_STATES_V1 } from '../src/protection.js';
 import { SeraRefusalEmitterMock } from '../mocks/sera-refusal-emitter-mock.js';
 
@@ -13,8 +13,8 @@ import { SeraRefusalEmitterMock } from '../mocks/sera-refusal-emitter-mock.js';
 
 const T0 = '2026-07-10T09:00:00.000Z';
 const minutesAfter = (min: number) => new Date(Date.parse(T0) + min * 60_000).toISOString();
-const DECISION_MIN = FULFILLMENT_AGING_POLICY_V1.acceptanceDecisionMin;
-const READY_MIN = FULFILLMENT_AGING_POLICY_V1.readyPackageNoTaskMin;
+const DECISION_MIN = FULFILLMENT_AGING_POLICY_V2.acceptanceDecisionMin;
+const READY_MIN = FULFILLMENT_AGING_POLICY_V2.readyPackageNoTaskMin;
 const SHA = 'a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef';
 
 const acceptance = { orderId: 'order-e2-0001', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' };
@@ -70,7 +70,7 @@ describe('paid-order-no-supplier-decision aging (Contract E2 exit; B+I-12/B+I-13
       kind: 'paid_order_no_supplier_decision',
       order_id: 'order-e2-0001',
       aged_min: DECISION_MIN,
-      policy_version: 'fulfillment-aging-policy.v1',
+      policy_version: 'fulfillment-aging-policy.v2',
     });
 
     // B+I-13: the trigger record — buyer first, marker present, amount COPIED.
@@ -277,22 +277,20 @@ describe('pickup-refusal consumption → claim + corrective flow (sera signal, �
     expect(desk.trustStateFor('sup-1')).toBeUndefined();
   });
 
-  // ⚠ Verifier finding 3 (cross-repo, flagged in JOURNAL.md): the REAL sera
-  // emission keys the fault command per ORDER (`fault-<orderId>`), so a
-  // genuine second refusal on the same order absorbs as a duplicate today —
-  // the round-2 command_id below is hand-crafted to exercise the threshold
-  // MECHANICS. Repeat-fault thresholds are unreachable in production until
-  // sera emits per-attempt uniqueness (escalated to the founder).
+  // Verifier finding 3 CLOSED upstream (sera WO-2.7 item 3): the real sera
+  // emission now keys the fault command per ATTEMPT — the round-2 signal
+  // below is the mock's faithful attempt-2 shape, not a hand-crafted id.
   it('second seller fault crosses the policy threshold → access pauses (restriction), still ZERO money surface', () => {
     const { book, desk, mock } = refusalScene();
     expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(5)))
       .toMatchObject({ accepted: true, duplicate: false });
-    // Correct, re-ready, second refusal (a distinct command via different checks
-    // — sera would re-emit after the corrective round-trip).
+    // Correct, re-ready, second refusal — sera re-emits after the corrective
+    // round-trip with the NEXT attempt number (a new countable command_id).
     const fresh = book.issueChallenge('order_e2', minutesAfter(6));
     if (!fresh.ok) throw new Error('setup');
     book.confirmReady(mockReadyPayload(fresh.challenge as string, minutesAfter(7)), minutesAfter(7));
-    const second = { ...mock.emitRefusalSignal('e2', ['damage']), envelope: { ...mock.emitRefusalSignal('e2', ['damage']).envelope, command_id: 'cmd_fault-order_e2-round2' } };
+    const second = mock.emitRefusalSignal('e2', ['damage'], 2);
+    expect(second.envelope.command_id).toBe('fault-order_e2-a2');
     expect(desk.consumePickupRefusalSignal(second, minutesAfter(8))).toMatchObject({ accepted: true, duplicate: false });
 
     const trust = desk.trustStateFor('sup-1');
@@ -320,6 +318,98 @@ describe('LOCAL claim-state vocabulary (canon state is spec-bare — flagged)', 
     expect(desk.advanceClaim('order-e2-0001', 'opened')).toEqual({ ok: false, reason: 'not_forward' });
     expect(desk.advanceClaim('order-none', 'under_review')).toEqual({ ok: false, reason: 'claim_unknown' });
     expect(desk.claimFor('order-e2-0001')?.claim.state).toBe('resolved');
+  });
+});
+
+describe('WO-2.7 item 5 — the THIRD aging clock: refused-never-corrected (founder ruling ② on WO-2.6)', () => {
+  const CORRECTION_MIN = FULFILLMENT_AGING_POLICY_V2.correctionDeadlineMin;
+  const mockRegistration = { orderId: 'order_e2', sellerId: 'sup-1', paidAt: T0, amountFcfa: 11_000, evidenceBundleId: 'eb-pay-e2' };
+  const mockAcceptance = { orderId: 'order_e2', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' };
+  const mockReady = (challenge: string, at: string) => ({
+    orderId: 'order_e2',
+    photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+    readinessChallenge: challenge,
+    qty: 1,
+    variant: 'taille unique',
+    availableConfirmed: true,
+    at,
+  });
+
+  function refusedScene() {
+    const book = new FulfillmentBook();
+    const desk = new ProtectionDesk(book);
+    const mock = new SeraRefusalEmitterMock();
+    desk.registerPaidOrder(mockRegistration);
+    book.accept(mockAcceptance);
+    const issued = book.issueChallenge('order_e2', T0);
+    if (!issued.ok) throw new Error('setup');
+    if (!book.confirmReady(mockReady(issued.challenge as string, T0), T0).ok) throw new Error('setup');
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), T0)).toMatchObject({ accepted: true, duplicate: false });
+    return { book, desk, mock };
+  }
+
+  const reReady = (book: FulfillmentBook, at: string) => {
+    const fresh = book.issueChallenge('order_e2', at);
+    if (!fresh.ok) throw new Error('setup');
+    expect(book.confirmReady(mockReady(fresh.challenge as string, at), at).ok).toBe(true);
+  };
+
+  it('UNDER the deadline: silent — the refusal alone triggers no refund', () => {
+    const { desk } = refusedScene();
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN - 1)).alerted).toEqual([]);
+    expect(desk.allEvents().filter((e) => (e.payload as Record<string, unknown>)['kind'] === 'refused_never_corrected')).toHaveLength(0);
+    expect(desk.allRefundsRequired()).toEqual([]);
+  });
+
+  it('PAST the deadline uncorrected: ONE alert + FROZEN refund_required(seller, buyerPriority) LINKED to the refusal claim; idempotent', () => {
+    const { desk } = refusedScene();
+    const swept = desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN));
+    expect(swept.alerted).toEqual(['order_e2']);
+    const alerts = desk.allEvents().filter((e) => (e.payload as Record<string, unknown>)['kind'] === 'refused_never_corrected');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.payload).toMatchObject({
+      order_id: 'order_e2',
+      refused_at: T0,
+      aged_min: CORRECTION_MIN,
+      linked_claim_reason: 'pickup_refusal:colour', // linkage to the claim the refusal opened
+      policy_version: 'fulfillment-aging-policy.v2',
+    });
+    const records = desk.allRefundsRequired();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ orderId: 'order_e2', reason: 'refused_never_corrected', faultClass: 'seller', buyerPriority: true, amountFcfa: 11_000 });
+    expect(Object.isFrozen(records[0])).toBe(true);
+    // Idempotent within the episode.
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 120)).alerted).toEqual([]);
+    expect(desk.allRefundsRequired()).toHaveLength(1);
+  });
+
+  it('NEVER after correction: re-readied before the deadline → silence forever, however late the sweep', () => {
+    const { book, desk } = refusedScene();
+    reReady(book, minutesAfter(30));
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 600)).alerted).toEqual([]);
+    expect(desk.allRefundsRequired()).toEqual([]);
+    // And the stop is permanent, not just late: a second sweep stays silent.
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 1200)).alerted).toEqual([]);
+  });
+
+  it('RE-ARM: correction lands, then a GENUINE second refusal (sera attempt-2 command_id) restarts the clock — fires once for episode 2', () => {
+    const { book, desk, mock } = refusedScene();
+    reReady(book, minutesAfter(30));
+    expect(desk.sweepCorrectionAging(minutesAfter(40)).alerted).toEqual([]); // episode 1 corrected — disarmed
+    // The second refusal arrives as sera's NEW per-attempt event, NOT a duplicate.
+    const secondRefusalAt = minutesAfter(60);
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['damage'], 2), secondRefusalAt))
+      .toMatchObject({ accepted: true, duplicate: false });
+    // Under episode-2's deadline: silent. Past it: fires once.
+    expect(desk.sweepCorrectionAging(minutesAfter(60 + CORRECTION_MIN - 1)).alerted).toEqual([]);
+    const swept = desk.sweepCorrectionAging(minutesAfter(60 + CORRECTION_MIN));
+    expect(swept.alerted).toEqual(['order_e2']);
+    const alerts = desk.allEvents().filter((e) => (e.payload as Record<string, unknown>)['kind'] === 'refused_never_corrected');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.payload).toMatchObject({ refused_at: secondRefusalAt, linked_claim_reason: 'pickup_refusal:damage' });
+    // A REPLAY of the same attempt-2 event stays a duplicate — no third clock.
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['damage'], 2), minutesAfter(61)))
+      .toEqual({ accepted: true, duplicate: true });
   });
 });
 
