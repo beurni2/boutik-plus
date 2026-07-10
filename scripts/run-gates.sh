@@ -77,7 +77,7 @@ capture readiness-drop-code-negative fail node scripts/gates/readiness-gate.mjs 
 log "gate: readiness — NEGATIVE FIXTURE (expired challenge, must REFUSE CLOSED)"
 capture readiness-expired-negative fail node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.expired-challenge.json
 
-log "mock certification — both in-repo mocks 8/8 via the pinned @platform/certification suite (must pass)"
+log "mock certification — all three in-repo mocks 8/8 via the pinned @platform/certification suite (must pass)"
 capture certify-mocks pass node scripts/certify-mocks.mjs
 
 log "gate: no-seller-deposit — repo source (must pass)"
@@ -85,6 +85,12 @@ capture no-seller-deposit-positive pass node scripts/gates/no-seller-deposit.mjs
 
 log "gate: no-seller-deposit — NEGATIVE FIXTURE (sellerDeposit field, must fail)"
 capture no-seller-deposit-negative fail node scripts/gates/no-seller-deposit.mjs gates/fixtures/negative/no-seller-deposit
+
+log "gate: no-seller-debit — repo source (must pass)"
+capture no-seller-debit-positive pass node scripts/gates/no-seller-debit.mjs
+
+log "gate: no-seller-debit — NEGATIVE FIXTURE (debitFcfa/deduct/retenue flow, must fail)"
+capture no-seller-debit-negative fail node scripts/gates/no-seller-debit.mjs gates/fixtures/negative/no-seller-debit
 
 log "gate: single-level — repo source (must pass)"
 capture single-level-positive pass node scripts/gates/single-level.mjs
@@ -123,13 +129,13 @@ log "gate: French Voice copy-lint — NEGATIVE FIXTURE (veuillez/séquestre + ma
 capture copy-lint-negative fail pnpm exec copy-lint gates/fixtures/negative/catalog.negative.json
 
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.4.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.5.0
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.4.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.5.0
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then

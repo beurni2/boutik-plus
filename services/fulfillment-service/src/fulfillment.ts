@@ -19,6 +19,19 @@ import {
 
 export const READINESS_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
+/**
+ * WO-2.6 aging policy — versioned DATA, founder-tunable. ⚠ SAFEST DEFAULTS
+ * FLAGGED: the specs name no acceptance-decision or ready-no-task deadline
+ * values; these are CTO defaults pending the founder's numbers.
+ */
+export const FULFILLMENT_AGING_POLICY_V1 = {
+  version: 'fulfillment-aging-policy.v1',
+  /** Paid order awaiting the supplier's accept/decline decision. */
+  acceptanceDecisionMin: 120,
+  /** Readiness confirmed but no dispatch task appeared. */
+  readyPackageNoTaskMin: 60,
+} as const;
+
 export interface FulfillmentAcceptance {
   orderId: string;
   variant: string;
@@ -31,6 +44,8 @@ export interface FulfillmentAcceptance {
 interface IssuedChallenge {
   challenge: SellerReadinessChallenge;
   expiresAt: string;
+  /** WO-2.6: single-use discipline — a consumed challenge refuses forever. */
+  consumedAt?: string;
 }
 
 export type ReadinessOutcome =
@@ -42,6 +57,7 @@ export type ReadinessOutcome =
         | 'not_canonical_or_foreign_secret'
         | 'challenge_missing_or_mismatched'
         | 'challenge_expired'
+        | 'challenge_already_used'
         | 'locked_terms_mismatch';
     };
 
@@ -49,12 +65,49 @@ export class FulfillmentBook {
   private readonly accepted = new Map<string, FulfillmentAcceptance>();
   private readonly challenges = new Map<string, IssuedChallenge>();
   private readonly ready = new Map<string, PackageReadinessConfirmation>();
+  /** WO-2.6: paid orders awaiting the supplier's DECISION (Contract E2
+   * "paid-order-no-supplier-decision"). */
+  private readonly awaitingDecision = new Map<string, { paidAt: string }>();
   private counter = 0;
+
+  registerPaidOrder(orderId: string, paidAt: string): void {
+    // First-wins: a redelivery (or a crafted later paidAt) must never reset
+    // the decision clock (WO-2.6 verifier finding 4, replayed as a test).
+    if (!this.accepted.has(orderId) && !this.awaitingDecision.has(orderId)) {
+      this.awaitingDecision.set(orderId, { paidAt });
+    }
+  }
+
+  /** Clock-controlled aging: paid past the decision deadline and still
+   * undecided. Resolution (acceptance) removes it — an alert can never fire
+   * after the decision landed. */
+  ordersPastDecisionDeadline(nowIso: string): readonly { orderId: string; paidAt: string; agedMin: number }[] {
+    const out: { orderId: string; paidAt: string; agedMin: number }[] = [];
+    for (const [orderId, rec] of this.awaitingDecision) {
+      const agedMin = (Date.parse(nowIso) - Date.parse(rec.paidAt)) / 60_000;
+      if (agedMin >= FULFILLMENT_AGING_POLICY_V1.acceptanceDecisionMin) {
+        out.push({ orderId, paidAt: rec.paidAt, agedMin: Math.floor(agedMin) });
+      }
+    }
+    return out;
+  }
+
+  /** Readiness confirmed, no dispatch task yet, past the aging window. */
+  readyPackagesWithoutTask(taskExistsFor: (orderId: string) => boolean, nowIso: string): readonly string[] {
+    const out: string[] = [];
+    for (const [orderId, confirmation] of this.ready) {
+      if (taskExistsFor(orderId)) continue;
+      const agedMin = (Date.parse(nowIso) - Date.parse(confirmation.at)) / 60_000;
+      if (agedMin >= FULFILLMENT_AGING_POLICY_V1.readyPackageNoTaskMin) out.push(orderId);
+    }
+    return out;
+  }
 
   accept(acceptance: FulfillmentAcceptance): { ok: true; locked: FulfillmentAcceptance } | { ok: false; reason: 'already_accepted' } {
     if (this.accepted.has(acceptance.orderId)) return { ok: false, reason: 'already_accepted' };
     const locked = Object.freeze({ ...acceptance });
     this.accepted.set(acceptance.orderId, locked);
+    this.awaitingDecision.delete(acceptance.orderId); // decided — aging stops
     return { ok: true, locked };
   }
 
@@ -86,14 +139,27 @@ export class FulfillmentBook {
     if (!issued || issued.challenge !== confirmation.readinessChallenge) {
       return { ok: false, reason: 'challenge_missing_or_mismatched' };
     }
+    // WO-2.6: single-use — a consumed challenge refuses; re-readiness needs
+    // a freshly issued (distinct) challenge.
+    if (issued.consumedAt !== undefined) return { ok: false, reason: 'challenge_already_used' };
     if (nowIso > issued.expiresAt) return { ok: false, reason: 'challenge_expired' };
 
     if (confirmation.qty !== acceptance.qty || confirmation.variant !== acceptance.variant || !confirmation.availableConfirmed) {
       return { ok: false, reason: 'locked_terms_mismatch' };
     }
 
+    issued.consumedAt = nowIso;
     this.ready.set(confirmation.orderId, confirmation);
     return { ok: true, confirmation, pickupEligible: true };
+  }
+
+  /** WO-2.6 corrective flow: a refused pickup clears the stale readiness so
+   * stock state stays honest; the seller corrects and re-readies with a NEW
+   * challenge (the old one is consumed/expired — refused). */
+  reopenForCorrection(orderId: string): { ok: true } | { ok: false; reason: 'not_ready' } {
+    if (!this.ready.has(orderId)) return { ok: false, reason: 'not_ready' };
+    this.ready.delete(orderId);
+    return { ok: true };
   }
 
   /** "No pickup task before readiness" — the single pickup-eligibility rule. */

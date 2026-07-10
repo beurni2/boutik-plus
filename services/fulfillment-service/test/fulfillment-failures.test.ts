@@ -1,0 +1,408 @@
+import { describe, expect, it } from 'vitest';
+import { FulfillmentBook, FULFILLMENT_AGING_POLICY_V1 } from '../src/fulfillment.js';
+import { ProtectionDesk, PROTECTION_CLAIM_STATES_V1 } from '../src/protection.js';
+import { SeraRefusalEmitterMock } from '../mocks/sera-refusal-emitter-mock.js';
+
+/**
+ * WO-2.6 — fulfillment failure flows + Protection Fund routing.
+ * Every clock is CONTROLLED: both sides of both aging deadlines, and the
+ * never-after-resolution law. Every seller-fault refund_required carries the
+ * B+I-13 buyer-priority marker. The seller is never touched in money — only
+ * in access.
+ */
+
+const T0 = '2026-07-10T09:00:00.000Z';
+const minutesAfter = (min: number) => new Date(Date.parse(T0) + min * 60_000).toISOString();
+const DECISION_MIN = FULFILLMENT_AGING_POLICY_V1.acceptanceDecisionMin;
+const READY_MIN = FULFILLMENT_AGING_POLICY_V1.readyPackageNoTaskMin;
+const SHA = 'a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef';
+
+const acceptance = { orderId: 'order-e2-0001', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' };
+const registration = { orderId: 'order-e2-0001', sellerId: 'sup-1', paidAt: T0, amountFcfa: 11_000, evidenceBundleId: 'eb-pay-0001' };
+
+function readyPayload(challenge: string, at: string) {
+  return {
+    orderId: 'order-e2-0001',
+    photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+    readinessChallenge: challenge,
+    qty: 1,
+    variant: 'taille unique',
+    availableConfirmed: true,
+    at,
+  };
+}
+
+function paidDesk() {
+  const book = new FulfillmentBook();
+  const desk = new ProtectionDesk(book);
+  desk.registerPaidOrder(registration);
+  return { book, desk };
+}
+
+function readyDesk(at = T0) {
+  const { book, desk } = paidDesk();
+  book.accept(acceptance);
+  const issued = book.issueChallenge('order-e2-0001', at);
+  if (!issued.ok) throw new Error('setup');
+  const ready = book.confirmReady(readyPayload(issued.challenge as string, at), at);
+  if (!ready.ok) throw new Error('setup');
+  return { book, desk };
+}
+
+describe('paid-order-no-supplier-decision aging (Contract E2 exit; B+I-12/B+I-13)', () => {
+  it('UNDER the deadline: silent — no alert, no claim, no refund record', () => {
+    const { desk } = paidDesk();
+    const swept = desk.sweepDecisionAging(minutesAfter(DECISION_MIN - 1));
+    expect(swept.alerted).toEqual([]);
+    expect(desk.allEvents()).toEqual([]);
+    expect(desk.allRefundsRequired()).toEqual([]);
+    expect(desk.claimFor('order-e2-0001')).toBeUndefined();
+  });
+
+  it('PAST the deadline: ONE reconciliation.alert.v1 + refund_required(faultClass=seller, buyerPriority) + canonical claim + access impact', () => {
+    const { desk } = paidDesk();
+    const swept = desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    expect(swept.alerted).toEqual(['order-e2-0001']);
+
+    const alerts = desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.payload).toMatchObject({
+      kind: 'paid_order_no_supplier_decision',
+      order_id: 'order-e2-0001',
+      aged_min: DECISION_MIN,
+      policy_version: 'fulfillment-aging-policy.v1',
+    });
+
+    // B+I-13: the trigger record — buyer first, marker present, amount COPIED.
+    expect(desk.allRefundsRequired()).toEqual([
+      {
+        orderId: 'order-e2-0001',
+        reason: 'paid_order_no_supplier_decision',
+        faultClass: 'seller',
+        buyerPriority: true,
+        amountFcfa: 11_000,
+        recordedAt: minutesAfter(DECISION_MIN),
+      },
+    ]);
+
+    const entry = desk.claimFor('order-e2-0001');
+    expect(entry?.state).toBe('opened');
+    expect(entry?.claim).toEqual({
+      orderId: 'order-e2-0001',
+      reason: 'paid_order_no_supplier_decision',
+      amount: 11_000,
+      faultClass: 'seller',
+      evidenceBundleId: 'eb-pay-0001',
+      state: 'opened',
+    });
+
+    // Access-based impact ONLY: a count and (below threshold) no restriction.
+    expect(desk.trustStateFor('sup-1')).toEqual({
+      sellerId: 'sup-1',
+      tier: 'provisional',
+      faultCount: 1,
+      restrictions: [],
+      probationLimits: { maxActiveOrders: 3 },
+    });
+  });
+
+  it('idempotent: a second sweep past the deadline adds NOTHING', () => {
+    const { desk } = paidDesk();
+    desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    const again = desk.sweepDecisionAging(minutesAfter(DECISION_MIN + 60));
+    expect(again.alerted).toEqual([]);
+    expect(desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1')).toHaveLength(1);
+    expect(desk.allRefundsRequired()).toHaveLength(1);
+  });
+
+  it('NEVER after resolution: the supplier decides before the sweep runs → silence forever, even far past the deadline', () => {
+    const { book, desk } = paidDesk();
+    book.accept(acceptance); // the decision lands (in time or late — it landed)
+    const swept = desk.sweepDecisionAging(minutesAfter(DECISION_MIN + 600));
+    expect(swept.alerted).toEqual([]);
+    expect(desk.allEvents()).toEqual([]);
+    expect(desk.allRefundsRequired()).toEqual([]);
+  });
+});
+
+describe('ready-package-no-task aging (Contract E2 exit)', () => {
+  const noTask = () => false;
+  const hasTask = () => true;
+
+  it('UNDER the window: silent; PAST it: ONE alert, no claim and no refund record (platform plumbing, not seller fault)', () => {
+    const { desk } = readyDesk();
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN - 1)).alerted).toEqual([]);
+    expect(desk.allEvents()).toEqual([]);
+
+    const swept = desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN));
+    expect(swept.alerted).toEqual(['order-e2-0001']);
+    const alerts = desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.payload).toMatchObject({ kind: 'ready_package_no_task', order_id: 'order-e2-0001' });
+    expect(desk.allRefundsRequired()).toEqual([]);
+    expect(desk.claimFor('order-e2-0001')).toBeUndefined();
+
+    // Idempotent thereafter.
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN + 30)).alerted).toEqual([]);
+    expect(desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1')).toHaveLength(1);
+  });
+
+  it('NEVER after resolution: a dispatch task exists → no alert however old the readiness is', () => {
+    const { desk } = readyDesk();
+    expect(desk.sweepReadyNoTask(hasTask, minutesAfter(READY_MIN + 600)).alerted).toEqual([]);
+    expect(desk.allEvents()).toEqual([]);
+  });
+});
+
+describe('challenge single-use + re-issue discipline (WO-2.6 corrective flow prerequisite)', () => {
+  it('a CONSUMED challenge refuses forever; re-readiness needs a fresh, DISTINCT challenge', () => {
+    const book = new FulfillmentBook();
+    book.accept(acceptance);
+    const first = book.issueChallenge('order-e2-0001', T0);
+    if (!first.ok) throw new Error('setup');
+    expect(book.confirmReady(readyPayload(first.challenge as string, T0), T0).ok).toBe(true);
+
+    // Corrective reopen, then attempt re-use of the consumed challenge: REFUSED.
+    expect(book.reopenForCorrection('order-e2-0001')).toEqual({ ok: true });
+    expect(book.isPickupEligible('order-e2-0001')).toBe(false); // honest stock
+    expect(book.confirmReady(readyPayload(first.challenge as string, minutesAfter(1)), minutesAfter(1)))
+      .toEqual({ ok: false, reason: 'challenge_already_used' });
+
+    // A fresh issue is a NEW branded secret, distinct from the consumed one.
+    const second = book.issueChallenge('order-e2-0001', minutesAfter(1));
+    if (!second.ok) throw new Error('setup');
+    expect(second.challenge).not.toBe(first.challenge);
+    expect(book.confirmReady(readyPayload(second.challenge as string, minutesAfter(2)), minutesAfter(2)).ok).toBe(true);
+    expect(book.isPickupEligible('order-e2-0001')).toBe(true);
+  });
+
+  it('an EXPIRED challenge refuses; the re-issued one works — expiry and consumption are separate refusals', () => {
+    const book = new FulfillmentBook();
+    book.accept(acceptance);
+    const first = book.issueChallenge('order-e2-0001', T0);
+    if (!first.ok) throw new Error('setup');
+    expect(book.confirmReady(readyPayload(first.challenge as string, minutesAfter(11)), minutesAfter(11)))
+      .toEqual({ ok: false, reason: 'challenge_expired' });
+    const second = book.issueChallenge('order-e2-0001', minutesAfter(11));
+    if (!second.ok) throw new Error('setup');
+    expect(book.confirmReady(readyPayload(second.challenge as string, minutesAfter(12)), minutesAfter(12)).ok).toBe(true);
+  });
+});
+
+describe('pickup-refusal consumption → claim + corrective flow (sera signal, §3-certified mock)', () => {
+  // The mock's seed 'e2' yields order_e2 — register the desk under that id.
+  const mockRegistration = { orderId: 'order_e2', sellerId: 'sup-1', paidAt: T0, amountFcfa: 11_000, evidenceBundleId: 'eb-pay-e2' };
+  const mockAcceptance = { orderId: 'order_e2', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' };
+  const mockReadyPayload = (challenge: string, at: string) => ({ ...readyPayload(challenge, at), orderId: 'order_e2' });
+
+  function refusalScene() {
+    const book = new FulfillmentBook();
+    const desk = new ProtectionDesk(book);
+    desk.registerPaidOrder(mockRegistration);
+    book.accept(mockAcceptance);
+    const issued = book.issueChallenge('order_e2', T0);
+    if (!issued.ok) throw new Error('setup');
+    const ready = book.confirmReady(mockReadyPayload(issued.challenge as string, T0), T0);
+    if (!ready.ok) throw new Error('setup');
+    return { book, desk, mock: new SeraRefusalEmitterMock(), firstChallenge: issued.challenge as string };
+  }
+
+  it('E2E: refusal consumed → canonical seller-fault claim + dignified structured reason + readiness reopened + NEW challenge re-readies', () => {
+    const { book, desk, mock, firstChallenge } = refusalScene();
+    const signal = mock.emitRefusalSignal('e2', ['colour', 'qty']);
+    const outcome = desk.consumePickupRefusalSignal(signal, minutesAfter(5));
+    expect(outcome).toMatchObject({
+      accepted: true,
+      duplicate: false,
+      corrective: { orderId: 'order_e2', failedChecks: ['colour', 'qty'], readinessReopened: true },
+    });
+    if (!outcome.accepted || outcome.duplicate) throw new Error('unexpected');
+
+    // The canonical claim: fault attributed, amount COPIED, structured reason.
+    expect(outcome.claim).toEqual({
+      orderId: 'order_e2',
+      reason: 'pickup_refusal:colour,qty',
+      amount: 11_000,
+      faultClass: 'seller',
+      evidenceBundleId: 'eb-pay-e2',
+      state: 'opened',
+    });
+
+    // Honest stock: readiness cleared, pickup no longer eligible.
+    expect(book.isPickupEligible('order_e2')).toBe(false);
+
+    // The consumed challenge is dead; the corrective path issues a NEW one.
+    expect(book.confirmReady(mockReadyPayload(firstChallenge, minutesAfter(6)), minutesAfter(6)))
+      .toEqual({ ok: false, reason: 'challenge_already_used' });
+    const fresh = book.issueChallenge('order_e2', minutesAfter(6));
+    if (!fresh.ok) throw new Error('setup');
+    expect(fresh.challenge).not.toBe(firstChallenge);
+    expect(book.confirmReady(mockReadyPayload(fresh.challenge as string, minutesAfter(7)), minutesAfter(7)).ok).toBe(true);
+    expect(book.isPickupEligible('order_e2')).toBe(true);
+
+    // Access impact recorded; refusal alone does NOT trigger a buyer refund
+    // record — the corrective flow re-delivers the same order.
+    expect(desk.trustStateFor('sup-1')?.faultCount).toBe(1);
+    expect(desk.allRefundsRequired()).toEqual([]);
+  });
+
+  it('at-least-once: the SAME command_id redelivered absorbs as duplicate — one claim, one fault', () => {
+    const { desk, mock } = refusalScene();
+    const signal = mock.emitRefusalSignal('e2', ['colour']);
+    expect(desk.consumePickupRefusalSignal(signal, minutesAfter(5))).toMatchObject({ accepted: true, duplicate: false });
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(6)))
+      .toEqual({ accepted: true, duplicate: true });
+    expect(desk.trustStateFor('sup-1')?.faultCount).toBe(1);
+  });
+
+  it('refuses closed: non-event, non-refusal name, MISSING fault attribution, non-seller fault, unknown order', () => {
+    const { desk, mock } = refusalScene();
+    expect(desk.consumePickupRefusalSignal({ garbage: true }, T0)).toEqual({ accepted: false, reason: 'not_a_platform_event' });
+
+    const signal = mock.emitRefusalSignal('e2', ['colour']);
+    expect(desk.consumePickupRefusalSignal({ ...signal, name: 'fulfillment.ready.v1' }, T0))
+      .toEqual({ accepted: false, reason: 'not_a_refusal_signal' });
+
+    // A claim with NO fault attribution cannot open anything (verifier attack).
+    const { faultClass: _dropped, ...unattributed } = signal.payload as Record<string, unknown>;
+    expect(desk.consumePickupRefusalSignal({ ...signal, payload: unattributed }, T0))
+      .toEqual({ accepted: false, reason: 'fault_not_attributed' });
+
+    expect(desk.consumePickupRefusalSignal({ ...signal, payload: { ...(signal.payload as object), faultClass: 'sera' } }, T0))
+      .toEqual({ accepted: false, reason: 'not_seller_fault' });
+
+    const foreign = mock.emitRefusalSignal('unknown', ['colour']);
+    expect(desk.consumePickupRefusalSignal(foreign, T0)).toEqual({ accepted: false, reason: 'order_unknown' });
+    expect(desk.claimFor('order_e2')).toBeUndefined();
+    expect(desk.trustStateFor('sup-1')).toBeUndefined();
+  });
+
+  // ⚠ Verifier finding 3 (cross-repo, flagged in JOURNAL.md): the REAL sera
+  // emission keys the fault command per ORDER (`fault-<orderId>`), so a
+  // genuine second refusal on the same order absorbs as a duplicate today —
+  // the round-2 command_id below is hand-crafted to exercise the threshold
+  // MECHANICS. Repeat-fault thresholds are unreachable in production until
+  // sera emits per-attempt uniqueness (escalated to the founder).
+  it('second seller fault crosses the policy threshold → access pauses (restriction), still ZERO money surface', () => {
+    const { book, desk, mock } = refusalScene();
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(5)))
+      .toMatchObject({ accepted: true, duplicate: false });
+    // Correct, re-ready, second refusal (a distinct command via different checks
+    // — sera would re-emit after the corrective round-trip).
+    const fresh = book.issueChallenge('order_e2', minutesAfter(6));
+    if (!fresh.ok) throw new Error('setup');
+    book.confirmReady(mockReadyPayload(fresh.challenge as string, minutesAfter(7)), minutesAfter(7));
+    const second = { ...mock.emitRefusalSignal('e2', ['damage']), envelope: { ...mock.emitRefusalSignal('e2', ['damage']).envelope, command_id: 'cmd_fault-order_e2-round2' } };
+    expect(desk.consumePickupRefusalSignal(second, minutesAfter(8))).toMatchObject({ accepted: true, duplicate: false });
+
+    const trust = desk.trustStateFor('sup-1');
+    expect(trust).toEqual({
+      sellerId: 'sup-1',
+      tier: 'provisional',
+      faultCount: 2,
+      restrictions: ['new_offers_paused'],
+      probationLimits: { maxActiveOrders: 3 },
+    });
+    // The canonical strict shape holds NO money field — parse proved it; the
+    // record contains exactly the access keys above and nothing else.
+    expect(Object.keys(trust as object).sort()).toEqual(['faultCount', 'probationLimits', 'restrictions', 'sellerId', 'tier']);
+  });
+});
+
+describe('LOCAL claim-state vocabulary (canon state is spec-bare — flagged)', () => {
+  it('opened → under_review → resolved, forward only; unknown claim refuses', () => {
+    expect(PROTECTION_CLAIM_STATES_V1.states).toEqual(['opened', 'under_review', 'resolved']);
+    const { desk } = paidDesk();
+    desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    expect(desk.advanceClaim('order-e2-0001', 'resolved')).toEqual({ ok: false, reason: 'not_forward' });
+    expect(desk.advanceClaim('order-e2-0001', 'under_review')).toEqual({ ok: true, state: 'under_review' });
+    expect(desk.advanceClaim('order-e2-0001', 'resolved')).toEqual({ ok: true, state: 'resolved' });
+    expect(desk.advanceClaim('order-e2-0001', 'opened')).toEqual({ ok: false, reason: 'not_forward' });
+    expect(desk.advanceClaim('order-none', 'under_review')).toEqual({ ok: false, reason: 'claim_unknown' });
+    expect(desk.claimFor('order-e2-0001')?.claim.state).toBe('resolved');
+  });
+});
+
+describe('verifier attacks replayed as regressions (WO-2.6 findings 2/4/5)', () => {
+  it('finding 2: refund_required records are FROZEN — mutation through the getter cannot flip the B+I-13 marker', () => {
+    const { desk } = paidDesk();
+    desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    const record = desk.allRefundsRequired()[0]!;
+    expect(() => {
+      (record as { buyerPriority: boolean }).buyerPriority = false;
+    }).toThrow(TypeError);
+    expect(desk.allRefundsRequired()[0]!.buyerPriority).toBe(true);
+  });
+
+  it('finding 4: the decision clock is FIRST-WINS — re-registering with a later paidAt cannot evade the deadline', () => {
+    const { book, desk } = paidDesk();
+    // The verifier's evasion: push paidAt forward through the book directly.
+    book.registerPaidOrder('order-e2-0001', minutesAfter(DECISION_MIN - 1));
+    const swept = desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    expect(swept.alerted).toEqual(['order-e2-0001']);
+    const alert = desk.allEvents().find((e) => e.name === 'reconciliation.alert.v1');
+    expect(alert?.payload).toMatchObject({ paid_at: T0 }); // the ORIGINAL clock
+  });
+
+  it('finding 5: ready-no-task alerts are once-per-EPISODE — a corrective reopen arms a fresh episode that can alert again', () => {
+    const { book, desk, mock } = (() => {
+      const book = new FulfillmentBook();
+      const desk = new ProtectionDesk(book);
+      desk.registerPaidOrder({ orderId: 'order_e2', sellerId: 'sup-1', paidAt: T0, amountFcfa: 11_000, evidenceBundleId: 'eb-pay-e2' });
+      book.accept({ orderId: 'order_e2', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' });
+      const issued = book.issueChallenge('order_e2', T0);
+      if (!issued.ok) throw new Error('setup');
+      const payload = {
+        orderId: 'order_e2',
+        photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+        readinessChallenge: issued.challenge,
+        qty: 1,
+        variant: 'taille unique',
+        availableConfirmed: true,
+        at: T0,
+      };
+      if (!book.confirmReady(payload, T0).ok) throw new Error('setup');
+      return { book, desk, mock: new SeraRefusalEmitterMock() };
+    })();
+    const noTask = () => false;
+
+    // Episode 1 stalls and alerts once.
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN)).alerted).toEqual(['order_e2']);
+    // The refusal reopens readiness — a NEW episode begins.
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(READY_MIN + 5)))
+      .toMatchObject({ accepted: true, duplicate: false });
+    const reReadyAt = minutesAfter(READY_MIN + 6);
+    const fresh = book.issueChallenge('order_e2', reReadyAt);
+    if (!fresh.ok) throw new Error('setup');
+    const reReady = book.confirmReady({
+      orderId: 'order_e2',
+      photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+      readinessChallenge: fresh.challenge,
+      qty: 1,
+      variant: 'taille unique',
+      availableConfirmed: true,
+      at: reReadyAt,
+    }, reReadyAt);
+    expect(reReady.ok).toBe(true);
+    // Episode 2 stalls too — it MUST alert again (once).
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN + 6 + READY_MIN)).alerted).toEqual(['order_e2']);
+    expect(desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1' && (e.payload as Record<string, unknown>)['kind'] === 'ready_package_no_task')).toHaveLength(2);
+  });
+});
+
+describe('B+I-13 — every seller-fault refund_required carries the buyer-priority marker', () => {
+  it('the marker is on EVERY record, and the record type makes it unconstructable without', () => {
+    const { desk } = paidDesk();
+    const laterOrder = { orderId: 'order-e2-0002', sellerId: 'sup-2', paidAt: T0, amountFcfa: 4_500, evidenceBundleId: 'eb-pay-0002' };
+    desk.registerPaidOrder(laterOrder);
+    desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    const records = desk.allRefundsRequired();
+    expect(records).toHaveLength(2);
+    for (const record of records) {
+      expect(record.faultClass).toBe('seller');
+      expect(record.buyerPriority).toBe(true);
+    }
+    // Amounts are the COPIED payment figures, per order, to the franc.
+    expect(records.map((r) => r.amountFcfa).sort((a, b) => a - b)).toEqual([4_500, 11_000]);
+  });
+});

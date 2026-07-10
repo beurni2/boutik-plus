@@ -15,3 +15,4 @@ export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
 export * from './fulfillment.js';
+export * from './protection.js';
