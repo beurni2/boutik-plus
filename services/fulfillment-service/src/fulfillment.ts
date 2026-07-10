@@ -20,16 +20,22 @@ import {
 export const READINESS_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
 /**
- * WO-2.6 aging policy — versioned DATA, founder-tunable. ⚠ SAFEST DEFAULTS
- * FLAGGED: the specs name no acceptance-decision or ready-no-task deadline
- * values; these are CTO defaults pending the founder's numbers.
+ * Aging policy — versioned DATA, founder-tunable at E4 telemetry, never
+ * silently. v2 (WO-2.7 item 5, founder ruling ② on WO-2.6): the THIRD aging
+ * clock — a refused-never-corrected order ages into the seller-fault refund
+ * trigger. The v1 values (120/60) were ACCEPTED as CTO defaults by the
+ * founder's WO-2.6 ruling ① and carry forward unchanged. ⚠ SAFEST DEFAULT
+ * FLAGGED: correctionDeadlineMin 360 is a CTO default pending the founder's
+ * number.
  */
-export const FULFILLMENT_AGING_POLICY_V1 = {
-  version: 'fulfillment-aging-policy.v1',
+export const FULFILLMENT_AGING_POLICY_V2 = {
+  version: 'fulfillment-aging-policy.v2',
   /** Paid order awaiting the supplier's accept/decline decision. */
   acceptanceDecisionMin: 120,
   /** Readiness confirmed but no dispatch task appeared. */
   readyPackageNoTaskMin: 60,
+  /** Refused at pickup, never corrected/re-readied (the third clock). */
+  correctionDeadlineMin: 360,
 } as const;
 
 export interface FulfillmentAcceptance {
@@ -65,6 +71,10 @@ export class FulfillmentBook {
   private readonly accepted = new Map<string, FulfillmentAcceptance>();
   private readonly challenges = new Map<string, IssuedChallenge>();
   private readonly ready = new Map<string, PackageReadinessConfirmation>();
+  /** WO-2.7 verifier blocking finding 1: the DURABLE correction record — a
+   * confirmed readiness is evidence that outlives any later readiness
+   * clearing. Set on every confirmReady success, NEVER deleted. */
+  private readonly lastReadyAt = new Map<string, string>();
   /** WO-2.6: paid orders awaiting the supplier's DECISION (Contract E2
    * "paid-order-no-supplier-decision"). */
   private readonly awaitingDecision = new Map<string, { paidAt: string }>();
@@ -85,7 +95,7 @@ export class FulfillmentBook {
     const out: { orderId: string; paidAt: string; agedMin: number }[] = [];
     for (const [orderId, rec] of this.awaitingDecision) {
       const agedMin = (Date.parse(nowIso) - Date.parse(rec.paidAt)) / 60_000;
-      if (agedMin >= FULFILLMENT_AGING_POLICY_V1.acceptanceDecisionMin) {
+      if (agedMin >= FULFILLMENT_AGING_POLICY_V2.acceptanceDecisionMin) {
         out.push({ orderId, paidAt: rec.paidAt, agedMin: Math.floor(agedMin) });
       }
     }
@@ -98,7 +108,7 @@ export class FulfillmentBook {
     for (const [orderId, confirmation] of this.ready) {
       if (taskExistsFor(orderId)) continue;
       const agedMin = (Date.parse(nowIso) - Date.parse(confirmation.at)) / 60_000;
-      if (agedMin >= FULFILLMENT_AGING_POLICY_V1.readyPackageNoTaskMin) out.push(orderId);
+      if (agedMin >= FULFILLMENT_AGING_POLICY_V2.readyPackageNoTaskMin) out.push(orderId);
     }
     return out;
   }
@@ -150,7 +160,14 @@ export class FulfillmentBook {
 
     issued.consumedAt = nowIso;
     this.ready.set(confirmation.orderId, confirmation);
+    this.lastReadyAt.set(confirmation.orderId, nowIso);
     return { ok: true, confirmation, pickupEligible: true };
+  }
+
+  /** The durable correction timestamp (survives reopenForCorrection and any
+   * downstream readiness consumption) — the third clock disarms on this. */
+  lastReadyAtOf(orderId: string): string | undefined {
+    return this.lastReadyAt.get(orderId);
   }
 
   /** WO-2.6 corrective flow: a refused pickup clears the stale readiness so

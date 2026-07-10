@@ -6,7 +6,7 @@ import {
   type ProtectionClaim,
   type SellerTrustState,
 } from '@platform/contracts';
-import { FULFILLMENT_AGING_POLICY_V1, type FulfillmentBook } from './fulfillment.js';
+import { FULFILLMENT_AGING_POLICY_V2, type FulfillmentBook } from './fulfillment.js';
 
 /**
  * WO-2.6 — Protection Fund ROUTING (the seller-fault spine, B+I-12/B+I-13).
@@ -97,6 +97,11 @@ export type RefusalConsumption =
 interface TrackedOrder extends PaidOrderRegistration {
   decisionAlerted: boolean;
   readyNoTaskAlerted: boolean;
+  /** WO-2.7 item 5 — the THIRD aging clock (founder ruling ② on WO-2.6):
+   * armed by a consumed pickup refusal, disarmed by the corrective
+   * re-readiness, re-armed by a genuine post-correction second refusal. */
+  refusedAt?: string;
+  correctionAlerted: boolean;
 }
 
 export class ProtectionDesk {
@@ -115,7 +120,7 @@ export class ProtectionDesk {
   registerPaidOrder(input: PaidOrderRegistration): void {
     this.book.registerPaidOrder(input.orderId, input.paidAt);
     if (!this.orders.has(input.orderId)) {
-      this.orders.set(input.orderId, { ...input, decisionAlerted: false, readyNoTaskAlerted: false });
+      this.orders.set(input.orderId, { ...input, decisionAlerted: false, readyNoTaskAlerted: false, correctionAlerted: false });
     }
   }
 
@@ -139,7 +144,7 @@ export class ProtectionDesk {
         order_id: aged.orderId,
         paid_at: aged.paidAt,
         aged_min: aged.agedMin,
-        policy_version: FULFILLMENT_AGING_POLICY_V1.version,
+        policy_version: FULFILLMENT_AGING_POLICY_V2.version,
       }, nowIso);
       // Frozen: the B+I-13 marker must survive any reader — TS readonly is
       // compile-time only (WO-2.6 verifier finding 2, mutation through the
@@ -181,7 +186,7 @@ export class ProtectionDesk {
       this.emit('reconciliation.alert.v1', `recon-ready-${orderId}`, {
         kind: 'ready_package_no_task',
         order_id: orderId,
-        policy_version: FULFILLMENT_AGING_POLICY_V1.version,
+        policy_version: FULFILLMENT_AGING_POLICY_V2.version,
       }, nowIso);
       alerted.push(orderId);
     }
@@ -228,12 +233,81 @@ export class ProtectionDesk {
     // New readiness episode: a fresh ready-no-task stall may alert again
     // (verifier finding 5 — flags were once-ever, not once-per-episode).
     if (reopened.ok) tracked.readyNoTaskAlerted = false;
+    // WO-2.7 item 5 — the THIRD clock arms; RE-arm ONLY POST-CORRECTION
+    // (verifier finding 3, ⚠ safest reading of the founder's ruling wording
+    // "a post-correction second refusal re-arms it", flagged for
+    // ratification): a repeat refusal with NO intervening correction keeps
+    // the ORIGINAL clock start — the buyer's B+I-13 trigger never slides
+    // later on the seller's repeat failures.
+    const lastReady = this.book.lastReadyAtOf(orderId);
+    if (tracked.refusedAt === undefined || (lastReady !== undefined && lastReady > tracked.refusedAt)) {
+      tracked.refusedAt = nowIso;
+      tracked.correctionAlerted = false;
+    }
     return {
       accepted: true,
       duplicate: false,
       claim,
       corrective: { orderId, failedChecks, readinessReopened: reopened.ok },
     };
+  }
+
+  /**
+   * WO-2.7 item 5 — the THIRD aging clock (founder ruling ② on WO-2.6):
+   * "the refused-never-corrected limbo closes at E2 assembly by name: a
+   * versioned correctionDeadline ages into refund_required(faultClass=
+   * seller)". Corrective completion (re-readiness confirmed) STOPS the
+   * clock — silence forever unless a genuine second refusal re-arms it.
+   * Past the deadline uncorrected: ONE reconciliation.alert.v1 + the frozen
+   * B+I-13 refund_required record, LINKED to the claim the refusal opened.
+   */
+  sweepCorrectionAging(nowIso: string): { alerted: readonly string[] } {
+    const alerted: string[] = [];
+    for (const tracked of this.orders.values()) {
+      if (tracked.refusedAt === undefined || tracked.correctionAlerted) continue;
+      // DURABLE disarm (verifier BLOCKING finding 1): the correction is the
+      // confirmed re-readiness itself, recorded at write time in the book
+      // and never erased — NOT the transient pickup-eligibility, which any
+      // later readiness clearing could wipe before a sweep observed it.
+      const lastReady = this.book.lastReadyAtOf(tracked.orderId);
+      if (lastReady !== undefined && lastReady > tracked.refusedAt) {
+        // Corrected — the clock stops and never fires for this episode.
+        delete tracked.refusedAt;
+        continue;
+      }
+      const agedMin = (Date.parse(nowIso) - Date.parse(tracked.refusedAt)) / 60_000;
+      if (agedMin < FULFILLMENT_AGING_POLICY_V2.correctionDeadlineMin) continue;
+      tracked.correctionAlerted = true;
+      const linkedClaim = this.claims.get(tracked.orderId);
+      this.emit('reconciliation.alert.v1', `recon-correction-${tracked.orderId}-${tracked.refusedAt}`, {
+        kind: 'refused_never_corrected',
+        order_id: tracked.orderId,
+        refused_at: tracked.refusedAt,
+        aged_min: Math.floor(agedMin),
+        linked_claim_reason: linkedClaim?.claim.reason ?? 'claim_missing',
+        policy_version: FULFILLMENT_AGING_POLICY_V2.version,
+      }, nowIso);
+      // ⚠ SAFEST DEFAULT (verifier finding 2 — spec-silent money semantics,
+      // founder ruling requested): ONE money trigger per order from this
+      // clock. A re-fired episode alerts (ops visibility above) but never
+      // mints a second refund_required — two triggers against one paid
+      // amount cannot reconcile to the franc at E3.
+      const alreadyTriggered = this.refundsRequired.some(
+        (r) => r.orderId === tracked.orderId && r.reason === 'refused_never_corrected',
+      );
+      if (!alreadyTriggered) {
+        this.refundsRequired.push(Object.freeze({
+          orderId: tracked.orderId,
+          reason: 'refused_never_corrected',
+          faultClass: 'seller' as const,
+          buyerPriority: true as const,
+          amountFcfa: tracked.amountFcfa,
+          recordedAt: nowIso,
+        }));
+      }
+      alerted.push(tracked.orderId);
+    }
+    return { alerted };
   }
 
   /** LOCAL state machine: opened → under_review → resolved, forward only. */
