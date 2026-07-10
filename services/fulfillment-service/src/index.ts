@@ -14,3 +14,4 @@ export type FulfillmentServiceShapes = { package: Package; packageReadinessConfi
 export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
+export * from './fulfillment.js';

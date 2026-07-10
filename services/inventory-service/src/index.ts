@@ -14,3 +14,4 @@ export type InventoryServiceShapes = { variant: Variant };
 export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
+export * from './stock-reservation.js';

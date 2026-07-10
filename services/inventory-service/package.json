@@ -2,23 +2,33 @@
   "name": "@boutik/inventory-service",
   "version": "0.0.1",
   "private": true,
-  "description": "Workers service stub (WO-B0.1): folder, types, health endpoint — no features.",
+  "description": "Workers service stub (WO-B0.1): folder, types, health endpoint \u2014 no features.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json",
+    "test": "vitest run",
+    "bundle:worker": "esbuild worker/stock-reservation-do.ts --bundle --format=esm --outfile=dist-worker/stock-worker.mjs --platform=neutral --conditions=import",
+    "pretest": "pnpm bundle:worker"
   },
   "dependencies": {
     "@boutik/observability": "workspace:*",
-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#b10f4822b173c9cd4b162f416ad213bf580ab652&path:packages/contracts"
+    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#9308c641c368ea56d141867d667b122e10db682d&path:packages/contracts"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@cloudflare/workers-types": "^4.20250705.0",
+    "esbuild": "^0.25.5",
+    "miniflare": "^4.20250705.0"
   }
 }

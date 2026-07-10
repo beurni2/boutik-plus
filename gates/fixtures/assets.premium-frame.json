@@ -1,0 +1,29 @@
+{
+  "assets": {
+    "masterRef": {
+      "ref": "private/master/cap-001.jpg",
+      "sha256": "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef",
+      "mimeType": "image/jpeg"
+    },
+    "heroSquare": {
+      "ref": "media/premium-frame-square/cap-001.jpg",
+      "sha256": "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef",
+      "mimeType": "image/jpeg"
+    },
+    "heroVertical": {
+      "ref": "media/premium-frame-vertical/cap-001.jpg",
+      "sha256": "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef",
+      "mimeType": "image/jpeg"
+    },
+    "proof": {
+      "ref": "media/proof/cap-001.jpg",
+      "sha256": "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef",
+      "mimeType": "image/jpeg"
+    },
+    "detail": [],
+    "hashes": [
+      "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef"
+    ],
+    "processingVersion": "premium-frame.v1"
+  }
+}

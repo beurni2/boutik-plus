@@ -16,5 +16,71 @@
     "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "onboard.action",
+    "fr": "Je commence",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "onboard.phone_pending",
+    "fr": "C'est envoyé. En attente du réseau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "product.title",
+    "fr": "Mon produit",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "product.photo_action",
+    "fr": "Prendre la photo",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "product.saved_pending",
+    "fr": "C'est noté. En attente du réseau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "offer.title",
+    "fr": "Mon prix",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "offer.net_preview",
+    "fr": "Vous recevrez {amount} F",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "offer.floor_block",
+    "fr": "Prix trop bas. Le minimum est 5 000 F.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.action",
+    "fr": "Produit prêt",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "ready.pending",
+    "fr": "Envoyé. En attente du réseau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.next",
+    "fr": "Séra vient chercher le colis.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

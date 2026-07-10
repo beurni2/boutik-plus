@@ -14,3 +14,4 @@ export type CatalogServiceShapes = { productVersion: ProductVersion; variant: Va
 export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
+export * from './product.js';
