@@ -14,3 +14,4 @@ export type SupplierServiceShapes = { user: User; sellerTrustState: SellerTrustS
 export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
+export * from './onboarding.js';

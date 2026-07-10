@@ -14,3 +14,5 @@ export type OfferServiceShapes = { supplierOffer: SupplierOffer; commissionAgree
 export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
+export * from './offer.js';
+export * from './projection.js';
