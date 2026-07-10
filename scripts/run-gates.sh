@@ -77,7 +77,7 @@ capture readiness-drop-code-negative fail node scripts/gates/readiness-gate.mjs 
 log "gate: readiness — NEGATIVE FIXTURE (expired challenge, must REFUSE CLOSED)"
 capture readiness-expired-negative fail node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.expired-challenge.json
 
-log "mock certification — both in-repo mocks 8/8 via the pinned @platform/certification suite (must pass)"
+log "mock certification — all three in-repo mocks 8/8 via the pinned @platform/certification suite (must pass)"
 capture certify-mocks pass node scripts/certify-mocks.mjs
 
 log "gate: no-seller-deposit — repo source (must pass)"
@@ -85,6 +85,12 @@ capture no-seller-deposit-positive pass node scripts/gates/no-seller-deposit.mjs
 
 log "gate: no-seller-deposit — NEGATIVE FIXTURE (sellerDeposit field, must fail)"
 capture no-seller-deposit-negative fail node scripts/gates/no-seller-deposit.mjs gates/fixtures/negative/no-seller-deposit
+
+log "gate: no-seller-debit — repo source (must pass)"
+capture no-seller-debit-positive pass node scripts/gates/no-seller-debit.mjs
+
+log "gate: no-seller-debit — NEGATIVE FIXTURE (debitFcfa/deduct/retenue flow, must fail)"
+capture no-seller-debit-negative fail node scripts/gates/no-seller-debit.mjs gates/fixtures/negative/no-seller-debit
 
 log "gate: single-level — repo source (must pass)"
 capture single-level-positive pass node scripts/gates/single-level.mjs

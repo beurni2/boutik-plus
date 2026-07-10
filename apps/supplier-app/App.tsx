@@ -16,7 +16,13 @@ import { t } from './src/i18n';
  * calm, exact, cause stated when a price is blocked.
  */
 
-type Step = 'onboard' | 'product' | 'offer' | 'ready';
+type Step = 'onboard' | 'product' | 'offer' | 'ready' | 'refused';
+
+// WO-2.6 sandbox refusal: the structured mismatch reason a Séra pickup
+// refusal carries (failed checks), shown in the seller's own words. The E1/E2
+// sandbox has no server — this state is reached via the explicit « Essai »
+// path, never faked as live.
+const DEMO_FAILED_CHECK_KEYS = ['check.colour', 'check.qty'] as const;
 
 // E1 sandbox offer figures (B 10,000 · C 1,000 — the §5.4 baseline seller side).
 const SANDBOX_B = 10_000;
@@ -87,6 +93,24 @@ export default function App() {
           <View style={styles.card}>
             <Text style={styles.heading}>{t('ready.action')}</Text>
             <Text style={styles.message}>{t('ready.next')}</Text>
+            <Text style={styles.deadline}>{t('deadline.today')}</Text>
+            <Pressable style={styles.secondaryAction} onPress={() => setStep('refused')}>
+              <Text style={styles.secondaryActionText}>{t('ready.demo_refusal')}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {step === 'refused' && (
+          <View style={styles.card}>
+            <Text style={styles.heading}>{t('refused.title')}</Text>
+            <Text style={styles.message}>
+              {t('refused.cause').replace('{issues}', DEMO_FAILED_CHECK_KEYS.map((key) => t(key)).join(', '))}
+            </Text>
+            <Text style={styles.message}>{t('refused.new_code')}</Text>
+            <Text style={styles.deadline}>{t('deadline.today')}</Text>
+            <Pressable style={styles.primaryAction} onPress={() => advance('ready', 'refused.fixed_pending')}>
+              <Text style={styles.primaryActionText}>{t('refused.fix_action')}</Text>
+            </Pressable>
           </View>
         )}
 
@@ -173,5 +197,22 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
     fontSize: theme.typeScale.bodyLarge.size,
     lineHeight: theme.typeScale.bodyLarge.lineHeight,
+  },
+  deadline: {
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.label.size,
+    lineHeight: theme.typeScale.label.lineHeight,
+    textAlign: 'center',
+  },
+  secondaryAction: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionText: {
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.label.size,
+    lineHeight: theme.typeScale.label.lineHeight,
+    textDecorationLine: 'underline',
   },
 });

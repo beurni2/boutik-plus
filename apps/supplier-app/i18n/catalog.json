@@ -82,5 +82,59 @@
     "fr": "Dès que c'est confirmé, Séra vient chercher le colis.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "deadline.today",
+    "fr": "Avant ce soir 18 h.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.demo_refusal",
+    "fr": "Essai : voir un colis refusé",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "refused.title",
+    "fr": "Séra n'a pas pris le colis",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refused.cause",
+    "fr": "Voici le souci : {issues}.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "check.colour",
+    "fr": "la couleur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "check.qty",
+    "fr": "la quantité",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refused.fix_action",
+    "fr": "Corriger et redire prêt",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "refused.new_code",
+    "fr": "Un nouveau code prêt vous sera envoyé.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refused.fixed_pending",
+    "fr": "C'est corrigé. En attente du réseau.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

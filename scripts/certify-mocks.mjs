@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// WO-1.4 §8 DoD: both in-repo mocks certified 8/8 via the pinned
-// @platform/certification suite. The certification tests print each
-// formatScorecard; this runner executes exactly those two test files and
-// fails unless both pass — its captured output is the scorecard evidence.
+// WO-1.4 §8 DoD (extended by WO-2.6): every in-repo mock certified 8/8 via
+// the pinned @platform/certification suite. The certification tests print
+// each formatScorecard; this runner executes exactly these test files and
+// fails unless all pass — its captured output is the scorecard evidence.
 import { execSync } from 'node:child_process';
 
 const runs = [
   ['Séra pickup-consumer mock (readiness domain)', 'services/fulfillment-service', 'test/sera-mock-certification.test.ts'],
   ['Shop+ projection-consumer mock (supply-projection domain)', 'services/offer-service', 'test/shop-mock-certification.test.ts'],
+  ['Séra pickup-refusal emitter mock (readiness domain, WO-2.6)', 'services/fulfillment-service', 'test/refusal-mock-certification.test.ts'],
 ];
 let failed = false;
 for (const [label, dir, file] of runs) {
