@@ -44,6 +44,42 @@ capture money-reconciliation-positive pass node scripts/gates/money-reconciliati
 log "gate: money-reconciliation — NEGATIVE FIXTURE (independent-multiplication sellerNet, must fail)"
 capture money-reconciliation-negative fail node scripts/gates/money-reconciliation.mjs gates/fixtures/negative/quote.independent-multiplication.json
 
+log "gate: unverified-cannot-publish — verified supplier (must pass)"
+capture unverified-cannot-publish-positive pass node scripts/gates/unverified-cannot-publish.mjs gates/fixtures/publish.verified-supplier.json
+
+log "gate: unverified-cannot-publish — NEGATIVE FIXTURE (unverified supplier publishing, must REFUSE CLOSED)"
+capture unverified-cannot-publish-negative fail node scripts/gates/unverified-cannot-publish.mjs gates/fixtures/negative/publish.unverified-supplier.json
+
+log "gate: premium-frame-assets — canonical EXIF-free price-free assets (must pass)"
+capture premium-frame-positive pass node scripts/gates/premium-frame-assets.mjs gates/fixtures/assets.premium-frame.json
+
+log "gate: premium-frame-assets — NEGATIVE FIXTURE (EXIF-bearing derivative, must fail)"
+capture premium-frame-exif-negative fail node scripts/gates/premium-frame-assets.mjs gates/fixtures/negative/assets.exif-bearing.json
+
+log "gate: premium-frame-assets — NEGATIVE FIXTURE (price-overlaid asset, must fail)"
+capture premium-frame-price-negative fail node scripts/gates/premium-frame-assets.mjs gates/fixtures/negative/assets.price-overlaid.json
+
+log "gate: projection-identity-free — pinned contract shape (must pass)"
+capture projection-identity-positive pass node scripts/gates/projection-identity-free.mjs gates/fixtures/projection.contract.json
+
+log "gate: projection-identity-free — NEGATIVE FIXTURE (supplier identity + pickup leak, must fail)"
+capture projection-identity-negative fail node scripts/gates/projection-identity-free.mjs gates/fixtures/negative/projection.identity-leak.json
+
+log "gate: readiness — happy path with live challenge (must pass)"
+capture readiness-positive pass node scripts/gates/readiness-gate.mjs gates/fixtures/readiness.happy.json
+
+log "gate: readiness — NEGATIVE FIXTURE (pickup task before readiness, must REFUSE CLOSED)"
+capture readiness-pickup-before-negative fail node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.pickup-before.json
+
+log "gate: readiness — NEGATIVE FIXTURE (buyerDropCode in readiness payload, must REFUSE CLOSED)"
+capture readiness-drop-code-negative fail node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.with-drop-code.json
+
+log "gate: readiness — NEGATIVE FIXTURE (expired challenge, must REFUSE CLOSED)"
+capture readiness-expired-negative fail node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.expired-challenge.json
+
+log "mock certification — both in-repo mocks 8/8 via the pinned @platform/certification suite (must pass)"
+capture certify-mocks pass node scripts/certify-mocks.mjs
+
 log "gate: no-seller-deposit — repo source (must pass)"
 capture no-seller-deposit-positive pass node scripts/gates/no-seller-deposit.mjs
 

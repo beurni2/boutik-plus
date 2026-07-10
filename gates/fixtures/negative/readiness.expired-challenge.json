@@ -1,0 +1,12 @@
+{
+  "orderId": "order-e1-0001",
+  "variant": "taille unique",
+  "qty": 1,
+  "sellerNetFcfa": 8500,
+  "photoRef": {
+    "ref": "media/pkg.jpg",
+    "sha256": "a3f5c9d21e8b47061234567890abcdef1234567890abcdef1234567890abcdef",
+    "mimeType": "image/jpeg"
+  },
+  "scenario": "expired_challenge"
+}

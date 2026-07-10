@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { certifyAdapter, CERTIFICATION_BEHAVIORS } from '@platform/certification';
+import { certifyAdapter, CERTIFICATION_BEHAVIORS, formatScorecard } from '@platform/certification';
 import { SeraPickupConsumerMock } from '../mocks/sera-pickup-consumer-mock.js';
 
 describe('Séra pickup-consumer mock — certified by the pinned §3 suite', () => {
   it('scores 8/8 — CERTIFIED (first real consumer of the shared suite)', async () => {
     const card = await certifyAdapter(new SeraPickupConsumerMock());
+    console.log(formatScorecard(card)); // the scorecard IS the evidence
     expect(card.certified).toBe(true);
     expect(card.score).toBe(`${CERTIFICATION_BEHAVIORS.length}/${CERTIFICATION_BEHAVIORS.length}`);
     for (const result of card.results) {

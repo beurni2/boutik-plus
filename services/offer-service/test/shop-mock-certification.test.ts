@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { certifyAdapter, CERTIFICATION_BEHAVIORS } from '@platform/certification';
+import { certifyAdapter, CERTIFICATION_BEHAVIORS, formatScorecard } from '@platform/certification';
 import { buildSupplyProjection } from '../src/projection.js';
 import { ShopProjectionConsumerMock } from '../mocks/shop-projection-consumer-mock.js';
 import { ProductVersionSchema, SupplierOfferSchema } from '@platform/contracts';
@@ -7,6 +7,7 @@ import { ProductVersionSchema, SupplierOfferSchema } from '@platform/contracts';
 describe('Shop+ projection-consumer mock — certified by the pinned §3 suite', () => {
   it('scores 8/8 — CERTIFIED', async () => {
     const card = await certifyAdapter(new ShopProjectionConsumerMock());
+    console.log(formatScorecard(card)); // the scorecard IS the evidence
     expect(card.certified).toBe(true);
     expect(card.score).toBe(`${CERTIFICATION_BEHAVIORS.length}/${CERTIFICATION_BEHAVIORS.length}`);
     for (const result of card.results) {
