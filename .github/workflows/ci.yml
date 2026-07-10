@@ -17,7 +17,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Authorize read access to platform-contracts (CI-only)
-        run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+        # Three URL forms, one tokened rewrite: pnpm records git deps in
+        # ssh/scp form on some resolve paths, and the runner has no SSH
+        # identity — every form must land on tokened https.
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "git@github.com:beurni2/platform-contracts"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Run every invariant gate (positives + negative fixtures)
