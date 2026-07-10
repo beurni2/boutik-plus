@@ -277,6 +277,12 @@ describe('pickup-refusal consumption → claim + corrective flow (sera signal, �
     expect(desk.trustStateFor('sup-1')).toBeUndefined();
   });
 
+  // ⚠ Verifier finding 3 (cross-repo, flagged in JOURNAL.md): the REAL sera
+  // emission keys the fault command per ORDER (`fault-<orderId>`), so a
+  // genuine second refusal on the same order absorbs as a duplicate today —
+  // the round-2 command_id below is hand-crafted to exercise the threshold
+  // MECHANICS. Repeat-fault thresholds are unreachable in production until
+  // sera emits per-attempt uniqueness (escalated to the founder).
   it('second seller fault crosses the policy threshold → access pauses (restriction), still ZERO money surface', () => {
     const { book, desk, mock } = refusalScene();
     expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(5)))
@@ -314,6 +320,73 @@ describe('LOCAL claim-state vocabulary (canon state is spec-bare — flagged)', 
     expect(desk.advanceClaim('order-e2-0001', 'opened')).toEqual({ ok: false, reason: 'not_forward' });
     expect(desk.advanceClaim('order-none', 'under_review')).toEqual({ ok: false, reason: 'claim_unknown' });
     expect(desk.claimFor('order-e2-0001')?.claim.state).toBe('resolved');
+  });
+});
+
+describe('verifier attacks replayed as regressions (WO-2.6 findings 2/4/5)', () => {
+  it('finding 2: refund_required records are FROZEN — mutation through the getter cannot flip the B+I-13 marker', () => {
+    const { desk } = paidDesk();
+    desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    const record = desk.allRefundsRequired()[0]!;
+    expect(() => {
+      (record as { buyerPriority: boolean }).buyerPriority = false;
+    }).toThrow(TypeError);
+    expect(desk.allRefundsRequired()[0]!.buyerPriority).toBe(true);
+  });
+
+  it('finding 4: the decision clock is FIRST-WINS — re-registering with a later paidAt cannot evade the deadline', () => {
+    const { book, desk } = paidDesk();
+    // The verifier's evasion: push paidAt forward through the book directly.
+    book.registerPaidOrder('order-e2-0001', minutesAfter(DECISION_MIN - 1));
+    const swept = desk.sweepDecisionAging(minutesAfter(DECISION_MIN));
+    expect(swept.alerted).toEqual(['order-e2-0001']);
+    const alert = desk.allEvents().find((e) => e.name === 'reconciliation.alert.v1');
+    expect(alert?.payload).toMatchObject({ paid_at: T0 }); // the ORIGINAL clock
+  });
+
+  it('finding 5: ready-no-task alerts are once-per-EPISODE — a corrective reopen arms a fresh episode that can alert again', () => {
+    const { book, desk, mock } = (() => {
+      const book = new FulfillmentBook();
+      const desk = new ProtectionDesk(book);
+      desk.registerPaidOrder({ orderId: 'order_e2', sellerId: 'sup-1', paidAt: T0, amountFcfa: 11_000, evidenceBundleId: 'eb-pay-e2' });
+      book.accept({ orderId: 'order_e2', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' });
+      const issued = book.issueChallenge('order_e2', T0);
+      if (!issued.ok) throw new Error('setup');
+      const payload = {
+        orderId: 'order_e2',
+        photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+        readinessChallenge: issued.challenge,
+        qty: 1,
+        variant: 'taille unique',
+        availableConfirmed: true,
+        at: T0,
+      };
+      if (!book.confirmReady(payload, T0).ok) throw new Error('setup');
+      return { book, desk, mock: new SeraRefusalEmitterMock() };
+    })();
+    const noTask = () => false;
+
+    // Episode 1 stalls and alerts once.
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN)).alerted).toEqual(['order_e2']);
+    // The refusal reopens readiness — a NEW episode begins.
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(READY_MIN + 5)))
+      .toMatchObject({ accepted: true, duplicate: false });
+    const reReadyAt = minutesAfter(READY_MIN + 6);
+    const fresh = book.issueChallenge('order_e2', reReadyAt);
+    if (!fresh.ok) throw new Error('setup');
+    const reReady = book.confirmReady({
+      orderId: 'order_e2',
+      photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+      readinessChallenge: fresh.challenge,
+      qty: 1,
+      variant: 'taille unique',
+      availableConfirmed: true,
+      at: reReadyAt,
+    }, reReadyAt);
+    expect(reReady.ok).toBe(true);
+    // Episode 2 stalls too — it MUST alert again (once).
+    expect(desk.sweepReadyNoTask(noTask, minutesAfter(READY_MIN + 6 + READY_MIN)).alerted).toEqual(['order_e2']);
+    expect(desk.allEvents().filter((e) => e.name === 'reconciliation.alert.v1' && (e.payload as Record<string, unknown>)['kind'] === 'ready_package_no_task')).toHaveLength(2);
   });
 });
 

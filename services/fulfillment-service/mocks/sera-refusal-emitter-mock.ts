@@ -96,11 +96,16 @@ export class SeraRefusalEmitterMock implements MockAdapter {
   }
 
   /**
-   * The FULL canonical seller-fault refusal signal, byte-shaped like sera's
-   * WO-1.3 emission (custody-spine.ts: payload {order_id, faultClass,
-   * failed_checks}; command key `fault-<orderId>`). Deterministic command_id:
-   * re-emitting the same seed IS a redelivery, so consumers can prove
-   * duplicate absorption against the real at-least-once shape.
+   * The FULL canonical seller-fault refusal signal. Payload keys and event
+   * name match sera's WO-1.3 emission exactly (custody-spine.ts: payload
+   * {order_id, faultClass, failed_checks}); the envelope ids/actor are
+   * mock-local, keyed per order like sera's `fault-<orderId>` command key.
+   * Deterministic command_id: re-emitting the same seed IS a redelivery, so
+   * consumers can prove duplicate absorption against the real at-least-once
+   * shape. ⚠ Cross-repo flag (verifier finding 3): because the REAL emission
+   * is keyed per order, a genuine second refusal on the same order would
+   * absorb as a duplicate today — sera needs per-attempt uniqueness before
+   * repeat-fault thresholds can be reached in production.
    */
   emitRefusalSignal(seed: string, failedChecks: readonly string[]): PlatformEvent {
     return PlatformEventSchema.parse({

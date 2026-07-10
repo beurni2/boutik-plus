@@ -15,8 +15,9 @@ import { FULFILLMENT_AGING_POLICY_V1, type FulfillmentBook } from './fulfillment
  * reconciliation.alert.v1 emissions. It moves NO money — refund/payout
  * EXECUTION is E3, provider webhooks stay the only payment truth, and every
  * amount here is INPUT-COPIED from the payment record, never computed.
- * Seller consequences are ACCESS-based only: the canonical SellerTrustState
- * is strict — there is no field a money consequence could even live in.
+ * Seller consequences are ACCESS-based only: this desk writes nothing but
+ * access data into the strict canonical SellerTrustState, and the B+I-12
+ * seller-money scan gate bans the vocabulary a money consequence would need.
  */
 
 /**
@@ -140,14 +141,17 @@ export class ProtectionDesk {
         aged_min: aged.agedMin,
         policy_version: FULFILLMENT_AGING_POLICY_V1.version,
       }, nowIso);
-      this.refundsRequired.push({
+      // Frozen: the B+I-13 marker must survive any reader — TS readonly is
+      // compile-time only (WO-2.6 verifier finding 2, mutation through the
+      // getter, replayed as a regression test).
+      this.refundsRequired.push(Object.freeze({
         orderId: aged.orderId,
         reason: 'paid_order_no_supplier_decision',
-        faultClass: 'seller',
-        buyerPriority: true,
+        faultClass: 'seller' as const,
+        buyerPriority: true as const,
         amountFcfa: tracked.amountFcfa,
         recordedAt: nowIso,
-      });
+      }));
       this.openClaim({
         orderId: aged.orderId,
         reason: 'paid_order_no_supplier_decision',
@@ -221,6 +225,9 @@ export class ProtectionDesk {
     });
     this.recordSellerFault(tracked.sellerId);
     const reopened = this.book.reopenForCorrection(orderId);
+    // New readiness episode: a fresh ready-no-task stall may alert again
+    // (verifier finding 5 — flags were once-ever, not once-per-episode).
+    if (reopened.ok) tracked.readyNoTaskAlerted = false;
     return {
       accepted: true,
       duplicate: false,
@@ -241,8 +248,10 @@ export class ProtectionDesk {
   }
 
   /** Access-based ONLY (B+I-12): faultCount up, offer access pauses at the
-   * policy threshold. The strict canonical shape has NO money field — a
-   * money consequence cannot even be expressed, and the CI gate scans besides. */
+   * policy threshold. The strict canonical shape names no money field and
+   * this code writes only access data — but probationLimits is an open
+   * record upstream (canon note flagged in JOURNAL.md), so the structural
+   * guarantee is partial and the B+I-12 seller-money scan gate runs besides. */
   private recordSellerFault(sellerId: string): SellerTrustState {
     const prev = this.trust.get(sellerId);
     const faultCount = (prev?.faultCount ?? 0) + 1;

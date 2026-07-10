@@ -71,7 +71,11 @@ export class FulfillmentBook {
   private counter = 0;
 
   registerPaidOrder(orderId: string, paidAt: string): void {
-    if (!this.accepted.has(orderId)) this.awaitingDecision.set(orderId, { paidAt });
+    // First-wins: a redelivery (or a crafted later paidAt) must never reset
+    // the decision clock (WO-2.6 verifier finding 4, replayed as a test).
+    if (!this.accepted.has(orderId) && !this.awaitingDecision.has(orderId)) {
+      this.awaitingDecision.set(orderId, { paidAt });
+    }
   }
 
   /** Clock-controlled aging: paid past the decision deadline and still
