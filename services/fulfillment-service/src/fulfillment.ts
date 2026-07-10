@@ -71,6 +71,10 @@ export class FulfillmentBook {
   private readonly accepted = new Map<string, FulfillmentAcceptance>();
   private readonly challenges = new Map<string, IssuedChallenge>();
   private readonly ready = new Map<string, PackageReadinessConfirmation>();
+  /** WO-2.7 verifier blocking finding 1: the DURABLE correction record — a
+   * confirmed readiness is evidence that outlives any later readiness
+   * clearing. Set on every confirmReady success, NEVER deleted. */
+  private readonly lastReadyAt = new Map<string, string>();
   /** WO-2.6: paid orders awaiting the supplier's DECISION (Contract E2
    * "paid-order-no-supplier-decision"). */
   private readonly awaitingDecision = new Map<string, { paidAt: string }>();
@@ -156,7 +160,14 @@ export class FulfillmentBook {
 
     issued.consumedAt = nowIso;
     this.ready.set(confirmation.orderId, confirmation);
+    this.lastReadyAt.set(confirmation.orderId, nowIso);
     return { ok: true, confirmation, pickupEligible: true };
+  }
+
+  /** The durable correction timestamp (survives reopenForCorrection and any
+   * downstream readiness consumption) — the third clock disarms on this. */
+  lastReadyAtOf(orderId: string): string | undefined {
+    return this.lastReadyAt.get(orderId);
   }
 
   /** WO-2.6 corrective flow: a refused pickup clears the stale readiness so

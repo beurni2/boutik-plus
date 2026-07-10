@@ -100,7 +100,8 @@ export class SeraRefusalEmitterMock implements MockAdapter {
    * name match sera's emission exactly (custody-spine.ts, per-attempt as of
    * sera WO-2.7 item 3: payload {order_id, faultClass, failed_checks,
    * attempt}; command key `fault-<orderId>-a<attempt>`); the envelope
-   * actor is mock-local. Deterministic per (seed, attempt): re-emitting the
+   * actor and version string are mock-local. Deterministic per (seed,
+   * attempt): re-emitting the
    * SAME attempt IS a redelivery (duplicate absorption provable), while a
    * genuine post-correction second refusal (attempt 2) is a NEW countable
    * event — the WO-2.6 verifier's finding-3 gap, closed upstream.

@@ -392,6 +392,41 @@ describe('WO-2.7 item 5 — the THIRD aging clock: refused-never-corrected (foun
     expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 1200)).alerted).toEqual([]);
   });
 
+  it('verifier attack A4 replayed: a correction stays DURABLE — readiness cleared again (no refusal) before any sweep → silence forever', () => {
+    const { book, desk } = refusedScene();
+    reReady(book, minutesAfter(30)); // genuine correction — NO sweep observes it
+    expect(book.reopenForCorrection('order_e2')).toEqual({ ok: true }); // readiness wiped before the first sweep
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 100)).alerted).toEqual([]);
+    expect(desk.allRefundsRequired()).toEqual([]); // no FALSE refund — the correction record outlives the wipe
+  });
+
+  it('verifier finding 2, ⚠ safest default: a post-fire re-arm ALERTS again but never mints a SECOND refund_required for the order', () => {
+    const { book, desk, mock } = refusedScene();
+    // Episode 1 fires: one alert, one money trigger.
+    expect(desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN)).alerted).toEqual(['order_e2']);
+    expect(desk.allRefundsRequired()).toHaveLength(1);
+    // Late correction, then a genuine attempt-2 refusal re-arms episode 2.
+    reReady(book, minutesAfter(CORRECTION_MIN + 10));
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['damage'], 2), minutesAfter(CORRECTION_MIN + 20)))
+      .toMatchObject({ accepted: true, duplicate: false });
+    const swept = desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN + 20 + CORRECTION_MIN));
+    expect(swept.alerted).toEqual(['order_e2']); // ops sees episode 2
+    expect(desk.allEvents().filter((e) => (e.payload as Record<string, unknown>)['kind'] === 'refused_never_corrected')).toHaveLength(2);
+    expect(desk.allRefundsRequired()).toHaveLength(1); // ONE trigger per order — reconciles to the franc
+  });
+
+  it('verifier finding 3, ⚠ safest reading: a repeat refusal with NO correction keeps the ORIGINAL clock — the buyer trigger never slides later', () => {
+    const { desk, mock } = refusedScene(); // refusal #1 at T0, never corrected
+    // A second genuine refusal arrives at T+300 — but nothing was corrected.
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['damage'], 2), minutesAfter(300)))
+      .toMatchObject({ accepted: true, duplicate: false });
+    // The clock still runs from T0: it fires at the ORIGINAL deadline.
+    const swept = desk.sweepCorrectionAging(minutesAfter(CORRECTION_MIN));
+    expect(swept.alerted).toEqual(['order_e2']);
+    const alert = desk.allEvents().find((e) => (e.payload as Record<string, unknown>)['kind'] === 'refused_never_corrected');
+    expect(alert?.payload).toMatchObject({ refused_at: T0 }); // not the T+300 restart
+  });
+
   it('RE-ARM: correction lands, then a GENUINE second refusal (sera attempt-2 command_id) restarts the clock — fires once for episode 2', () => {
     const { book, desk, mock } = refusedScene();
     reReady(book, minutesAfter(30));

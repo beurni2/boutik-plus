@@ -233,11 +233,17 @@ export class ProtectionDesk {
     // New readiness episode: a fresh ready-no-task stall may alert again
     // (verifier finding 5 — flags were once-ever, not once-per-episode).
     if (reopened.ok) tracked.readyNoTaskAlerted = false;
-    // WO-2.7 item 5 — the THIRD clock arms (or RE-arms on a genuine second
-    // refusal — a NEW per-attempt command_id from sera, not a duplicate):
-    // the seller now owes a correction by the versioned deadline.
-    tracked.refusedAt = nowIso;
-    tracked.correctionAlerted = false;
+    // WO-2.7 item 5 — the THIRD clock arms; RE-arm ONLY POST-CORRECTION
+    // (verifier finding 3, ⚠ safest reading of the founder's ruling wording
+    // "a post-correction second refusal re-arms it", flagged for
+    // ratification): a repeat refusal with NO intervening correction keeps
+    // the ORIGINAL clock start — the buyer's B+I-13 trigger never slides
+    // later on the seller's repeat failures.
+    const lastReady = this.book.lastReadyAtOf(orderId);
+    if (tracked.refusedAt === undefined || (lastReady !== undefined && lastReady > tracked.refusedAt)) {
+      tracked.refusedAt = nowIso;
+      tracked.correctionAlerted = false;
+    }
     return {
       accepted: true,
       duplicate: false,
@@ -259,9 +265,13 @@ export class ProtectionDesk {
     const alerted: string[] = [];
     for (const tracked of this.orders.values()) {
       if (tracked.refusedAt === undefined || tracked.correctionAlerted) continue;
-      if (this.book.isPickupEligible(tracked.orderId)) {
-        // Corrected and re-readied — the clock stops and never fires for
-        // this episode.
+      // DURABLE disarm (verifier BLOCKING finding 1): the correction is the
+      // confirmed re-readiness itself, recorded at write time in the book
+      // and never erased — NOT the transient pickup-eligibility, which any
+      // later readiness clearing could wipe before a sweep observed it.
+      const lastReady = this.book.lastReadyAtOf(tracked.orderId);
+      if (lastReady !== undefined && lastReady > tracked.refusedAt) {
+        // Corrected — the clock stops and never fires for this episode.
         delete tracked.refusedAt;
         continue;
       }
@@ -277,14 +287,24 @@ export class ProtectionDesk {
         linked_claim_reason: linkedClaim?.claim.reason ?? 'claim_missing',
         policy_version: FULFILLMENT_AGING_POLICY_V2.version,
       }, nowIso);
-      this.refundsRequired.push(Object.freeze({
-        orderId: tracked.orderId,
-        reason: 'refused_never_corrected',
-        faultClass: 'seller' as const,
-        buyerPriority: true as const,
-        amountFcfa: tracked.amountFcfa,
-        recordedAt: nowIso,
-      }));
+      // ⚠ SAFEST DEFAULT (verifier finding 2 — spec-silent money semantics,
+      // founder ruling requested): ONE money trigger per order from this
+      // clock. A re-fired episode alerts (ops visibility above) but never
+      // mints a second refund_required — two triggers against one paid
+      // amount cannot reconcile to the franc at E3.
+      const alreadyTriggered = this.refundsRequired.some(
+        (r) => r.orderId === tracked.orderId && r.reason === 'refused_never_corrected',
+      );
+      if (!alreadyTriggered) {
+        this.refundsRequired.push(Object.freeze({
+          orderId: tracked.orderId,
+          reason: 'refused_never_corrected',
+          faultClass: 'seller' as const,
+          buyerPriority: true as const,
+          amountFcfa: tracked.amountFcfa,
+          recordedAt: nowIso,
+        }));
+      }
       alerted.push(tracked.orderId);
     }
     return { alerted };
