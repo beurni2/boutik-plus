@@ -79,7 +79,7 @@
   },
   {
     "key": "ready.next",
-    "fr": "Séra vient chercher le colis.",
+    "fr": "Dès que c'est confirmé, Séra vient chercher le colis.",
     "register": "neutral",
     "screenClass": "status"
   }
