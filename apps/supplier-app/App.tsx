@@ -132,6 +132,7 @@ export default function App() {
     setShots({});
     setPending(null);
     setCapturing(false);
+    setCaptureFailed(false);
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed
   // derivative IS the stored derivative; EXIF proven stripped on its bytes.
