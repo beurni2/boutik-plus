@@ -316,5 +316,47 @@
     "fr": "Rien à corriger — tout est en ordre.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "nav.tab_accueil",
+    "fr": "Accueil",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "nav.tab_produits",
+    "fr": "Produits",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "nav.tab_echeances",
+    "fr": "Échéances",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "offer.net_label",
+    "fr": "Vous recevrez",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "money.amount_f",
+    "fr": "{amount} F",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.stat_en_ligne",
+    "fr": "Produits prêts",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "accueil.stat_a_corriger",
+    "fr": "À corriger",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

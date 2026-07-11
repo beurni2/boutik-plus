@@ -15,16 +15,33 @@ import {
   type DemoProduct,
   type DemoWorld,
 } from './src/demo/store';
+import {
+  AmountHero,
+  AppHeader,
+  Card,
+  Celebration,
+  EmptyState,
+  GhostButton,
+  ListRow,
+  Overline,
+  PendingNotice,
+  PrimaryButton,
+  ScreenTransition,
+  SecondaryButton,
+  StatusChip,
+  TabBar,
+  WaxBand,
+  type ChipTone,
+} from './src/ui/kit';
 
 /**
- * WO-4.1 — LE MONDE NAVIGABLE. The WO-1.4/2.6 supplier flows become a
- * walkable journey over src/journey.ts: home → onboarding → mes produits
- * (FlatList, seeded) → nouveau → photo (placeholder capture) → offre (live
- * net on the PINNED waterfall) → « Produit prêt » → the corrective walk →
- * the aging clocks. No new business capability: the demo world runs the
- * real money law (quoteFor asserts reconciliation) against seeded,
- * obviously-fictional Ouagadougou data. Offline law unchanged: queued =
- * pending, never done. « Recommencer la démo » resets world + stack.
+ * WO-4.2R — LE VISAGE over WO-4.1's walkable world. Same screens, same
+ * edges, same back law, same money from the same pinned waterfall — the
+ * visual layer is the kit (src/ui/kit.tsx, ui-tokens v2), the navigation
+ * SEMANTICS are untouched. Tabs are waypoint RESETS under the ratified
+ * two-level-ladder law (they jump only to states already reachable from
+ * START along declared edges — accueil→produits, accueil→echeances);
+ * go() and its edge guard are byte-identical to WO-4.1.
  */
 
 const E1_B = 10_000;
@@ -51,11 +68,34 @@ const STATUS_KEY: Record<DemoProduct['status'], string> = {
   correction_en_cours: 'statut.correction',
   echeance_depassee: 'statut.echeance',
 };
+const STATUS_TONE: Record<DemoProduct['status'], ChipTone> = {
+  pret: 'ok',
+  en_attente: 'info',
+  refuse_correctable: 'bad',
+  correction_en_cours: 'warn',
+  echeance_depassee: 'bad',
+};
+
+/** The bottom hubs (WO-4.2R): Accueil · Produits · Échéances. */
+const HUBS: readonly Screen[] = ['accueil', 'produits', 'echeances'];
+
+const SCREEN_TITLE_KEY: Record<Screen, string> = {
+  accueil: 'app.title',
+  onboarding: 'accueil.card_onboarding',
+  produits: 'produits.title',
+  nouveau: 'product.title',
+  photo: 'photo.title',
+  offre: 'offer.title',
+  pret: 'ready.action',
+  corrective: 'corrective.walk_title',
+  echeances: 'echeances.title',
+};
 
 export default function App() {
   const [world, setWorld] = useState<DemoWorld>(() => createDemoWorld());
   const [stack, setStack] = useState<Screen[]>([START]);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const screen = stack[stack.length - 1] ?? START;
 
   const go = useCallback((next: Screen) => {
@@ -67,13 +107,26 @@ export default function App() {
     setWorld(createDemoWorld());
     setStack([START]);
     setPendingKey(null);
+    setCelebrating(false);
   }, []);
+  // Waypoint reset, never an edge: each hub state is already reachable
+  // from START along declared edges; the tab jumps to that exact state.
+  const toHub = useCallback((hub: Screen) => {
+    setStack(hub === START ? [START] : [START, hub]);
+  }, []);
+  const endCelebration = useCallback(() => setCelebrating(false), []);
 
   const refused = world.products.find((p) => p.status === 'refuse_correctable');
   const clocks = world.products.filter((p) => p.correctionMinLeft !== undefined);
+  const enLigne = world.products.filter((p) => p.status === 'pret').length;
+  const aCorriger = world.products.filter(
+    (p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee',
+  ).length;
   // The §5.4 worked baseline, computed once through the pinned waterfall —
   // rendering it asserts it reconciled (baselineQuote throws otherwise).
   useMemo(() => baselineQuote(), []);
+
+  const heroAmount = t('money.amount_f').replace('{amount}', formatFcfa(livePreviewNet(E1_B, E1_C)));
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -81,154 +134,131 @@ export default function App() {
           ruling ③ — pre-edge-to-edge Android draws a default bar; the
           surface token is the correct fill. */}
       <StatusBar style="dark" backgroundColor={theme.colors.surface} />
+      <WaxBand />
       {IS_PREVIEW && (
         <View style={styles.previewBanner}>
           <Text style={styles.previewBannerText}>{t('preview.banner')}</Text>
         </View>
       )}
 
-      <View style={styles.header}>
-        {stack.length > 1 ? (
-          <Pressable style={styles.backAction} onPress={back}>
-            <Text style={styles.backActionText}>← {t('nav.retour')}</Text>
-          </Pressable>
-        ) : (
-          <Text style={styles.brand}>{t('app.title')}</Text>
-        )}
-      </View>
+      <AppHeader
+        title={t(SCREEN_TITLE_KEY[screen])}
+        subtitle={screen === 'accueil' ? t('accueil.tagline') : undefined}
+        backLabel={`← ${t('nav.retour')}`}
+        onBack={stack.length > 1 ? back : undefined}
+      />
 
+      <ScreenTransition screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
           <View style={styles.stackGap}>
-            <Text style={styles.brand}>{t('app.title')}</Text>
-            <Text style={styles.message}>{t('accueil.tagline')}</Text>
-            <Pressable style={styles.primaryAction} onPress={() => go('produits')}>
-              <Text style={styles.primaryActionText}>{t('accueil.card_produits')}</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryCard} onPress={() => go('onboarding')}>
-              <Text style={styles.secondaryCardText}>{t('accueil.card_onboarding')}</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryCard} onPress={() => go('echeances')}>
-              <Text style={styles.secondaryCardText}>{t('accueil.card_echeances')}</Text>
-            </Pressable>
+            <View style={styles.statGrid}>
+              <Card style={styles.statCard}>
+                <Overline>{t('accueil.stat_en_ligne')}</Overline>
+                <Text style={styles.statValue}>{enLigne}</Text>
+              </Card>
+              <Card style={styles.statCard}>
+                <Overline>{t('accueil.stat_a_corriger')}</Overline>
+                <Text style={styles.statValue}>{aCorriger}</Text>
+              </Card>
+            </View>
+            <PrimaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
+            <SecondaryButton label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
+            <GhostButton label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
           </View>
         )}
 
         {screen === 'onboarding' && (
-          <View style={styles.card}>
+          <Card>
             <Text style={styles.message}>{t('onboarding.free_listing')}</Text>
-            <Pressable
-              style={styles.primaryAction}
+            <PrimaryButton
+              label={t('onboard.action')}
               onPress={() => {
                 setPendingKey('onboard.phone_pending');
                 go('produits');
               }}
-            >
-              <Text style={styles.primaryActionText}>{t('onboard.action')}</Text>
-            </Pressable>
-          </View>
+            />
+          </Card>
         )}
 
         {screen === 'produits' && (
           <View style={styles.listWrap}>
-            <Text style={styles.heading}>{t('produits.title')}</Text>
             <FlatList
               data={world.products}
               keyExtractor={(p) => p.id}
               initialNumToRender={6}
               windowSize={5}
+              contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
-                <Pressable
-                  style={styles.listRow}
+                <ListRow
+                  glyph={item.name.slice(0, 1)}
+                  title={item.name}
+                  meta={`${t('produits.repere')} : ${item.landmark}`}
+                  net={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
+                  chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
                   onPress={() => (item.status === 'refuse_correctable' ? go('corrective') : go('offre'))}
-                >
-                  <Text style={styles.listName}>{item.name}</Text>
-                  <Text style={styles.listMeta}>
-                    {t('produits.repere')} : {item.landmark}
-                  </Text>
-                  <Text style={styles.listNet}>
-                    {t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
-                  </Text>
-                  <Text style={item.status === 'pret' ? styles.badgeOk : styles.badgeWarn}>
-                    {t(STATUS_KEY[item.status])}
-                  </Text>
-                </Pressable>
+                />
               )}
             />
-            <Pressable style={styles.primaryAction} onPress={() => go('nouveau')}>
-              <Text style={styles.primaryActionText}>{t('accueil.card_nouveau')}</Text>
-            </Pressable>
+            <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />
           </View>
         )}
 
         {screen === 'nouveau' && (
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('product.title')}</Text>
-            <Pressable style={styles.primaryAction} onPress={() => go('photo')}>
-              <Text style={styles.primaryActionText}>{t('product.photo_action')}</Text>
-            </Pressable>
-          </View>
+          <Card>
+            <Text style={styles.message}>{t('product.title')}</Text>
+            <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} />
+          </Card>
         )}
 
         {screen === 'photo' && (
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('photo.title')}</Text>
+          <Card>
             <View style={styles.photoFrame}>
+              <Text style={styles.photoGlyph}>📷</Text>
               <Text style={styles.photoHint}>{t('photo.placeholder')}</Text>
             </View>
-            <Pressable style={styles.primaryAction} onPress={() => go('offre')}>
-              <Text style={styles.primaryActionText}>{t('photo.take')}</Text>
-            </Pressable>
-          </View>
+            <PrimaryButton label={t('photo.take')} onPress={() => go('offre')} />
+          </Card>
         )}
 
         {screen === 'offre' && (
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('offer.title')}</Text>
-            <Text style={styles.netAmount}>
-              {t('offer.net_preview').replace('{amount}', formatFcfa(livePreviewNet(E1_B, E1_C)))}
-            </Text>
+          <Card>
+            <AmountHero label={t('offer.net_label')} amount={heroAmount} />
             <View style={styles.baselineCard}>
-              <Text style={styles.baselineTitle}>{t('offre.baseline_title')}</Text>
+              <Overline>{t('offre.baseline_title')}</Overline>
               <Text style={styles.baselineLine}>{t('offre.baseline_vendeur')}</Text>
               <Text style={styles.baselineLine}>{t('offre.baseline_revendeur')}</Text>
               <Text style={styles.baselineLine}>{t('offre.baseline_service')}</Text>
               <Text style={styles.baselineLine}>{t('offre.baseline_livraison')}</Text>
             </View>
-            <Pressable
-              style={styles.primaryAction}
+            <PrimaryButton
+              label={t('ready.action')}
               onPress={() => {
                 addDemoProduct(world, E1_B, E1_C);
                 setWorld({ ...world });
                 setPendingKey('ready.pending');
+                setCelebrating(true);
                 go('pret');
               }}
-            >
-              <Text style={styles.primaryActionText}>{t('ready.action')}</Text>
-            </Pressable>
-          </View>
+            />
+          </Card>
         )}
 
         {screen === 'pret' && (
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('ready.action')}</Text>
+          <Card>
+            <StatusChip tone="ok" label={t('statut.pret')} />
             <Text style={styles.message}>{t('ready.next')}</Text>
             <Text style={styles.deadline}>{t('deadline.today')}</Text>
-            <Pressable style={styles.quietAction} onPress={() => go('corrective')}>
-              <Text style={styles.quietActionText}>{t('ready.demo_refusal')}</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryCard} onPress={() => go('produits')}>
-              <Text style={styles.secondaryCardText}>{t('produits.title')}</Text>
-            </Pressable>
-          </View>
+            <GhostButton label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
+            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+          </Card>
         )}
 
         {screen === 'corrective' && (
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('corrective.walk_title')}</Text>
+          <Card>
             {refused === undefined ? (
               // Honest empty state — never a synthetic refusal (verifier NB⑤).
-              <Text style={styles.message}>{t('corrective.rien')}</Text>
+              <EmptyState glyph="✓" title={t('corrective.rien')} />
             ) : (
               <>
                 <Text style={styles.message}>
@@ -238,64 +268,57 @@ export default function App() {
                   )}
                 </Text>
                 <Text style={styles.message}>{t('refused.new_code')}</Text>
-                <Text style={styles.deadline}>
-                  {t('echeances.restant').replace('{min}', String(refused.correctionMinLeft ?? 0))}
-                </Text>
-                <Pressable
-                  style={styles.primaryAction}
+                <StatusChip
+                  tone="warn"
+                  label={t('echeances.restant').replace('{min}', String(refused.correctionMinLeft ?? 0))}
+                />
+                <PrimaryButton
+                  label={t('refused.fix_action')}
                   onPress={() => {
                     markCorrected(world, refused.id);
                     setWorld({ ...world });
                     setPendingKey('refused.fixed_pending');
+                    setCelebrating(true);
                     go('pret');
                   }}
-                >
-                  <Text style={styles.primaryActionText}>{t('refused.fix_action')}</Text>
-                </Pressable>
+                />
               </>
             )}
-            <Pressable style={styles.quietAction} onPress={() => go('echeances')}>
-              <Text style={styles.quietActionText}>{t('accueil.card_echeances')}</Text>
-            </Pressable>
-          </View>
+            <GhostButton label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+          </Card>
         )}
 
         {screen === 'echeances' && (
           <View style={styles.listWrap}>
-            <Text style={styles.heading}>{t('echeances.title')}</Text>
-            <Text style={styles.message}>{t('echeances.regle')}</Text>
+            <Text style={styles.ruleNote}>{t('echeances.regle')}</Text>
             <FlatList
               data={clocks}
               keyExtractor={(p) => p.id}
               initialNumToRender={6}
               windowSize={5}
+              contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
-                <View style={styles.listRow}>
-                  <Text style={styles.listName}>{item.name}</Text>
-                  <Text style={item.status === 'echeance_depassee' ? styles.badgeWarn : styles.badgeOk}>
-                    {t(STATUS_KEY[item.status])}
-                  </Text>
-                  {item.status !== 'echeance_depassee' && (
-                    <Text style={styles.deadline}>
-                      {t('echeances.restant').replace('{min}', String(item.correctionMinLeft ?? 0))}
-                    </Text>
-                  )}
-                </View>
+                <ListRow
+                  glyph={item.name.slice(0, 1)}
+                  title={item.name}
+                  meta={
+                    item.status !== 'echeance_depassee'
+                      ? t('echeances.restant').replace('{min}', String(item.correctionMinLeft ?? 0))
+                      : undefined
+                  }
+                  chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
+                />
               )}
             />
-            <Pressable style={styles.secondaryCard} onPress={() => go('produits')}>
-              <Text style={styles.secondaryCardText}>{t('produits.title')}</Text>
-            </Pressable>
+            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </View>
         )}
 
         {pendingKey !== null && screen !== 'accueil' && (
-          <View style={styles.pendingCard}>
-            <Text style={styles.pendingText}>{t(pendingKey)}</Text>
-            <Text style={styles.pendingText}>{t('shell.offline_pending')}</Text>
-          </View>
+          <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
         )}
       </View>
+      </ScreenTransition>
 
       <View style={styles.footer}>
         <Text style={styles.footerHint}>{t('demo.donnees')}</Text>
@@ -303,160 +326,112 @@ export default function App() {
           <Text style={styles.resetActionText}>{t('nav.recommencer')}</Text>
         </Pressable>
       </View>
+
+      {HUBS.includes(screen) && (
+        <TabBar
+          items={[
+            { key: 'accueil', icon: '🏠', label: t('nav.tab_accueil'), active: screen === 'accueil', onPress: () => toHub('accueil') },
+            { key: 'produits', icon: '🏷️', label: t('nav.tab_produits'), active: screen === 'produits', onPress: () => toHub('produits') },
+            { key: 'echeances', icon: '⏱️', label: t('nav.tab_echeances'), active: screen === 'echeances', onPress: () => toHub('echeances') },
+          ]}
+        />
+      )}
+
+      {/* « Produit prêt » — the named celebration moment (≤ 800 ms by token
+          ceiling, non-blocking, reduced-motion respected in the kit). */}
+      <Celebration visible={celebrating && screen === 'pret'} onDone={endCelebration} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.surface },
-  header: { paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md, minHeight: 44, justifyContent: 'center' },
-  content: { flex: 1, paddingHorizontal: theme.spacing.xl, gap: theme.spacing.lg, justifyContent: 'center' },
-  stackGap: { gap: theme.spacing.xl },
-  brand: {
-    color: theme.colors.primary,
-    fontSize: theme.typeScale.title.size,
-    lineHeight: theme.typeScale.title.lineHeight,
-    fontWeight: theme.typeScale.title.weight,
-    textAlign: 'center',
+  content: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
-  card: {
-    backgroundColor: theme.colors.surfaceRaised,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: theme.spacing.xl,
-    gap: theme.spacing.lg,
-  },
-  listWrap: { flex: 1, gap: theme.spacing.md, paddingVertical: theme.spacing.md },
-  listRow: {
-    backgroundColor: theme.colors.surfaceRaised,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-    gap: theme.spacing.xs,
-    minHeight: 44,
-  },
-  listName: {
+  stackGap: { gap: theme.spacing.md, paddingTop: theme.spacing.sm },
+  statGrid: { flexDirection: 'row', gap: theme.spacing.md },
+  statCard: { flex: 1 },
+  statValue: {
     color: theme.colors.ink,
-    fontSize: theme.typeScale.bodyLarge.size,
-    lineHeight: theme.typeScale.bodyLarge.lineHeight,
-    fontWeight: theme.typeScale.heading.weight,
+    fontSize: theme.typeScale.displayFcfa.size,
+    lineHeight: theme.typeScale.displayFcfa.lineHeight,
+    fontWeight: theme.typeScale.displayFcfa.weight,
+    fontVariant: ['tabular-nums'],
   },
-  listMeta: { color: theme.colors.inkMuted, fontSize: theme.typeScale.label.size, lineHeight: theme.typeScale.label.lineHeight },
-  listNet: { color: theme.colors.primary, fontSize: theme.typeScale.bodyLarge.size, lineHeight: theme.typeScale.bodyLarge.lineHeight, fontWeight: theme.typeScale.title.weight },
-  badgeOk: { color: theme.colors.primary, fontSize: theme.typeScale.label.size, lineHeight: theme.typeScale.label.lineHeight },
-  badgeWarn: { color: theme.colors.ink, fontSize: theme.typeScale.label.size, lineHeight: theme.typeScale.label.lineHeight, fontWeight: theme.typeScale.heading.weight },
-  heading: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.heading.size,
-    lineHeight: theme.typeScale.heading.lineHeight,
-    fontWeight: theme.typeScale.heading.weight,
-    textAlign: 'center',
-  },
+  listWrap: { flex: 1, gap: theme.spacing.md },
+  listContent: { gap: theme.spacing.sm, paddingBottom: theme.spacing.sm },
   message: {
     color: theme.colors.ink,
     fontSize: theme.typeScale.bodyLarge.size,
     lineHeight: theme.typeScale.bodyLarge.lineHeight,
-    textAlign: 'center',
   },
-  netAmount: {
-    color: theme.colors.primary,
-    fontSize: theme.typeScale.title.size,
-    lineHeight: theme.typeScale.title.lineHeight,
-    fontWeight: theme.typeScale.title.weight,
-    textAlign: 'center',
+  ruleNote: {
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.body.size,
+    lineHeight: theme.typeScale.body.lineHeight,
   },
   baselineCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
+    borderRadius: theme.radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: theme.spacing.lg,
+    borderColor: theme.colors.line,
+    padding: theme.spacing.md,
     gap: theme.spacing.xs,
   },
-  baselineTitle: { color: theme.colors.ink, fontSize: theme.typeScale.bodyLarge.size, lineHeight: theme.typeScale.bodyLarge.lineHeight, fontWeight: theme.typeScale.heading.weight, textAlign: 'center' },
-  baselineLine: { color: theme.colors.ink, fontSize: theme.typeScale.label.size, lineHeight: theme.typeScale.label.lineHeight, textAlign: 'center' },
+  baselineLine: {
+    color: theme.colors.ink,
+    fontSize: theme.typeScale.body.size,
+    lineHeight: theme.typeScale.body.lineHeight,
+    fontVariant: ['tabular-nums'],
+  },
   photoFrame: {
-    minHeight: 160,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
+    minHeight: theme.spacing.xxxl * 3,
+    borderRadius: theme.radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: theme.spacing.sm,
     padding: theme.spacing.lg,
   },
-  photoHint: { color: theme.colors.inkMuted, fontSize: theme.typeScale.label.size, lineHeight: theme.typeScale.label.lineHeight, textAlign: 'center' },
+  photoGlyph: { fontSize: theme.typeScale.displayFcfa.size, lineHeight: theme.typeScale.displayFcfa.lineHeight },
+  photoHint: {
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.body.size,
+    lineHeight: theme.typeScale.body.lineHeight,
+    textAlign: 'center',
+  },
   deadline: {
     color: theme.colors.ink,
     fontSize: theme.typeScale.label.size,
     lineHeight: theme.typeScale.label.lineHeight,
     fontWeight: theme.typeScale.heading.weight,
-    textAlign: 'center',
   },
-  pendingCard: {
-    backgroundColor: theme.colors.surfaceRaised,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  pendingText: {
-    color: theme.colors.inkMuted,
-    fontSize: theme.typeScale.label.size,
-    lineHeight: theme.typeScale.label.lineHeight,
-    textAlign: 'center',
-  },
-  primaryAction: {
-    minHeight: 44,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  primaryActionText: {
-    color: theme.colors.surfaceRaised,
-    fontSize: theme.typeScale.bodyLarge.size,
-    fontWeight: theme.typeScale.heading.weight,
-  },
-  secondaryCard: {
-    minHeight: 44,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.line,
-    borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.surfaceRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  secondaryCardText: { color: theme.colors.ink, fontSize: theme.typeScale.bodyLarge.size },
-  quietAction: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  quietActionText: { color: theme.colors.inkMuted, fontSize: theme.typeScale.label.size },
-  backAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: theme.spacing.md },
-  backActionText: { color: theme.colors.ink, fontSize: theme.typeScale.bodyLarge.size },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.xl,
-    paddingBottom: theme.spacing.md,
-    minHeight: 44,
+    paddingHorizontal: theme.spacing.lg,
+    minHeight: theme.touch.minTargetPx,
   },
-  footerHint: { color: theme.colors.inkMuted, fontSize: theme.typeScale.label.size },
-  resetAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: theme.spacing.md },
-  resetActionText: { color: theme.colors.inkMuted, fontSize: theme.typeScale.label.size },
+  footerHint: { color: theme.colors.inkFaint, fontSize: theme.typeScale.caption.size },
+  resetAction: { minHeight: theme.touch.minTargetPx, justifyContent: 'center', paddingHorizontal: theme.spacing.md },
+  resetActionText: { color: theme.colors.inkMuted, fontSize: theme.typeScale.caption.size, fontWeight: theme.typeScale.label.weight },
   previewBanner: {
-    backgroundColor: theme.colors.ink,
+    backgroundColor: theme.colors.surfaceSunken,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.line,
     paddingVertical: theme.spacing.xs,
     alignItems: 'center',
   },
   previewBannerText: {
-    color: theme.colors.surfaceRaised,
-    fontSize: theme.typeScale.label.size,
-    lineHeight: theme.typeScale.label.lineHeight,
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.caption.size,
+    lineHeight: theme.typeScale.caption.lineHeight,
   },
 });
