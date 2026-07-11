@@ -6,9 +6,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#FAF7F2",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "android": {
       "package": "bf.boutikplus.supplier"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
     }
   }
 }
