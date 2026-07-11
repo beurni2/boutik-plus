@@ -199,7 +199,7 @@
   },
   {
     "key": "produits.net_ligne",
-    "fr": "Vous recevrez {amount}",
+    "fr": "Vous recevrez {amount} F",
     "register": "money",
     "screenClass": "label"
   },
@@ -310,5 +310,11 @@
     "fr": "Données d’essai — rien ici n’est réel.",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "corrective.rien",
+    "fr": "Rien à corriger — tout est en ordre.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

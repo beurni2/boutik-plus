@@ -226,29 +226,34 @@ export default function App() {
         {screen === 'corrective' && (
           <View style={styles.card}>
             <Text style={styles.heading}>{t('corrective.walk_title')}</Text>
-            <Text style={styles.message}>
-              {t('refused.cause').replace(
-                '{issues}',
-                (refused?.refusedChecks ?? ['check.colour', 'check.qty']).map((key) => t(key)).join(', '),
-              )}
-            </Text>
-            <Text style={styles.message}>{t('refused.new_code')}</Text>
-            <Text style={styles.deadline}>
-              {t('echeances.restant').replace('{min}', String(refused?.correctionMinLeft ?? 0))}
-            </Text>
-            <Pressable
-              style={styles.primaryAction}
-              onPress={() => {
-                if (refused) {
-                  markCorrected(world, refused.id);
-                  setWorld({ ...world });
-                }
-                setPendingKey('refused.fixed_pending');
-                go('pret');
-              }}
-            >
-              <Text style={styles.primaryActionText}>{t('refused.fix_action')}</Text>
-            </Pressable>
+            {refused === undefined ? (
+              // Honest empty state — never a synthetic refusal (verifier NB⑤).
+              <Text style={styles.message}>{t('corrective.rien')}</Text>
+            ) : (
+              <>
+                <Text style={styles.message}>
+                  {t('refused.cause').replace(
+                    '{issues}',
+                    refused.refusedChecks!.map((key) => t(key)).join(', '),
+                  )}
+                </Text>
+                <Text style={styles.message}>{t('refused.new_code')}</Text>
+                <Text style={styles.deadline}>
+                  {t('echeances.restant').replace('{min}', String(refused.correctionMinLeft ?? 0))}
+                </Text>
+                <Pressable
+                  style={styles.primaryAction}
+                  onPress={() => {
+                    markCorrected(world, refused.id);
+                    setWorld({ ...world });
+                    setPendingKey('refused.fixed_pending');
+                    go('pret');
+                  }}
+                >
+                  <Text style={styles.primaryActionText}>{t('refused.fix_action')}</Text>
+                </Pressable>
+              </>
+            )}
             <Pressable style={styles.quietAction} onPress={() => go('echeances')}>
               <Text style={styles.quietActionText}>{t('accueil.card_echeances')}</Text>
             </Pressable>

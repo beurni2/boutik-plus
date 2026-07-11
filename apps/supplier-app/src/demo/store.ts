@@ -123,4 +123,6 @@ export function markCorrected(world: DemoWorld, id: string): void {
   );
 }
 
-export const formatFcfa = (n: number): string => `${n.toLocaleString('fr-FR').replace(/[  ]/g, ' ')} F`;
+// Bare number — the catalog string supplies « F » (the doubled-suffix
+// regression was the WO-4.1 verifier's blocking finding #2).
+export const formatFcfa = (n: number): string => `${n.toLocaleString('fr-FR').replace(/[  ]/g, ' ')}`;
