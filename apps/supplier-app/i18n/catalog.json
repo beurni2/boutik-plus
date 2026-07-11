@@ -358,5 +358,167 @@
     "fr": "À corriger",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "studio.categorie",
+    "fr": "Catégorie",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.mode",
+    "fr": "Mode",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.tissus",
+    "fr": "Tissus",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.beaute_scellee",
+    "fr": "Beauté scellée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.maison",
+    "fr": "Maison",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.shot_hero",
+    "fr": "Photo 1 sur 2 — la photo héro : votre produit, mis en valeur.",
+    "register": "selling",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.shot_preuve",
+    "fr": "Photo 2 sur 2 — la photo preuve : l'état réel, tel quel.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.mode_hero",
+    "fr": "Placez le vêtement bien à plat, dans le cadre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.mode_preuve",
+    "fr": "Montrez l'étiquette et les coutures de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.tissus_hero",
+    "fr": "Dépliez le tissu pour montrer le motif entier.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.tissus_preuve",
+    "fr": "Rapprochez-vous pour montrer le tissage de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.scelle_hero",
+    "fr": "Placez le produit fermé, bien au centre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.scelle_preuve",
+    "fr": "Montrez le sceau intact de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.maison_hero",
+    "fr": "Posez l'objet seul, sur un fond simple.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.maison_preuve",
+    "fr": "Rapprochez-vous pour montrer la matière.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.conseil.lumiere",
+    "fr": "Rapprochez-vous ou ajoutez un peu de lumière — reprenez si vous voulez.",
+    "register": "selling",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.conseil.ok",
+    "fr": "Belle prise.",
+    "register": "selling",
+    "screenClass": "status"
+  },
+  {
+    "key": "studio.capture",
+    "fr": "Prendre la photo",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.reprendre",
+    "fr": "Reprendre",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.confirmer",
+    "fr": "Garder cette photo",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.apercu",
+    "fr": "Ce que l'acheteur verra",
+    "register": "selling",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.permission",
+    "fr": "Le Studio a besoin de la caméra pour vos photos.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.autoriser",
+    "fr": "Autoriser la caméra",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.sans_photo",
+    "fr": "Continuer sans photo (démo)",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.queue_pending",
+    "fr": "Vos photos sont en file — envoyées dès que le réseau revient.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "studio.photos_pretes",
+    "fr": "2 photos prêtes — la vôtre reste chez vous",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "studio.erreur",
+    "fr": "La photo n'a pas pu être prise — réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

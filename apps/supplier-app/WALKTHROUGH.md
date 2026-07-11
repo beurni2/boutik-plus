@@ -16,9 +16,19 @@ reste visible : tout ici est un essai, rien n'est réel. En bas de chaque écran
    (calculé par la vraie règle d'argent), et son état : Prêt · En attente du
    réseau · À corriger · Correction en cours · Délai passé.
    *5 s : voilà ma boutique, et ce que chaque produit me rapporte.*
-4. **Vendre un nouveau produit** → **La photo** (prise d'essai — la capture guidée
-   arrive dans une prochaine étape). *5 s : une seule chose à faire, prendre la
-   photo.*
+4. **Vendre un nouveau produit** → choisissez la **catégorie** (Mode, Tissus,
+   Beauté scellée, Maison), puis **le Studio s'ouvre** : la vraie caméra, le
+   cadre guide, et un conseil adapté à la catégorie (« Dépliez le tissu… »,
+   « Montrez le sceau… »). Deux photos : la **héro** (votre produit, mis en
+   valeur) puis la **preuve** (l'état réel, tel quel). Après chaque prise :
+   « **Ce que l'acheteur verra** » — exactement l'image qui sera gardée, dans
+   son cadre premium. Si la lumière manque, un conseil doux invite à
+   reprendre ; « Reprendre » pèse le même poids que « Garder ». Les photos
+   partent en file (« envoyées dès que le réseau revient ») ; l'originale
+   reste chez vous, et les données cachées de la photo (lieu, appareil) sont
+   retirées à la prise. Caméra refusée ? La démo continue sans photo,
+   honnêtement. *5 s : je photographie mon produit, je vois exactement ce
+   que verra l'acheteur.*
 5. **L'offre.** En grand : « Vous recevrez 8 500 F » (produit 10 000 F, part
    Séra 500 F, commission 1 000 F — la vraie cascade, au franc près :
    10 000 − 500 − 1 000 = 8 500). Dessous, l'exemple complet à 10 000 F :
