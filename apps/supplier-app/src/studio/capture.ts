@@ -53,6 +53,7 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
 
   // THE derivative — one transform, one output, previewed and stored alike.
   const derivative = await renderDerivative(photo.uri, photo.width, photo.height);
+  // FAIL-CLOSED: no bytes = no capture (base64ToBytes throws on empty/undecodable).
   const bytes = base64ToBytes(derivative.base64 ?? '');
   assertExifFree(bytes); // EXIF stripped AT CAPTURE — proven on the output bytes.
 

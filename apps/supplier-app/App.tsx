@@ -112,6 +112,7 @@ export default function App() {
   const [shots, setShots] = useState<Partial<Record<ShotKind, CaptureResult>>>({});
   const [pending, setPending] = useState<CaptureResult | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [captureFailed, setCaptureFailed] = useState(false);
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const screen = stack[stack.length - 1] ?? START;
@@ -134,12 +135,17 @@ export default function App() {
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed
   // derivative IS the stored derivative; EXIF proven stripped on its bytes.
+  // A failed capture (including a fail-closed EXIF guard) is a DESIGNED
+  // state, never a silent rejection (verifier NB③).
   const takeShot = useCallback(async () => {
     const camera = cameraRef.current;
     if (camera === null || capturing) return;
     setCapturing(true);
+    setCaptureFailed(false);
     try {
       setPending(await captureShot(camera));
+    } catch {
+      setCaptureFailed(true);
     } finally {
       setCapturing(false);
     }
@@ -310,6 +316,7 @@ export default function App() {
             <Text style={styles.shotProgress}>
               {t(shot === 'hero' ? 'studio.shot_hero' : 'studio.shot_preuve')}
             </Text>
+            {captureFailed && <StatusChip tone="warn" label={t('studio.erreur')} />}
             <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} />
           </View>
         )}

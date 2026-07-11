@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DERIVATIVE_SPEC_V1,
   ExifLeakError,
+  base64ToBytes,
   NORMALIZATION_HOOKS_V1,
   assertExifFree,
   derivativeActions,
@@ -62,6 +63,14 @@ describe('B1.2 — EXIF stripped, AT CAPTURE (the guard is on the path, not only
   });
   it('non-JPEG bytes never false-positive', () => {
     expect(jpegCarriesExif(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
+  });
+  it('the guard FAILS CLOSED: empty bytes are an error, never a vacuous pass (verifier NB2)', () => {
+    expect(() => base64ToBytes('')).toThrow(ExifLeakError);
+  });
+  it('a failed capture is a designed state, never a silent rejection (verifier NB3)', () => {
+    const app = read('App.tsx');
+    expect(app).toMatch(/catch \{\s*setCaptureFailed\(true\);/);
+    expect(app).toMatch(/t\('studio\.erreur'\)/);
   });
   it('the capture path calls the guard on the derivative bytes (source pin)', () => {
     const capture = read('src/studio/capture.ts');

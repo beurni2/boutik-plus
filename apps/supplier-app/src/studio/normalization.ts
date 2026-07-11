@@ -106,9 +106,17 @@ export function assertExifFree(bytes: Uint8Array): void {
   }
 }
 
-/** base64 → bytes without Buffer (RN runtime has atob; node tests too). */
+/** base64 → bytes without Buffer (RN Hermes has atob; node tests too).
+ * FAIL-CLOSED (verifier NB②): a guard this load-bearing must never pass
+ * vacuously — no decoder or empty input is an error, not a green light. */
 export function base64ToBytes(b64: string): Uint8Array {
-  const bin = typeof atob === 'function' ? atob(b64) : '';
+  if (typeof atob !== 'function') {
+    throw new ExifLeakError('no base64 decoder available — the EXIF guard cannot run, refusing the capture');
+  }
+  if (b64.length === 0) {
+    throw new ExifLeakError('empty derivative bytes — the EXIF guard cannot run, refusing the capture');
+  }
+  const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
   return out;

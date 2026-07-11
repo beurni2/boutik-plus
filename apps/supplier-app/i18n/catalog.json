@@ -514,5 +514,11 @@
     "fr": "2 photos prêtes — la vôtre reste chez vous",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "studio.erreur",
+    "fr": "La photo n'a pas pu être prise — réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]
