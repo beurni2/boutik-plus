@@ -14,7 +14,7 @@ onlyBuiltDependencies:
 
 # @platform/contracts depends on @platform/kernel-types@0.5.0, which exists
 # on no registry; this override routes that transitive resolution to the
-# same pinned git ref (CONSUMING.md). Pin = sha 0ff6696a (canon v0.5.0;
+# same pinned git ref (CONSUMING.md). Pin = sha 539dbc8a (canon v0.6.0;
 # founder ruling: the release ref is the commit — the v0.3.0 tag on origin
 # is mis-pointed at the v0.2.0 commit, report-only).
 # @platform/certification (0.4.0, devDep) additionally depends on
@@ -22,6 +22,6 @@ onlyBuiltDependencies:
 # also registry-absent, so they are routed the same way (CONSUMING.md at
 # v0.4.0 now documents all three overrides — upstream fix landed).
 overrides:
-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#0ff6696a4d0d89bef24822711e452c9a0ff07f9f&path:packages/kernel-types"
-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#0ff6696a4d0d89bef24822711e452c9a0ff07f9f&path:packages/contracts"
-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#0ff6696a4d0d89bef24822711e452c9a0ff07f9f&path:packages/ui-tokens"
+  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/kernel-types"
+  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/contracts"
+  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/ui-tokens"
