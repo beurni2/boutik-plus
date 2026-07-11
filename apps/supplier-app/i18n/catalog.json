@@ -142,5 +142,179 @@
     "fr": "Aperçu — bac à sable",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "nav.retour",
+    "fr": "Retour",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "nav.recommencer",
+    "fr": "Recommencer la démo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.tagline",
+    "fr": "Vendez depuis votre boutique. Séra livre, vous êtes payé.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.card_produits",
+    "fr": "Mes produits",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.card_nouveau",
+    "fr": "Vendre un nouveau produit",
+    "register": "selling",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.card_echeances",
+    "fr": "Mes échéances",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.card_onboarding",
+    "fr": "Comment ça marche",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.title",
+    "fr": "Mes produits",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "produits.repere",
+    "fr": "Repère",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.net_ligne",
+    "fr": "Vous recevrez {amount} F",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "statut.pret",
+    "fr": "Prêt",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "statut.en_attente",
+    "fr": "En attente du réseau",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "statut.refuse",
+    "fr": "À corriger",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "statut.correction",
+    "fr": "Correction en cours",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "statut.echeance",
+    "fr": "Délai passé — l’acheteur est remboursé",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "photo.title",
+    "fr": "La photo de votre produit",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "photo.placeholder",
+    "fr": "Prise d’essai — la capture guidée arrive bientôt.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "photo.take",
+    "fr": "Prendre la photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.baseline_title",
+    "fr": "L’exemple complet — un produit à 10 000 F",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "offre.baseline_vendeur",
+    "fr": "Vous recevez 8 500 F",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.baseline_revendeur",
+    "fr": "Le revendeur reçoit 2 000 F",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.baseline_service",
+    "fr": "Le service reçoit 1 000 F",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.baseline_livraison",
+    "fr": "La livraison, 1 000 F, est payée à part par l’acheteur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "echeances.title",
+    "fr": "Mes échéances",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "echeances.regle",
+    "fr": "Après un refus, vous avez 6 heures pour corriger. Passé ce délai, l’acheteur est remboursé.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "echeances.restant",
+    "fr": "Temps restant : {min} min",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "corrective.walk_title",
+    "fr": "Une commande refusée — à corriger",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "demo.donnees",
+    "fr": "Données d’essai — rien ici n’est réel.",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "corrective.rien",
+    "fr": "Rien à corriger — tout est en ordre.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]
