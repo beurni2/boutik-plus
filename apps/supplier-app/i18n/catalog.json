@@ -136,5 +136,11 @@
     "fr": "C'est corrigé. En attente du réseau.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "preview.banner",
+    "fr": "Aperçu — bac à sable",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

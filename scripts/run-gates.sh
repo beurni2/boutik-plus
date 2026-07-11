@@ -92,6 +92,12 @@ capture no-seller-debit-positive pass node scripts/gates/no-seller-debit.mjs
 log "gate: no-seller-debit — NEGATIVE FIXTURE (debitFcfa/deduct/retenue flow, must fail)"
 capture no-seller-debit-negative fail node scripts/gates/no-seller-debit.mjs gates/fixtures/negative/no-seller-debit
 
+log "gate: no-expo-token-leak — repo source + workflows + lockfile (must pass)"
+capture no-expo-token-leak-positive pass node scripts/gates/no-expo-token-leak.mjs
+
+log "gate: no-expo-token-leak — NEGATIVE FIXTURE (committed token literal, must fail)"
+capture no-expo-token-leak-negative fail node scripts/gates/no-expo-token-leak.mjs gates/fixtures/negative/no-expo-token-leak
+
 log "gate: single-level — repo source (must pass)"
 capture single-level-positive pass node scripts/gates/single-level.mjs
 
