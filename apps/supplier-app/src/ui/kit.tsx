@@ -287,6 +287,35 @@ export function PendingNotice({ lines }: { lines: readonly string[] }) {
   );
 }
 
+/* « La loi du mouvement » (DESIGN-LANGUAGE) — the screen change eases in
+ * on the ONE soft spring; it explains, never decorates, and NEVER blocks
+ * input (content is interactive from the first frame; static under
+ * reduced motion). */
+export function ScreenTransition({ screenKey, children }: { screenKey: string; children: React.ReactNode }) {
+  const reduced = useReducedMotion();
+  const progress = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (reduced) {
+      progress.setValue(1);
+      return;
+    }
+    progress.setValue(0);
+    Animated.spring(progress, {
+      toValue: 1,
+      damping: motion.springSoft.damping,
+      stiffness: motion.springSoft.stiffness,
+      mass: motion.springSoft.mass,
+      useNativeDriver: true,
+    }).start();
+  }, [screenKey, reduced, progress]);
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [theme.spacing.md, 0] });
+  return (
+    <Animated.View style={[styles.transitionFill, { opacity: progress, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 /* « La célébration » (DESIGN-LANGUAGE §3) — produit_pret: a soft halo and
  * three woven-motif bars in the theme's celebration palette. ≤ 800 ms by
  * token ceiling, absolutely NON-BLOCKING (pointerEvents none), skipped
@@ -488,6 +517,7 @@ const styles = StyleSheet.create({
   },
   pendingBody: { flex: 1, gap: theme.spacing.xs },
   pendingText: { color: theme.colors.inkMuted, fontSize: theme.typeScale.caption.size, lineHeight: theme.typeScale.caption.lineHeight },
+  transitionFill: { flex: 1 },
   celebrationWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   celebrationHalo: {
     width: money.amountScale.hero.size * 4,

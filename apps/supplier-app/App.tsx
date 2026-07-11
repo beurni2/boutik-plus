@@ -26,6 +26,7 @@ import {
   Overline,
   PendingNotice,
   PrimaryButton,
+  ScreenTransition,
   SecondaryButton,
   StatusChip,
   TabBar,
@@ -147,6 +148,7 @@ export default function App() {
         onBack={stack.length > 1 ? back : undefined}
       />
 
+      <ScreenTransition screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
           <View style={styles.stackGap}>
@@ -316,6 +318,7 @@ export default function App() {
           <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
         )}
       </View>
+      </ScreenTransition>
 
       <View style={styles.footer}>
         <Text style={styles.footerHint}>{t('demo.donnees')}</Text>

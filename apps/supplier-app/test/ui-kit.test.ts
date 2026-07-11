@@ -74,6 +74,17 @@ describe('WO-4.2R visual layer', () => {
     expect(app.match(/setCelebrating\(true\)/g)).toHaveLength(2); // offre → pret AND corrective → pret
   });
 
+  it('the screen change eases in on the ONE soft spring — token params, static under reduced motion', () => {
+    const kit = read('src/ui/kit.tsx');
+    expect(kit).toMatch(/export function ScreenTransition/);
+    const transition = kit.slice(kit.indexOf('export function ScreenTransition'), kit.indexOf('/* « La célébration »'));
+    expect(transition).toMatch(/motion\.springSoft\.damping/);
+    expect(transition).toMatch(/useNativeDriver: true/);
+    expect(transition).toMatch(/if \(reduced\) \{/);
+    const app = read('App.tsx');
+    expect(app).toMatch(/<ScreenTransition screenKey=\{screen\}>/);
+  });
+
   it('the skeleton pulses on motion tokens and is static under reduced motion — no bare spinner anywhere', () => {
     const kit = read('src/ui/kit.tsx');
     expect(kit).toMatch(/motion\.standard\.durationMs/);
