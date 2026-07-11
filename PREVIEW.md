@@ -32,6 +32,12 @@ l'aperçu : sur Android, une version d'Expo Go correspondant au SDK 53 peut êtr
 depuis expo.dev/go (choisir la version du SDK). La mise à niveau du SDK est prévue comme
 sa propre étape de travail (WO-4.0b) — elle n'a pas été forcée ici.
 
+## Note locale (cache Metro)
+
+Après avoir changé de profil (variable `EXPO_PUBLIC_PROFILE`), relancez avec
+`npx expo start --clear` : le cache de Metro ne se rafraîchit pas tout seul
+quand une variable inline change.
+
 ## Ce que « bac à sable » veut dire ici
 
 Les écrans montrent le vrai design et les vrais parcours, avec des données d'essai.
