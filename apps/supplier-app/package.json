@@ -2,7 +2,7 @@
   "name": "@boutik/supplier-app",
   "version": "0.0.1",
   "private": true,
-  "description": "Boutik+ supplier app shell (Expo/RN, WO-B0.1) \u2014 renders with the ui-tokens boutik-plus theme; strings from the i18n catalog only.",
+  "description": "Boutik+ supplier app shell (Expo/RN, WO-B0.1) — renders with the ui-tokens boutik-plus theme; strings from the i18n catalog only.",
   "license": "UNLICENSED",
   "main": "index.ts",
   "scripts": {
@@ -15,6 +15,8 @@
     "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/i18n",
     "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/ui-tokens",
     "expo": "~54.0.35",
+    "expo-camera": "~17.0.10",
+    "expo-image-manipulator": "~14.0.8",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.18",
     "react": "19.1.0",

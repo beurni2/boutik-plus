@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { boutikPlusTheme as theme } from '@platform/ui-tokens';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
 import { IS_PREVIEW } from './src/preview';
@@ -15,6 +16,14 @@ import {
   type DemoProduct,
   type DemoWorld,
 } from './src/demo/store';
+import { captureShot, type CaptureResult } from './src/studio/capture';
+import {
+  CAPTURE_CATEGORIES,
+  SHOT_KINDS,
+  frameGuideKey,
+  type CaptureCategory,
+  type ShotKind,
+} from './src/studio/guidance';
 import {
   AmountHero,
   AppHeader,
@@ -28,6 +37,7 @@ import {
   PrimaryButton,
   ScreenTransition,
   SecondaryButton,
+  Skeleton,
   StatusChip,
   TabBar,
   WaxBand,
@@ -96,6 +106,14 @@ export default function App() {
   const [stack, setStack] = useState<Screen[]>([START]);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+  // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
+  const [category, setCategory] = useState<CaptureCategory>('mode');
+  const [shot, setShotKind] = useState<ShotKind>('hero');
+  const [shots, setShots] = useState<Partial<Record<ShotKind, CaptureResult>>>({});
+  const [pending, setPending] = useState<CaptureResult | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const cameraRef = useRef<CameraView | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const screen = stack[stack.length - 1] ?? START;
 
   const go = useCallback((next: Screen) => {
@@ -108,7 +126,37 @@ export default function App() {
     setStack([START]);
     setPendingKey(null);
     setCelebrating(false);
+    setCategory('mode');
+    setShotKind('hero');
+    setShots({});
+    setPending(null);
+    setCapturing(false);
   }, []);
+  // The capture: ONE path (src/studio/capture.ts) — the previewed
+  // derivative IS the stored derivative; EXIF proven stripped on its bytes.
+  const takeShot = useCallback(async () => {
+    const camera = cameraRef.current;
+    if (camera === null || capturing) return;
+    setCapturing(true);
+    try {
+      setPending(await captureShot(camera));
+    } finally {
+      setCapturing(false);
+    }
+  }, [capturing]);
+  const keepShot = useCallback(() => {
+    if (pending === null) return;
+    setShots((s) => ({ ...s, [shot]: pending }));
+    setPending(null);
+    if (shot === 'hero') {
+      setShotKind('preuve');
+      return;
+    }
+    // Both shots kept: the capture queues honestly (no media service yet —
+    // publication is B2.1) and the walk continues to the offre.
+    setPendingKey('studio.queue_pending');
+    go('offre');
+  }, [pending, shot, go]);
   // Waypoint reset, never an edge: each hub state is already reachable
   // from START along declared edges; the tab jumps to that exact state.
   const toHub = useCallback((hub: Screen) => {
@@ -207,22 +255,99 @@ export default function App() {
         {screen === 'nouveau' && (
           <Card>
             <Text style={styles.message}>{t('product.title')}</Text>
+            <Overline>{t('studio.categorie')}</Overline>
+            <View style={styles.chipRow}>
+              {CAPTURE_CATEGORIES.map((c) => (
+                <Pressable
+                  key={c}
+                  style={[styles.categoryChip, category === c && styles.categoryChipOn]}
+                  onPress={() => setCategory(c)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: category === c }}
+                >
+                  <Text style={[styles.categoryChipText, category === c && styles.categoryChipTextOn]}>
+                    {t(`categorie.${c}`)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} />
           </Card>
         )}
 
-        {screen === 'photo' && (
+        {screen === 'photo' && permission === null && <Skeleton style={styles.cameraFrame} />}
+
+        {screen === 'photo' && permission !== null && !permission.granted && (
           <Card>
             <View style={styles.photoFrame}>
               <Text style={styles.photoGlyph}>📷</Text>
-              <Text style={styles.photoHint}>{t('photo.placeholder')}</Text>
+              <Text style={styles.photoHint}>{t('studio.permission')}</Text>
             </View>
-            <PrimaryButton label={t('photo.take')} onPress={() => go('offre')} />
+            <PrimaryButton label={t('studio.autoriser')} onPress={() => void requestPermission()} />
+            {/* The demo stays walkable if the camera is refused — honest
+                fallback, capture simply absent (journaled). */}
+            <GhostButton label={t('studio.sans_photo')} onPress={() => go('offre')} />
           </Card>
+        )}
+
+        {screen === 'photo' && permission !== null && permission.granted && pending === null && (
+          <View style={styles.stackGap}>
+            <View style={styles.cameraFrame}>
+              <CameraView ref={cameraRef} style={styles.camera} facing="back">
+                {/* Live frame guides — corners + the category-aware line
+                    (« Rapprochez-vous » class, inviting, never scolding). */}
+                <View style={styles.guideCorners} pointerEvents="none">
+                  <View style={[styles.guideCorner, styles.guideTL]} />
+                  <View style={[styles.guideCorner, styles.guideTR]} />
+                  <View style={[styles.guideCorner, styles.guideBL]} />
+                  <View style={[styles.guideCorner, styles.guideBR]} />
+                </View>
+                <View style={styles.guideBanner} pointerEvents="none">
+                  <Text style={styles.guideText}>{t(frameGuideKey(category, shot))}</Text>
+                </View>
+              </CameraView>
+            </View>
+            <Text style={styles.shotProgress}>
+              {t(shot === 'hero' ? 'studio.shot_hero' : 'studio.shot_preuve')}
+            </Text>
+            <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} />
+          </View>
+        )}
+
+        {screen === 'photo' && pending !== null && (
+          <View style={styles.stackGap}>
+            {/* WYSIWYG — the premium-frame preview renders THE derivative
+                that will be stored: what the seller sees here is exactly
+                what the buyer will see. */}
+            <Card style={styles.premiumFrame}>
+              <Overline>{t('studio.apercu')}</Overline>
+              <Image
+                source={{ uri: pending.derivative.uri }}
+                style={styles.previewImage}
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+              />
+              <Text style={styles.photoHint}>
+                {t(pending.guidance.verdict === 'advice' ? 'studio.conseil.lumiere' : 'studio.conseil.ok')}
+              </Text>
+            </Card>
+            {/* Retake as cheap as confirm — same weight class, side by side. */}
+            <View style={styles.retakeRow}>
+              <View style={styles.retakeHalf}>
+                <SecondaryButton label={t('studio.reprendre')} onPress={() => setPending(null)} />
+              </View>
+              <View style={styles.retakeHalf}>
+                <PrimaryButton label={t('studio.confirmer')} onPress={keepShot} />
+              </View>
+            </View>
+          </View>
         )}
 
         {screen === 'offre' && (
           <Card>
+            {shots.hero !== undefined && shots.preuve !== undefined && (
+              <StatusChip tone="ok" label={t('studio.photos_pretes')} />
+            )}
             <AmountHero label={t('offer.net_label')} amount={heroAmount} />
             <View style={styles.baselineCard}>
               <Overline>{t('offre.baseline_title')}</Overline>
@@ -399,6 +524,71 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     padding: theme.spacing.lg,
   },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
+  categoryChip: {
+    minHeight: theme.touch.minTargetPx,
+    borderRadius: theme.radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surfaceRaised,
+    paddingHorizontal: theme.spacing.md,
+    justifyContent: 'center',
+  },
+  categoryChipOn: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
+  categoryChipText: { color: theme.colors.ink, fontSize: theme.typeScale.body.size, fontWeight: theme.typeScale.label.weight },
+  categoryChipTextOn: { color: theme.colors.primaryStrong },
+  cameraFrame: {
+    height: theme.spacing.xxxl * 7,
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceSunken,
+  },
+  camera: { flex: 1 },
+  guideCorners: { ...StyleSheet.absoluteFillObject, margin: theme.spacing.lg },
+  guideCorner: {
+    position: 'absolute',
+    width: theme.spacing.xl,
+    height: theme.spacing.xl,
+    borderColor: theme.colors.surfaceRaised,
+  },
+  guideTL: { top: 0, left: 0, borderTopWidth: theme.spacing.xs / 2, borderLeftWidth: theme.spacing.xs / 2 },
+  guideTR: { top: 0, right: 0, borderTopWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
+  guideBL: { bottom: 0, left: 0, borderBottomWidth: theme.spacing.xs / 2, borderLeftWidth: theme.spacing.xs / 2 },
+  guideBR: { bottom: 0, right: 0, borderBottomWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
+  guideBanner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.ink,
+    alignItems: 'center',
+  },
+  guideText: {
+    color: theme.colors.surfaceRaised,
+    fontSize: theme.typeScale.body.size,
+    lineHeight: theme.typeScale.body.lineHeight,
+    fontWeight: theme.typeScale.label.weight,
+    textAlign: 'center',
+  },
+  shotProgress: {
+    color: theme.colors.inkMuted,
+    fontSize: theme.typeScale.body.size,
+    lineHeight: theme.typeScale.body.lineHeight,
+    textAlign: 'center',
+  },
+  premiumFrame: {
+    borderColor: theme.colors.primary,
+    borderWidth: theme.spacing.xs / 2,
+  },
+  previewImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceSunken,
+  },
+  retakeRow: { flexDirection: 'row', gap: theme.spacing.md },
+  retakeHalf: { flex: 1 },
   photoGlyph: { fontSize: theme.typeScale.displayFcfa.size, lineHeight: theme.typeScale.displayFcfa.lineHeight },
   photoHint: {
     color: theme.colors.inkMuted,
