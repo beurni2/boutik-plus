@@ -17,6 +17,7 @@ import {
   type DemoWorld,
 } from './src/demo/store';
 import { captureShot, type CaptureResult } from './src/studio/capture';
+import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
 import {
   CAPTURE_CATEGORIES,
   SHOT_KINDS,
@@ -112,7 +113,9 @@ export default function App() {
   const [shots, setShots] = useState<Partial<Record<ShotKind, CaptureResult>>>({});
   const [pending, setPending] = useState<CaptureResult | null>(null);
   const [capturing, setCapturing] = useState(false);
-  const [captureFailed, setCaptureFailed] = useState(false);
+  // WO-4.2D — the designed failure state carries its CODE; the code line
+  // renders in preview builds only (« détail : <code> »).
+  const [failureDetail, setFailureDetail] = useState<CaptureFailureDetail | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const screen = stack[stack.length - 1] ?? START;
@@ -132,7 +135,7 @@ export default function App() {
     setShots({});
     setPending(null);
     setCapturing(false);
-    setCaptureFailed(false);
+    setFailureDetail(null);
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed
   // derivative IS the stored derivative; EXIF proven stripped on its bytes.
@@ -142,11 +145,11 @@ export default function App() {
     const camera = cameraRef.current;
     if (camera === null || capturing) return;
     setCapturing(true);
-    setCaptureFailed(false);
+    setFailureDetail(null);
     try {
       setPending(await captureShot(camera));
-    } catch {
-      setCaptureFailed(true);
+    } catch (error) {
+      setFailureDetail(failureDetailOf(error));
     } finally {
       setCapturing(false);
     }
@@ -298,27 +301,50 @@ export default function App() {
         )}
 
         {screen === 'photo' && permission !== null && permission.granted && pending === null && (
-          <View style={styles.stackGap}>
-            <View style={styles.cameraFrame}>
-              <CameraView ref={cameraRef} style={styles.camera} facing="back">
-                {/* Live frame guides — corners + the category-aware line
-                    (« Rapprochez-vous » class, inviting, never scolding). */}
-                <View style={styles.guideCorners} pointerEvents="none">
-                  <View style={[styles.guideCorner, styles.guideTL]} />
-                  <View style={[styles.guideCorner, styles.guideTR]} />
-                  <View style={[styles.guideCorner, styles.guideBL]} />
-                  <View style={[styles.guideCorner, styles.guideBR]} />
+          /* WO-4.2D — la caméra DEVIENT l'écran (founder round): full width
+             (bleeds through the content padding by the same token), maximal
+             height (flex fills to the tab bar; SafeAreaView owns the safe
+             area). The guides scale with the view — corners are
+             edge-anchored, overlays stretch. ONE primary action, overlaid
+             bottom-center in thumb reach. */
+          <View style={styles.cameraScreen}>
+            <CameraView ref={cameraRef} style={styles.camera} facing="back">
+              {/* Live frame guides — corners + the category-aware line
+                  (« Rapprochez-vous » class, inviting, never scolding). */}
+              <View style={styles.guideCorners} pointerEvents="none">
+                <View style={[styles.guideCorner, styles.guideTL]} />
+                <View style={[styles.guideCorner, styles.guideTR]} />
+                <View style={[styles.guideCorner, styles.guideBL]} />
+                <View style={[styles.guideCorner, styles.guideBR]} />
+              </View>
+              {/* Guidance banner overlaid TOP: the frame line, the shot
+                  intent, and the category recall as a small chip. */}
+              <View style={styles.guideBanner} pointerEvents="none">
+                <Text style={styles.guideText}>{t(frameGuideKey(category, shot))}</Text>
+                <Text style={styles.shotRecallText}>
+                  {t(shot === 'hero' ? 'studio.shot_hero' : 'studio.shot_preuve')}
+                </Text>
+                <View style={styles.categoryRecall}>
+                  <Text style={styles.categoryRecallText}>{t(`categorie.${category}`)}</Text>
                 </View>
-                <View style={styles.guideBanner} pointerEvents="none">
-                  <Text style={styles.guideText}>{t(frameGuideKey(category, shot))}</Text>
+              </View>
+              <View style={styles.captureOverlay}>
+                {failureDetail !== null && <StatusChip tone="warn" label={t('studio.erreur')} />}
+                {/* WO-4.2D diagnostic surface — PREVIEW BUILDS ONLY, the
+                    banner law: babel inlines IS_PREVIEW; a production
+                    profile carries no diagnostics. */}
+                {IS_PREVIEW && failureDetail !== null && (
+                  <View style={styles.failureDetailPill}>
+                    <Text style={styles.failureDetailText}>
+                      {t('studio.erreur_detail').replace('{code}', failureDetail)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.captureButtonWrap}>
+                  <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} />
                 </View>
-              </CameraView>
-            </View>
-            <Text style={styles.shotProgress}>
-              {t(shot === 'hero' ? 'studio.shot_hero' : 'studio.shot_preuve')}
-            </Text>
-            {captureFailed && <StatusChip tone="warn" label={t('studio.erreur')} />}
-            <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} />
+              </View>
+            </CameraView>
           </View>
         )}
 
@@ -563,12 +589,21 @@ const styles = StyleSheet.create({
   guideTR: { top: 0, right: 0, borderTopWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
   guideBL: { bottom: 0, left: 0, borderBottomWidth: theme.spacing.xs / 2, borderLeftWidth: theme.spacing.xs / 2 },
   guideBR: { bottom: 0, right: 0, borderBottomWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
+  // WO-4.2D — la caméra devient l'écran: full-bleed width (the same token
+  // the content pads with), flex height to the tab bar.
+  cameraScreen: {
+    flex: 1,
+    marginHorizontal: -theme.spacing.lg,
+    backgroundColor: theme.colors.ink,
+    overflow: 'hidden',
+  },
   guideBanner: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    top: 0,
     padding: theme.spacing.md,
+    gap: theme.spacing.xs,
     backgroundColor: theme.colors.ink,
     alignItems: 'center',
   },
@@ -579,11 +614,45 @@ const styles = StyleSheet.create({
     fontWeight: theme.typeScale.label.weight,
     textAlign: 'center',
   },
-  shotProgress: {
-    color: theme.colors.inkMuted,
-    fontSize: theme.typeScale.body.size,
-    lineHeight: theme.typeScale.body.lineHeight,
+  shotRecallText: {
+    color: theme.colors.line,
+    fontSize: theme.typeScale.caption.size,
+    lineHeight: theme.typeScale.caption.lineHeight,
     textAlign: 'center',
+  },
+  categoryRecall: {
+    backgroundColor: theme.colors.surfaceRaised,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  categoryRecallText: {
+    color: theme.colors.ink,
+    fontSize: theme.typeScale.label.size,
+    lineHeight: theme.typeScale.label.lineHeight,
+    fontWeight: theme.typeScale.label.weight,
+  },
+  captureOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  captureButtonWrap: { width: '80%' },
+  failureDetailPill: {
+    backgroundColor: theme.colors.ink,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  failureDetailText: {
+    color: theme.colors.surfaceRaised,
+    fontSize: theme.typeScale.caption.size,
+    lineHeight: theme.typeScale.caption.lineHeight,
   },
   premiumFrame: {
     borderColor: theme.colors.primary,

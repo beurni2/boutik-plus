@@ -67,9 +67,9 @@ describe('B1.2 — EXIF stripped, AT CAPTURE (the guard is on the path, not only
   it('the guard FAILS CLOSED: empty bytes are an error, never a vacuous pass (verifier NB2)', () => {
     expect(() => base64ToBytes('')).toThrow(ExifLeakError);
   });
-  it('a failed capture is a designed state, never a silent rejection (verifier NB3)', () => {
+  it('a failed capture is a designed state carrying its CODE, never a silent rejection (WO-4.2D)', () => {
     const app = read('App.tsx');
-    expect(app).toMatch(/catch \{\s*setCaptureFailed\(true\);/);
+    expect(app).toMatch(/catch \(error\) \{\s*setFailureDetail\(failureDetailOf\(error\)\);/);
     expect(app).toMatch(/t\('studio\.erreur'\)/);
   });
   it('the capture path calls the guard on the derivative bytes (source pin)', () => {

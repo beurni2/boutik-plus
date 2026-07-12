@@ -520,5 +520,101 @@
     "fr": "La photo n'a pas pu être prise — réessayez.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "studio.erreur_detail",
+    "fr": "détail : {code}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.chaussures",
+    "fr": "Chaussures",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.sacs_accessoires",
+    "fr": "Sacs & accessoires",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.electromenager",
+    "fr": "Petit électroménager",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.enfants_bebe",
+    "fr": "Enfants & bébé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "categorie.artisanat",
+    "fr": "Artisanat",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.cadre.chaussures_hero",
+    "fr": "Posez la paire de côté, bien dans le cadre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.chaussures_preuve",
+    "fr": "Montrez l'étiquette de pointure de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.sacs_hero",
+    "fr": "Posez le sac debout, fermeture visible.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.sacs_preuve",
+    "fr": "Montrez les coutures et la fermeture de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.electro_hero",
+    "fr": "Placez l'appareil entier, bien au centre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.electro_preuve",
+    "fr": "Montrez les boutons et la prise de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.enfants_hero",
+    "fr": "Placez l'article complet, bien à plat.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.enfants_preuve",
+    "fr": "Montrez l'étiquette de taille et l'état de près.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.artisanat_hero",
+    "fr": "Montrez l'objet entier, à la belle lumière.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "studio.cadre.artisanat_preuve",
+    "fr": "Rapprochez-vous pour montrer le travail de la main.",
+    "register": "neutral",
+    "screenClass": "instruction"
   }
 ]

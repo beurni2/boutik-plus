@@ -71,6 +71,32 @@ export const NORMALIZATION_HOOKS_V1 = {
  */
 export class ExifLeakError extends Error {
   override readonly name = 'ExifLeakError';
+  /** WO-4.2D — the machine-readable failure code the preview-only
+   * diagnostic line surfaces (« détail : <code> »). */
+  constructor(
+    message: string,
+    readonly detail: 'exif_leak' | 'decode_failed' = 'exif_leak',
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * WO-4.2D — deterministic failure classification for the capture path's
+ * designed failure state. No inference: the guard's own errors carry their
+ * code; permission-shaped native rejections are named; everything else is
+ * the capture itself. Rendered ONLY in preview builds (babel-inlined out of
+ * any future production profile, same law as the banner).
+ */
+export type CaptureFailureDetail = 'capture_failed' | 'decode_failed' | 'exif_leak' | 'permission';
+
+export function failureDetailOf(error: unknown): CaptureFailureDetail {
+  if (error instanceof ExifLeakError) return error.detail;
+  const message = error instanceof Error ? error.message : String(error);
+  // Space/underscore/case-insensitive (verifier NB②: 'NotAuthorized' shapes).
+  const normalized = message.toLowerCase().replace(/[\s_-]+/g, '');
+  if (/permission|denied|unauthorized|notauthorized/.test(normalized)) return 'permission';
+  return 'capture_failed';
 }
 
 export function jpegCarriesExif(bytes: Uint8Array): boolean {
@@ -106,18 +132,68 @@ export function assertExifFree(bytes: Uint8Array): void {
   }
 }
 
-/** base64 → bytes without Buffer (RN Hermes has atob; node tests too).
- * FAIL-CLOSED (verifier NB②): a guard this load-bearing must never pass
- * vacuously — no decoder or empty input is an error, not a green light. */
+/** RFC 4648 decode table — 'A'..'Z' 'a'..'z' '0'..'9' '+' '/' → 0..63. */
+const B64_LOOKUP = (() => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Int16Array(128).fill(-1);
+  for (let i = 0; i < alphabet.length; i++) lookup[alphabet.charCodeAt(i)] = i;
+  return lookup;
+})();
+
+/**
+ * base64 → bytes, PURE JS (WO-4.2D — the founder-device incident).
+ * WO-4.2C leaned on the `atob` global ("Hermes provides atob") — a claim
+ * the verifier flagged as UNVERIFIABLE in-sandbox, and the founder's
+ * iPhone/Expo Go failure chip pointed here. The assumption is now REMOVED
+ * BY CONSTRUCTION: this decoder depends on no runtime global, only the
+ * RFC 4648 table above. FAIL-CLOSED is retained where it belongs — empty
+ * input, an illegal length, or a character outside the alphabet is an
+ * error (detail: decode_failed), never a vacuous green light.
+ */
 export function base64ToBytes(b64: string): Uint8Array {
-  if (typeof atob !== 'function') {
-    throw new ExifLeakError('no base64 decoder available — the EXIF guard cannot run, refusing the capture');
-  }
   if (b64.length === 0) {
-    throw new ExifLeakError('empty derivative bytes — the EXIF guard cannot run, refusing the capture');
+    throw new ExifLeakError(
+      'empty derivative bytes — the EXIF guard cannot run, refusing the capture',
+      'decode_failed',
+    );
   }
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
+  // Forgiving-base64 step 1 (WHATWG): strip ASCII whitespace — native
+  // encoders may wrap lines (verifier NB①: Android Base64.DEFAULT, MIME);
+  // the OLD atob path forgave whitespace and a stricter decoder would
+  // re-refuse captures the founder's device used to make.
+  const compact = b64.replace(/[\t\n\f\r ]+/g, '');
+  let end = compact.length;
+  while (end > 0 && compact.charCodeAt(end - 1) === 0x3d) end--; // trailing '='
+  if (end === 0) {
+    // Verifier blocker ①: padding-only (or whitespace-only) input MUST NOT
+    // become a 0-byte vacuous pass through the EXIF guard.
+    throw new ExifLeakError(
+      'padding-only base64 — no derivative bytes, refusing the capture',
+      'decode_failed',
+    );
+  }
+  if (end % 4 === 1) {
+    throw new ExifLeakError('invalid base64 length — refusing the capture', 'decode_failed');
+  }
+  const out = new Uint8Array(Math.floor((end * 3) / 4));
+  let acc = 0;
+  let bits = 0;
+  let o = 0;
+  for (let i = 0; i < end; i++) {
+    const code = compact.charCodeAt(i);
+    const value = code < 128 ? B64_LOOKUP[code]! : -1;
+    if (value < 0) {
+      throw new ExifLeakError(
+        `invalid base64 character at ${i} — refusing the capture`,
+        'decode_failed',
+      );
+    }
+    acc = (acc << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out[o++] = (acc >> bits) & 0xff;
+    }
+  }
   return out;
 }
