@@ -41,7 +41,10 @@ describe('the 26 icon components carry the design-reference geometry (byte-ident
   });
 
   it('every component defaults to currentColor and threads it to every stroke/fill', () => {
-    const comps = iconsSrc.split('export function Icon').slice(1);
+    // split on the NAMED glyph components only (IconAlerte…, followed by an
+    // uppercase letter) — NOT the `Icon(` name-indexed dispatcher the WO-6.0
+    // generator now also emits.
+    const comps = iconsSrc.split(/export function Icon(?=[A-Z])/).slice(1);
     expect(comps).toHaveLength(26);
     for (const c of comps) {
       expect(c).toMatch(/color = 'currentColor'/); // the default

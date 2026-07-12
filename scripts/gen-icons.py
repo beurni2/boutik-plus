@@ -81,6 +81,17 @@ rn_module = (
     "export const GRAND_TEINT_ICONS = [\n"
     + ",\n".join(f"  '{n}'" for n in names) + ",\n] as const;\n"
     "export type GrandTeintIconName = (typeof GRAND_TEINT_ICONS)[number];\n"
+    "export type IconName = GrandTeintIconName;\n\n"
+    "// Name-indexed dispatcher: the kit and screens address glyphs by canon\n"
+    "// name (IconName), so a canon icon-set bump regenerates the registry and\n"
+    "// every slot fills with no call-site change.\n"
+    f"const ICON_REGISTRY: Record<IconName, (props: IconProps) => ReturnType<typeof {pascal(names[0])}>> = {{\n"
+    + "".join(f"  '{n}': {pascal(n)},\n" for n in names)
+    + "};\n\n"
+    "export function Icon({ name, size = 20, color = 'currentColor' }: IconProps & { name: IconName }) {\n"
+    "  const Glyph = ICON_REGISTRY[name];\n"
+    "  return <Glyph size={size} color={color} />;\n"
+    "}\n"
 )
 os.makedirs(os.path.dirname(RN_OUT), exist_ok=True)
 open(RN_OUT, "w").write(rn_module)

@@ -339,3 +339,41 @@ export const GRAND_TEINT_ICONS = [
   'zone',
 ] as const;
 export type GrandTeintIconName = (typeof GRAND_TEINT_ICONS)[number];
+export type IconName = GrandTeintIconName;
+
+// Name-indexed dispatcher: the kit and screens address glyphs by canon
+// name (IconName), so a canon icon-set bump regenerates the registry and
+// every slot fills with no call-site change.
+const ICON_REGISTRY: Record<IconName, (props: IconProps) => ReturnType<typeof IconAlerte>> = {
+  'alerte': IconAlerte,
+  'argent': IconArgent,
+  'cadenas': IconCadenas,
+  'camera': IconCamera,
+  'chevron': IconChevron,
+  'cle': IconCle,
+  'coche': IconCoche,
+  'colis': IconColis,
+  'ecouter': IconEcouter,
+  'enregistrer': IconEnregistrer,
+  'filtre': IconFiltre,
+  'gains': IconGains,
+  'horloge': IconHorloge,
+  'horsligne': IconHorsligne,
+  'moto': IconMoto,
+  'oeil': IconOeil,
+  'partager': IconPartager,
+  'recherche': IconRecherche,
+  'refus': IconRefus,
+  'repere': IconRepere,
+  'reprendre': IconReprendre,
+  'scelle': IconScelle,
+  'sos': IconSos,
+  'telephone': IconTelephone,
+  'voix': IconVoix,
+  'zone': IconZone,
+};
+
+export function Icon({ name, size = 20, color = 'currentColor' }: IconProps & { name: IconName }) {
+  const Glyph = ICON_REGISTRY[name];
+  return <Glyph size={size} color={color} />;
+}
