@@ -15,7 +15,22 @@
  * scolds; it invites (« Rapprochez-vous » class, per the order).
  */
 
-export const CAPTURE_CATEGORIES = ['mode', 'tissus', 'beaute_scellee', 'maison'] as const;
+/**
+ * WO-4.2D (founder round) — the demo-guidance set covers the real market.
+ * These are CAPTURE-GUIDANCE categories only — the launch/prohibited
+ * category list remains an open Decision (⏳); no policy is created here.
+ */
+export const CAPTURE_CATEGORIES = [
+  'mode',
+  'tissus',
+  'chaussures',
+  'sacs_accessoires',
+  'beaute_scellee',
+  'maison',
+  'electromenager',
+  'enfants_bebe',
+  'artisanat',
+] as const;
 export type CaptureCategory = (typeof CAPTURE_CATEGORIES)[number];
 
 export const SHOT_KINDS = ['hero', 'preuve'] as const;
@@ -25,8 +40,13 @@ export type ShotKind = (typeof SHOT_KINDS)[number];
 const FRAME_KEY: Record<CaptureCategory, Record<ShotKind, string>> = {
   mode: { hero: 'studio.cadre.mode_hero', preuve: 'studio.cadre.mode_preuve' },
   tissus: { hero: 'studio.cadre.tissus_hero', preuve: 'studio.cadre.tissus_preuve' },
+  chaussures: { hero: 'studio.cadre.chaussures_hero', preuve: 'studio.cadre.chaussures_preuve' },
+  sacs_accessoires: { hero: 'studio.cadre.sacs_hero', preuve: 'studio.cadre.sacs_preuve' },
   beaute_scellee: { hero: 'studio.cadre.scelle_hero', preuve: 'studio.cadre.scelle_preuve' },
   maison: { hero: 'studio.cadre.maison_hero', preuve: 'studio.cadre.maison_preuve' },
+  electromenager: { hero: 'studio.cadre.electro_hero', preuve: 'studio.cadre.electro_preuve' },
+  enfants_bebe: { hero: 'studio.cadre.enfants_hero', preuve: 'studio.cadre.enfants_preuve' },
+  artisanat: { hero: 'studio.cadre.artisanat_hero', preuve: 'studio.cadre.artisanat_preuve' },
 };
 
 export function frameGuideKey(category: CaptureCategory, shot: ShotKind): string {
