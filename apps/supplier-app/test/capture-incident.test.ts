@@ -74,8 +74,15 @@ describe('WO-4.2D Part A — the atob assumption is REMOVED by construction', ()
     }
   });
 
+  it('WHITESPACE-WRAPPED base64 decodes (verifier NB①: the old atob path forgave it — a stricter decoder would re-refuse founder-device captures)', () => {
+    const fixture = jpegWithoutExif();
+    const wrapped = b64(fixture).replace(/(.{4})/g, '$1\n'); // MIME-style wrapping
+    expect(base64ToBytes(wrapped)).toEqual(fixture);
+    expect(base64ToBytes(` \t${b64(fixture)}\r\n`)).toEqual(fixture);
+  });
+
   it('FAIL-CLOSED retained: empty, illegal-length, and out-of-alphabet input throw decode_failed — never a vacuous pass', () => {
-    for (const bad of ['', 'A', '####', 'ABéA', 'AAAA A']) {
+    for (const bad of ['', 'A', '####', 'ABéA']) {
       let caught: unknown;
       try {
         base64ToBytes(bad);
@@ -85,6 +92,23 @@ describe('WO-4.2D Part A — the atob assumption is REMOVED by construction', ()
       expect(caught, `input ${JSON.stringify(bad)}`).toBeInstanceOf(ExifLeakError);
       expect((caught as ExifLeakError).detail).toBe('decode_failed');
     }
+  });
+
+  it('VERIFIER BLOCKER ① pinned: padding-only or whitespace-only input NEVER becomes a 0-byte vacuous pass through the EXIF guard', () => {
+    for (const bad of ['=', '==', '===', '====', ' \n ', '\t==\n', '= =']) {
+      let caught: unknown;
+      try {
+        base64ToBytes(bad);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught, `input ${JSON.stringify(bad)} must refuse`).toBeInstanceOf(ExifLeakError);
+      expect((caught as ExifLeakError).detail).toBe('decode_failed');
+    }
+    // the vacuous-pass scenario itself, end to end: an empty byte array
+    // would sail through the EXIF scanner — the decoder must never emit one.
+    expect(jpegCarriesExif(new Uint8Array(0))).toBe(false); // why the guard alone can't save us
+    expect(() => base64ToBytes('==')).toThrow(ExifLeakError); // and why the decoder must
   });
 
   it('no module on the capture path references atob anymore (source pin, comments stripped)', () => {
@@ -98,6 +122,7 @@ describe('WO-4.2D Part A — the atob assumption is REMOVED by construction', ()
     expect(failureDetailOf(new ExifLeakError('exif', 'exif_leak'))).toBe('exif_leak');
     expect(failureDetailOf(new ExifLeakError('bad bytes', 'decode_failed'))).toBe('decode_failed');
     expect(failureDetailOf(new Error('Camera permission denied by user'))).toBe('permission');
+    expect(failureDetailOf(new Error('User NotAuthorized for camera'))).toBe('permission'); // verifier NB②
     expect(failureDetailOf(new Error('AVFoundation: capture interrupted'))).toBe('capture_failed');
     expect(failureDetailOf('something odd')).toBe('capture_failed');
     // assertExifFree's own throw defaults to exif_leak:

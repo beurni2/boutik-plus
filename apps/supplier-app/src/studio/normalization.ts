@@ -93,7 +93,9 @@ export type CaptureFailureDetail = 'capture_failed' | 'decode_failed' | 'exif_le
 export function failureDetailOf(error: unknown): CaptureFailureDetail {
   if (error instanceof ExifLeakError) return error.detail;
   const message = error instanceof Error ? error.message : String(error);
-  if (/permission|denied|unauthorized|not authorized/i.test(message)) return 'permission';
+  // Space/underscore/case-insensitive (verifier NB②: 'NotAuthorized' shapes).
+  const normalized = message.toLowerCase().replace(/[\s_-]+/g, '');
+  if (/permission|denied|unauthorized|notauthorized/.test(normalized)) return 'permission';
   return 'capture_failed';
 }
 
@@ -155,8 +157,21 @@ export function base64ToBytes(b64: string): Uint8Array {
       'decode_failed',
     );
   }
-  let end = b64.length;
-  while (end > 0 && b64.charCodeAt(end - 1) === 0x3d) end--; // trailing '='
+  // Forgiving-base64 step 1 (WHATWG): strip ASCII whitespace — native
+  // encoders may wrap lines (verifier NB①: Android Base64.DEFAULT, MIME);
+  // the OLD atob path forgave whitespace and a stricter decoder would
+  // re-refuse captures the founder's device used to make.
+  const compact = b64.replace(/[\t\n\f\r ]+/g, '');
+  let end = compact.length;
+  while (end > 0 && compact.charCodeAt(end - 1) === 0x3d) end--; // trailing '='
+  if (end === 0) {
+    // Verifier blocker ①: padding-only (or whitespace-only) input MUST NOT
+    // become a 0-byte vacuous pass through the EXIF guard.
+    throw new ExifLeakError(
+      'padding-only base64 — no derivative bytes, refusing the capture',
+      'decode_failed',
+    );
+  }
   if (end % 4 === 1) {
     throw new ExifLeakError('invalid base64 length — refusing the capture', 'decode_failed');
   }
@@ -165,7 +180,7 @@ export function base64ToBytes(b64: string): Uint8Array {
   let bits = 0;
   let o = 0;
   for (let i = 0; i < end; i++) {
-    const code = b64.charCodeAt(i);
+    const code = compact.charCodeAt(i);
     const value = code < 128 ? B64_LOOKUP[code]! : -1;
     if (value < 0) {
       throw new ExifLeakError(
