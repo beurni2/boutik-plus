@@ -89,8 +89,12 @@ rn_module = (
     + "".join(f"  '{n}': {pascal(n)},\n" for n in names)
     + "};\n\n"
     "export function Icon({ name, size = 20, color = 'currentColor' }: IconProps & { name: IconName }) {\n"
+    "  // Tolerant of a name whose glyph is not yet in this pinned set (a canon\n"
+    "  // icon-set bump in flight): render nothing rather than crash or\n"
+    "  // substitute a lookalike. The registry-coverage test proves every name\n"
+    "  // in THIS set resolves, so null happens only for a genuinely-pending glyph.\n"
     "  const Glyph = ICON_REGISTRY[name];\n"
-    "  return <Glyph size={size} color={color} />;\n"
+    "  return Glyph ? <Glyph size={size} color={color} /> : null;\n"
     "}\n"
 )
 os.makedirs(os.path.dirname(RN_OUT), exist_ok=True)

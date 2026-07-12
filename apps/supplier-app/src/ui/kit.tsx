@@ -29,6 +29,10 @@ import { cubicBezierPoints } from './motion';
 import { FONT_FAMILY } from './fonts';
 import { Icon, type IconName } from './icons';
 
+// The kit is the single design-system entry point: screens import the glyph
+// dispatcher + its name type from here alongside the components.
+export { Icon, type IconName } from './icons';
+
 /**
  * WO-6.0 — LE VISAGE, rebuilt from zero on ui-tokens v0.9.0 (Grand Teint,
  * direction 1b). The look is « craft under constraint »: near-black ink on
@@ -50,6 +54,8 @@ import { Icon, type IconName } from './icons';
 // accent keys through a Record<string,string> → string|undefined under
 // noUncheckedIndexedAccess; the source const objects keep the literal types).
 const C = { ...sharedColour, ...boutikColour };
+/** The Boutik+ Grand Teint palette, for screens composing custom surfaces. */
+export const palette = C;
 
 // ── the authored easings, parsed once (token fidelity — no spring physics) ──
 const EASE_SOFT = Easing.bezier(...cubicBezierPoints(motion.springSoft));
@@ -58,7 +64,7 @@ const EASE_FLY = Easing.bezier(...cubicBezierPoints(motion.flyOut));
 
 // ── type: canon scale → RN TextStyle (lh is a unitless multiplier; wght a
 //    numeric axis → RN fontWeight string; caps → uppercase; ls → letterSpacing).
-type ScaleToken = {
+export type ScaleToken = {
   size: number;
   lh: number;
   wght: number;
@@ -66,7 +72,9 @@ type ScaleToken = {
   caps?: boolean;
   wdth?: number;
 };
-function textStyle(s: ScaleToken): TextStyle {
+/** The canon type scale → an RN TextStyle. Exported so screens compose the
+ * design system's typography instead of re-deriving lineHeight/weight. */
+export function textStyle(s: ScaleToken): TextStyle {
   return {
     fontFamily: FONT_FAMILY,
     fontSize: s.size,

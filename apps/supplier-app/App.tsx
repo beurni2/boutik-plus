@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { boutikPlusTheme as theme } from '@platform/ui-tokens';
+import { interaction, spacing, type as typeTokens } from '@platform/ui-tokens';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
 import { IS_PREVIEW } from './src/preview';
 import { t } from './src/i18n';
@@ -18,42 +18,40 @@ import {
 } from './src/demo/store';
 import { captureShot, type CaptureResult } from './src/studio/capture';
 import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
-import {
-  CAPTURE_CATEGORIES,
-  SHOT_KINDS,
-  frameGuideKey,
-  type CaptureCategory,
-  type ShotKind,
-} from './src/studio/guidance';
+import { CAPTURE_CATEGORIES, frameGuideKey, type CaptureCategory, type ShotKind } from './src/studio/guidance';
 import {
   AmountHero,
   AppHeader,
-  Card,
-  Celebration,
+  CelebrationLayer,
   EmptyState,
-  GhostButton,
+  HairlineBox,
+  Icon,
   ListRow,
   Overline,
+  palette,
   PendingNotice,
   PrimaryButton,
-  ScreenTransition,
+  ScreenEnter,
   SecondaryButton,
   Skeleton,
   StatusChip,
   TabBar,
-  WaxBand,
+  textStyle,
+  UnderlineLink,
   type ChipTone,
+  type IconName,
 } from './src/ui/kit';
 
 /**
- * WO-4.2R — LE VISAGE over WO-4.1's walkable world. Same screens, same
- * edges, same back law, same money from the same pinned waterfall — the
- * visual layer is the kit (src/ui/kit.tsx, ui-tokens v2), the navigation
- * SEMANTICS are untouched. Tabs are waypoint RESETS under the ratified
- * two-level-ladder law (they jump only to states already reachable from
- * START along declared edges — accueil→produits, accueil→echeances);
- * go() and its edge guard are byte-identical to WO-4.1.
+ * WO-6.0 — LE VISAGE, Grand Teint. Same walkable world as WO-4.1 (journey
+ * spine, back law, money from the pinned waterfall — all byte-identical), now
+ * dressed in the v0.9.0 kit: ink on paper, hairline tables, one primary action
+ * per screen, ZERO emoji (icons are the canon set via the `Icon` dispatcher).
+ * The navigation SEMANTICS and every franc are untouched.
  */
+
+const C = palette;
+const T = typeTokens.scale;
 
 const E1_B = 10_000;
 const E1_C = 1_000;
@@ -79,16 +77,29 @@ const STATUS_KEY: Record<DemoProduct['status'], string> = {
   correction_en_cours: 'statut.correction',
   echeance_depassee: 'statut.echeance',
 };
+// Grand Teint chip tones: an ink `fact` for the confirmed-ready state; a
+// warningTint `pending` for in-flight; a dangerTint `problem` for a refusal —
+// never a green fill before server truth.
 const STATUS_TONE: Record<DemoProduct['status'], ChipTone> = {
-  pret: 'ok',
-  en_attente: 'info',
-  refuse_correctable: 'bad',
-  correction_en_cours: 'warn',
-  echeance_depassee: 'bad',
+  pret: 'fact',
+  en_attente: 'pending',
+  refuse_correctable: 'problem',
+  correction_en_cours: 'pending',
+  echeance_depassee: 'problem',
 };
 
 /** The bottom hubs (WO-4.2R): Accueil · Produits · Échéances. */
 const HUBS: readonly Screen[] = ['accueil', 'produits', 'echeances'];
+
+// The tab glyphs. `echeances` → horloge (present at fa2ff24). `accueil` +
+// `produits` glyphs arrive with canon v0.9.1 (WO-5.4, in flight): the forward
+// names are wired here and the TOLERANT Icon renders nothing for them until
+// the re-pin fills the set — NEVER a lookalike. Tombstone: test/tabbar-icons.
+const TAB_ICON: Record<'accueil' | 'produits' | 'echeances', IconName> = {
+  accueil: 'accueil' as unknown as IconName,
+  produits: 'produits' as unknown as IconName,
+  echeances: 'horloge',
+};
 
 const SCREEN_TITLE_KEY: Record<Screen, string> = {
   accueil: 'app.title',
@@ -137,10 +148,9 @@ export default function App() {
     setCapturing(false);
     setFailureDetail(null);
   }, []);
-  // The capture: ONE path (src/studio/capture.ts) — the previewed
-  // derivative IS the stored derivative; EXIF proven stripped on its bytes.
-  // A failed capture (including a fail-closed EXIF guard) is a DESIGNED
-  // state, never a silent rejection (verifier NB③).
+  // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
+  // IS the stored derivative; EXIF proven stripped on its bytes. A failed
+  // capture is a DESIGNED state, never a silent rejection (verifier NB③).
   const takeShot = useCallback(async () => {
     const camera = cameraRef.current;
     if (camera === null || capturing) return;
@@ -162,13 +172,11 @@ export default function App() {
       setShotKind('preuve');
       return;
     }
-    // Both shots kept: the capture queues honestly (no media service yet —
-    // publication is B2.1) and the walk continues to the offre.
     setPendingKey('studio.queue_pending');
     go('offre');
   }, [pending, shot, go]);
-  // Waypoint reset, never an edge: each hub state is already reachable
-  // from START along declared edges; the tab jumps to that exact state.
+  // Waypoint reset, never an edge: each hub state is already reachable from
+  // START along declared edges; the tab jumps to that exact state.
   const toHub = useCallback((hub: Screen) => {
     setStack(hub === START ? [START] : [START, hub]);
   }, []);
@@ -188,11 +196,9 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* SDK 54: backgroundColor restored per the WO-4.0d-prep founder
-          ruling ③ — pre-edge-to-edge Android draws a default bar; the
-          surface token is the correct fill. */}
-      <StatusBar style="dark" backgroundColor={theme.colors.surface} />
-      <WaxBand />
+      {/* SDK 54: dark status bar over paper; the surface fill matches the
+          Grand Teint paper token (pre-edge-to-edge Android bar). */}
+      <StatusBar style="dark" backgroundColor={C.paper} />
       {IS_PREVIEW && (
         <View style={styles.previewBanner}>
           <Text style={styles.previewBannerText}>{t('preview.banner')}</Text>
@@ -201,33 +207,33 @@ export default function App() {
 
       <AppHeader
         title={t(SCREEN_TITLE_KEY[screen])}
-        subtitle={screen === 'accueil' ? t('accueil.tagline') : undefined}
+        context={screen === 'accueil' ? t('accueil.tagline') : undefined}
         backLabel={`← ${t('nav.retour')}`}
         onBack={stack.length > 1 ? back : undefined}
       />
 
-      <ScreenTransition screenKey={screen}>
+      <ScreenEnter screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
           <View style={styles.stackGap}>
             <View style={styles.statGrid}>
-              <Card style={styles.statCard}>
+              <HairlineBox style={styles.statCard}>
                 <Overline>{t('accueil.stat_en_ligne')}</Overline>
                 <Text style={styles.statValue}>{enLigne}</Text>
-              </Card>
-              <Card style={styles.statCard}>
+              </HairlineBox>
+              <HairlineBox style={styles.statCard}>
                 <Overline>{t('accueil.stat_a_corriger')}</Overline>
                 <Text style={styles.statValue}>{aCorriger}</Text>
-              </Card>
+              </HairlineBox>
             </View>
             <PrimaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
             <SecondaryButton label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
-            <GhostButton label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+            <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
           </View>
         )}
 
         {screen === 'onboarding' && (
-          <Card>
+          <HairlineBox>
             <Text style={styles.message}>{t('onboarding.free_listing')}</Text>
             <PrimaryButton
               label={t('onboard.action')}
@@ -236,7 +242,7 @@ export default function App() {
                 go('produits');
               }}
             />
-          </Card>
+          </HairlineBox>
         )}
 
         {screen === 'produits' && (
@@ -249,10 +255,10 @@ export default function App() {
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
                 <ListRow
-                  glyph={item.name.slice(0, 1)}
+                  icon="colis"
                   title={item.name}
                   meta={`${t('produits.repere')} : ${item.landmark}`}
-                  net={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
+                  value={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
                   chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
                   onPress={() => (item.status === 'refuse_correctable' ? go('corrective') : go('offre'))}
                 />
@@ -263,7 +269,7 @@ export default function App() {
         )}
 
         {screen === 'nouveau' && (
-          <Card>
+          <HairlineBox>
             <Text style={styles.message}>{t('product.title')}</Text>
             <Overline>{t('studio.categorie')}</Overline>
             <View style={styles.chipRow}>
@@ -282,43 +288,36 @@ export default function App() {
               ))}
             </View>
             <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} />
-          </Card>
+          </HairlineBox>
         )}
 
         {screen === 'photo' && permission === null && <Skeleton style={styles.cameraFrame} />}
 
         {screen === 'photo' && permission !== null && !permission.granted && (
-          <Card>
+          <HairlineBox>
             <View style={styles.photoFrame}>
-              <Text style={styles.photoGlyph}>📷</Text>
+              <Icon name="camera" size={28} color={C.soft} />
               <Text style={styles.photoHint}>{t('studio.permission')}</Text>
             </View>
             <PrimaryButton label={t('studio.autoriser')} onPress={() => void requestPermission()} />
             {/* The demo stays walkable if the camera is refused — honest
                 fallback, capture simply absent (journaled). */}
-            <GhostButton label={t('studio.sans_photo')} onPress={() => go('offre')} />
-          </Card>
+            <UnderlineLink label={t('studio.sans_photo')} onPress={() => go('offre')} />
+          </HairlineBox>
         )}
 
         {screen === 'photo' && permission !== null && permission.granted && pending === null && (
-          /* WO-4.2D — la caméra DEVIENT l'écran (founder round): full width
-             (bleeds through the content padding by the same token), maximal
-             height (flex fills to the tab bar; SafeAreaView owns the safe
-             area). The guides scale with the view — corners are
-             edge-anchored, overlays stretch. ONE primary action, overlaid
-             bottom-center in thumb reach. */
+          /* WO-4.2D — la caméra DEVIENT l'écran: full width, maximal height
+             (flex fills to the tab bar). Guides scale with the view; ONE
+             primary action, overlaid bottom-center in thumb reach. */
           <View style={styles.cameraScreen}>
             <CameraView ref={cameraRef} style={styles.camera} facing="back">
-              {/* Live frame guides — corners + the category-aware line
-                  (« Rapprochez-vous » class, inviting, never scolding). */}
               <View style={styles.guideCorners} pointerEvents="none">
                 <View style={[styles.guideCorner, styles.guideTL]} />
                 <View style={[styles.guideCorner, styles.guideTR]} />
                 <View style={[styles.guideCorner, styles.guideBL]} />
                 <View style={[styles.guideCorner, styles.guideBR]} />
               </View>
-              {/* Guidance banner overlaid TOP: the frame line, the shot
-                  intent, and the category recall as a small chip. */}
               <View style={styles.guideBanner} pointerEvents="none">
                 <Text style={styles.guideText}>{t(frameGuideKey(category, shot))}</Text>
                 <Text style={styles.shotRecallText}>
@@ -329,10 +328,8 @@ export default function App() {
                 </View>
               </View>
               <View style={styles.captureOverlay}>
-                {failureDetail !== null && <StatusChip tone="warn" label={t('studio.erreur')} />}
-                {/* WO-4.2D diagnostic surface — PREVIEW BUILDS ONLY, the
-                    banner law: babel inlines IS_PREVIEW; a production
-                    profile carries no diagnostics. */}
+                {failureDetail !== null && <StatusChip tone="problem" label={t('studio.erreur')} icon="refus" />}
+                {/* WO-4.2D diagnostic surface — PREVIEW BUILDS ONLY. */}
                 {IS_PREVIEW && failureDetail !== null && (
                   <View style={styles.failureDetailPill}>
                     <Text style={styles.failureDetailText}>
@@ -350,10 +347,9 @@ export default function App() {
 
         {screen === 'photo' && pending !== null && (
           <View style={styles.stackGap}>
-            {/* WYSIWYG — the premium-frame preview renders THE derivative
-                that will be stored: what the seller sees here is exactly
-                what the buyer will see. */}
-            <Card style={styles.premiumFrame}>
+            {/* WYSIWYG — the premium-frame preview renders THE derivative that
+                will be stored: what the seller sees is what the buyer sees. */}
+            <HairlineBox ink style={styles.premiumFrame}>
               <Overline>{t('studio.apercu')}</Overline>
               <Image
                 source={{ uri: pending.derivative.uri }}
@@ -364,7 +360,7 @@ export default function App() {
               <Text style={styles.photoHint}>
                 {t(pending.guidance.verdict === 'advice' ? 'studio.conseil.lumiere' : 'studio.conseil.ok')}
               </Text>
-            </Card>
+            </HairlineBox>
             {/* Retake as cheap as confirm — same weight class, side by side. */}
             <View style={styles.retakeRow}>
               <View style={styles.retakeHalf}>
@@ -378,9 +374,9 @@ export default function App() {
         )}
 
         {screen === 'offre' && (
-          <Card>
+          <HairlineBox>
             {shots.hero !== undefined && shots.preuve !== undefined && (
-              <StatusChip tone="ok" label={t('studio.photos_pretes')} />
+              <StatusChip tone="fact" label={t('studio.photos_pretes')} icon="coche" />
             )}
             <AmountHero label={t('offer.net_label')} amount={heroAmount} />
             <View style={styles.baselineCard}>
@@ -392,6 +388,7 @@ export default function App() {
             </View>
             <PrimaryButton
               label={t('ready.action')}
+              money
               onPress={() => {
                 addDemoProduct(world, E1_B, E1_C);
                 setWorld({ ...world });
@@ -400,24 +397,24 @@ export default function App() {
                 go('pret');
               }}
             />
-          </Card>
+          </HairlineBox>
         )}
 
         {screen === 'pret' && (
-          <Card>
-            <StatusChip tone="ok" label={t('statut.pret')} />
+          <HairlineBox>
+            <StatusChip tone="fact" label={t('statut.pret')} icon="coche" />
             <Text style={styles.message}>{t('ready.next')}</Text>
             <Text style={styles.deadline}>{t('deadline.today')}</Text>
-            <GhostButton label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
+            <UnderlineLink label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
-          </Card>
+          </HairlineBox>
         )}
 
         {screen === 'corrective' && (
-          <Card>
+          <HairlineBox>
             {refused === undefined ? (
               // Honest empty state — never a synthetic refusal (verifier NB⑤).
-              <EmptyState glyph="✓" title={t('corrective.rien')} />
+              <EmptyState icon="coche" title={t('corrective.rien')} />
             ) : (
               <>
                 <Text style={styles.message}>
@@ -428,8 +425,9 @@ export default function App() {
                 </Text>
                 <Text style={styles.message}>{t('refused.new_code')}</Text>
                 <StatusChip
-                  tone="warn"
+                  tone="pending"
                   label={t('echeances.restant').replace('{min}', String(refused.correctionMinLeft ?? 0))}
+                  icon="horloge"
                 />
                 <PrimaryButton
                   label={t('refused.fix_action')}
@@ -443,8 +441,8 @@ export default function App() {
                 />
               </>
             )}
-            <GhostButton label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
-          </Card>
+            <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+          </HairlineBox>
         )}
 
         {screen === 'echeances' && (
@@ -458,7 +456,7 @@ export default function App() {
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
                 <ListRow
-                  glyph={item.name.slice(0, 1)}
+                  icon="horloge"
                   title={item.name}
                   meta={
                     item.status !== 'echeance_depassee'
@@ -477,7 +475,7 @@ export default function App() {
           <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
         )}
       </View>
-      </ScreenTransition>
+      </ScreenEnter>
 
       <View style={styles.footer}>
         <Text style={styles.footerHint}>{t('demo.donnees')}</Text>
@@ -489,216 +487,91 @@ export default function App() {
       {HUBS.includes(screen) && (
         <TabBar
           items={[
-            { key: 'accueil', icon: '🏠', label: t('nav.tab_accueil'), active: screen === 'accueil', onPress: () => toHub('accueil') },
-            { key: 'produits', icon: '🏷️', label: t('nav.tab_produits'), active: screen === 'produits', onPress: () => toHub('produits') },
-            { key: 'echeances', icon: '⏱️', label: t('nav.tab_echeances'), active: screen === 'echeances', onPress: () => toHub('echeances') },
+            { key: 'accueil', icon: TAB_ICON.accueil, label: t('nav.tab_accueil'), active: screen === 'accueil', onPress: () => toHub('accueil') },
+            { key: 'produits', icon: TAB_ICON.produits, label: t('nav.tab_produits'), active: screen === 'produits', onPress: () => toHub('produits') },
+            { key: 'echeances', icon: TAB_ICON.echeances, label: t('nav.tab_echeances'), active: screen === 'echeances', onPress: () => toHub('echeances') },
           ]}
         />
       )}
 
-      {/* « Produit prêt » — the named celebration moment (≤ 800 ms by token
-          ceiling, non-blocking, reduced-motion respected in the kit). */}
-      <Celebration visible={celebrating && screen === 'pret'} onDone={endCelebration} />
+      {/* « Produit prêt » — the named celebration (≤ 800 ms, non-blocking,
+          reduced-motion respected in the kit). */}
+      <CelebrationLayer visible={celebrating && screen === 'pret'} onDone={endCelebration} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.surface },
-  content: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    gap: theme.spacing.md,
-  },
-  stackGap: { gap: theme.spacing.md, paddingTop: theme.spacing.sm },
-  statGrid: { flexDirection: 'row', gap: theme.spacing.md },
+  screen: { flex: 1, backgroundColor: C.paper },
+  content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
+  stackGap: { gap: spacing.md, paddingTop: spacing.sm },
+  statGrid: { flexDirection: 'row', gap: spacing.md },
   statCard: { flex: 1 },
-  statValue: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.displayFcfa.size,
-    lineHeight: theme.typeScale.displayFcfa.lineHeight,
-    fontWeight: theme.typeScale.displayFcfa.weight,
-    fontVariant: ['tabular-nums'],
-  },
-  listWrap: { flex: 1, gap: theme.spacing.md },
-  listContent: { gap: theme.spacing.sm, paddingBottom: theme.spacing.sm },
-  message: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.bodyLarge.size,
-    lineHeight: theme.typeScale.bodyLarge.lineHeight,
-  },
-  ruleNote: {
-    color: theme.colors.inkMuted,
-    fontSize: theme.typeScale.body.size,
-    lineHeight: theme.typeScale.body.lineHeight,
-  },
+  statValue: { ...textStyle(T.display), color: C.ink, fontVariant: ['tabular-nums'] },
+  listWrap: { flex: 1, gap: spacing.md },
+  listContent: { paddingBottom: spacing.sm },
+  message: { ...textStyle(T.body), color: C.ink },
+  ruleNote: { ...textStyle(T.caption), color: C.muted },
   baselineCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.line,
-    padding: theme.spacing.md,
-    gap: theme.spacing.xs,
+    borderWidth: interaction.hairline.medium,
+    borderColor: C.hairlineStrong,
+    padding: spacing.md,
+    gap: spacing.xs,
   },
-  baselineLine: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.body.size,
-    lineHeight: theme.typeScale.body.lineHeight,
-    fontVariant: ['tabular-nums'],
-  },
+  baselineLine: { ...textStyle(T.body), color: C.body, fontVariant: ['tabular-nums'] },
   photoFrame: {
-    minHeight: theme.spacing.xxxl * 3,
-    borderRadius: theme.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.line,
-    backgroundColor: theme.colors.surfaceSunken,
+    minHeight: 168,
+    borderWidth: interaction.hairline.medium,
+    borderColor: C.hairlineStrong,
+    backgroundColor: C.sand,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
-    padding: theme.spacing.lg,
+    gap: spacing.sm,
+    padding: spacing.lg,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   categoryChip: {
-    minHeight: theme.touch.minTargetPx,
-    borderRadius: theme.radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.line,
-    backgroundColor: theme.colors.surfaceRaised,
-    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    borderWidth: interaction.hairline.medium,
+    borderColor: C.hairlineStrong,
+    paddingHorizontal: spacing.md,
     justifyContent: 'center',
   },
-  categoryChipOn: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
-  categoryChipText: { color: theme.colors.ink, fontSize: theme.typeScale.body.size, fontWeight: theme.typeScale.label.weight },
-  categoryChipTextOn: { color: theme.colors.primaryStrong },
-  cameraFrame: {
-    height: theme.spacing.xxxl * 7,
-    borderRadius: theme.radius.lg,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.surfaceSunken,
-  },
+  categoryChipOn: { borderColor: C.ink, backgroundColor: C.ink },
+  categoryChipText: { ...textStyle(T.label), color: C.ink },
+  categoryChipTextOn: { color: C.onInk },
+  cameraFrame: { height: 320, backgroundColor: C.sand },
   camera: { flex: 1 },
-  guideCorners: { ...StyleSheet.absoluteFillObject, margin: theme.spacing.lg },
-  guideCorner: {
-    position: 'absolute',
-    width: theme.spacing.xl,
-    height: theme.spacing.xl,
-    borderColor: theme.colors.surfaceRaised,
-  },
-  guideTL: { top: 0, left: 0, borderTopWidth: theme.spacing.xs / 2, borderLeftWidth: theme.spacing.xs / 2 },
-  guideTR: { top: 0, right: 0, borderTopWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
-  guideBL: { bottom: 0, left: 0, borderBottomWidth: theme.spacing.xs / 2, borderLeftWidth: theme.spacing.xs / 2 },
-  guideBR: { bottom: 0, right: 0, borderBottomWidth: theme.spacing.xs / 2, borderRightWidth: theme.spacing.xs / 2 },
-  // WO-4.2D — la caméra devient l'écran: full-bleed width (the same token
-  // the content pads with), flex height to the tab bar.
-  cameraScreen: {
-    flex: 1,
-    marginHorizontal: -theme.spacing.lg,
-    backgroundColor: theme.colors.ink,
-    overflow: 'hidden',
-  },
-  guideBanner: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    padding: theme.spacing.md,
-    gap: theme.spacing.xs,
-    backgroundColor: theme.colors.ink,
-    alignItems: 'center',
-  },
-  guideText: {
-    color: theme.colors.surfaceRaised,
-    fontSize: theme.typeScale.body.size,
-    lineHeight: theme.typeScale.body.lineHeight,
-    fontWeight: theme.typeScale.label.weight,
-    textAlign: 'center',
-  },
-  shotRecallText: {
-    color: theme.colors.line,
-    fontSize: theme.typeScale.caption.size,
-    lineHeight: theme.typeScale.caption.lineHeight,
-    textAlign: 'center',
-  },
-  categoryRecall: {
-    backgroundColor: theme.colors.surfaceRaised,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-  },
-  categoryRecallText: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.label.size,
-    lineHeight: theme.typeScale.label.lineHeight,
-    fontWeight: theme.typeScale.label.weight,
-  },
-  captureOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
+  guideCorners: { ...StyleSheet.absoluteFillObject, margin: spacing.lg },
+  guideCorner: { position: 'absolute', width: spacing.xl, height: spacing.xl, borderColor: C.paper },
+  guideTL: { top: 0, left: 0, borderTopWidth: interaction.cornerTick.strokePx, borderLeftWidth: interaction.cornerTick.strokePx },
+  guideTR: { top: 0, right: 0, borderTopWidth: interaction.cornerTick.strokePx, borderRightWidth: interaction.cornerTick.strokePx },
+  guideBL: { bottom: 0, left: 0, borderBottomWidth: interaction.cornerTick.strokePx, borderLeftWidth: interaction.cornerTick.strokePx },
+  guideBR: { bottom: 0, right: 0, borderBottomWidth: interaction.cornerTick.strokePx, borderRightWidth: interaction.cornerTick.strokePx },
+  cameraScreen: { flex: 1, marginHorizontal: -spacing.lg, backgroundColor: C.ink, overflow: 'hidden' },
+  guideBanner: { position: 'absolute', left: 0, right: 0, top: 0, padding: spacing.md, gap: spacing.xs, backgroundColor: C.ink, alignItems: 'center' },
+  guideText: { ...textStyle(T.bodyStrong), color: C.paper, textAlign: 'center' },
+  shotRecallText: { ...textStyle(T.caption), color: C.sand, textAlign: 'center' },
+  categoryRecall: { backgroundColor: C.paper, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  categoryRecallText: { ...textStyle(T.label), color: C.ink },
+  captureOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
   captureButtonWrap: { width: '80%' },
-  failureDetailPill: {
-    backgroundColor: theme.colors.ink,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-  },
-  failureDetailText: {
-    color: theme.colors.surfaceRaised,
-    fontSize: theme.typeScale.caption.size,
-    lineHeight: theme.typeScale.caption.lineHeight,
-  },
-  premiumFrame: {
-    borderColor: theme.colors.primary,
-    borderWidth: theme.spacing.xs / 2,
-  },
-  previewImage: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surfaceSunken,
-  },
-  retakeRow: { flexDirection: 'row', gap: theme.spacing.md },
+  failureDetailPill: { backgroundColor: C.ink, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  failureDetailText: { ...textStyle(T.caption), color: C.paper },
+  premiumFrame: { borderColor: C.primary },
+  previewImage: { width: '100%', aspectRatio: 1, backgroundColor: C.sand },
+  retakeRow: { flexDirection: 'row', gap: spacing.md },
   retakeHalf: { flex: 1 },
-  photoGlyph: { fontSize: theme.typeScale.displayFcfa.size, lineHeight: theme.typeScale.displayFcfa.lineHeight },
-  photoHint: {
-    color: theme.colors.inkMuted,
-    fontSize: theme.typeScale.body.size,
-    lineHeight: theme.typeScale.body.lineHeight,
-    textAlign: 'center',
-  },
-  deadline: {
-    color: theme.colors.ink,
-    fontSize: theme.typeScale.label.size,
-    lineHeight: theme.typeScale.label.lineHeight,
-    fontWeight: theme.typeScale.heading.weight,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    minHeight: theme.touch.minTargetPx,
-  },
-  footerHint: { color: theme.colors.inkFaint, fontSize: theme.typeScale.caption.size },
-  resetAction: { minHeight: theme.touch.minTargetPx, justifyContent: 'center', paddingHorizontal: theme.spacing.md },
-  resetActionText: { color: theme.colors.inkMuted, fontSize: theme.typeScale.caption.size, fontWeight: theme.typeScale.label.weight },
+  photoHint: { ...textStyle(T.body), color: C.muted, textAlign: 'center' },
+  deadline: { ...textStyle(T.bodyStrong), color: C.ink },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: 44 },
+  footerHint: { ...textStyle(T.caption), color: C.soft },
+  resetAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
+  resetActionText: { ...textStyle(T.label), color: C.muted },
   previewBanner: {
-    backgroundColor: theme.colors.surfaceSunken,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.line,
-    paddingVertical: theme.spacing.xs,
+    backgroundColor: C.warningStripe,
+    paddingVertical: spacing.xs,
     alignItems: 'center',
   },
-  previewBannerText: {
-    color: theme.colors.inkMuted,
-    fontSize: theme.typeScale.caption.size,
-    lineHeight: theme.typeScale.caption.lineHeight,
-  },
+  previewBannerText: { ...textStyle(T.caption), color: C.warning },
 });

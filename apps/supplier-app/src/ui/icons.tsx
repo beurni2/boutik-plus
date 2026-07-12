@@ -374,6 +374,10 @@ const ICON_REGISTRY: Record<IconName, (props: IconProps) => ReturnType<typeof Ic
 };
 
 export function Icon({ name, size = 20, color = 'currentColor' }: IconProps & { name: IconName }) {
+  // Tolerant of a name whose glyph is not yet in this pinned set (a canon
+  // icon-set bump in flight): render nothing rather than crash or
+  // substitute a lookalike. The registry-coverage test proves every name
+  // in THIS set resolves, so null happens only for a genuinely-pending glyph.
   const Glyph = ICON_REGISTRY[name];
-  return <Glyph size={size} color={color} />;
+  return Glyph ? <Glyph size={size} color={color} /> : null;
 }
