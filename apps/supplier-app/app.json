@@ -5,7 +5,7 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#FAF7F2",
+    "backgroundColor": "#FFFDF7",
     "platforms": [
       "android",
       "ios"

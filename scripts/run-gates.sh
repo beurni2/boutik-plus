@@ -104,6 +104,12 @@ capture single-level-positive pass node scripts/gates/single-level.mjs
 log "gate: single-level — NEGATIVE FIXTURE (downline/recruit, must fail)"
 capture single-level-negative fail node scripts/gates/single-level.mjs gates/fixtures/negative/single-level
 
+log "gate: no-emoji — app chrome (WO-6.0 ruling ①, must pass)"
+capture no-emoji-positive pass node scripts/gates/no-emoji.mjs apps
+
+log "gate: no-emoji — NEGATIVE FIXTURE (emoji in chrome, must fail)"
+capture no-emoji-negative fail node scripts/gates/no-emoji.mjs gates/fixtures/negative/no-emoji
+
 log "gate: phone-alias — repo source (must pass)"
 capture phone-alias-positive pass node scripts/gates/phone-alias.mjs
 

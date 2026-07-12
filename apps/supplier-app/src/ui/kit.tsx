@@ -309,7 +309,7 @@ export function AmountHero({
   );
 }
 
-/** PriceBand ⭐ — the signature money moment: full-width theme block, tiny
+/** PriceBand — the signature money moment: full-width theme block, tiny
  * caps label + big tabular amount (onPrimary) + right-column honesty note. */
 export function PriceBand({
   label,
@@ -578,10 +578,10 @@ const styles = StyleSheet.create({
     borderBottomColor: C.hairline,
     backgroundColor: C.paper,
   },
-  rowBody: { flex: 1, gap: 2 },
+  rowBody: { flex: 1, gap: spacing.xs },
   rowTitle: { ...textStyle(T.row), color: C.ink },
   rowMeta: { ...textStyle(T.caption), color: C.muted },
-  rowChipLine: { flexDirection: 'row', marginTop: 2 },
+  rowChipLine: { flexDirection: 'row', marginTop: spacing.xs },
   rowValue: { ...textStyle({ ...money.amountScale.row }), color: C.ink, fontVariant: ['tabular-nums'] },
   pressed: { opacity: interaction.pressedOpacity, transform: [{ scale: interaction.pressScale }] },
   button: {
@@ -613,13 +613,13 @@ const styles = StyleSheet.create({
   priceBandAmount: { ...textStyle({ ...money.amountScale.page }), color: C.onPrimary, fontVariant: ['tabular-nums'] },
   priceBandNote: { ...textStyle(T.caption), color: C.primarySoft, width: 118, textAlign: 'right' },
   reconcileLine: { ...textStyle({ size: money.reconcileLine.size, lh: 1.3, wght: money.reconcileLine.wght, ls: money.reconcileLine.ls }), color: C.muted, textAlign: 'right', fontVariant: ['tabular-nums'] },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.chip, paddingVertical: 3, paddingHorizontal: spacing.sm, alignSelf: 'flex-start' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.chip, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, alignSelf: 'flex-start' },
   chipText: { ...textStyle(T.labelXS) },
   skeleton: { backgroundColor: skeletonToken.bg, borderRadius: radius.box },
   emptyState: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   emptyTitle: { ...textStyle(T.body), color: C.body, textAlign: 'center' },
   pendingNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
-  pendingBody: { flex: 1, gap: 2 },
+  pendingBody: { flex: 1, gap: spacing.xs },
   pendingText: { ...textStyle(T.caption), color: C.warning },
   offlineBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, height: 30, backgroundColor: C.ink },
   offlineText: { ...textStyle(T.caption), color: C.onInk },

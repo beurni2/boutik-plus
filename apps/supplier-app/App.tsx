@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { interaction, spacing, type as typeTokens } from '@platform/ui-tokens';
+import { interaction, spacing, touch, type as typeTokens } from '@platform/ui-tokens';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
 import { IS_PREVIEW } from './src/preview';
 import { t } from './src/i18n';
@@ -520,7 +520,6 @@ const styles = StyleSheet.create({
   },
   baselineLine: { ...textStyle(T.body), color: C.body, fontVariant: ['tabular-nums'] },
   photoFrame: {
-    minHeight: 168,
     borderWidth: interaction.hairline.medium,
     borderColor: C.hairlineStrong,
     backgroundColor: C.sand,
@@ -531,7 +530,7 @@ const styles = StyleSheet.create({
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   categoryChip: {
-    minHeight: 44,
+    minHeight: touch.minTargetPx,
     borderWidth: interaction.hairline.medium,
     borderColor: C.hairlineStrong,
     paddingHorizontal: spacing.md,
@@ -540,7 +539,7 @@ const styles = StyleSheet.create({
   categoryChipOn: { borderColor: C.ink, backgroundColor: C.ink },
   categoryChipText: { ...textStyle(T.label), color: C.ink },
   categoryChipTextOn: { color: C.onInk },
-  cameraFrame: { height: 320, backgroundColor: C.sand },
+  cameraFrame: { flex: 1, backgroundColor: C.sand },
   camera: { flex: 1 },
   guideCorners: { ...StyleSheet.absoluteFillObject, margin: spacing.lg },
   guideCorner: { position: 'absolute', width: spacing.xl, height: spacing.xl, borderColor: C.paper },
@@ -564,9 +563,9 @@ const styles = StyleSheet.create({
   retakeHalf: { flex: 1 },
   photoHint: { ...textStyle(T.body), color: C.muted, textAlign: 'center' },
   deadline: { ...textStyle(T.bodyStrong), color: C.ink },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: 44 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: touch.minTargetPx },
   footerHint: { ...textStyle(T.caption), color: C.soft },
-  resetAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
+  resetAction: { minHeight: touch.minTargetPx, justifyContent: 'center', paddingHorizontal: spacing.md },
   resetActionText: { ...textStyle(T.label), color: C.muted },
   previewBanner: {
     backgroundColor: C.warningStripe,
