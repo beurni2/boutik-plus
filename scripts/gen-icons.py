@@ -10,6 +10,10 @@ from xml.etree import ElementTree as ET
 
 SRC_DIR, RN_OUT, PWA_OUT = sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None
 NS = "{http://www.w3.org/2000/svg}"
+# Emit the SVG namespace as the DEFAULT (no ns0: prefix) when reserializing
+# elements for the PWA inline path — otherwise ET.tostring stamps <ns0:path…>
+# which no browser renders as SVG.
+ET.register_namespace("", "http://www.w3.org/2000/svg")
 
 def pascal(name):
     return "Icon" + "".join(p.capitalize() for p in re.split(r"[-_]", name))
