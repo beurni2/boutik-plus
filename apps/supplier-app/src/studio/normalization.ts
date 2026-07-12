@@ -75,7 +75,7 @@ export class ExifLeakError extends Error {
    * diagnostic line surfaces (« détail : <code> »). */
   constructor(
     message: string,
-    readonly detail: 'exif_leak' | 'decode_failed' = 'exif_leak',
+    readonly detail: 'exif_leak' | 'decode_failed' | 'strip_failed' = 'exif_leak',
   ) {
     super(message);
   }
@@ -88,7 +88,12 @@ export class ExifLeakError extends Error {
  * the capture itself. Rendered ONLY in preview builds (babel-inlined out of
  * any future production profile, same law as the banner).
  */
-export type CaptureFailureDetail = 'capture_failed' | 'decode_failed' | 'exif_leak' | 'permission';
+export type CaptureFailureDetail =
+  | 'capture_failed'
+  | 'decode_failed'
+  | 'exif_leak'
+  | 'strip_failed'
+  | 'permission';
 
 export function failureDetailOf(error: unknown): CaptureFailureDetail {
   if (error instanceof ExifLeakError) return error.detail;
@@ -194,6 +199,96 @@ export function base64ToBytes(b64: string): Uint8Array {
       bits -= 8;
       out[o++] = (acc >> bits) & 0xff;
     }
+  }
+  return out;
+}
+
+/**
+ * WO-4.2E — STRIP, DON'T TRUST (founder device evidence: « détail :
+ * exif_leak » — the iOS encoder preserves EXIF through saveAsync's
+ * re-encode; the fail-closed guard correctly refused). The stripper is the
+ * `jpegCarriesExif` walker's sibling: it REWRITES the JPEG stream, copying
+ * every structural segment (SOI · APP0/JFIF · APP2/ICC · APP14/Adobe —
+ * rendering-relevant, kept · DQT · SOF* · DHT · DRI · SOS + the entropy
+ * stream + EOI) and DROPPING the metadata carriers: APP1 (Exif/XMP),
+ * APP13 (IPTC/Photoshop), COM (comments). Deterministic, zero deps.
+ * Malformed streams REFUSE (detail: 'strip_failed') — never a silent
+ * best-effort copy.
+ */
+const STRIPPED_MARKERS = new Set([0xe1, 0xed, 0xfe]); // APP1 · APP13 · COM
+
+export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    throw new ExifLeakError('not a JPEG stream — refusing the capture', 'strip_failed');
+  }
+  const out = new Uint8Array(bytes.length);
+  out[0] = 0xff;
+  out[1] = 0xd8;
+  let o = 2;
+  let i = 2;
+  while (i + 2 <= bytes.length) {
+    if (bytes[i] !== 0xff) {
+      throw new ExifLeakError('malformed JPEG marker stream — refusing the capture', 'strip_failed');
+    }
+    const marker = bytes[i + 1]!;
+    // Standalone markers (no length field) before the scan: TEM / RSTn.
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      out[o++] = 0xff;
+      out[o++] = marker;
+      i += 2;
+      continue;
+    }
+    if (marker === 0xda) {
+      // Start-of-scan: copy the SOS segment and EVERYTHING after it
+      // verbatim (entropy-coded data, restart markers, EOI).
+      out.set(bytes.subarray(i), o);
+      o += bytes.length - i;
+      return out.subarray(0, o);
+    }
+    if (marker === 0xd9) {
+      out[o++] = 0xff;
+      out[o++] = 0xd9;
+      return out.subarray(0, o);
+    }
+    if (i + 4 > bytes.length) {
+      throw new ExifLeakError('truncated JPEG marker header — refusing the capture', 'strip_failed');
+    }
+    const len = ((bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
+    if (len < 2 || i + 2 + len > bytes.length) {
+      throw new ExifLeakError('JPEG block length overruns the stream — refusing the capture', 'strip_failed');
+    }
+    if (!STRIPPED_MARKERS.has(marker)) {
+      out.set(bytes.subarray(i, i + 2 + len), o);
+      o += 2 + len;
+    }
+    i += 2 + len;
+  }
+  throw new ExifLeakError('JPEG stream ended before start-of-scan — refusing the capture', 'strip_failed');
+}
+
+/** bytes → base64, PURE JS (the decoder's sibling): the stripped artifact
+ * becomes a data URI so the PREVIEWED image and the STORED image are the
+ * SHIPPED bytes, literally — WYSIWYG by construction, now to the byte. */
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let out = '';
+  let i = 0;
+  for (; i + 3 <= bytes.length; i += 3) {
+    const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8) | bytes[i + 2]!;
+    out +=
+      B64_ALPHABET[(n >> 18) & 63]! +
+      B64_ALPHABET[(n >> 12) & 63]! +
+      B64_ALPHABET[(n >> 6) & 63]! +
+      B64_ALPHABET[n & 63]!;
+  }
+  const rest = bytes.length - i;
+  if (rest === 1) {
+    const n = bytes[i]! << 16;
+    out += B64_ALPHABET[(n >> 18) & 63]! + B64_ALPHABET[(n >> 12) & 63]! + '==';
+  } else if (rest === 2) {
+    const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8);
+    out += B64_ALPHABET[(n >> 18) & 63]! + B64_ALPHABET[(n >> 12) & 63]! + B64_ALPHABET[(n >> 6) & 63]! + '=';
   }
   return out;
 }

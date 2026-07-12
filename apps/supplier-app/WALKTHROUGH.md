@@ -29,9 +29,10 @@ reste visible : tout ici est un essai, rien n'est réel. En bas de chaque écran
    Si la lumière manque, un conseil doux invite à reprendre ; « Reprendre »
    pèse le même poids que « Garder ». Les photos partent en file
    (« envoyées dès que le réseau revient ») ; l'originale reste chez vous,
-   et les données cachées de la photo (lieu, appareil) sont retirées à la
-   prise — sans dépendre d'aucune fonction du téléphone (le décodage est à
-   nous, WO-4.2D). Une prise qui échoue le dit dignement ; dans l'aperçu,
+   et les données cachées de la photo (lieu, appareil) sont RETIRÉES par
+   nous, à la prise — nous réécrivons la photo nous-mêmes, sans faire
+   confiance au téléphone (WO-4.2E) ; l'aperçu montre exactement les octets
+   qui partent. Une prise qui échoue le dit dignement ; dans l'aperçu,
    une petite ligne « détail : … » nomme la cause (elle n'existera pas en
    production). Caméra refusée ? La démo continue sans photo, honnêtement.
    *5 s : la caméra est l'écran — je cadre grand, j'appuie en bas, je vois

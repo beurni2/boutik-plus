@@ -4,28 +4,31 @@ import {
   DERIVATIVE_SPEC_V1,
   assertExifFree,
   base64ToBytes,
+  bytesToBase64,
   derivativeActions,
   metricsActions,
+  stripJpegMetadata,
 } from './normalization';
 import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance';
 
 /**
- * WO-4.2C · B1.1 — the capture path. ONE transform produces the derivative
- * the seller previews AND the derivative that is stored: WYSIWYG is a
- * property of the code path, not a promise (the ui-studio test pins the
- * single call site and the shared result object). The private master
- * (original capture) is RETAINED untouched and kept distinct from the
- * derivative (imaging gates: "master≠derivative; original retained").
- * EXIF is stripped AT CAPTURE: the derivative is a re-encode via
- * expo-image-manipulator, and `assertExifFree` PROVES the output bytes
- * carry no APP1/Exif segment on every capture — a runtime guard on the
- * path itself, not only a repo scan.
+ * WO-4.2C · B1.1 — the capture path; WO-4.2E — STRIP, DON'T TRUST.
+ * The founder's iOS encoder preserved EXIF through saveAsync's re-encode
+ * (device evidence: « détail : exif_leak » — the fail-closed guard
+ * correctly refused). The path is now decode → STRIP (our own pure-JS
+ * segment rewriter) → assertExifFree as a TRUE POST-CONDITION on the
+ * stripped bytes → and the STRIPPED artifact — a data URI built from
+ * those exact bytes — is what is stored AND previewed. WYSIWYG now shows
+ * the shipped bytes literally: any rotation or color defect the strip or
+ * re-encode could introduce is founder-visible by construction. The
+ * private master (original capture) is RETAINED untouched and distinct
+ * (imaging gates: "master≠derivative; original retained").
  */
 
 export interface CaptureResult {
   /** Private master — the untouched original (never published, never previewed). */
   masterUri: string;
-  /** The ONE derivative — previewed AND stored, same object. */
+  /** The ONE derivative — the STRIPPED bytes as a data URI, previewed AND stored. */
   derivative: { uri: string; width: number; height: number };
   /** Guidance from the downscaled metrics frame. */
   guidance: { verdict: GuidanceVerdict; key: string };
@@ -51,11 +54,13 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
   // The master: full-resolution original, retained as-is (private).
   const photo = await camera.takePictureAsync({ quality: 1 });
 
-  // THE derivative — one transform, one output, previewed and stored alike.
+  // THE derivative — one transform, one output.
   const derivative = await renderDerivative(photo.uri, photo.width, photo.height);
   // FAIL-CLOSED: no bytes = no capture (base64ToBytes throws on empty/undecodable).
   const bytes = base64ToBytes(derivative.base64 ?? '');
-  assertExifFree(bytes); // EXIF stripped AT CAPTURE — proven on the output bytes.
+  // WO-4.2E: strip the metadata OURSELVES — never trust the encoder.
+  const stripped = stripJpegMetadata(bytes);
+  assertExifFree(stripped); // the guard is now a POST-CONDITION on the shipped bytes
 
   // Metrics on the downscaled frame (B1.1: "on-device metrics on
   // downscaled frames") — bytes-per-pixel of a tiny re-encode.
@@ -68,7 +73,14 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
 
   return {
     masterUri: photo.uri,
-    derivative: { uri: derivative.uri, width: derivative.width, height: derivative.height },
+    // The data URI IS the stripped artifact: previewed and stored alike —
+    // the file at derivative.uri (which the founder's device proved can
+    // carry EXIF) never ships.
+    derivative: {
+      uri: `data:image/jpeg;base64,${bytesToBase64(stripped)}`,
+      width: derivative.width,
+      height: derivative.height,
+    },
     guidance: guidanceFor(metrics),
   };
 }
