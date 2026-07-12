@@ -72,9 +72,10 @@ describe('B1.2 — EXIF stripped, AT CAPTURE (the guard is on the path, not only
     expect(app).toMatch(/catch \(error\) \{\s*setFailureDetail\(failureDetailOf\(error\)\);/);
     expect(app).toMatch(/t\('studio\.erreur'\)/);
   });
-  it('the capture path calls the guard on the derivative bytes (source pin)', () => {
+  it('the capture path STRIPS then asserts — the guard is a post-condition on the shipped bytes (WO-4.2E pin)', () => {
     const capture = read('src/studio/capture.ts');
-    expect(capture).toMatch(/assertExifFree\(bytes\)/);
+    expect(capture).toMatch(/const stripped = stripJpegMetadata\(bytes\)/);
+    expect(capture).toMatch(/assertExifFree\(stripped\)/);
     expect(capture).not.toMatch(/exif:\s*true/);
   });
 });
@@ -136,11 +137,14 @@ describe('B1.1 — category-aware Hero+Proof guidance on downscaled-frame metric
 });
 
 describe('WYSIWYG — the previewed derivative IS the stored derivative (one transform, one object)', () => {
-  it('capture.ts renders the derivative exactly once and returns it whole', () => {
+  it('capture.ts renders the derivative exactly once and ships THE STRIPPED BYTES (WO-4.2E: the saveAsync file never ships)', () => {
     const capture = read('src/studio/capture.ts');
     expect(capture.match(/renderDerivative\(/g)).toHaveLength(2); // 1 def + 1 call
     expect(capture).toMatch(/const derivative = await renderDerivative\(photo\.uri, photo\.width, photo\.height\)/);
-    expect(capture).toMatch(/derivative: \{ uri: derivative\.uri, width: derivative\.width, height: derivative\.height \}/);
+    // The shipped uri is a data URI built from the stripped bytes — the
+    // founder's device proved the file at derivative.uri can carry EXIF.
+    expect(capture).toMatch(/uri: `data:image\/jpeg;base64,\$\{bytesToBase64\(stripped\)\}`/);
+    expect(capture).not.toMatch(/uri: derivative\.uri/);
   });
   it('the App previews pending.derivative.uri and stores the SAME pending object (source pin)', () => {
     const app = read('App.tsx');
