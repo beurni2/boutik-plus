@@ -140,6 +140,12 @@ capture copy-lint-positive pass pnpm exec copy-lint apps/supplier-app/i18n/catal
 log "gate: French Voice copy-lint — NEGATIVE FIXTURE (veuillez/séquestre + marketing-in-money + Mooré-in-instruction, must fail)"
 capture copy-lint-negative fail pnpm exec copy-lint gates/fixtures/negative/catalog.negative.json
 
+log "gate: no-ssh-lockfile — committed root lockfile (ssh-form git URLs must be 0, must pass)"
+capture no-ssh-lockfile-positive pass node scripts/gates/no-ssh-lockfile.mjs pnpm-lock.yaml
+
+log "gate: no-ssh-lockfile — NEGATIVE FIXTURE (ssh-form git URL, must fail)"
+capture no-ssh-lockfile-negative fail node scripts/gates/no-ssh-lockfile.mjs gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml
+
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
 capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.0
 
