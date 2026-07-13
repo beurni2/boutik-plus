@@ -27,6 +27,7 @@ import {
   HairlineBox,
   Icon,
   ListRow,
+  OfflineBanner,
   Overline,
   palette,
   PendingNotice,
@@ -130,6 +131,10 @@ export default function App() {
   const [stack, setStack] = useState<Screen[]>([START]);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+  // Offline is a GLOBAL, designed state (offline-first doctrine): the banner
+  // rides under the header and actions queue as pending — never lost, never
+  // silently done. A demo toggle makes the honest state reachable.
+  const [offline, setOffline] = useState(false);
   // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
   const [category, setCategory] = useState<CaptureCategory>('mode');
   const [shot, setShotKind] = useState<ShotKind>('hero');
@@ -159,6 +164,7 @@ export default function App() {
     setPending(null);
     setCapturing(false);
     setFailureDetail(null);
+    setOffline(false);
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
   // IS the stored derivative; EXIF proven stripped on its bytes. A failed
@@ -230,6 +236,7 @@ export default function App() {
         backLabel={`← ${t('nav.retour')}`}
         onBack={stack.length > 1 ? back : undefined}
       />
+      {offline && <OfflineBanner label={t('shell.offline')} />}
 
       <ScreenEnter screenKey={screen}>
       <View style={styles.content}>
@@ -285,24 +292,35 @@ export default function App() {
 
         {screen === 'produits' && (
           <View style={styles.listWrap}>
-            <FlatList
-              data={world.products}
-              keyExtractor={(p) => p.id}
-              initialNumToRender={6}
-              windowSize={5}
-              contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => (
-                <ListRow
-                  icon="colis"
-                  title={item.name}
-                  meta={`${t('produits.repere')} : ${item.landmark}`}
-                  value={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
-                  chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
-                  onPress={() => (item.status === 'refuse_correctable' ? go('corrective') : go('offre'))}
+            {world.products.length === 0 ? (
+              // B2 empty — a designed state that states the next act, never sad.
+              <EmptyState
+                icon="colis"
+                title={t('produits.vide')}
+                action={<PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />}
+              />
+            ) : (
+              <>
+                <FlatList
+                  data={world.products}
+                  keyExtractor={(p) => p.id}
+                  initialNumToRender={6}
+                  windowSize={5}
+                  contentContainerStyle={styles.listContent}
+                  renderItem={({ item }) => (
+                    <ListRow
+                      icon="colis"
+                      title={item.name}
+                      meta={`${t('produits.repere')} : ${item.landmark}`}
+                      value={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
+                      chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
+                      onPress={() => (item.status === 'refuse_correctable' ? go('corrective') : go('offre'))}
+                    />
+                  )}
                 />
-              )}
-            />
-            <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />
+                <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />
+              </>
+            )}
           </View>
         )}
 
@@ -573,7 +591,14 @@ export default function App() {
       </ScreenEnter>
 
       <View style={styles.footer}>
-        <Text style={styles.footerHint}>{t('demo.donnees')}</Text>
+        <Pressable
+          style={styles.resetAction}
+          onPress={() => setOffline((v) => !v)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: offline }}
+        >
+          <Text style={[styles.resetActionText, offline && styles.toggleOn]}>{t('shell.offline_toggle')}</Text>
+        </Pressable>
         <Pressable style={styles.resetAction} onPress={reset}>
           <Text style={styles.resetActionText}>{t('nav.recommencer')}</Text>
         </Pressable>
@@ -670,6 +695,7 @@ const styles = StyleSheet.create({
   footerHint: { ...textStyle(T.caption), color: C.soft },
   resetAction: { minHeight: touch.minTargetPx, justifyContent: 'center', paddingHorizontal: spacing.md },
   resetActionText: { ...textStyle(T.label), color: C.muted },
+  toggleOn: { color: C.ink },
   previewBanner: {
     backgroundColor: C.warningStripe,
     paddingVertical: spacing.xs,

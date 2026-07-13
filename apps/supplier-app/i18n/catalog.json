@@ -700,5 +700,23 @@
     "fr": "Une échéance approche. Corrigez avant ce soir 18 h.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "shell.offline",
+    "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "shell.offline_toggle",
+    "fr": "Simuler hors ligne",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.vide",
+    "fr": "Aucun produit pour l'instant. Ajoutez votre premier produit.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]
