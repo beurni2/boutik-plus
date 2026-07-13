@@ -1,8 +1,9 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { formatFcfa } from '../src/demo/store';
+import { FONT_WEIGHTS } from '../src/ui/fonts';
+import { readCmap } from '../src/ui/sfnt';
 
 /**
  * WO-6.0 ruling ③ — the money separator must PAINT, not tofu. Canon groups with
@@ -44,42 +45,63 @@ describe('the money separator renders in the embedded Archivo (ruling ③)', () 
     expect(full).not.toContain(NNBSP);
   });
 
-  it('EVERY codepoint the seller sees in a franc amount is in the embedded Archivo cmap (it paints)', () => {
-    let py: string;
-    try {
-      py = execFileSync('python3', ['-c', 'import fontTools; print("ok")'], { encoding: 'utf8' }).trim();
-    } catch {
-      return; // no fontTools here — the source-level cps assertions above still hold
-    }
-    expect(py).toBe('ok');
-    const script = `
-import json, glob, os
-from fontTools.ttLib import TTFont
-cmaps = [set(TTFont(f)['cmap'].getBestCmap().keys()) for f in glob.glob(os.path.join(${JSON.stringify(join(appDir, 'assets/fonts'))}, '*.ttf'))]
-common = set.intersection(*cmaps) if cmaps else set()
-print(json.dumps({'has_00A0': 0x00A0 in common, 'has_202F': 0x202F in common, 'count': len(cmaps)}))
-`;
-    const cmap = JSON.parse(execFileSync('python3', ['-c', script], { encoding: 'utf8' })) as {
-      has_00A0: boolean;
-      has_202F: boolean;
-      count: number;
-    };
-    expect(cmap.count).toBe(5);
-    // the fallback space we render IS drawable; the canon U+202F is NOT (why the fallback exists)
-    expect(cmap.has_00A0, 'embedded Archivo draws U+00A0 (the rendered separator)').toBe(true);
-    expect(cmap.has_202F, 'embedded Archivo lacks U+202F — proving the fallback is necessary').toBe(false);
+  it('EVERY codepoint the seller sees in a franc amount is in the embedded Archivo cmap — pure TS, NEVER skips (WO-6.8)', () => {
+    // WO-6.8: the old check read cmaps via python/fontTools and RETURNED EARLY
+    // when absent — green while asserting nothing about which glyphs paint. This
+    // reads the cmap straight from the committed bytes (src/ui/sfnt.ts) so it
+    // runs in every environment, on the intersection of all five weights.
+    const dir = join(appDir, 'assets/fonts');
+    const cmaps = Object.values(FONT_WEIGHTS).map((f) => readCmap(new Uint8Array(readFileSync(join(dir, f)))));
+    const inAll = (cp: number): boolean => cmaps.every((c) => c.has(cp));
+    expect(cmaps).toHaveLength(5);
 
-    // and every actual codepoint in « 11 500 F » is in the font
+    // the fallback separator we render IS drawable by every weight …
+    expect(inAll(0x00a0), 'embedded Archivo draws U+00A0 (the rendered separator)').toBe(true);
+
+    // … and the canon U+202F is NOT — PINNED to its CURRENT state. The founder
+    // has asked the designer to add U+202F to the Archivo subset. WHEN her new
+    // bytes land, THIS ASSERTION FAILS LOUDLY: the slice that adopts them must
+    // consciously flip it to `.toBe(true)` AND re-verify formatFcfa's separator
+    // choice (the U+00A0 fallback becomes obsolete). The U+202F transition can
+    // never happen silently, and it can never quietly slip through a skip.
+    expect(inAll(0x202f), 'embedded Archivo lacks U+202F today — the U+00A0 fallback is still necessary').toBe(false);
+
+    // every actual codepoint in « 11 500 F » is drawable by all five weights
     const rendered = fullAmount();
-    const script2 = `
-import json, glob, os
-from fontTools.ttLib import TTFont
-cmaps = [set(TTFont(f)['cmap'].getBestCmap().keys()) for f in glob.glob(os.path.join(${JSON.stringify(join(appDir, 'assets/fonts'))}, '*.ttf'))]
-common = set.intersection(*cmaps)
-cps = [ord(c) for c in ${JSON.stringify(rendered)}]
-print(json.dumps({'missing': [hex(c) for c in cps if c not in common]}))
-`;
-    const check = JSON.parse(execFileSync('python3', ['-c', script2], { encoding: 'utf8' })) as { missing: string[] };
-    expect(check.missing, 'every glyph in « 11 500 F » is drawable by Archivo').toEqual([]);
+    const missing = [...rendered]
+      .map((c) => c.codePointAt(0)!)
+      .filter((cp) => !inAll(cp))
+      .map((c) => '0x' + c.toString(16));
+    expect(missing, 'every glyph in « 11 500 F » is drawable by Archivo').toEqual([]);
+  });
+
+  it('the cmap reader is NON-VACUOUS: it FINDS a mapped codepoint and REJECTS an unmapped one (WO-6.8)', () => {
+    // a minimal real sfnt with a format-4 cmap mapping exactly U+0041 and U+00A0
+    // — built byte-by-byte, so the reader is proven to read ACTUAL coverage in
+    // BOTH directions (the WO-6.7 byte-built-sfnt standard).
+    const be16 = (n: number): number[] => [(n >> 8) & 0xff, n & 0xff];
+    const be32 = (n: number): number[] => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
+    const makeCmapSfnt = (codepoints: number[]): Uint8Array => {
+      const segs = [...codepoints].sort((a, b) => a - b).concat(0xffff); // last segment ends at 0xFFFF
+      const segX2 = segs.length * 2;
+      const sub = [
+        ...be16(4), ...be16(16 + 4 * segX2), ...be16(0), ...be16(segX2), // format, length, language, segCountX2
+        ...be16(0), ...be16(0), ...be16(0), // searchRange, entrySelector, rangeShift (reader ignores)
+        ...segs.flatMap((c) => be16(c)), // endCode[]
+        ...be16(0), // reservedPad
+        ...segs.flatMap((c) => be16(c)), // startCode[] (point segments: start === end)
+        ...segs.flatMap(() => be16(1)), // idDelta[] = 1 → glyph = cp+1 (0 only for 0xFFFF terminator)
+        ...segs.flatMap(() => be16(0)), // idRangeOffset[] = 0
+      ];
+      const cmap = [...be16(0), ...be16(1), ...be16(3), ...be16(1), ...be32(12), ...sub]; // 1 Windows-BMP subtable
+      const dirLen = 12 + 16;
+      const rec = [...[...'cmap'].map((c) => c.charCodeAt(0)), 0, 0, 0, 0, ...be32(dirLen), ...be32(cmap.length)];
+      return new Uint8Array([...be32(0x00010000), ...be16(1), ...be16(0), ...be16(0), ...be16(0), ...rec, ...cmap]);
+    };
+    const cmap = readCmap(makeCmapSfnt([0x41, 0x00a0]));
+    expect(cmap.has(0x41), 'a mapped codepoint is FOUND').toBe(true);
+    expect(cmap.has(0x00a0), 'the mapped NBSP is FOUND').toBe(true);
+    expect(cmap.has(0x202f), 'an UNMAPPED codepoint (U+202F) is NOT found').toBe(false);
+    expect(cmap.has(0x42), 'an UNMAPPED codepoint (U+0042) is NOT found').toBe(false);
   });
 });
