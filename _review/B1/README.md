@@ -43,7 +43,11 @@ turned them GREEN (7/7).
   **exit 0, ALL GATES GREEN** from nothing.
 - `red-proof.txt` — the adversarial tests failing BEFORE implementation.
 - `head-sha.txt` · `branch-log.txt` · `full.diff` · `diffstat.txt` — atomic, one HEAD.
-- `verifier-report.md` — fresh-context RED verifier verdict on the final bytes.
+- `verifier-report.md` — fresh-context RED verifier on the final bytes: **VERDICT PASS · 0
+  BLOCKERS** (mutation-tested the assertions; planted a `balance` to confirm the gate bites).
+  One low observation, recorded not fixed (canon parity): a whitespace-only `payoutRef` reaches
+  Paid because canon's `payoutRef` is `z.string().min(1)` which accepts a space — trusted
+  provider data; tightening would exceed canon.
 
 ## Test counts
 supplier-app **130/130** (settlement 7 adversarial + demo-store 6 + offline-queue 8
