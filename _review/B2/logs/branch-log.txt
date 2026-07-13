@@ -1,0 +1,8 @@
+2c315b1 feat(red): B2 — statements + trust/consequence view; B7.2 seller-never-debited + access-based consequences, adversarial-first
+0dad348 docs(evidence): B1 verifier PASS (0 blockers) on e5d307d + journal close; packet zip
+7fc6bf2 docs(evidence): B1 packet — RED proof, warm+cold gates, atomic git artifacts, README (verifier report to follow)
+e5d307d feat(red): B1 — the settlement projection read model; B+I-05 + provider-ref-before-Paid, adversarial-first
+6b0006d docs(journal): A1 done — merged 1780981; ratifications + named reason-code migration + merged-gate precedent + inventory e2e debt
+1780981 merge(amber): A1 — the real moderation state machine; the approved_e1_sandbox stub dies (founder review PASS)
+85ef580 docs(evidence): A1 verifier PASS (0 blockers) on 2c6a8de + journal close; packet zip
+72e8772 docs(evidence): A1 packet — warm+cold gates, atomic git artifacts, README (verifier report to follow)
