@@ -339,3 +339,45 @@ export const GRAND_TEINT_ICONS = [
   'zone',
 ] as const;
 export type GrandTeintIconName = (typeof GRAND_TEINT_ICONS)[number];
+export type IconName = GrandTeintIconName;
+
+// Name-indexed dispatcher: the kit and screens address glyphs by canon
+// name (IconName), so a canon icon-set bump regenerates the registry and
+// every slot fills with no call-site change.
+const ICON_REGISTRY: Record<IconName, (props: IconProps) => ReturnType<typeof IconAlerte>> = {
+  'alerte': IconAlerte,
+  'argent': IconArgent,
+  'cadenas': IconCadenas,
+  'camera': IconCamera,
+  'chevron': IconChevron,
+  'cle': IconCle,
+  'coche': IconCoche,
+  'colis': IconColis,
+  'ecouter': IconEcouter,
+  'enregistrer': IconEnregistrer,
+  'filtre': IconFiltre,
+  'gains': IconGains,
+  'horloge': IconHorloge,
+  'horsligne': IconHorsligne,
+  'moto': IconMoto,
+  'oeil': IconOeil,
+  'partager': IconPartager,
+  'recherche': IconRecherche,
+  'refus': IconRefus,
+  'repere': IconRepere,
+  'reprendre': IconReprendre,
+  'scelle': IconScelle,
+  'sos': IconSos,
+  'telephone': IconTelephone,
+  'voix': IconVoix,
+  'zone': IconZone,
+};
+
+export function Icon({ name, size = 20, color = 'currentColor' }: IconProps & { name: IconName }) {
+  // Tolerant of a name whose glyph is not yet in this pinned set (a canon
+  // icon-set bump in flight): render nothing rather than crash or
+  // substitute a lookalike. The registry-coverage test proves every name
+  // in THIS set resolves, so null happens only for a genuinely-pending glyph.
+  const Glyph = ICON_REGISTRY[name];
+  return Glyph ? <Glyph size={size} color={color} /> : null;
+}

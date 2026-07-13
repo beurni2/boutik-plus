@@ -104,6 +104,12 @@ capture single-level-positive pass node scripts/gates/single-level.mjs
 log "gate: single-level — NEGATIVE FIXTURE (downline/recruit, must fail)"
 capture single-level-negative fail node scripts/gates/single-level.mjs gates/fixtures/negative/single-level
 
+log "gate: no-emoji — app chrome (WO-6.0 ruling ①, must pass)"
+capture no-emoji-positive pass node scripts/gates/no-emoji.mjs apps
+
+log "gate: no-emoji — NEGATIVE FIXTURE (emoji in chrome, must fail)"
+capture no-emoji-negative fail node scripts/gates/no-emoji.mjs gates/fixtures/negative/no-emoji
+
 log "gate: phone-alias — repo source (must pass)"
 capture phone-alias-positive pass node scripts/gates/phone-alias.mjs
 
@@ -135,13 +141,13 @@ log "gate: French Voice copy-lint — NEGATIVE FIXTURE (veuillez/séquestre + ma
 capture copy-lint-negative fail pnpm exec copy-lint gates/fixtures/negative/catalog.negative.json
 
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.6.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.0
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.6.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.0
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then

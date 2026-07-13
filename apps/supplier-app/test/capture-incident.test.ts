@@ -142,7 +142,7 @@ describe('WO-4.2D Part A — the diagnostic line is PREVIEW-ONLY (the banner law
     expect(app).toMatch(/t\('studio\.erreur_detail'\)\.replace\('\{code\}', failureDetail\)/);
     // The plain failure chip is NOT gated — the designed state exists in
     // every profile; only the code line is preview diagnostics.
-    expect(app).toMatch(/\{failureDetail !== null && <StatusChip tone="warn" label=\{t\('studio\.erreur'\)\} \/>\}/);
+    expect(app).toMatch(/\{failureDetail !== null && <StatusChip tone="problem" label=\{t\('studio\.erreur'\)\} icon="refus" \/>\}/);
   });
 });
 
@@ -177,8 +177,8 @@ describe('WO-4.2D Part B — la caméra devient l\'écran (layout pins, dimensio
   const app = read('App.tsx');
 
   it('the camera fills the screen: flex height, full-bleed width by the SAME token the content pads with', () => {
-    expect(app).toMatch(/cameraScreen: \{\s*flex: 1,\s*marginHorizontal: -theme\.spacing\.lg,/);
-    expect(app).toMatch(/content: \{\s*flex: 1,\s*paddingHorizontal: theme\.spacing\.lg,/);
+    expect(app).toMatch(/cameraScreen: \{\s*flex: 1,\s*marginHorizontal: -spacing\.lg,/);
+    expect(app).toMatch(/content: \{\s*flex: 1,\s*paddingHorizontal: spacing\.lg,/);
   });
 
   it('the guidance banner overlays the TOP and the category recall chip rides inside it', () => {

@@ -55,7 +55,7 @@
   },
   {
     "key": "offer.net_preview",
-    "fr": "Vous recevrez {amount} F",
+    "fr": "Vous recevrez {amount} F",
     "register": "money",
     "screenClass": "general"
   },
@@ -199,7 +199,7 @@
   },
   {
     "key": "produits.net_ligne",
-    "fr": "Vous recevrez {amount} F",
+    "fr": "Vous recevrez {amount} F",
     "register": "money",
     "screenClass": "label"
   },
@@ -343,7 +343,7 @@
   },
   {
     "key": "money.amount_f",
-    "fr": "{amount} F",
+    "fr": "{amount} F",
     "register": "money",
     "screenClass": "general"
   },
@@ -616,5 +616,221 @@
     "fr": "Rapprochez-vous pour montrer le travail de la main.",
     "register": "neutral",
     "screenClass": "instruction"
+  },
+  {
+    "key": "recettes.title",
+    "fr": "Mes recettes",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.vide",
+    "fr": "Pas encore de recette. Votre première vente s'affiche ici.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.net_ligne",
+    "fr": "Vous recevrez {amount} F",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.reconcile",
+    "fr": "Votre part, une fois le produit vendu et livré.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.versement",
+    "fr": "Versement en préparation. L'argent arrive sur votre compte marchand.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.compte",
+    "fr": "Reversé par votre opérateur — jamais gardé par Boutik+.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.title",
+    "fr": "Modération",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.vide",
+    "fr": "Rien à revoir. Tous vos produits sont en règle.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.en_revue",
+    "fr": "En cours de vérification. On regarde vos photos et votre prix.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.modifs",
+    "fr": "Une petite retouche demandée avant la mise en ligne.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.approuve",
+    "fr": "Approuvé. Votre produit est visible pour les acheteurs.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.refuse",
+    "fr": "Non retenu pour cette fois — le motif est indiqué, vous pouvez corriger.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.refuse_banner",
+    "fr": "Un colis a été refusé. Vous pouvez corriger — la commande reste protégée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "accueil.urgent_banner",
+    "fr": "Une échéance approche. Corrigez avant ce soir 18 h.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "shell.offline",
+    "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "shell.offline_toggle",
+    "fr": "Simuler hors ligne",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.vide",
+    "fr": "Aucun produit pour l'instant. Ajoutez votre premier produit.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "offre.champ_prix",
+    "fr": "Votre prix",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.champ_commission",
+    "fr": "La part de la revendeuse",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.commission_aide",
+    "fr": "Une part motivante fait vendre plus vite. C'est vous qui décidez.",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
+    "key": "offre.reconcile",
+    "fr": "{net} = {prix} − {part} − {frais} — chaque franc a sa place.",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "offre.publier",
+    "fr": "Publier l'offre",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "offre.v2",
+    "fr": "Version 2 de votre offre. La v1 reste servie tant que la v2 n'est pas validée.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "money.franc",
+    "fr": "F",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.commande_payee",
+    "fr": "Commande payée. Préparez le colis — Séra viendra le chercher.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "pret.badge_payee",
+    "fr": "Payée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.check_photo",
+    "fr": "Le colis correspond à la photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.check_ferme",
+    "fr": "Fermé, prêt à partir",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.confirmer",
+    "fr": "Confirmer : produit prêt",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.confirm_gate",
+    "fr": "Cochez les deux points d'abord.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.pending_slow",
+    "fr": "Envoyé — en attente de confirmation. Le réseau est lent, rien n'est perdu.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.queued_offline",
+    "fr": "C'est noté. En attente du réseau — votre confirmation partira toute seule.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "pret.simuler_confirmation",
+    "fr": "Simuler la confirmation (démo)",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.revenir",
+    "fr": "Revenir à l'état initial",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.net_apres",
+    "fr": "Vous recevrez, après livraison validée",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.refusee",
+    "fr": "Pas d'appareil photo ? Pas grave. Continuez sans photo pour la démo.",
+    "register": "selling",
+    "screenClass": "selling_surface"
   }
 ]

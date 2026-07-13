@@ -38,8 +38,8 @@ describe('supplier-app catalog', () => {
 
   it('app.json static backgroundColor stays equal to the ui-tokens surface (drift guard)', () => {
     // Expo static config cannot import TS tokens; this pins the mirror so it
-    // cannot drift silently from theme.colors.surface.
+    // cannot drift silently from the Grand Teint paper surface.
     const appConfig = JSON.parse(readFileSync(join(appDir, 'app.json'), 'utf8'));
-    expect(appConfig.expo.backgroundColor).toBe(boutikPlusTheme.colors.surface);
+    expect(appConfig.expo.backgroundColor).toBe(boutikPlusTheme.colours.paper);
   });
 });

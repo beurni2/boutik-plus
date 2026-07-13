@@ -41,7 +41,10 @@ describe('the 26 icon components carry the design-reference geometry (byte-ident
   });
 
   it('every component defaults to currentColor and threads it to every stroke/fill', () => {
-    const comps = iconsSrc.split('export function Icon').slice(1);
+    // split on the NAMED glyph components only (IconAlerte…, followed by an
+    // uppercase letter) — NOT the `Icon(` name-indexed dispatcher the WO-6.0
+    // generator now also emits.
+    const comps = iconsSrc.split(/export function Icon(?=[A-Z])/).slice(1);
     expect(comps).toHaveLength(26);
     for (const c of comps) {
       expect(c).toMatch(/color = 'currentColor'/); // the default
@@ -93,16 +96,18 @@ describe('the typeface substrate (Archivo, Latin) — data only, loads nothing',
 });
 
 describe('the two approved dependencies (founder rulings 2026-07-12) — nothing else', () => {
-  it('react-native-svg + expo-haptics at the SDK-54 bundled versions, and no other new dep', () => {
+  it('react-native-svg + expo-haptics + expo-font at the SDK-54 bundled versions, and no other new dep', () => {
     const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
     expect(pkg.dependencies['react-native-svg']).toBe('15.12.1');
     expect(pkg.dependencies['expo-haptics']).toBe('~15.0.8');
-    // the only deps beyond the pre-WO set are exactly these two
+    // WO-6.0 ruling ②: expo-font is the one further dep the founder authorized,
+    // for the config-plugin native embedding (SDK-54 bundled version).
+    expect(pkg.dependencies['expo-font']).toBe('~14.0.12');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
     ]);
     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
-    expect(added.sort()).toEqual(['expo-haptics', 'react-native-svg']);
+    expect(added.sort()).toEqual(['expo-font', 'expo-haptics', 'react-native-svg']);
   });
 });
