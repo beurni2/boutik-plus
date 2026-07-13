@@ -232,7 +232,12 @@ export default function App() {
     if (!(check1 && check2)) return;
     if (offline) {
       setB7Phase('queued');
-      const commandId = `ready:${(confirmSeqRef.current += 1)}`;
+      // The command_id must be REBOOT-SAFE: a volatile counter resets on
+      // app-kill and would collide with a persisted `ready:1`, silently deduping
+      // (and losing) a fresh confirm — the very failure B2.1 targets. A wall-clock
+      // base + an in-session counter is distinct across reboots. (Production
+      // B2.1 derives command_id from the domain event, not app glue — flagged.)
+      const commandId = `ready:${Date.now().toString(36)}-${(confirmSeqRef.current += 1)}`;
       void queueRef.current
         ?.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet })
         .then(() => setQueuedCount(queueRef.current?.pending().length ?? 0));
