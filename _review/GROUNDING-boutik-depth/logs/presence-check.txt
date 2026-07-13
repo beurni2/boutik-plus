@@ -1,0 +1,27 @@
+# Presence-check evidence (grep-grounded) — Boutik Depth grounding pass
+
+## services/ present:
+catalog-service
+fulfillment-service
+inventory-service
+media-service
+offer-service
+supplier-service
+
+## src hit counts (services/, --include=*.ts, dist/node_modules excluded):
+  moderat                  7
+  publi                    36
+  settlement               0
+  SettlementObligation     0
+  statement                0
+  projection               58
+  sellerNet                22
+
+## catalog-service moderation stub (product.ts:49):
+49:      moderationState: 'approved_e1_sandbox',
+
+## authoritative moderation/settlement/trust events emitted in src: (expect 0)
+0
+
+## neutral-packaging gate present? (expect none)
+  NONE
