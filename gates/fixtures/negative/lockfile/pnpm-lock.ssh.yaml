@@ -1,0 +1,10 @@
+# NEGATIVE FIXTURE — the no-ssh-lockfile gate MUST fail on this file.
+# An ssh-form git URL (git@github.com:) is exactly the shop-plus defect: it
+# cannot install in CI and it defeats the https override. Never commit this shape.
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      '@platform/contracts':
+        specifier: git+ssh://git@github.com:beurni2/platform-contracts.git
+        version: git@github.com:beurni2/platform-contracts.git#fa2ff24
