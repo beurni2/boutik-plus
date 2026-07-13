@@ -20,11 +20,11 @@
   },
   "dependencies": {
     "@boutik/observability": "workspace:*",
-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
+    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification"
   }
 }

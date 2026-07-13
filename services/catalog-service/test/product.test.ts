@@ -43,7 +43,7 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
     const catalog = new ProductCatalog();
     const created = catalog.create(draft, true, supplierCtx, AT);
     if (!created.ok) throw new Error('setup');
-    catalog.decide(created.version.id, { verdict: 'approved' }, opCtx, AT); // moderation must pass before activation
+    catalog.decide(created.version.id, { decision: 'approved' }, opCtx, AT); // moderation must pass before activation
     catalog.activate(created.version.id, true);
     const before = catalog.get(created.version.id)!;
 
@@ -55,7 +55,7 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
     // the revised version RE-ENTERS moderation — it never inherits the prior approval
     expect(revised.version.moderationState).toBe('submitted');
     expect(catalog.get(created.version.id)).toEqual(before); // untouched
-    catalog.decide(revised.version.id, { verdict: 'approved' }, opCtx, AT);
+    catalog.decide(revised.version.id, { decision: 'approved' }, opCtx, AT);
     catalog.activate(revised.version.id, true);
     catalog.supersede(created.version.id);
     expect(catalog.get(created.version.id)!.status).toBe('superseded');

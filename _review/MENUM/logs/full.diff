@@ -1,0 +1,737 @@
+diff --git a/apps/supplier-app/package.json b/apps/supplier-app/package.json
+index f40fe2e..46ea0ee 100644
+--- a/apps/supplier-app/package.json
++++ b/apps/supplier-app/package.json
+@@ -12,8 +12,8 @@
+     "test": "vitest run"
+   },
+   "dependencies": {
+-    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
+-    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens",
++    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n",
++    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens",
+     "expo": "~54.0.35",
+     "expo-camera": "~17.0.10",
+     "expo-crypto": "~15.0.9",
+diff --git a/package.json b/package.json
+index b73271a..1220f7b 100644
+--- a/package.json
++++ b/package.json
+@@ -17,25 +17,25 @@
+     "baseline-check": "node scripts/baseline-check.mjs"
+   },
+   "dependencies": {
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
+-    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types",
+-    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
+-    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts",
++    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types",
++    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n",
++    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens"
+   },
+   "devDependencies": {
+     "@types/node": "^22.20.1",
+     "turbo": "^2.5.4",
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification"
+   },
+   "pnpm": {
+     "overrides": {
+-      "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
+-      "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types",
+-      "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
+-      "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens",
+-      "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
++      "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts",
++      "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types",
++      "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n",
++      "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens",
++      "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification"
+     }
+   }
+ }
+diff --git a/packages/commerce-core/package.json b/packages/commerce-core/package.json
+index 454d732..b9ce4ae 100644
+--- a/packages/commerce-core/package.json
++++ b/packages/commerce-core/package.json
+@@ -19,8 +19,8 @@
+     "test": "vitest run"
+   },
+   "dependencies": {
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
+-    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts",
++    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 2d7d3a7..b122f3a 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -5,32 +5,32 @@ settings:
+   excludeLinksFromLockfile: false
+ 
+ overrides:
+-  '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-  '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+-  '@platform/i18n': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
+-  '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+-  '@platform/certification': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++  '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++  '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
++  '@platform/i18n': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n
++  '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
++  '@platform/certification': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
+ 
+ importers:
+ 
+   .:
+     dependencies:
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+       '@platform/i18n':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n
+       '@platform/kernel-types':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
+       '@platform/ui-tokens':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
+       '@types/node':
+         specifier: ^22.20.1
+         version: 22.20.1
+@@ -47,11 +47,11 @@ importers:
+   apps/supplier-app:
+     dependencies:
+       '@platform/i18n':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n
+       '@platform/ui-tokens':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
+       expo:
+         specifier: ~54.0.35
+         version: 54.0.35(@babel/core@7.29.7)(@expo/dom-webview@57.0.0)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+@@ -108,11 +108,11 @@ importers:
+   packages/commerce-core:
+     dependencies:
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+       '@platform/kernel-types':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -145,8 +145,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+       zod:
+         specifier: ^4.1.5
+         version: 4.4.3
+@@ -164,12 +164,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
+       typescript:
+         specifier: ^5.9.2
+         version: 5.9.3
+@@ -183,8 +183,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+     devDependencies:
+       '@cloudflare/workers-types':
+         specifier: ^4.20250705.0
+@@ -208,8 +208,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -224,12 +224,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification
+       typescript:
+         specifier: ^5.9.2
+         version: 5.9.3
+@@ -246,8 +246,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -1456,27 +1456,27 @@ packages:
+   '@jridgewell/trace-mapping@0.3.9':
+     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+ 
+-  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification':
+-    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/certification, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.5
++  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification':
++    resolution: {commit: ba6f16d78a2a5a13ff6877237cef6d77d35d8d65, path: packages/certification, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.6
+ 
+-  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts':
+-    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/contracts, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.5
++  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts':
++    resolution: {commit: ba6f16d78a2a5a13ff6877237cef6d77d35d8d65, path: packages/contracts, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.6
+     hasBin: true
+ 
+-  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n':
+-    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/i18n, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.5
++  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n':
++    resolution: {commit: ba6f16d78a2a5a13ff6877237cef6d77d35d8d65, path: packages/i18n, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.6
+     hasBin: true
+ 
+-  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types':
+-    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/kernel-types, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.5
++  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types':
++    resolution: {commit: ba6f16d78a2a5a13ff6877237cef6d77d35d8d65, path: packages/kernel-types, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.6
+ 
+-  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens':
+-    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/ui-tokens, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.5
++  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens':
++    resolution: {commit: ba6f16d78a2a5a13ff6877237cef6d77d35d8d65, path: packages/ui-tokens, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.6
+ 
+   '@poppinss/colors@4.1.6':
+     resolution: {integrity: sha512-H9xkIdFswbS8n1d6vmRd8+c10t2Qe+rZITbbDHHkQixH5+2x1FDGmi/0K+WgWiqQFKPSlIYB7jlH6Kpfn6Fleg==}
+@@ -5184,26 +5184,26 @@ snapshots:
+       '@jridgewell/resolve-uri': 3.1.2
+       '@jridgewell/sourcemap-codec': 1.5.5
+ 
+-  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification':
++  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification':
+     dependencies:
+-      '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+-      '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++      '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts
++      '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens
+       zod: 4.4.3
+ 
+-  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts':
++  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts':
+     dependencies:
+-      '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++      '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types
+       zod: 4.4.3
+ 
+-  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n':
++  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/i18n':
+     dependencies:
+       zod: 4.4.3
+ 
+-  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types':
++  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types':
+     dependencies:
+       zod: 4.4.3
+ 
+-  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens': {}
++  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens': {}
+ 
+   '@poppinss/colors@4.1.6':
+     dependencies:
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 5328e59..454478c 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -12,15 +12,16 @@ onlyBuiltDependencies:
+   - "@platform/ui-tokens"
+   - "@platform/certification"
+ 
+-# @platform/contracts depends on @platform/kernel-types@0.9.5, which exists
++# @platform/contracts depends on @platform/kernel-types@0.9.6, which exists
+ # on no registry; this override routes that transitive resolution to the
+-# same pinned git ref (CONSUMING.md). Pin = sha 2153661 (canon v0.9.5 — the
+-# mint-rule pin: WO-6.10 adopts CommandIdSchema + mintCommandId + the
+-# mint-path entropy gate; founder ruling: the release ref is the commit).
+-# @platform/certification (0.9.5, devDep) additionally depends on
+-# @platform/contracts@0.9.5 and @platform/ui-tokens@0.9.5 by VERSION —
++# same pinned git ref (CONSUMING.md). Pin = sha ba6f16d (canon v0.9.6 — the
++# moderation-decision-shapes pin: catalog-service adopts canon
++# ModerationReasonCodeSchema + ModerationDecisionSchema, retiring its local
++# A1 enum; founder ruling: the release ref is the merge commit).
++# @platform/certification (0.9.6, devDep) additionally depends on
++# @platform/contracts@0.9.6 and @platform/ui-tokens@0.9.6 by VERSION —
+ # also registry-absent, so they are routed the same way.
+ overrides:
+-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types"
+-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens"
++  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types"
++  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
++  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens"
+diff --git a/scripts/run-gates.sh b/scripts/run-gates.sh
+index 3b1bb28..cdba6aa 100755
+--- a/scripts/run-gates.sh
++++ b/scripts/run-gates.sh
+@@ -159,13 +159,13 @@ log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mi
+ capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
+ 
+ log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
+-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.5
++capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.6
+ 
+ log "gate: contracts drift-check — TAMPERED doc (must fail)"
+ DRIFT_TMP="$(mktemp -d)"
+ cp -r docs "$DRIFT_TMP/docs"
+ printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
+-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.5
++capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.6
+ rm -rf "$DRIFT_TMP"
+ 
+ if [ $FAILED -ne 0 ]; then
+diff --git a/services/catalog-service/package.json b/services/catalog-service/package.json
+index d371875..5201be8 100644
+--- a/services/catalog-service/package.json
++++ b/services/catalog-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts",
+     "zod": "^4.1.5"
+   },
+   "devDependencies": {
+diff --git a/services/catalog-service/src/moderation.ts b/services/catalog-service/src/moderation.ts
+index e1fdd19..4311832 100644
+--- a/services/catalog-service/src/moderation.ts
++++ b/services/catalog-service/src/moderation.ts
+@@ -1,21 +1,22 @@
+-import { z } from 'zod';
+-import { PlatformEventSchema, type PlatformEvent } from '@platform/contracts';
++import { PlatformEventSchema, type PlatformEvent, type ModerationReasonCode } from '@platform/contracts';
+ 
+ /**
+- * B2.2 · A1 — the real moderation state machine (replaces the E1
+- * `approved_e1_sandbox` stub). Governing sentences:
+- *  - ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: "Moderation states: draft →
+- *    submitted → changes-requested (with *specific* reasons) → approved →
+- *    paused → retired."  This slice builds the submit → decision → activate arc.
+- *  - Building Plan B2.2: "Moderation timeout = pending" — a timeout resolves to
+- *    `pending`, and MAY NEVER resolve to approved.
+- *  - Desk 3: "The queue for facts, media, and categories. Specific, actionable
+- *    reasons — never a silent rejection. No self-moderation (a supplier can
+- *    never approve his own listing)."
+- *  - B+I-01: an active version MUST have "an approved moderation decision".
++ * B2.2 · A1 → canon (WO MODERATION ENUM: LOCAL→CANON · @platform/contracts
++ * v0.9.6) — the moderation state machine, now CONSUMING canon's decision shapes
++ * instead of a local A1 mirror.
++ *  - The reason codes and the decision schema live in CANON
++ *    (`ModerationReasonCodeSchema` · `ModerationDecisionSchema` — "Boutik A1
++ *    RATIFIED v1", canon since v0.9.6). This module NO LONGER defines them; it
++ *    consumes them, so PLATFORM Desk 3 (producer) and boutik catalog-service
++ *    (consumer) share ONE source (§5 identity by construction, not discipline).
++ *  - The state machine (submit → decide → activate; timeout → pending) and the
++ *    event builder remain app-repo work (canon owns the decision SHAPE, not the
++ *    catalog's lifecycle). Governing sentences unchanged:
++ *    ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: "submitted → changes-requested
++ *    (with *specific* reasons) → approved …"; Building Plan B2.2: "timeout =
++ *    pending"; B+I-01: an active version MUST have "an approved moderation decision".
+  *
+- * `draft/paused/retired` are later-lifecycle (offer.paused / retirement) and are
+- * deliberately NOT modelled here — not invented ahead of their slice.
++ * `draft/paused/retired` are later-lifecycle and deliberately NOT modelled here.
+  */
+ export const MODERATION_STATES = ['submitted', 'changes_requested', 'approved', 'pending'] as const;
+ export type ModerationState = (typeof MODERATION_STATES)[number];
+@@ -26,54 +27,18 @@ export function isApproved(state: string): boolean {
+ }
+ 
+ /**
+- * "Specific, actionable reasons — never a silent rejection" (Desk 3). The spec
+- * names the RULE, not a code list; each code below TRACES to an enumerated
+- * requirement. ⏳ FLAGGED for founder ratification of the exact set (the spec
+- * enumerates the requirements, not the reason codes — derived, not invented):
+- *  - facts_incomplete                → B+I-01 (approved facts)
+- *  - no_public_safe_proof            → B+I-01 (approved public-safe actual-item proof)
+- *  - price_or_contact_in_image       → B+I-02 / Desk 3 (no price/contact in images)
+- *  - not_neutral_packaging           → B+3 (neutral/platform packaging)
+- *  - prohibited_or_unlaunched_category → M2/M4 decision (launch/prohibited categories)
+- *  - authenticity_concern            → §2 (no unresolved authenticity concern)
++ * The WIRE / INPUT decision — the decision-verdict payload ONLY. It carries NO
++ * `decided_by`: the acting operator is STAMPED by `decide()` from `ctx.actor`
++ * (the single source of truth), never read from the wire. `decide()` assembles
++ * the canon decision as `{ ...input, decided_by: ctx.actor }` and parses THAT
++ * against canon's `ModerationDecisionSchema` — so a wire-supplied `decided_by`
++ * (if a caller casts past the type) is OVERWRITTEN by ctx.actor (ignored), and
++ * canon's `ops:moderation:*` regex on the stamped field becomes the total actor
++ * guard (no self-moderation, closed by construction — one field, one source).
+  */
+-export const CHANGE_REASONS = [
+-  'facts_incomplete',
+-  'no_public_safe_proof',
+-  'price_or_contact_in_image',
+-  'not_neutral_packaging',
+-  'prohibited_or_unlaunched_category',
+-  'authenticity_concern',
+-] as const;
+-export type ChangeReason = (typeof CHANGE_REASONS)[number];
+-
+-/**
+- * A moderation decision. `changes_requested` CANNOT exist without ≥1 specific
+- * reason — a SILENT REJECTION IS UNREPRESENTABLE (the sera bare-`failed`
+- * precedent: no reasonless variant in the union, and a strict parse refuses an
+- * empty reason list). The `approved` variant carries no reason, by construction.
+- */
+-export const ModerationDecisionSchema = z
+-  .discriminatedUnion('verdict', [
+-    z.object({ verdict: z.literal('approved') }).strict(),
+-    z.object({ verdict: z.literal('changes_requested'), reasons: z.array(z.enum(CHANGE_REASONS)).min(1) }).strict(),
+-  ]);
+-export type ModerationDecision = z.infer<typeof ModerationDecisionSchema>;
+-
+-/**
+- * "No self-moderation — a supplier can never approve his own listing" (Desk 3).
+- * The decision authority is Ops-only: a decision takes effect ONLY from a
+- * moderation-operator actor; any other actor (a supplier, above all) is REFUSED
+- * (the sera actor-provenance pattern). There is NO supplier-callable approve
+- * lever anywhere in this module — the supplier surface can submit and revise, it
+- * can never decide. For E4 the operator decision arrives through a
+- * contract-honouring mock decision path (mock-certification standard); the live
+- * sibling is the platform Ops console's Desk 3, whose half this repo never builds.
+- */
+-export const MODERATION_OPERATOR_PREFIX = 'ops:moderation:';
+-export function isModerationOperator(actor: string): boolean {
+-  return actor.startsWith(MODERATION_OPERATOR_PREFIX);
+-}
++export type ModerationDecisionInput =
++  | { decision: 'approved' }
++  | { decision: 'changes_requested'; reasons: ModerationReasonCode[] };
+ 
+ /** The command context an emitted event's envelope is stamped from (§5.7). */
+ export interface CommandContext {
+diff --git a/services/catalog-service/src/product.ts b/services/catalog-service/src/product.ts
+index 0e316d0..a9647b4 100644
+--- a/services/catalog-service/src/product.ts
++++ b/services/catalog-service/src/product.ts
+@@ -1,9 +1,8 @@
+-import { ProductVersionSchema, VariantSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
++import { ProductVersionSchema, VariantSchema, ModerationDecisionSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
+ import {
+   type CommandContext,
+-  type ModerationDecision,
++  type ModerationDecisionInput,
+   isApproved,
+-  isModerationOperator,
+   moderationEvent,
+ } from './moderation.js';
+ 
+@@ -103,13 +102,21 @@ export class ProductCatalog {
+    *                          carrying the SPECIFIC reasons (never silent).
+    * A decision may only act on a version that is under review (submitted/pending).
+    */
+-  decide(versionId: string, decision: ModerationDecision, ctx: CommandContext, at: string): DecideOutcome {
+-    if (!isModerationOperator(ctx.actor)) return { ok: false, reason: 'not_a_moderation_operator' };
++  decide(versionId: string, input: ModerationDecisionInput, ctx: CommandContext, at: string): DecideOutcome {
++    // Caller-binding survives the swap: `decided_by` is STAMPED from ctx.actor —
++    // the single source. The spread-after OVERWRITES any wire-supplied decided_by
++    // (a mismatch is unconstructable), and canon's ops:moderation:* regex on the
++    // stamped field is the total actor guard (no self-moderation). A non-operator
++    // actor fails the canon parse and is refused here (the isModerationOperator
++    // check is retired — the stamp makes canon's regex total).
++    const parsed = ModerationDecisionSchema.safeParse({ ...input, decided_by: ctx.actor });
++    if (!parsed.success) return { ok: false, reason: 'not_a_moderation_operator' };
++    const decision = parsed.data;
+     const version = this.versions.get(versionId);
+     if (!version) return { ok: false, reason: 'unknown_version' };
+     if (!isUnderReview(version.moderationState)) return { ok: false, reason: 'not_under_review' };
+ 
+-    if (decision.verdict === 'approved') {
++    if (decision.decision === 'approved') {
+       const approved = ProductVersionSchema.parse({ ...version, moderationState: 'approved' });
+       this.versions.set(versionId, approved);
+       const events = [
+diff --git a/services/catalog-service/test/moderation.test.ts b/services/catalog-service/test/moderation.test.ts
+index ca00cdb..c948d02 100644
+--- a/services/catalog-service/test/moderation.test.ts
++++ b/services/catalog-service/test/moderation.test.ts
+@@ -1,14 +1,19 @@
+ import { describe, expect, it } from 'vitest';
++import { ModerationDecisionSchema } from '@platform/contracts';
+ import { ProductCatalog } from '../src/product.js';
+-import { ModerationDecisionSchema, isModerationOperator } from '../src/moderation.js';
++import type { ModerationDecisionInput } from '../src/moderation.js';
+ 
+ /**
+- * B2.2 · A1 — the real moderation state machine, and its four owed NEGATIVES,
+- * each planted and firing:
++ * B2.2 · A1 → canon (MODERATION ENUM: LOCAL→CANON, v0.9.6) — the moderation
++ * state machine now consuming canon's `ModerationDecisionSchema`, every A1
++ * invariant re-asserted against the canon shape:
+  *  ① a timeout resolves to `pending`, NEVER approved (activation stays refused);
+  *  ② an unapproved version CANNOT activate (B+I-01, structural);
+- *  ③ a supplier can NEVER approve his own listing (no self-moderation, Desk 3);
+- *  ④ a silent rejection is UNREPRESENTABLE (changes_requested needs ≥1 reason).
++ *  ③ a supplier can NEVER approve his own listing — the caller-binding survives
++ *     the swap: decide() stamps decided_by from ctx.actor, canon's regex refuses;
++ *  ④ a silent rejection is UNREPRESENTABLE (changes_requested needs ≥1 reason);
++ *  ⑤ decided_by has ONE source — a wire-smuggled decided_by is IGNORED (the
++ *     stamp overwrites it), so a supplier can't smuggle an operator identity.
+  */
+ 
+ const AT = '2026-07-13T10:00:00.000Z';
+@@ -37,7 +42,7 @@ describe('moderation state machine — the happy arc (submit → decide → acti
+ 
+   it('an operator APPROVAL → approved + media.derivative_approved.v1; THEN activation succeeds', () => {
+     const { catalog, versionId } = fresh();
+-    const decided = catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
++    const decided = catalog.decide(versionId, { decision: 'approved' }, opCtx, AT);
+     expect(decided.ok).toBe(true);
+     if (!decided.ok) return;
+     expect(decided.version.moderationState).toBe('approved');
+@@ -48,7 +53,7 @@ describe('moderation state machine — the happy arc (submit → decide → acti
+ 
+   it('changes_requested → changes_requested + catalog.blocked.v1 + media.asset_rejected.v1, BOTH carrying the SPECIFIC reasons', () => {
+     const { catalog, versionId } = fresh();
+-    const decided = catalog.decide(versionId, { verdict: 'changes_requested', reasons: ['price_or_contact_in_image', 'not_neutral_packaging'] }, opCtx, AT);
++    const decided = catalog.decide(versionId, { decision: 'changes_requested', reasons: ['price_or_contact_in_image', 'not_neutral_packaging'] }, opCtx, AT);
+     expect(decided.ok).toBe(true);
+     if (!decided.ok) return;
+     expect(decided.version.moderationState).toBe('changes_requested');
+@@ -68,7 +73,7 @@ describe('moderation NEGATIVES — planted, firing', () => {
+     expect(timedOut.version.moderationState).toBe('pending'); // NOT approved
+     expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
+     // a decided (approved) version cannot then be "timed out" back to pending
+-    catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
++    catalog.decide(versionId, { decision: 'approved' }, opCtx, AT);
+     expect(catalog.timeoutModeration(versionId)).toEqual({ ok: false, reason: 'not_under_review' });
+   });
+ 
+@@ -76,7 +81,7 @@ describe('moderation NEGATIVES — planted, firing', () => {
+     for (const drive of [
+       (_c: ProductCatalog, _id: string) => {}, // stays submitted
+       (c: ProductCatalog, id: string) => c.timeoutModeration(id), // pending
+-      (c: ProductCatalog, id: string) => c.decide(id, { verdict: 'changes_requested', reasons: ['facts_incomplete'] }, opCtx, AT), // changes_requested
++      (c: ProductCatalog, id: string) => c.decide(id, { decision: 'changes_requested', reasons: ['facts_incomplete'] }, opCtx, AT), // changes_requested
+     ]) {
+       const { catalog, versionId } = fresh();
+       drive(catalog, versionId);
+@@ -85,23 +90,41 @@ describe('moderation NEGATIVES — planted, firing', () => {
+     }
+   });
+ 
+-  it('③ a SUPPLIER can never approve his own listing — the decision is refused, the state is untouched (no self-moderation)', () => {
++  it('③ a SUPPLIER can never approve his own listing — refused end-to-end (stamp → canon parse → refusal), state untouched', () => {
+     const { catalog, versionId } = fresh();
+-    expect(isModerationOperator(supplierCtx.actor)).toBe(false);
+-    const selfApprove = catalog.decide(versionId, { verdict: 'approved' }, supplierCtx, AT);
++    // decide() stamps decided_by = ctx.actor ('supplier-7'); canon's ops:moderation:* regex refuses it.
++    const selfApprove = catalog.decide(versionId, { decision: 'approved' }, supplierCtx, AT);
+     expect(selfApprove).toEqual({ ok: false, reason: 'not_a_moderation_operator' });
+     expect(catalog.get(versionId)!.moderationState).toBe('submitted'); // unchanged — not approved
+     // and it is still unactivatable
+     expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
+   });
+ 
+-  it('④ a SILENT rejection is UNREPRESENTABLE — changes_requested with no reason (or empty) is refused', () => {
+-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested' }).success).toBe(false); // no reasons field
+-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: [] }).success).toBe(false); // empty
+-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: ['authenticity_concern'] }).success).toBe(true);
+-    expect(ModerationDecisionSchema.safeParse({ verdict: 'approved' }).success).toBe(true);
+-    // @ts-expect-error — the TYPE also forbids a reasonless changes_requested (unrepresentable at compile time)
+-    const _bad: import('../src/moderation.js').ModerationDecision = { verdict: 'changes_requested' };
++  it('④ a SILENT rejection is UNREPRESENTABLE — canon changes_requested with no reason (or empty) is refused', () => {
++    // canon's ModerationDecisionSchema requires decided_by on both variants; here an OPS actor is supplied.
++    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', decided_by: 'ops:moderation:op-3' }).success).toBe(false); // no reasons
++    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', reasons: [], decided_by: 'ops:moderation:op-3' }).success).toBe(false); // empty
++    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', reasons: ['authenticity_concern'], decided_by: 'ops:moderation:op-3' }).success).toBe(true);
++    expect(ModerationDecisionSchema.safeParse({ decision: 'approved', decided_by: 'ops:moderation:op-3' }).success).toBe(true);
++    // canon's actor guard, at the schema: a non-operator decided_by is refused outright.
++    expect(ModerationDecisionSchema.safeParse({ decision: 'approved', decided_by: 'supplier-7' }).success).toBe(false);
++    // @ts-expect-error — the WIRE type also forbids a reasonless changes_requested (unrepresentable at compile time)
++    const _bad: ModerationDecisionInput = { decision: 'changes_requested' };
+     void _bad;
+   });
++
++  it('⑤ decided_by has ONE source — a wire-smuggled operator identity is IGNORED (the stamp overwrites it)', () => {
++    const { catalog, versionId } = fresh();
++    // A supplier caller casts past the wire type to smuggle a genuine operator decided_by.
++    // decide() stamps decided_by = ctx.actor ('supplier-7') AFTER the spread, overwriting the
++    // smuggled value — so the smuggle grants nothing; canon's regex still refuses the supplier.
++    const smuggled = catalog.decide(
++      versionId,
++      { decision: 'approved', decided_by: 'ops:moderation:op-3' } as unknown as ModerationDecisionInput,
++      supplierCtx,
++      AT,
++    );
++    expect(smuggled).toEqual({ ok: false, reason: 'not_a_moderation_operator' });
++    expect(catalog.get(versionId)!.moderationState).toBe('submitted'); // unchanged — the smuggle bought nothing
++  });
+ });
+diff --git a/services/catalog-service/test/product.test.ts b/services/catalog-service/test/product.test.ts
+index f307cd5..1b3ea9c 100644
+--- a/services/catalog-service/test/product.test.ts
++++ b/services/catalog-service/test/product.test.ts
+@@ -43,7 +43,7 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
+     const catalog = new ProductCatalog();
+     const created = catalog.create(draft, true, supplierCtx, AT);
+     if (!created.ok) throw new Error('setup');
+-    catalog.decide(created.version.id, { verdict: 'approved' }, opCtx, AT); // moderation must pass before activation
++    catalog.decide(created.version.id, { decision: 'approved' }, opCtx, AT); // moderation must pass before activation
+     catalog.activate(created.version.id, true);
+     const before = catalog.get(created.version.id)!;
+ 
+@@ -55,7 +55,7 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
+     // the revised version RE-ENTERS moderation — it never inherits the prior approval
+     expect(revised.version.moderationState).toBe('submitted');
+     expect(catalog.get(created.version.id)).toEqual(before); // untouched
+-    catalog.decide(revised.version.id, { verdict: 'approved' }, opCtx, AT);
++    catalog.decide(revised.version.id, { decision: 'approved' }, opCtx, AT);
+     catalog.activate(revised.version.id, true);
+     catalog.supersede(created.version.id);
+     expect(catalog.get(created.version.id)!.status).toBe('superseded');
+diff --git a/services/fulfillment-service/package.json b/services/fulfillment-service/package.json
+index 30c7c67..93acb87 100644
+--- a/services/fulfillment-service/package.json
++++ b/services/fulfillment-service/package.json
+@@ -20,11 +20,11 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification"
+   }
+ }
+diff --git a/services/inventory-service/package.json b/services/inventory-service/package.json
+index dd50381..11aac5a 100644
+--- a/services/inventory-service/package.json
++++ b/services/inventory-service/package.json
+@@ -22,7 +22,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/media-service/package.json b/services/media-service/package.json
+index 336d2ca..d22545b 100644
+--- a/services/media-service/package.json
++++ b/services/media-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/offer-service/package.json b/services/offer-service/package.json
+index 3b4ca24..a6cb9cf 100644
+--- a/services/offer-service/package.json
++++ b/services/offer-service/package.json
+@@ -20,12 +20,12 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification",
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/certification",
+     "zod": "^4.1.5"
+   }
+ }
+diff --git a/services/supplier-service/package.json b/services/supplier-service/package.json
+index 63572a3..aa0e00c 100644
+--- a/services/supplier-service/package.json
++++ b/services/supplier-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",

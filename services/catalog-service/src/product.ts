@@ -1,9 +1,8 @@
-import { ProductVersionSchema, VariantSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
+import { ProductVersionSchema, VariantSchema, ModerationDecisionSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
 import {
   type CommandContext,
-  type ModerationDecision,
+  type ModerationDecisionInput,
   isApproved,
-  isModerationOperator,
   moderationEvent,
 } from './moderation.js';
 
@@ -103,13 +102,21 @@ export class ProductCatalog {
    *                          carrying the SPECIFIC reasons (never silent).
    * A decision may only act on a version that is under review (submitted/pending).
    */
-  decide(versionId: string, decision: ModerationDecision, ctx: CommandContext, at: string): DecideOutcome {
-    if (!isModerationOperator(ctx.actor)) return { ok: false, reason: 'not_a_moderation_operator' };
+  decide(versionId: string, input: ModerationDecisionInput, ctx: CommandContext, at: string): DecideOutcome {
+    // Caller-binding survives the swap: `decided_by` is STAMPED from ctx.actor —
+    // the single source. The spread-after OVERWRITES any wire-supplied decided_by
+    // (a mismatch is unconstructable), and canon's ops:moderation:* regex on the
+    // stamped field is the total actor guard (no self-moderation). A non-operator
+    // actor fails the canon parse and is refused here (the isModerationOperator
+    // check is retired — the stamp makes canon's regex total).
+    const parsed = ModerationDecisionSchema.safeParse({ ...input, decided_by: ctx.actor });
+    if (!parsed.success) return { ok: false, reason: 'not_a_moderation_operator' };
+    const decision = parsed.data;
     const version = this.versions.get(versionId);
     if (!version) return { ok: false, reason: 'unknown_version' };
     if (!isUnderReview(version.moderationState)) return { ok: false, reason: 'not_under_review' };
 
-    if (decision.verdict === 'approved') {
+    if (decision.decision === 'approved') {
       const approved = ProductVersionSchema.parse({ ...version, moderationState: 'approved' });
       this.versions.set(versionId, approved);
       const events = [
