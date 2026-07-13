@@ -26,7 +26,7 @@ import {
   type as typeTokens,
 } from '@platform/ui-tokens';
 import { cubicBezierPoints } from './motion';
-import { FONT_FAMILY } from './fonts';
+import { fontFamilyForWeight } from './fonts';
 import { Icon, type IconName } from './icons';
 
 // The kit is the single design-system entry point: screens import the glyph
@@ -76,7 +76,7 @@ export type ScaleToken = {
  * design system's typography instead of re-deriving lineHeight/weight. */
 export function textStyle(s: ScaleToken): TextStyle {
   return {
-    fontFamily: FONT_FAMILY,
+    fontFamily: fontFamilyForWeight(s.wght),
     fontSize: s.size,
     lineHeight: s.size * s.lh,
     fontWeight: String(s.wght) as TextStyle['fontWeight'],

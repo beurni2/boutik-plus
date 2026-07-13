@@ -32,3 +32,37 @@ export const FONT_WEIGHTS = {
 } as const;
 
 export type FontWeight = keyof typeof FONT_WEIGHTS;
+
+/**
+ * WO-6.0 ruling ② — native embedding addresses fonts by NAME. Each static
+ * instance now carries a distinct weight-specific family (its name table was
+ * fixed: the WO-5.1 subset left all five named « Archivo SemiBold Regular »,
+ * a collision that broke weight selection). RN references these exact families;
+ * expo-font's config plugin embeds the files so the family resolves at the
+ * FIRST FRAME (in the binary, no async load).
+ */
+export const FONT_FAMILY_BY_WEIGHT: Record<FontWeight, string> = {
+  400: 'Archivo-Regular',
+  500: 'Archivo-Medium',
+  700: 'Archivo-Bold',
+  800: 'Archivo-ExtraBold',
+  900: 'Archivo-Black',
+};
+
+const SHIPPED_WEIGHTS = [400, 500, 700, 800, 900] as const;
+
+/**
+ * The embedded family for a design weight. The five shipped instances match the
+ * design's declared weights; a value between them (the type scale's `row`/
+ * reconcileLine wght 600) maps to the NEAREST shipped instance (ties → heavier),
+ * so no text falls back to the system face mid-screen.
+ */
+export function fontFamilyForWeight(wght: number): string {
+  let nearest: FontWeight = 400;
+  for (const w of SHIPPED_WEIGHTS) {
+    const better = Math.abs(w - wght) < Math.abs(nearest - wght);
+    const tieHeavier = Math.abs(w - wght) === Math.abs(nearest - wght) && w > nearest;
+    if (better || tieHeavier) nearest = w;
+  }
+  return FONT_FAMILY_BY_WEIGHT[nearest];
+}
