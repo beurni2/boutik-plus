@@ -21,6 +21,7 @@ import {
   type DemoWorld,
   type ModerationState,
 } from './src/demo/store';
+import { presentTrustConsequence, statementFigures } from './src/trust/statement';
 import { captureShot, type CaptureResult } from './src/studio/capture';
 import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
 import { CAPTURE_CATEGORIES, frameGuideKey, type CaptureCategory, type ShotKind } from './src/studio/guidance';
@@ -133,6 +134,7 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
   echeances: 'echeances.title',
   recettes: 'recettes.title',
   moderation: 'moderation.title',
+  confiance: 'confiance.title',
 };
 
 // B11 (A1) — the REAL moderationState → chip + honest line. Keyed off the
@@ -342,6 +344,10 @@ export default function App() {
   const enLigne = world.products.filter((p) => p.status === 'pret').length;
   // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
   const receivables = world.receivables;
+  // B2 — the trust/consequence view + the server-generated statement figures
+  // (verbatim, never re-summed). Access-based consequences, never money.
+  const trust = presentTrustConsequence(world.trust);
+  const statementFig = statementFigures(world.statement);
   // B1 modes are data-driven: an urgent deadline or a refused package changes
   // what the home screen leads with — shown only when the data warrants it.
   const urgent = world.products.some(
@@ -420,6 +426,7 @@ export default function App() {
               <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
               <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
               <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
+              <UnderlineLink label={t('confiance.title')} onPress={() => go('confiance')} />
             </View>
           </View>
         )}
@@ -882,6 +889,37 @@ export default function App() {
                 );
               }}
             />
+            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+          </View>
+        )}
+
+        {/* B2 — Confiance : the server-generated statement (figures shown verbatim)
+            + the trust/consequence view. Every consequence is access-based —
+            a restriction, never money. « Aucun montant n'est retenu. » */}
+        {screen === 'confiance' && (
+          <View style={styles.stackGap}>
+            <View style={styles.receiptCard}>
+              <Overline>{world.statement.periodLabel}</Overline>
+              <AmountHero
+                label={t('confiance.paid_label')}
+                amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(statementFig.paid))}
+              />
+              <Text style={styles.message}>
+                {t('confiance.pending_ligne').replace('{amount}', formatFcfa(statementFig.pending))}
+              </Text>
+              <ReconcileLine>{t('confiance.statement_note')}</ReconcileLine>
+            </View>
+            <View style={styles.modCard}>
+              <View style={styles.modHead}>
+                <Overline>{t('confiance.tier_label')}</Overline>
+                <StatusChip tone="pending" label={t(`confiance.tier_${trust.tier}`)} />
+              </View>
+              <Text style={styles.message}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
+              {trust.restrictions.map((r) => (
+                <Text key={r} style={styles.modReason}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
+              ))}
+              <ReconcileLine>{t('confiance.protege')}</ReconcileLine>
+            </View>
             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </View>
         )}

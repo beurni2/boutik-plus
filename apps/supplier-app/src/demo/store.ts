@@ -1,5 +1,12 @@
-import { assertQuoteReconciles, computeWaterfall, type PlatformEvent } from '@platform/contracts';
+import {
+  assertQuoteReconciles,
+  computeWaterfall,
+  SellerTrustStateSchema,
+  type PlatformEvent,
+  type SellerTrustState,
+} from '@platform/contracts';
 import { projectReceivables, type SupplierReceivable } from '../settlement/readModel';
+import type { SupplierStatement } from '../trust/statement';
 
 type QuoteMoney = ReturnType<typeof computeWaterfall>;
 
@@ -66,6 +73,9 @@ export interface DemoReceivable {
 export interface DemoWorld {
   products: DemoProduct[];
   receivables: DemoReceivable[];
+  /** B2 — the trust/consequence view + the server-generated statement (B7.2). */
+  trust: SellerTrustState;
+  statement: SupplierStatement;
 }
 
 /**
@@ -198,8 +208,38 @@ export function seedReceivables(): DemoReceivable[] {
   }));
 }
 
+/**
+ * B2 — the seller's trust state, as the Protection-Fund desk (fulfillment-service
+ * protection.ts) writes it: ACCESS-based only. One recorded incident pauses new
+ * offers — a restriction, never money (B+I-12; the shape has no money field).
+ */
+export function demoTrust(): SellerTrustState {
+  return SellerTrustStateSchema.parse({
+    sellerId: 'supplier-demo',
+    tier: 'provisional',
+    faultCount: 1,
+    restrictions: ['new_offers_paused'],
+    probationLimits: { maxActiveOrders: 3 },
+  });
+}
+
+/**
+ * B2 — a SERVER-generated statement (B7.2): authoritative figures reported by
+ * Ledger&Settlement for the period. The app displays them verbatim (never
+ * re-sums); these are demo constants standing in for the authority's output.
+ */
+export function demoStatement(): SupplierStatement {
+  return {
+    periodLabel: 'Juillet 2026',
+    paidTotal: 24_500,
+    pendingTotal: 12_800,
+    orderCount: 6,
+    generatedAt: '2026-07-13T09:00:00.000Z',
+  };
+}
+
 export function createDemoWorld(): DemoWorld {
-  return { products: seedProducts(), receivables: seedReceivables() };
+  return { products: seedProducts(), receivables: seedReceivables(), trust: demoTrust(), statement: demoStatement() };
 }
 
 /** The « nouveau produit » walk publishes an honest pending product. */

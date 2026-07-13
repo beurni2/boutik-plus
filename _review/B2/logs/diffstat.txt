@@ -1,0 +1,8 @@
+ apps/supplier-app/App.tsx                          | 38 ++++++++++++
+ apps/supplier-app/i18n/catalog.json                | 66 +++++++++++++++++++++
+ apps/supplier-app/src/demo/store.ts                | 44 +++++++++++++-
+ apps/supplier-app/src/journey.ts                   |  8 ++-
+ apps/supplier-app/src/trust/statement.ts           | 53 +++++++++++++++++
+ apps/supplier-app/test/trust-statement.test.ts     | 67 ++++++++++++++++++++++
+ .../no-seller-debit/statement-fault-debit.ts       | 13 +++++
+ 7 files changed, 285 insertions(+), 4 deletions(-)

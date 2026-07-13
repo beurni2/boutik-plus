@@ -1,0 +1,402 @@
+diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
+index e9308ad..d3bc6b4 100644
+--- a/apps/supplier-app/App.tsx
++++ b/apps/supplier-app/App.tsx
+@@ -21,6 +21,7 @@ import {
+   type DemoWorld,
+   type ModerationState,
+ } from './src/demo/store';
++import { presentTrustConsequence, statementFigures } from './src/trust/statement';
+ import { captureShot, type CaptureResult } from './src/studio/capture';
+ import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
+ import { CAPTURE_CATEGORIES, frameGuideKey, type CaptureCategory, type ShotKind } from './src/studio/guidance';
+@@ -133,6 +134,7 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
+   echeances: 'echeances.title',
+   recettes: 'recettes.title',
+   moderation: 'moderation.title',
++  confiance: 'confiance.title',
+ };
+ 
+ // B11 (A1) — the REAL moderationState → chip + honest line. Keyed off the
+@@ -342,6 +344,10 @@ export default function App() {
+   const enLigne = world.products.filter((p) => p.status === 'pret').length;
+   // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
+   const receivables = world.receivables;
++  // B2 — the trust/consequence view + the server-generated statement figures
++  // (verbatim, never re-summed). Access-based consequences, never money.
++  const trust = presentTrustConsequence(world.trust);
++  const statementFig = statementFigures(world.statement);
+   // B1 modes are data-driven: an urgent deadline or a refused package changes
+   // what the home screen leads with — shown only when the data warrants it.
+   const urgent = world.products.some(
+@@ -420,6 +426,7 @@ export default function App() {
+               <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+               <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
+               <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
++              <UnderlineLink label={t('confiance.title')} onPress={() => go('confiance')} />
+             </View>
+           </View>
+         )}
+@@ -886,6 +893,37 @@ export default function App() {
+           </View>
+         )}
+ 
++        {/* B2 — Confiance : the server-generated statement (figures shown verbatim)
++            + the trust/consequence view. Every consequence is access-based —
++            a restriction, never money. « Aucun montant n'est retenu. » */}
++        {screen === 'confiance' && (
++          <View style={styles.stackGap}>
++            <View style={styles.receiptCard}>
++              <Overline>{world.statement.periodLabel}</Overline>
++              <AmountHero
++                label={t('confiance.paid_label')}
++                amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(statementFig.paid))}
++              />
++              <Text style={styles.message}>
++                {t('confiance.pending_ligne').replace('{amount}', formatFcfa(statementFig.pending))}
++              </Text>
++              <ReconcileLine>{t('confiance.statement_note')}</ReconcileLine>
++            </View>
++            <View style={styles.modCard}>
++              <View style={styles.modHead}>
++                <Overline>{t('confiance.tier_label')}</Overline>
++                <StatusChip tone="pending" label={t(`confiance.tier_${trust.tier}`)} />
++              </View>
++              <Text style={styles.message}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
++              {trust.restrictions.map((r) => (
++                <Text key={r} style={styles.modReason}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
++              ))}
++              <ReconcileLine>{t('confiance.protege')}</ReconcileLine>
++            </View>
++            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
++          </View>
++        )}
++
+         {pendingKey !== null && screen !== 'accueil' && screen !== 'pret' && (
+           <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
+         )}
+diff --git a/apps/supplier-app/i18n/catalog.json b/apps/supplier-app/i18n/catalog.json
+index 06a707a..0369a0a 100644
+--- a/apps/supplier-app/i18n/catalog.json
++++ b/apps/supplier-app/i18n/catalog.json
+@@ -731,6 +731,72 @@
+     "register": "money",
+     "screenClass": "general"
+   },
++  {
++    "key": "confiance.title",
++    "fr": "Confiance",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.paid_label",
++    "fr": "Versé ce mois",
++    "register": "money",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.pending_ligne",
++    "fr": "En attente : {amount}",
++    "register": "money",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.statement_note",
++    "fr": "Relevé établi par le service de règlement — Boutik+ ne garde rien.",
++    "register": "money",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.tier_label",
++    "fr": "Votre niveau",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.tier_provisional",
++    "fr": "Nouveau",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.tier_verified",
++    "fr": "Vérifié",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.tier_trusted",
++    "fr": "De confiance",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.incidents",
++    "fr": "Incidents enregistrés : {n}.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.restriction.new_offers_paused",
++    "fr": "Les nouvelles offres sont en pause, le temps de rétablir la confiance.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "confiance.protege",
++    "fr": "Aucun franc n'est pris sur vos ventes. La protection Séra couvre la perte.",
++    "register": "money",
++    "screenClass": "general"
++  },
+   {
+     "key": "moderation.title",
+     "fr": "Modération",
+diff --git a/apps/supplier-app/src/demo/store.ts b/apps/supplier-app/src/demo/store.ts
+index 9e55a89..8f8761b 100644
+--- a/apps/supplier-app/src/demo/store.ts
++++ b/apps/supplier-app/src/demo/store.ts
+@@ -1,5 +1,12 @@
+-import { assertQuoteReconciles, computeWaterfall, type PlatformEvent } from '@platform/contracts';
++import {
++  assertQuoteReconciles,
++  computeWaterfall,
++  SellerTrustStateSchema,
++  type PlatformEvent,
++  type SellerTrustState,
++} from '@platform/contracts';
+ import { projectReceivables, type SupplierReceivable } from '../settlement/readModel';
++import type { SupplierStatement } from '../trust/statement';
+ 
+ type QuoteMoney = ReturnType<typeof computeWaterfall>;
+ 
+@@ -66,6 +73,9 @@ export interface DemoReceivable {
+ export interface DemoWorld {
+   products: DemoProduct[];
+   receivables: DemoReceivable[];
++  /** B2 — the trust/consequence view + the server-generated statement (B7.2). */
++  trust: SellerTrustState;
++  statement: SupplierStatement;
+ }
+ 
+ /**
+@@ -198,8 +208,38 @@ export function seedReceivables(): DemoReceivable[] {
+   }));
+ }
+ 
++/**
++ * B2 — the seller's trust state, as the Protection-Fund desk (fulfillment-service
++ * protection.ts) writes it: ACCESS-based only. One recorded incident pauses new
++ * offers — a restriction, never money (B+I-12; the shape has no money field).
++ */
++export function demoTrust(): SellerTrustState {
++  return SellerTrustStateSchema.parse({
++    sellerId: 'supplier-demo',
++    tier: 'provisional',
++    faultCount: 1,
++    restrictions: ['new_offers_paused'],
++    probationLimits: { maxActiveOrders: 3 },
++  });
++}
++
++/**
++ * B2 — a SERVER-generated statement (B7.2): authoritative figures reported by
++ * Ledger&Settlement for the period. The app displays them verbatim (never
++ * re-sums); these are demo constants standing in for the authority's output.
++ */
++export function demoStatement(): SupplierStatement {
++  return {
++    periodLabel: 'Juillet 2026',
++    paidTotal: 24_500,
++    pendingTotal: 12_800,
++    orderCount: 6,
++    generatedAt: '2026-07-13T09:00:00.000Z',
++  };
++}
++
+ export function createDemoWorld(): DemoWorld {
+-  return { products: seedProducts(), receivables: seedReceivables() };
++  return { products: seedProducts(), receivables: seedReceivables(), trust: demoTrust(), statement: demoStatement() };
+ }
+ 
+ /** The « nouveau produit » walk publishes an honest pending product. */
+diff --git a/apps/supplier-app/src/journey.ts b/apps/supplier-app/src/journey.ts
+index dfcab9d..9d3f8f3 100644
+--- a/apps/supplier-app/src/journey.ts
++++ b/apps/supplier-app/src/journey.ts
+@@ -19,13 +19,16 @@ export type Screen =
+   // existing edge/state/money number is untouched; the map-generic spine
+   // test stays green because these are reachable, render, and don't dangle.
+   | 'recettes'
+-  | 'moderation';
++  | 'moderation'
++  // B2 — the trust/consequence view + statement (B7.2), an ADDITIVE node
++  // reachable from accueil; access-based consequences, never money.
++  | 'confiance';
+ 
+ export const START: Screen = 'accueil';
+ 
+ /** Forward edges only — « Retour » pops the stack and is always available. */
+ export const JOURNEY: Record<Screen, readonly Screen[]> = {
+-  accueil: ['onboarding', 'produits', 'echeances', 'recettes', 'moderation'],
++  accueil: ['onboarding', 'produits', 'echeances', 'recettes', 'moderation', 'confiance'],
+   onboarding: ['produits'],
+   produits: ['nouveau', 'offre', 'corrective'],
+   nouveau: ['photo'],
+@@ -36,4 +39,5 @@ export const JOURNEY: Record<Screen, readonly Screen[]> = {
+   echeances: ['produits'],
+   recettes: ['produits'],
+   moderation: ['produits'],
++  confiance: ['produits'],
+ };
+diff --git a/apps/supplier-app/src/trust/statement.ts b/apps/supplier-app/src/trust/statement.ts
+new file mode 100644
+index 0000000..3621490
+--- /dev/null
++++ b/apps/supplier-app/src/trust/statement.ts
+@@ -0,0 +1,53 @@
++import type { SellerTrustState } from '@platform/contracts';
++
++/**
++ * B2 · B7.2 (🔴 RED) — statements + the trust/consequence view.
++ *  - B7.2: "Server-generated; seller-fault losses do NOT touch the seller money
++ *    (Protection Fund absorbs); trust-tier consequences shown."
++ *  - B+I-12: seller consequences are ACCESS-based, never money.
++ *  - Canon SellerTrustState is "progression, not payment" — it carries NO money
++ *    field, so a fault can only ever be faultCount++/restrictions, never money.
++ *
++ * Boutik+ holds no funds and computes no statement: the figures are REPORTED by
++ * Ledger&Settlement (server-generated). This module presents them verbatim and
++ * presents the trust state as access-based consequences — nothing here takes a
++ * seller's money or re-sums a total.
++ */
++
++/** A server-generated account statement — authoritative INPUT, displayed verbatim. */
++export interface SupplierStatement {
++  readonly periodLabel: string;
++  /** FCFA reported PAID this period by the authority (never re-summed here). */
++  readonly paidTotal: number;
++  /** FCFA reported still PENDING by the authority. */
++  readonly pendingTotal: number;
++  readonly orderCount: number;
++  /** Server time the authority generated the statement. */
++  readonly generatedAt: string;
++}
++
++/** The proceeds figures — taken VERBATIM from the server statement, never recomputed. */
++export function statementFigures(s: SupplierStatement): { paid: number; pending: number } {
++  return { paid: s.paidTotal, pending: s.pendingTotal };
++}
++
++/**
++ * The trust/consequence view — ACCESS-based only. Derived solely from the access
++ * fields of the canon SellerTrustState; there is no money field to carry and none
++ * is added. A fault shows as a raised faultCount and restrictions, never money.
++ */
++export interface TrustConsequenceView {
++  readonly tier: SellerTrustState['tier'];
++  readonly faultCount: number;
++  readonly restrictions: readonly string[];
++  readonly limits: SellerTrustState['probationLimits'];
++}
++
++export function presentTrustConsequence(state: SellerTrustState): TrustConsequenceView {
++  return {
++    tier: state.tier,
++    faultCount: state.faultCount,
++    restrictions: state.restrictions,
++    limits: state.probationLimits,
++  };
++}
+diff --git a/apps/supplier-app/test/trust-statement.test.ts b/apps/supplier-app/test/trust-statement.test.ts
+new file mode 100644
+index 0000000..2a531fd
+--- /dev/null
++++ b/apps/supplier-app/test/trust-statement.test.ts
+@@ -0,0 +1,67 @@
++import { describe, expect, it } from 'vitest';
++import { SellerTrustStateSchema } from '@platform/contracts';
++import { presentTrustConsequence, statementFigures, type SupplierStatement } from '../src/trust/statement';
++
++/**
++ * B2 · B7.2 (🔴 RED) — statements + the trust/consequence view, its invariants
++ * proven ADVERSARIALLY and FIRST. Governing sentences:
++ *  - B7.2: "Server-generated; seller-fault losses do NOT touch the seller money
++ *    (Protection Fund absorbs); trust-tier consequences shown."
++ *  - B+I-12: consequences for the seller are ACCESS-based, never money.
++ *  - Canon SellerTrustState is "progression, not payment" — the shape carries
++ *    NO money field, by construction — no proceeds figure, no money of any kind.
++ */
++
++const faultedState = SellerTrustStateSchema.parse({
++  sellerId: 'supplier-7',
++  tier: 'provisional',
++  faultCount: 2,
++  restrictions: ['new_offers_paused'],
++  probationLimits: { maxActiveOrders: 3 },
++});
++
++const statement: SupplierStatement = {
++  periodLabel: 'Juillet 2026',
++  // 12_345 is an authoritative figure the app has no receivables to derive — if the
++  // view re-summed client-side, it could never show 12_345.
++  paidTotal: 12_345,
++  pendingTotal: 6_789,
++  orderCount: 4,
++  generatedAt: '2026-07-13T09:00:00.000Z',
++};
++
++describe('B+I-12 (money) — a seller-fault consequence is ACCESS-based, NEVER money', () => {
++  it('the presented consequence carries EXACTLY tier / faultCount / restrictions / limits — no money key can exist', () => {
++    const view = presentTrustConsequence(faultedState);
++    expect(view.faultCount).toBe(2);
++    expect(view.restrictions).toEqual(['new_offers_paused']);
++    expect(view.tier).toBe('provisional');
++    // the invariant, structural: the view's key set is EXACTLY the access fields —
++    // there is no money field, and none can be smuggled in.
++    expect(Object.keys(view).sort()).toEqual(['faultCount', 'limits', 'restrictions', 'tier']);
++  });
++
++  it('canon SellerTrustState itself has no money field — a fault CANNOT take money by construction', () => {
++    // the strict schema rejects ANY money field outright (extra keys are refused)
++    expect(SellerTrustStateSchema.safeParse({ ...faultedState, extraMoneyFcfa: 500 }).success).toBe(false);
++    // and every key of a valid state is access/progression, never money
++    expect(Object.keys(faultedState).sort()).toEqual(['faultCount', 'probationLimits', 'restrictions', 'sellerId', 'tier']);
++  });
++
++  it('a fault NEVER reduces the seller proceeds — the statement figures are untouched by faultCount', () => {
++    const figures = statementFigures(statement);
++    // the proceeds are the settled amounts; a fault adds a restriction, never a reduction
++    expect(figures.paid).toBe(12_345);
++    expect(figures.pending).toBe(6_789);
++  });
++});
++
++describe('B7.2 (money) — the statement is SERVER-generated, not client-derived', () => {
++  it('takes the authoritative totals VERBATIM — the app never re-sums them (a figure no local data yields is preserved)', () => {
++    const figures = statementFigures(statement);
++    expect(figures.paid).toBe(statement.paidTotal); // as reported by the authority
++    expect(figures.pending).toBe(statement.pendingTotal);
++    // the presenter does no arithmetic: paid + pending is NOT forced to any receivable sum
++    expect(figures.paid + figures.pending).toBe(19_134);
++  });
++});
+diff --git a/gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts b/gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts
+new file mode 100644
+index 0000000..6e0f1ed
+--- /dev/null
++++ b/gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts
+@@ -0,0 +1,13 @@
++// NEGATIVE FIXTURE (B2 · B7.2): a seller-fault money consequence on the statement /
++// trust surface — the no-seller-debit gate MUST fail on this file. Never import it.
++// B+I-12: a seller fault is ACCESS-based (faultCount / restrictions / tier), NEVER
++// money; the Protection Fund absorbs the loss. A statement that debits the seller
++// for a fault, or a « retenue »/« pénalité » on their proceeds, is forbidden.
++export interface FaultStatementLine {
++  sellerId: string;
++  faultDebitFcfa: number; // banned: a fault debits the seller
++}
++export function retenueSurFaute(line: FaultStatementLine): number {
++  const penalite = line.faultDebitFcfa; // banned: pénalité + débit on a fault
++  return penalite;
++}
