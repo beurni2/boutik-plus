@@ -221,6 +221,12 @@ export default function App() {
     setCheck2(false);
     setCelebrating(false);
   }, []);
+  // The honest camera-less path (B4 refusée / « sans photo ») — the demo stays
+  // walkable when the camera is unavailable; capture is simply absent.
+  const skipPhoto = useCallback(() => {
+    setReoffer(false);
+    go('offre');
+  }, [go]);
   // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
   // IS the stored derivative; EXIF proven stripped on its bytes. A failed
   // capture is a DESIGNED state, never a silent rejection (verifier NB③).
@@ -422,22 +428,29 @@ export default function App() {
 
         {screen === 'photo' && permission === null && <Skeleton style={styles.cameraFrame} />}
 
-        {screen === 'photo' && permission !== null && !permission.granted && (
+        {/* B4 « permission » — the ask; the camera can still be requested. */}
+        {screen === 'photo' && permission !== null && !permission.granted && permission.canAskAgain && (
           <HairlineBox>
             <View style={styles.photoFrame}>
               <Icon name="camera" size={28} color={C.soft} />
               <Text style={styles.photoHint}>{t('studio.permission')}</Text>
             </View>
             <PrimaryButton label={t('studio.autoriser')} onPress={() => void requestPermission()} />
-            {/* The demo stays walkable if the camera is refused — honest
-                fallback, capture simply absent (journaled). */}
-            <UnderlineLink
-              label={t('studio.sans_photo')}
-              onPress={() => {
-                setReoffer(false);
-                go('offre');
-              }}
-            />
+            <UnderlineLink label={t('studio.sans_photo')} onPress={skipPhoto} />
+          </HairlineBox>
+        )}
+
+        {/* B4 « refusée » — the camera is denied for good; the honest fallback
+            (continue without a photo) leads, warmly, and re-asking whispers.
+            Gallery import (the prototype's action) needs a dep outside WO-6.0. */}
+        {screen === 'photo' && permission !== null && !permission.granted && !permission.canAskAgain && (
+          <HairlineBox>
+            <View style={styles.photoFrame}>
+              <Icon name="camera" size={28} color={C.soft} />
+              <Text style={styles.photoHint}>{t('studio.refusee')}</Text>
+            </View>
+            <PrimaryButton label={t('studio.sans_photo')} onPress={skipPhoto} />
+            <UnderlineLink label={t('studio.autoriser')} onPress={() => void requestPermission()} />
           </HairlineBox>
         )}
 

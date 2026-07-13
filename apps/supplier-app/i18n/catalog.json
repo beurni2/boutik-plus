@@ -826,5 +826,11 @@
     "fr": "Vous recevrez, après livraison validée",
     "register": "money",
     "screenClass": "label"
+  },
+  {
+    "key": "studio.refusee",
+    "fr": "Pas d'appareil photo ? Pas grave. Continuez sans photo pour la démo.",
+    "register": "selling",
+    "screenClass": "selling_surface"
   }
 ]
