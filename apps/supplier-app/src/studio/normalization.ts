@@ -204,18 +204,77 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 /**
- * WO-4.2E — STRIP, DON'T TRUST (founder device evidence: « détail :
- * exif_leak » — the iOS encoder preserves EXIF through saveAsync's
- * re-encode; the fail-closed guard correctly refused). The stripper is the
- * `jpegCarriesExif` walker's sibling: it REWRITES the JPEG stream, copying
- * every structural segment (SOI · APP0/JFIF · APP2/ICC · APP14/Adobe —
- * rendering-relevant, kept · DQT · SOF* · DHT · DRI · SOS + the entropy
- * stream + EOI) and DROPPING the metadata carriers: APP1 (Exif/XMP),
- * APP13 (IPTC/Photoshop), COM (comments). Deterministic, zero deps.
- * Malformed streams REFUSE (detail: 'strip_failed') — never a silent
- * best-effort copy.
+ * WO-6.5 · B1.3 — STRIP BY ALLOW-LIST (the hostile-encoder threat model).
+ * The WO-4.2E stripper was a DROP-LIST accepted for the BENIGN-leak threat
+ * only: it copied every segment except APP1/APP13/COM, kept APP0/APP2/APP14,
+ * and at SOS copied the rest of the stream VERBATIM — so a hostile APPn
+ * (APP2/ICC, APP15…), a post-SOS or post-EOI payload (polyglot), or
+ * ICC-borne data survived. The ruling (WO-4.2E NB①): move to an ALLOW-LIST —
+ * copy ONLY the segments a shipped product photo needs (SOI · DQT · SOF ·
+ * DHT · SOS + entropy · EOI); EVERYTHING else is discarded BY DEFAULT, the
+ * entropy stream is bounded to its REAL EOI (nothing after EOI ships), and
+ * SOF dimensions are checked against a ceiling (decompression-bomb /
+ * overflow). Malformed or oversize → fail-closed ('strip_failed') — never a
+ * crash, never a best-effort copy. Deterministic, zero deps.
+ *
+ * Deliberate stricture vs WO-4.2E: APP0/JFIF and APP2/ICC are now DROPPED.
+ * A baseline JPEG decodes without JFIF (SOF carries the frame); the shipped
+ * derivative is already sRGB from the encoder, so a dropped ICC profile is
+ * assumed sRGB — a chosen trade of a colour-profile carrier for the security
+ * of dropping every non-image segment by default.
  */
-const STRIPPED_MARKERS = new Set([0xe1, 0xed, 0xfe]); // APP1 · APP13 · COM
+
+/** Security ceiling on declared JPEG dimensions. A shipped derivative is
+ * <= DERIVATIVE_SPEC_V1.maxEdgePx (1280) on its longest edge; a hostile SOF
+ * beyond this would make a downstream decoder allocate W*H*components bytes.
+ * A bound, not a design token. */
+export const MAX_JPEG_EDGE_PX = 8192;
+
+/** SOF0..SOF15 (0xC0..0xCF) excluding DHT(0xC4), JPGn(0xC8), DAC(0xCC). */
+function isSofMarker(marker: number): boolean {
+  return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+}
+
+/** The allow-list: the ONLY header segments copied into the shipped JPEG. */
+function isAllowedHeaderSegment(marker: number): boolean {
+  return marker === 0xdb /* DQT */ || marker === 0xc4 /* DHT */ || isSofMarker(marker);
+}
+
+/** Refuse a SOF whose declared dimensions are zero or beyond the ceiling
+ * (decompression-bomb / dimension-overflow guard). */
+function assertSofDimensionsSane(bytes: Uint8Array, i: number, len: number): void {
+  // SOF payload: precision(1) height(2) width(2) components(1) …
+  if (len < 8 || i + 9 > bytes.length) {
+    throw new ExifLeakError('SOF too short to carry dimensions — refusing the capture', 'strip_failed');
+  }
+  const height = ((bytes[i + 5]! << 8) | bytes[i + 6]!) >>> 0;
+  const width = ((bytes[i + 7]! << 8) | bytes[i + 8]!) >>> 0;
+  if (width === 0 || height === 0) {
+    throw new ExifLeakError('SOF declares a zero dimension — refusing the capture', 'strip_failed');
+  }
+  if (width > MAX_JPEG_EDGE_PX || height > MAX_JPEG_EDGE_PX) {
+    throw new ExifLeakError(
+      `SOF declares ${width}x${height}, beyond the ${MAX_JPEG_EDGE_PX}px ceiling — refusing the capture`,
+      'strip_failed',
+    );
+  }
+}
+
+/** The index of the next REAL JPEG marker in an entropy stream from `from`:
+ * a 0xFF NOT followed by 0x00 (byte-stuffing) nor a restart marker
+ * (0xD0..0xD7). Returns bytes.length if the stream ends without one — the
+ * caller then fails closed (no EOI). */
+function nextEntropyMarker(bytes: Uint8Array, from: number): number {
+  let i = from;
+  while (i + 1 < bytes.length) {
+    if (bytes[i] === 0xff) {
+      const next = bytes[i + 1]!;
+      if (next !== 0x00 && !(next >= 0xd0 && next <= 0xd7)) return i;
+    }
+    i++;
+  }
+  return bytes.length;
+}
 
 export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
@@ -231,24 +290,40 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
       throw new ExifLeakError('malformed JPEG marker stream — refusing the capture', 'strip_failed');
     }
     const marker = bytes[i + 1]!;
-    // Standalone markers (no length field) before the scan: TEM / RSTn.
-    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
-      out[o++] = 0xff;
-      out[o++] = marker;
+    // Fill bytes: any run of 0xFF may precede a real marker — consume one and
+    // retry (they carry nothing; they are not copied).
+    if (marker === 0xff) {
+      i += 1;
+      continue;
+    }
+    // TEM (standalone, no length) carries nothing the header needs → dropped.
+    if (marker === 0x01) {
       i += 2;
       continue;
     }
-    if (marker === 0xda) {
-      // Start-of-scan: copy the SOS segment and EVERYTHING after it
-      // verbatim (entropy-coded data, restart markers, EOI).
-      out.set(bytes.subarray(i), o);
-      o += bytes.length - i;
-      return out.subarray(0, o);
-    }
     if (marker === 0xd9) {
+      // EOI — terminal. Append and STOP; anything after EOI never ships
+      // (this is what discards a post-EOI polyglot payload).
       out[o++] = 0xff;
       out[o++] = 0xd9;
       return out.subarray(0, o);
+    }
+    if (marker === 0xda) {
+      // SOS: copy the scan header, then the entropy stream bounded to its
+      // real terminator; continue the walk there so any segment injected
+      // between the scan and EOI is dropped, not copied.
+      if (i + 4 > bytes.length) {
+        throw new ExifLeakError('truncated SOS header — refusing the capture', 'strip_failed');
+      }
+      const len = ((bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
+      if (len < 2 || i + 2 + len > bytes.length) {
+        throw new ExifLeakError('SOS header length overruns the stream — refusing the capture', 'strip_failed');
+      }
+      const entropyEnd = nextEntropyMarker(bytes, i + 2 + len);
+      out.set(bytes.subarray(i, entropyEnd), o);
+      o += entropyEnd - i;
+      i = entropyEnd;
+      continue;
     }
     if (i + 4 > bytes.length) {
       throw new ExifLeakError('truncated JPEG marker header — refusing the capture', 'strip_failed');
@@ -257,13 +332,16 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
     if (len < 2 || i + 2 + len > bytes.length) {
       throw new ExifLeakError('JPEG block length overruns the stream — refusing the capture', 'strip_failed');
     }
-    if (!STRIPPED_MARKERS.has(marker)) {
+    if (isAllowedHeaderSegment(marker)) {
+      if (isSofMarker(marker)) assertSofDimensionsSane(bytes, i, len);
       out.set(bytes.subarray(i, i + 2 + len), o);
       o += 2 + len;
     }
+    // else: DROPPED by default — APPn (incl. APP0/JFIF, APP2/ICC, APP14),
+    // COM, DRI, DNL, and every reserved marker leave no bytes in the output.
     i += 2 + len;
   }
-  throw new ExifLeakError('JPEG stream ended before start-of-scan — refusing the capture', 'strip_failed');
+  throw new ExifLeakError('JPEG stream ended before EOI — refusing the capture', 'strip_failed');
 }
 
 /** bytes → base64, PURE JS (the decoder's sibling): the stripped artifact
