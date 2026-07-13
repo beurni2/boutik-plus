@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { ModerationDecisionSchema } from '@platform/contracts';
 import { ProductCatalog } from '../src/product.js';
-import { ModerationDecisionSchema, isModerationOperator } from '../src/moderation.js';
+import type { ModerationDecisionInput } from '../src/moderation.js';
 
 /**
- * B2.2 · A1 — the real moderation state machine, and its four owed NEGATIVES,
- * each planted and firing:
+ * B2.2 · A1 → canon (MODERATION ENUM: LOCAL→CANON, v0.9.6) — the moderation
+ * state machine now consuming canon's `ModerationDecisionSchema`, every A1
+ * invariant re-asserted against the canon shape:
  *  ① a timeout resolves to `pending`, NEVER approved (activation stays refused);
  *  ② an unapproved version CANNOT activate (B+I-01, structural);
- *  ③ a supplier can NEVER approve his own listing (no self-moderation, Desk 3);
- *  ④ a silent rejection is UNREPRESENTABLE (changes_requested needs ≥1 reason).
+ *  ③ a supplier can NEVER approve his own listing — the caller-binding survives
+ *     the swap: decide() stamps decided_by from ctx.actor, canon's regex refuses;
+ *  ④ a silent rejection is UNREPRESENTABLE (changes_requested needs ≥1 reason);
+ *  ⑤ decided_by has ONE source — a wire-smuggled decided_by is IGNORED (the
+ *     stamp overwrites it), so a supplier can't smuggle an operator identity.
  */
 
 const AT = '2026-07-13T10:00:00.000Z';
@@ -37,7 +42,7 @@ describe('moderation state machine — the happy arc (submit → decide → acti
 
   it('an operator APPROVAL → approved + media.derivative_approved.v1; THEN activation succeeds', () => {
     const { catalog, versionId } = fresh();
-    const decided = catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
+    const decided = catalog.decide(versionId, { decision: 'approved' }, opCtx, AT);
     expect(decided.ok).toBe(true);
     if (!decided.ok) return;
     expect(decided.version.moderationState).toBe('approved');
@@ -48,7 +53,7 @@ describe('moderation state machine — the happy arc (submit → decide → acti
 
   it('changes_requested → changes_requested + catalog.blocked.v1 + media.asset_rejected.v1, BOTH carrying the SPECIFIC reasons', () => {
     const { catalog, versionId } = fresh();
-    const decided = catalog.decide(versionId, { verdict: 'changes_requested', reasons: ['price_or_contact_in_image', 'not_neutral_packaging'] }, opCtx, AT);
+    const decided = catalog.decide(versionId, { decision: 'changes_requested', reasons: ['price_or_contact_in_image', 'not_neutral_packaging'] }, opCtx, AT);
     expect(decided.ok).toBe(true);
     if (!decided.ok) return;
     expect(decided.version.moderationState).toBe('changes_requested');
@@ -68,7 +73,7 @@ describe('moderation NEGATIVES — planted, firing', () => {
     expect(timedOut.version.moderationState).toBe('pending'); // NOT approved
     expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
     // a decided (approved) version cannot then be "timed out" back to pending
-    catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
+    catalog.decide(versionId, { decision: 'approved' }, opCtx, AT);
     expect(catalog.timeoutModeration(versionId)).toEqual({ ok: false, reason: 'not_under_review' });
   });
 
@@ -76,7 +81,7 @@ describe('moderation NEGATIVES — planted, firing', () => {
     for (const drive of [
       (_c: ProductCatalog, _id: string) => {}, // stays submitted
       (c: ProductCatalog, id: string) => c.timeoutModeration(id), // pending
-      (c: ProductCatalog, id: string) => c.decide(id, { verdict: 'changes_requested', reasons: ['facts_incomplete'] }, opCtx, AT), // changes_requested
+      (c: ProductCatalog, id: string) => c.decide(id, { decision: 'changes_requested', reasons: ['facts_incomplete'] }, opCtx, AT), // changes_requested
     ]) {
       const { catalog, versionId } = fresh();
       drive(catalog, versionId);
@@ -85,23 +90,41 @@ describe('moderation NEGATIVES — planted, firing', () => {
     }
   });
 
-  it('③ a SUPPLIER can never approve his own listing — the decision is refused, the state is untouched (no self-moderation)', () => {
+  it('③ a SUPPLIER can never approve his own listing — refused end-to-end (stamp → canon parse → refusal), state untouched', () => {
     const { catalog, versionId } = fresh();
-    expect(isModerationOperator(supplierCtx.actor)).toBe(false);
-    const selfApprove = catalog.decide(versionId, { verdict: 'approved' }, supplierCtx, AT);
+    // decide() stamps decided_by = ctx.actor ('supplier-7'); canon's ops:moderation:* regex refuses it.
+    const selfApprove = catalog.decide(versionId, { decision: 'approved' }, supplierCtx, AT);
     expect(selfApprove).toEqual({ ok: false, reason: 'not_a_moderation_operator' });
     expect(catalog.get(versionId)!.moderationState).toBe('submitted'); // unchanged — not approved
     // and it is still unactivatable
     expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
   });
 
-  it('④ a SILENT rejection is UNREPRESENTABLE — changes_requested with no reason (or empty) is refused', () => {
-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested' }).success).toBe(false); // no reasons field
-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: [] }).success).toBe(false); // empty
-    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: ['authenticity_concern'] }).success).toBe(true);
-    expect(ModerationDecisionSchema.safeParse({ verdict: 'approved' }).success).toBe(true);
-    // @ts-expect-error — the TYPE also forbids a reasonless changes_requested (unrepresentable at compile time)
-    const _bad: import('../src/moderation.js').ModerationDecision = { verdict: 'changes_requested' };
+  it('④ a SILENT rejection is UNREPRESENTABLE — canon changes_requested with no reason (or empty) is refused', () => {
+    // canon's ModerationDecisionSchema requires decided_by on both variants; here an OPS actor is supplied.
+    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', decided_by: 'ops:moderation:op-3' }).success).toBe(false); // no reasons
+    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', reasons: [], decided_by: 'ops:moderation:op-3' }).success).toBe(false); // empty
+    expect(ModerationDecisionSchema.safeParse({ decision: 'changes_requested', reasons: ['authenticity_concern'], decided_by: 'ops:moderation:op-3' }).success).toBe(true);
+    expect(ModerationDecisionSchema.safeParse({ decision: 'approved', decided_by: 'ops:moderation:op-3' }).success).toBe(true);
+    // canon's actor guard, at the schema: a non-operator decided_by is refused outright.
+    expect(ModerationDecisionSchema.safeParse({ decision: 'approved', decided_by: 'supplier-7' }).success).toBe(false);
+    // @ts-expect-error — the WIRE type also forbids a reasonless changes_requested (unrepresentable at compile time)
+    const _bad: ModerationDecisionInput = { decision: 'changes_requested' };
     void _bad;
+  });
+
+  it('⑤ decided_by has ONE source — a wire-smuggled operator identity is IGNORED (the stamp overwrites it)', () => {
+    const { catalog, versionId } = fresh();
+    // A supplier caller casts past the wire type to smuggle a genuine operator decided_by.
+    // decide() stamps decided_by = ctx.actor ('supplier-7') AFTER the spread, overwriting the
+    // smuggled value — so the smuggle grants nothing; canon's regex still refuses the supplier.
+    const smuggled = catalog.decide(
+      versionId,
+      { decision: 'approved', decided_by: 'ops:moderation:op-3' } as unknown as ModerationDecisionInput,
+      supplierCtx,
+      AT,
+    );
+    expect(smuggled).toEqual({ ok: false, reason: 'not_a_moderation_operator' });
+    expect(catalog.get(versionId)!.moderationState).toBe('submitted'); // unchanged — the smuggle bought nothing
   });
 });

@@ -1,21 +1,22 @@
-import { z } from 'zod';
-import { PlatformEventSchema, type PlatformEvent } from '@platform/contracts';
+import { PlatformEventSchema, type PlatformEvent, type ModerationReasonCode } from '@platform/contracts';
 
 /**
- * B2.2 · A1 — the real moderation state machine (replaces the E1
- * `approved_e1_sandbox` stub). Governing sentences:
- *  - ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: "Moderation states: draft →
- *    submitted → changes-requested (with *specific* reasons) → approved →
- *    paused → retired."  This slice builds the submit → decision → activate arc.
- *  - Building Plan B2.2: "Moderation timeout = pending" — a timeout resolves to
- *    `pending`, and MAY NEVER resolve to approved.
- *  - Desk 3: "The queue for facts, media, and categories. Specific, actionable
- *    reasons — never a silent rejection. No self-moderation (a supplier can
- *    never approve his own listing)."
- *  - B+I-01: an active version MUST have "an approved moderation decision".
+ * B2.2 · A1 → canon (WO MODERATION ENUM: LOCAL→CANON · @platform/contracts
+ * v0.9.6) — the moderation state machine, now CONSUMING canon's decision shapes
+ * instead of a local A1 mirror.
+ *  - The reason codes and the decision schema live in CANON
+ *    (`ModerationReasonCodeSchema` · `ModerationDecisionSchema` — "Boutik A1
+ *    RATIFIED v1", canon since v0.9.6). This module NO LONGER defines them; it
+ *    consumes them, so PLATFORM Desk 3 (producer) and boutik catalog-service
+ *    (consumer) share ONE source (§5 identity by construction, not discipline).
+ *  - The state machine (submit → decide → activate; timeout → pending) and the
+ *    event builder remain app-repo work (canon owns the decision SHAPE, not the
+ *    catalog's lifecycle). Governing sentences unchanged:
+ *    ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: "submitted → changes-requested
+ *    (with *specific* reasons) → approved …"; Building Plan B2.2: "timeout =
+ *    pending"; B+I-01: an active version MUST have "an approved moderation decision".
  *
- * `draft/paused/retired` are later-lifecycle (offer.paused / retirement) and are
- * deliberately NOT modelled here — not invented ahead of their slice.
+ * `draft/paused/retired` are later-lifecycle and deliberately NOT modelled here.
  */
 export const MODERATION_STATES = ['submitted', 'changes_requested', 'approved', 'pending'] as const;
 export type ModerationState = (typeof MODERATION_STATES)[number];
@@ -26,54 +27,18 @@ export function isApproved(state: string): boolean {
 }
 
 /**
- * "Specific, actionable reasons — never a silent rejection" (Desk 3). The spec
- * names the RULE, not a code list; each code below TRACES to an enumerated
- * requirement. ⏳ FLAGGED for founder ratification of the exact set (the spec
- * enumerates the requirements, not the reason codes — derived, not invented):
- *  - facts_incomplete                → B+I-01 (approved facts)
- *  - no_public_safe_proof            → B+I-01 (approved public-safe actual-item proof)
- *  - price_or_contact_in_image       → B+I-02 / Desk 3 (no price/contact in images)
- *  - not_neutral_packaging           → B+3 (neutral/platform packaging)
- *  - prohibited_or_unlaunched_category → M2/M4 decision (launch/prohibited categories)
- *  - authenticity_concern            → §2 (no unresolved authenticity concern)
+ * The WIRE / INPUT decision — the decision-verdict payload ONLY. It carries NO
+ * `decided_by`: the acting operator is STAMPED by `decide()` from `ctx.actor`
+ * (the single source of truth), never read from the wire. `decide()` assembles
+ * the canon decision as `{ ...input, decided_by: ctx.actor }` and parses THAT
+ * against canon's `ModerationDecisionSchema` — so a wire-supplied `decided_by`
+ * (if a caller casts past the type) is OVERWRITTEN by ctx.actor (ignored), and
+ * canon's `ops:moderation:*` regex on the stamped field becomes the total actor
+ * guard (no self-moderation, closed by construction — one field, one source).
  */
-export const CHANGE_REASONS = [
-  'facts_incomplete',
-  'no_public_safe_proof',
-  'price_or_contact_in_image',
-  'not_neutral_packaging',
-  'prohibited_or_unlaunched_category',
-  'authenticity_concern',
-] as const;
-export type ChangeReason = (typeof CHANGE_REASONS)[number];
-
-/**
- * A moderation decision. `changes_requested` CANNOT exist without ≥1 specific
- * reason — a SILENT REJECTION IS UNREPRESENTABLE (the sera bare-`failed`
- * precedent: no reasonless variant in the union, and a strict parse refuses an
- * empty reason list). The `approved` variant carries no reason, by construction.
- */
-export const ModerationDecisionSchema = z
-  .discriminatedUnion('verdict', [
-    z.object({ verdict: z.literal('approved') }).strict(),
-    z.object({ verdict: z.literal('changes_requested'), reasons: z.array(z.enum(CHANGE_REASONS)).min(1) }).strict(),
-  ]);
-export type ModerationDecision = z.infer<typeof ModerationDecisionSchema>;
-
-/**
- * "No self-moderation — a supplier can never approve his own listing" (Desk 3).
- * The decision authority is Ops-only: a decision takes effect ONLY from a
- * moderation-operator actor; any other actor (a supplier, above all) is REFUSED
- * (the sera actor-provenance pattern). There is NO supplier-callable approve
- * lever anywhere in this module — the supplier surface can submit and revise, it
- * can never decide. For E4 the operator decision arrives through a
- * contract-honouring mock decision path (mock-certification standard); the live
- * sibling is the platform Ops console's Desk 3, whose half this repo never builds.
- */
-export const MODERATION_OPERATOR_PREFIX = 'ops:moderation:';
-export function isModerationOperator(actor: string): boolean {
-  return actor.startsWith(MODERATION_OPERATOR_PREFIX);
-}
+export type ModerationDecisionInput =
+  | { decision: 'approved' }
+  | { decision: 'changes_requested'; reasons: ModerationReasonCode[] };
 
 /** The command context an emitted event's envelope is stamped from (§5.7). */
 export interface CommandContext {
