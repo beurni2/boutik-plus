@@ -1,0 +1,3 @@
+$ node scripts/gates/readiness-gate.mjs gates/fixtures/readiness.happy.json
+OK: readiness confirmed with a live challenge — order-e1-0001 is pickup-eligible, and only now
+(exit code: 0)

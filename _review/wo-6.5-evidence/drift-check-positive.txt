@@ -1,0 +1,3 @@
+$ pnpm exec drift-check docs --pinned-version 0.9.0
+drift-check OK: 11 canonical docs match manifest (packageVersion 0.9.0)
+(exit code: 0)

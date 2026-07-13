@@ -1,0 +1,4 @@
+$ pnpm exec drift-check /tmp/tmp.BzbrokYvxf/docs --pinned-version 0.9.0
+drift-check FAILED — consumer /docs diverges from canon:
+  - doc drifted from canon: Boutik-Plus-Build-Spec.md (expected sha256 7d061bf639bc0daf13b1d548735a43c7c32fc23e1af5043b66e237f5f902d053, got c2d0836088652cca92e41cf08df92c5b957fee89095cfb62964e269a9c282fa9)
+(exit code: 1)

@@ -1,0 +1,3 @@
+$ node scripts/gates/phone-alias.mjs
+phone-alias OK — no banned pattern in apps, services, packages (§5.1 phone is an alias, never the DB key)
+(exit code: 0)

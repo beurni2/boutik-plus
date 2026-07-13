@@ -1,0 +1,9 @@
+$ node scripts/gates/no-consumer-storefront.mjs gates/fixtures/negative/no-consumer-storefront
+no-consumer-storefront FAILED (spec §1 / B+I-15 — no consumer storefront or checkout in Boutik+) — 6 hit(s):
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:1 [storefront] // NEGATIVE FIXTURE: consumer storefront/checkout routes in Boutik+ — the
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:1 [checkout-route] // NEGATIVE FIXTURE: consumer storefront/checkout routes in Boutik+ — the
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:2 [storefront] // no-consumer-storefront gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:4 [storefront] { path: '/storefront/:slug', handler: 'renderStorefront' },
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:5 [checkout-route] { path: '/checkout', handler: 'startCheckout' },
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:6 [cart] { path: '/cart/add', handler: 'addToCart' },
+(exit code: 1)
