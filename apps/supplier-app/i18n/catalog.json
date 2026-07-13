@@ -838,5 +838,11 @@
     "fr": "Enregistré sur ce téléphone : {count} en attente.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "ready.queue_error",
+    "fr": "Cette confirmation n'a pas pu être enregistrée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

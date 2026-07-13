@@ -107,12 +107,14 @@ describe('WO-6.5 B2.1 — survival across app-kill + reboot (EXECUTED)', () => {
 });
 
 describe('WO-6.5 B2.1 — idempotent replay (command_id, the E1 pattern)', () => {
-  it('a duplicate enqueue is a no-op; delivery twice sends ONCE; re-open + deliver does not re-send', async () => {
+  it('enqueue returns an outcome the caller must handle; a true replay dedupes; delivery is exactly-once', async () => {
     const { store, path } = diskStore();
     const q = await DurableQueue.open(store);
-    await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' });
-    await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' }); // same command_id
-    expect(q.snapshot()).toHaveLength(1); // deduped
+    const first = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' });
+    expect(first.outcome).toBe('enqueued');
+    const again = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' }); // identical
+    expect(again.outcome).toBe('duplicate'); // a true idempotent replay, safely a no-op
+    expect(q.snapshot()).toHaveLength(1);
 
     const sends: string[] = [];
     await q.deliver(async (e) => void sends.push(e.commandId));
@@ -123,6 +125,16 @@ describe('WO-6.5 B2.1 — idempotent replay (command_id, the E1 pattern)', () =>
     const afterReboot: string[] = [];
     await rebooted.deliver(async (e) => void afterReboot.push(e.commandId));
     expect(afterReboot).toEqual([]); // a delivered command never sends again
+  });
+
+  it('a COLLISION (same command_id, DIFFERENT payload) is REFUSED and surfaced — never silent data loss', async () => {
+    const { store } = diskStore();
+    const q = await DurableQueue.open(store);
+    await q.enqueue('ready:p1', 'fulfillment.ready.v1', { net: 8500 });
+    const clash = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { net: 13725 }); // same id, different action
+    expect(clash.outcome).toBe('collision'); // the caller MUST handle this, not show « en attente »
+    expect(clash.entry.payload).toEqual({ net: 8500 }); // the ORIGINAL is retained, never overwritten
+    expect(q.snapshot()).toHaveLength(1); // the colliding command was NOT queued — but the caller was TOLD
   });
 });
 

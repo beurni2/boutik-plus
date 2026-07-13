@@ -9,6 +9,7 @@ import { t } from './src/i18n';
 import { JOURNEY, START, type Screen } from './src/journey';
 import { DurableQueue } from './src/offline/queue';
 import { expoDocumentStore } from './src/offline/expoStore';
+import { mintCommandId } from './src/offline/commandId';
 import {
   addDemoProduct,
   baselineQuote,
@@ -153,7 +154,7 @@ export default function App() {
   // B7 « produit prêt » — the checklist gate + the four honest states. The
   // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
   // (offline-first doctrine: queued = pending, never done).
-  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed'>('ready');
+  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed' | 'queue_error'>('ready');
   const [check1, setCheck1] = useState(false);
   const [check2, setCheck2] = useState(false);
   const [confirmNet, setConfirmNet] = useState(0);
@@ -166,7 +167,6 @@ export default function App() {
   // count is the REAL persisted pending, not an in-memory flag. The queue's
   // full survival/idempotency/poison contract is proven in test/offline-queue.
   const queueRef = useRef<DurableQueue | null>(null);
-  const confirmSeqRef = useRef(0);
   const [queuedCount, setQueuedCount] = useState(0);
   // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
   const [category, setCategory] = useState<CaptureCategory>('mode');
@@ -231,16 +231,24 @@ export default function App() {
   const confirmReady = useCallback(() => {
     if (!(check1 && check2)) return;
     if (offline) {
-      setB7Phase('queued');
-      // The command_id must be REBOOT-SAFE: a volatile counter resets on
-      // app-kill and would collide with a persisted `ready:1`, silently deduping
-      // (and losing) a fresh confirm — the very failure B2.1 targets. A wall-clock
-      // base + an in-session counter is distinct across reboots. (Production
-      // B2.1 derives command_id from the domain event, not app glue — flagged.)
-      const commandId = `ready:${Date.now().toString(36)}-${(confirmSeqRef.current += 1)}`;
-      void queueRef.current
-        ?.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet })
-        .then(() => setQueuedCount(queueRef.current?.pending().length ?? 0));
+      const q = queueRef.current;
+      if (q === null) {
+        setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
+        return;
+      }
+      // The command_id is minted ONCE here and PERSISTED by the queue — never
+      // recomputed, so a reboot cannot make it collide with itself. « queued »
+      // is claimed ONLY after the store confirms the append; a collision (the
+      // queue REFUSING an id clash) is surfaced honestly, never faked as pending.
+      const commandId = mintCommandId();
+      void q.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet }).then((result) => {
+        if (result.outcome === 'collision') {
+          setB7Phase('queue_error');
+          return;
+        }
+        setB7Phase('queued');
+        setQueuedCount(q.pending().length);
+      });
       return;
     }
     setB7Phase('pending');
@@ -670,6 +678,19 @@ export default function App() {
                     t('shell.queue_durable').replace('{count}', String(queuedCount)),
                   ]}
                 />
+                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+              </>
+            )}
+
+            {/* B7 — the durable queue REFUSED this confirm (id collision, or no
+                store yet): an honest error state, NEVER a false « en attente ». */}
+            {b7Phase === 'queue_error' && (
+              <>
+                <View style={styles.floorNote}>
+                  <Icon name="alerte" size={17} color={C.warning} />
+                  <Text style={styles.floorNoteText}>{t('ready.queue_error')}</Text>
+                </View>
+                <PrimaryButton label={t('pret.confirmer')} onPress={confirmReady} />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
               </>
             )}

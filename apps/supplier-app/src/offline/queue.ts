@@ -39,6 +39,24 @@ export class PoisonError extends Error {
   override readonly name = 'PoisonError';
 }
 
+/**
+ * The outcome of an enqueue — the caller MUST handle it; enqueue never no-ops
+ * by silence (verifier concern / founder ruling). A dedupe that is correct for
+ * a TRUE replay is SILENT DATA LOSS for a colliding-but-different command, and
+ * the command_id is the only thing between them — so the two are distinct:
+ *   'enqueued'  — a new command was appended.
+ *   'duplicate' — this exact command (same id, same name+payload) is already
+ *                 queued: an idempotent replay, safely a no-op.
+ *   'collision' — this command_id already exists with a DIFFERENT name/payload:
+ *                 REFUSED (the new command was NOT queued). The caller must
+ *                 surface this honestly — never show the seller « en attente »
+ *                 for an action that does not exist.
+ */
+export type EnqueueResult =
+  | { outcome: 'enqueued'; entry: QueueEntry }
+  | { outcome: 'duplicate'; entry: QueueEntry }
+  | { outcome: 'collision'; entry: QueueEntry };
+
 interface Persisted {
   version: 1;
   entries: QueueEntry[];
@@ -81,13 +99,22 @@ export class DurableQueue {
     await this.store.write(JSON.stringify(blob));
   }
 
-  /** Append a command. IDEMPOTENT by commandId (same command_id = same
-   * command) — a duplicate enqueue is a no-op, whatever the existing status.
-   * Persisted before returning, so an app-kill right after cannot lose it. */
-  async enqueue(commandId: string, name: string, payload: unknown): Promise<void> {
-    if (this.entries.some((e) => e.commandId === commandId)) return;
-    this.entries.push({ commandId, name, payload, status: 'pending', attempts: 0, enqueuedAt: this.now() });
+  /** Append a command, returning an outcome the caller MUST handle (never a
+   * no-op by silence). IDEMPOTENT by commandId: an identical command (same
+   * name+payload) is a 'duplicate'; a SAME id with a DIFFERENT name/payload is
+   * a 'collision' — REFUSED, not overwritten, not silently dropped. Persisted
+   * before returning on the append path, so an app-kill right after cannot lose
+   * it. */
+  async enqueue(commandId: string, name: string, payload: unknown): Promise<EnqueueResult> {
+    const existing = this.entries.find((e) => e.commandId === commandId);
+    if (existing !== undefined) {
+      const identical = existing.name === name && JSON.stringify(existing.payload) === JSON.stringify(payload);
+      return { outcome: identical ? 'duplicate' : 'collision', entry: existing };
+    }
+    const entry: QueueEntry = { commandId, name, payload, status: 'pending', attempts: 0, enqueuedAt: this.now() };
+    this.entries.push(entry);
     await this.persist();
+    return { outcome: 'enqueued', entry };
   }
 
   /** Pending entries, in insertion order (never the delivered/failed ones). */

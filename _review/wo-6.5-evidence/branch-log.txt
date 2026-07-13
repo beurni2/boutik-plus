@@ -1,3 +1,0 @@
-dd03619 docs(e6): WO-6.5 JOURNAL — B1.3 allow-list + corpus/non-vacuity, B2.1 durable queue survival-by-execution, DoD green, FORBIDDEN clean
-f2f8947 feat(e6): WO-6.5 Part B (B2.1) — durable offline queue (survives app-kill + reboot)
-8dc25ec feat(e6): WO-6.5 Part A (B1.3) — hostile-image allow-list stripper + corpus
