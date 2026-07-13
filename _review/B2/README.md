@@ -51,7 +51,13 @@ turned them GREEN (4/4).
 - `logs/head-sha.txt` · `logs/branch-log.txt` · `logs/full.diff` · `logs/diffstat.txt` — atomic, one HEAD.
 - `evidence/` — typecheck · tests · the money gates (no-seller-debit pos/neg, no-seller-deposit,
   no-wallet) · copy-lint pos/neg.
-- `logs/verifier-report.md` — fresh-context RED verifier on the final bytes: **[VERDICT — see report]**.
+- `logs/verifier-report.md` — fresh-context RED verifier on the final bytes: **VERDICT PASS · 0
+  BLOCKERS** (mutation-tested both presenters; parsed 9 money keys against the strict schema — all
+  refused; planted a `debitFcfa` probe → the gate bit; 134/134 fresh, run-gates exit 0).
+  **One robustness note (recorded, NOT fixed — out of B2 scope):** the two dynamic i18n keys
+  `` t(`confiance.tier_${...}`) `` / `` t(`confiance.restriction.${...}`) `` are not statically
+  key-checked; every B2 demo value resolves, but a FUTURE live trust state with an un-cataloged
+  tier/restriction would throw at render → named for the slice that wires the live trust state.
 
 ## UI evidence note (honest limit)
 The « Confiance » screen is an Expo React-Native App.tsx screen; RN screen capture needs the full
