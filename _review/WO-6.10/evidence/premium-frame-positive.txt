@@ -1,0 +1,3 @@
+$ node scripts/gates/premium-frame-assets.mjs gates/fixtures/assets.premium-frame.json
+OK: canonical premium-frame assets — EXIF-free, price-free, contact-free, private master
+(exit code: 0)

@@ -1,0 +1,238 @@
+############ WO-6.10 CLEAN-STORE COLD PROOF (fresh HOME + fresh empty store + frozen lockfile) ############
+fresh HOME:  /tmp/tmp.4URCmnDjwY
+fresh STORE: /tmp/tmp.uGNE1kakdk (starts empty: 0 entries)
+clone dir:   /tmp/tmp.vjvpM2DRBo/boutik-plus
+
+=== AUTH LINE — the ONLY thing the fresh HOME provides (transparent HTTPS->proxy; NOT ssh) ===
+$ HOME=/tmp/tmp.4URCmnDjwY git config --global --list
+url.http://local_proxy@127.0.0.1:41729/git/.insteadof=https://github.com/
+→ git-dep URLs in the committed lockfile are https://github.com/... (GUARD 0: zero ssh) and resolve
+  through the local proxy via this insteadOf. No ssh key, no personal credential.
+
+=== CLONE the pushed branch e6/wo-6.10 (fresh HOME) ===
+Cloning into '/tmp/tmp.vjvpM2DRBo/boutik-plus'...
+cloned HEAD: 194eb5e8d55b0abc50bfd0a0ce2a3dd701787851
+
+=== FROZEN INSTALL from the FRESH EMPTY store ===
+$ HOME=/tmp/tmp.4URCmnDjwY pnpm install --frozen-lockfile --store-dir /tmp/tmp.uGNE1kakdk
+Scope: all 11 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +679
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+   ╭──────────────────────────────────────────╮
+   │                                          │
+   │   Update available! 10.33.0 → 11.12.0.   │
+   │   Changelog: https://pnpm.io/v/11.12.0   │
+   │     To update, run: pnpm add -g pnpm     │
+   │                                          │
+   ╰──────────────────────────────────────────╯
+
+Progress: resolved 679, reused 0, downloaded 38, added 35
+.../packages/contracts pnpm-install$ pnpm install
+.../packages/kernel-types pnpm-install$ pnpm install
+.../packages/i18n pnpm-install$ pnpm install
+.../packages/ui-tokens pnpm-install$ pnpm install
+.../packages/certification pnpm-install$ pnpm install
+.../packages/contracts pnpm-install: Scope: all 6 workspace projects
+Progress: resolved 679, reused 0, downloaded 101, added 92
+.../packages/contracts pnpm-install: ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../packages/contracts pnpm-install: ../..                                    |  +58 ++++++
+.../packages/kernel-types pnpm-install: Scope: all 6 workspace projects
+.../packages/kernel-types pnpm-install: ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../packages/kernel-types pnpm-install: ../..                                    |  +58 ++++++
+.../packages/i18n pnpm-install: Scope: all 6 workspace projects
+Progress: resolved 679, reused 0, downloaded 213, added 190
+.../packages/contracts pnpm-install: ../..                                    | Progress: resolved 58, reused 53, downloaded 5, added 58, done
+.../packages/ui-tokens pnpm-install: Scope: all 6 workspace projects
+.../packages/kernel-types pnpm-install: ../..                                    | Progress: resolved 58, reused 58, downloaded 0, added 58, done
+.../packages/ui-tokens pnpm-install: ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../packages/i18n pnpm-install: ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../packages/ui-tokens pnpm-install: ../..                                    |  +58 ++++++
+.../packages/kernel-types pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall$ node install.js
+.../packages/i18n pnpm-install: ../..                                    |  +58 ++++++
+.../packages/certification pnpm-install: Scope: all 6 workspace projects
+.../packages/contracts pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall$ node install.js
+.../packages/certification pnpm-install: ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../packages/kernel-types pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall: Done
+.../packages/certification pnpm-install: ../..                                    |  +58 ++++++
+.../packages/ui-tokens pnpm-install: ../..                                    | Progress: resolved 58, reused 58, downloaded 0, added 58, done
+.../packages/contracts pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall: Done
+.../packages/i18n pnpm-install: ../..                                    | Progress: resolved 58, reused 58, downloaded 0, added 58, done
+Progress: resolved 679, reused 0, downloaded 338, added 321
+.../packages/ui-tokens pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall$ node install.js
+.../packages/kernel-types pnpm-install:  WARN  Failed to create bin at /tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_7231292c23ee9c94f23b947f15b60047/packages/certification/node_modules/.bin/drift-check. ENOENT: no such file or directory, open '/tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_7231292c23ee9c94f23b947f15b60047/packages/contracts/dist/drift-check-cli.js'
+.../packages/contracts pnpm-install:  WARN  Failed to create bin at /tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_a3abd36fcc532de132952ad1157bfc8b/packages/certification/node_modules/.bin/drift-check. ENOENT: no such file or directory, open '/tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_a3abd36fcc532de132952ad1157bfc8b/packages/contracts/dist/drift-check-cli.js'
+.../packages/kernel-types pnpm-install: dependencies:
+.../packages/kernel-types pnpm-install: + zod 4.4.3
+.../packages/kernel-types pnpm-install: devDependencies:
+.../packages/kernel-types pnpm-install: + typescript 5.9.3
+.../packages/kernel-types pnpm-install: + vitest 3.2.7
+.../packages/contracts pnpm-install: dependencies:
+.../packages/contracts pnpm-install: + @platform/kernel-types 0.9.5 <- ../kernel-types
+.../packages/contracts pnpm-install: + zod 4.4.3
+.../packages/contracts pnpm-install: devDependencies:
+.../packages/contracts pnpm-install: + @types/node 22.20.1
+.../packages/contracts pnpm-install: + fast-check 4.9.0
+.../packages/contracts pnpm-install: + typescript 5.9.3
+.../packages/contracts pnpm-install: + vitest 3.2.7
+.../packages/i18n pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall$ node install.js
+.../packages/contracts pnpm-install: ../kernel-types prepare$ tsc -p tsconfig.json
+.../packages/contracts pnpm-install: ../ui-tokens prepare$ tsc -p tsconfig.json
+.../packages/contracts pnpm-install: ../i18n prepare$ tsc -p tsconfig.json
+.../packages/kernel-types pnpm-install: . prepare$ tsc -p tsconfig.json
+.../packages/kernel-types pnpm-install: ../ui-tokens prepare$ tsc -p tsconfig.json
+.../packages/kernel-types pnpm-install: ../i18n prepare$ tsc -p tsconfig.json
+.../packages/ui-tokens pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall: Done
+.../packages/certification pnpm-install: ../..                                    | Progress: resolved 58, reused 58, downloaded 0, added 58, done
+.../packages/i18n pnpm-install: .../esbuild@0.28.1/node_modules/esbuild postinstall: Done
+.../packages/ui-tokens pnpm-install:  WARN  Failed to create bin at /tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_80a34f045939d3ed0975a5e5cdc920d7/packages/certification/node_modules/.bin/drift-check. ENOENT: no such file or directory, open '/tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_80a34f045939d3ed0975a5e5cdc920d7/packages/contracts/dist/drift-check-cli.js'
+.../packages/ui-tokens pnpm-install: devDependencies:
+.../packages/ui-tokens pnpm-install: + typescript 5.9.3
+.../packages/ui-tokens pnpm-install: + vitest 3.2.7
+.../packages/ui-tokens pnpm-install: ../kernel-types prepare$ tsc -p tsconfig.json
+.../packages/ui-tokens pnpm-install: . prepare$ tsc -p tsconfig.json
+.../packages/ui-tokens pnpm-install: ../i18n prepare$ tsc -p tsconfig.json
+.../packages/i18n pnpm-install:  WARN  Failed to create bin at /tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_13091a81fa3767f39d06321bb36c487c/packages/certification/node_modules/.bin/drift-check. ENOENT: no such file or directory, open '/tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_13091a81fa3767f39d06321bb36c487c/packages/contracts/dist/drift-check-cli.js'
+Progress: resolved 679, reused 0, downloaded 400, added 382
+.../packages/i18n pnpm-install: dependencies:
+.../packages/i18n pnpm-install: + zod 4.4.3
+.../packages/i18n pnpm-install: devDependencies:
+.../packages/i18n pnpm-install: + @types/node 22.20.1
+.../packages/i18n pnpm-install: + typescript 5.9.3
+.../packages/i18n pnpm-install: + vitest 3.2.7
+.../packages/i18n pnpm-install: ../kernel-types prepare$ tsc -p tsconfig.json
+.../packages/i18n pnpm-install: ../ui-tokens prepare$ tsc -p tsconfig.json
+.../packages/i18n pnpm-install: . prepare$ tsc -p tsconfig.json
+.../packages/certification pnpm-install:  WARN  Failed to create bin at /tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_ef3d150031c05a7523797fe673873020/packages/certification/node_modules/.bin/drift-check. ENOENT: no such file or directory, open '/tmp/tmp.uGNE1kakdk/v10/tmp/_tmp_3380_ef3d150031c05a7523797fe673873020/packages/contracts/dist/drift-check-cli.js'
+.../packages/certification pnpm-install: dependencies:
+.../packages/certification pnpm-install: + @platform/contracts 0.9.5 <- ../contracts
+.../packages/certification pnpm-install: + @platform/ui-tokens 0.9.5 <- ../ui-tokens
+.../packages/certification pnpm-install: + zod 4.4.3
+.../packages/certification pnpm-install: devDependencies:
+.../packages/certification pnpm-install: + @types/node 22.20.1
+.../packages/certification pnpm-install: + typescript 5.9.3
+.../packages/certification pnpm-install: + vitest 3.2.7
+.../packages/certification pnpm-install: ../kernel-types prepare$ tsc -p tsconfig.json
+.../packages/certification pnpm-install: ../ui-tokens prepare$ tsc -p tsconfig.json
+.../packages/certification pnpm-install: ../i18n prepare$ tsc -p tsconfig.json
+Progress: resolved 679, reused 0, downloaded 438, added 402
+Progress: resolved 679, reused 0, downloaded 489, added 432
+Progress: resolved 679, reused 0, downloaded 495, added 436
+Progress: resolved 679, reused 0, downloaded 499, added 438
+Progress: resolved 679, reused 0, downloaded 553, added 470
+Progress: resolved 679, reused 0, downloaded 572, added 481
+.../packages/kernel-types pnpm-install: ../ui-tokens prepare: Done
+.../packages/contracts pnpm-install: ../ui-tokens prepare: Done
+Progress: resolved 679, reused 0, downloaded 583, added 486
+.../packages/kernel-types pnpm-install: . prepare: Done
+Progress: resolved 679, reused 0, downloaded 594, added 492
+.../packages/ui-tokens pnpm-install: . prepare: Done
+.../packages/certification pnpm-install: ../ui-tokens prepare: Done
+.../packages/i18n pnpm-install: ../ui-tokens prepare: Done
+.../packages/contracts pnpm-install: ../kernel-types prepare: Done
+Progress: resolved 679, reused 0, downloaded 603, added 497
+.../packages/ui-tokens pnpm-install: ../kernel-types prepare: Done
+.../packages/i18n pnpm-install: ../kernel-types prepare: Done
+.../packages/certification pnpm-install: ../kernel-types prepare: Done
+Progress: resolved 679, reused 0, downloaded 611, added 501
+.../packages/kernel-types pnpm-install: ../i18n prepare: Done
+.../packages/kernel-types pnpm-install: ../contracts prepare$ tsc -p tsconfig.json
+.../packages/ui-tokens pnpm-install: ../i18n prepare: Done
+.../packages/ui-tokens pnpm-install: ../contracts prepare$ tsc -p tsconfig.json
+.../packages/i18n pnpm-install: . prepare: Done
+.../packages/i18n pnpm-install: ../contracts prepare$ tsc -p tsconfig.json
+.../packages/contracts pnpm-install: ../i18n prepare: Done
+.../packages/contracts pnpm-install: . prepare$ tsc -p tsconfig.json
+Progress: resolved 679, reused 0, downloaded 669, added 570
+.../packages/certification pnpm-install: ../i18n prepare: Done
+.../packages/certification pnpm-install: ../contracts prepare$ tsc -p tsconfig.json
+Progress: resolved 679, reused 0, downloaded 673, added 673
+Progress: resolved 679, reused 0, downloaded 674, added 673
+.../packages/kernel-types pnpm-install: ../contracts prepare: Done
+.../packages/kernel-types pnpm-install: ../certification prepare$ tsc -p tsconfig.json
+.../packages/ui-tokens pnpm-install: ../contracts prepare: Done
+.../packages/ui-tokens pnpm-install: ../certification prepare$ tsc -p tsconfig.json
+Progress: resolved 679, reused 0, downloaded 674, added 674
+.../packages/i18n pnpm-install: ../contracts prepare: Done
+.../packages/i18n pnpm-install: ../certification prepare$ tsc -p tsconfig.json
+.../packages/contracts pnpm-install: . prepare: Done
+.../packages/contracts pnpm-install: ../certification prepare$ tsc -p tsconfig.json
+.../packages/certification pnpm-install: ../contracts prepare: Done
+.../packages/certification pnpm-install: . prepare$ tsc -p tsconfig.json
+.../packages/kernel-types pnpm-install: ../certification prepare: Done
+.../packages/kernel-types pnpm-install: Done in 23.3s using pnpm v10.33.0
+.../packages/kernel-types pnpm-install: Done
+Progress: resolved 679, reused 0, downloaded 675, added 674
+.../packages/ui-tokens pnpm-install: ../certification prepare: Done
+.../packages/ui-tokens pnpm-install: Done in 23.3s using pnpm v10.33.0
+.../packages/ui-tokens pnpm-install: Done
+.../packages/i18n pnpm-install: ../certification prepare: Done
+.../packages/i18n pnpm-install: Done in 23.7s using pnpm v10.33.0
+.../packages/i18n pnpm-install: Done
+.../packages/contracts pnpm-install: ../certification prepare: Done
+.../packages/contracts pnpm-install: Done in 24.4s using pnpm v10.33.0
+.../packages/certification pnpm-install: . prepare: Done
+.../packages/contracts pnpm-install: Done
+.../packages/certification pnpm-install: Done in 23.9s using pnpm v10.33.0
+.../packages/certification pnpm-install: Done
+Progress: resolved 679, reused 0, downloaded 679, added 679, done
+
+dependencies:
++ @platform/contracts 0.9.5
++ @platform/i18n 0.9.5
++ @platform/kernel-types 0.9.5
++ @platform/ui-tokens 0.9.5
+
+devDependencies:
++ @platform/certification 0.9.5
++ @types/node 22.20.1
++ turbo 2.10.4
++ typescript 5.9.3
++ vitest 3.2.7
+
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: esbuild@0.25.12, esbuild@0.28.1, sharp@0.34.5,      │
+│   workerd@1.20260708.1.                                                      │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 27.2s using pnpm v10.33.0
+install exit: 0
+
+=== pins present in the COLD tree ===
+contracts:   0.9.5
+expo-crypto: 15.0.9
+no-ssh-lockfile gate on the cold-cloned lockfile:
+no-ssh-lockfile OK — pnpm-lock.yaml carries no ssh-form git URL
+
+=== COLD both-platform export (from the cold clone, fresh HOME) ===
+--- android ---
+Starting Metro Bundler
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (832/832)
+Android Bundled 3131ms apps/supplier-app/index.ts (832 modules)
+
+› android bundles (1):
+_expo/static/js/android/index-6089573f79f1f4fe66c6ab250c84d146.hbc (2.76 MB)
+
+› Files (1):
+metadata.json (150 B)
+
+Exported: dist-cold-android
+android export exit: 0
+--- ios ---
+Starting Metro Bundler
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (834/834)
+iOS Bundled 3485ms apps/supplier-app/index.ts (834 modules)
+
+› ios bundles (1):
+_expo/static/js/ios/index-f31f28420797971c5defc9941357241a.hbc (2.75 MB)
+
+› Files (1):
+metadata.json (142 B)
+
+Exported: dist-cold-ios
+ios export exit: 0

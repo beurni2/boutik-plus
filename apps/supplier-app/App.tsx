@@ -236,11 +236,19 @@ export default function App() {
         setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
         return;
       }
-      // The command_id is minted ONCE here and PERSISTED by the queue — never
-      // recomputed, so a reboot cannot make it collide with itself. « queued »
-      // is claimed ONLY after the store confirms the append; a collision (the
-      // queue REFUSING an id clash) is surfaced honestly, never faked as pending.
-      const commandId = mintCommandId();
+      // The command_id is minted ONCE here from the OS CSPRNG (canon mintCommandId)
+      // and PERSISTED by the queue — never recomputed, so a reboot cannot make it
+      // collide with itself. If no CSPRNG is available the mint THROWS: we surface
+      // queue_error and never fake « en attente ». « queued » is claimed ONLY after
+      // the store confirms the append; an id-collision (the queue REFUSING a clash)
+      // is surfaced honestly the same way.
+      let commandId: string;
+      try {
+        commandId = mintCommandId();
+      } catch {
+        setB7Phase('queue_error');
+        return;
+      }
       void q.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet }).then((result) => {
         if (result.outcome === 'collision') {
           setB7Phase('queue_error');

@@ -1,0 +1,21 @@
+ JOURNAL.md                                       |  11 ++
+ apps/supplier-app/App.tsx                        |  18 ++-
+ apps/supplier-app/package.json                   |   5 +-
+ apps/supplier-app/src/offline/commandId.ts       |  82 +++++++-------
+ apps/supplier-app/test/grand-teint.test.ts       |   7 +-
+ docs/ECOSYSTEM-MASTER-REFERENCE.md               |   6 +-
+ docs/Ecosystem-Engineering-Execution-Contract.md |  11 ++
+ package.json                                     |  20 ++--
+ packages/commerce-core/package.json              |   4 +-
+ pnpm-lock.yaml                                   | 137 +++++++++++++----------
+ pnpm-workspace.yaml                              |  21 ++--
+ scripts/gates/check-mint-path-entropy.mjs        |  69 ++++++++++++
+ scripts/gates/show-mint-path-entropy-negative.sh |  33 ++++++
+ scripts/run-gates.sh                             |  10 +-
+ services/catalog-service/package.json            |   2 +-
+ services/fulfillment-service/package.json        |   4 +-
+ services/inventory-service/package.json          |   2 +-
+ services/media-service/package.json              |   2 +-
+ services/offer-service/package.json              |   4 +-
+ services/supplier-service/package.json           |   2 +-
+ 20 files changed, 306 insertions(+), 144 deletions(-)

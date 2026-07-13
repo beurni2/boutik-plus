@@ -1,0 +1,5 @@
+$ node scripts/gates/phone-alias.mjs gates/fixtures/negative/phone-alias
+phone-alias FAILED (§5.1 phone is an alias, never the DB key) — 2 hit(s):
+  gates/fixtures/negative/phone-alias/phone-as-key.ts:4 [id-typed-as-phone] id: 'phone'; // banned: §5.1 — phone is an alias, never the DB key
+  gates/fixtures/negative/phone-alias/phone-as-key.ts:9 [sql-phone-primary-key] PRIMARY KEY (phone)
+(exit code: 1)
