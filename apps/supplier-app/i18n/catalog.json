@@ -732,6 +732,72 @@
     "screenClass": "general"
   },
   {
+    "key": "confiance.title",
+    "fr": "Confiance",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.paid_label",
+    "fr": "Versé ce mois",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.pending_ligne",
+    "fr": "En attente : {amount}",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.statement_note",
+    "fr": "Relevé établi par le service de règlement — Boutik+ ne garde rien.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_label",
+    "fr": "Votre niveau",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_provisional",
+    "fr": "Nouveau",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_verified",
+    "fr": "Vérifié",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_trusted",
+    "fr": "De confiance",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.incidents",
+    "fr": "Incidents enregistrés : {n}.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.restriction.new_offers_paused",
+    "fr": "Les nouvelles offres sont en pause, le temps de rétablir la confiance.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.protege",
+    "fr": "Aucun franc n'est pris sur vos ventes. La protection Séra couvre la perte.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
     "key": "moderation.title",
     "fr": "Modération",
     "register": "neutral",
