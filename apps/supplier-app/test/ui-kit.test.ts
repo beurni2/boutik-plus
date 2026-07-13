@@ -66,10 +66,14 @@ describe('WO-6.0 Grand Teint visual layer', () => {
     expect(celebration.motifMs).toBeLessThanOrEqual(motion.celebrateMaxMs);
     expect(motion.quickMs).toBeGreaterThanOrEqual(150);
     expect(motion.standardMs).toBeLessThanOrEqual(250);
-    // the App fires it exactly on « Produit prêt »
+    // the App fires it exactly on « Produit prêt » — and ONLY on the CONFIRMED
+    // B7 state (WO-6.0): never on a queued (offline) or pending confirmation.
     const app = read('App.tsx');
-    expect(app).toMatch(/<CelebrationLayer visible=\{celebrating && screen === 'pret'\}/);
-    expect(app.match(/setCelebrating\(true\)/g)).toHaveLength(2); // offre → pret AND corrective → pret
+    expect(app).toMatch(/<CelebrationLayer\s+visible=\{celebrating && screen === 'pret' && b7Phase === 'confirmed'\}/);
+    // fires exactly once — from finishConfirmation (operator confirmed); the
+    // offre/corrective arrivals no longer celebrate (queued must never do).
+    expect(app.match(/setCelebrating\(true\)/g)).toHaveLength(1);
+    expect(app).toMatch(/const finishConfirmation = useCallback\(\(\) => \{\s*setB7Phase\('confirmed'\);\s*setCelebrating\(true\);/);
   });
 
   it('the screen change eases in on the authored soft bezier — native driver, static under reduced motion', () => {

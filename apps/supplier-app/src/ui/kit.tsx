@@ -450,6 +450,23 @@ export function EmptyState({
   );
 }
 
+/** CheckRow — a tappable readiness check (the B7 « produit prêt » gate): a
+ * square box that fills ink with a coche when on, + label. Whole row is the
+ * ≥44px target; icon+text law. Box sized from spacing tokens (no raw dim). */
+export function CheckRow({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) {
+  return (
+    <Pressable
+      style={pressableStyle(styles.checkRow)}
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+    >
+      <View style={[styles.checkBox, checked && styles.checkBoxOn]}>{checked && <Icon name="coche" size={12} color={C.onInk} />}</View>
+      <Text style={styles.checkLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** PendingNotice — « C'est noté. En attente du réseau. » Queued = pending,
  * never done: warningTint band, clock icon. */
 export function PendingNotice({ lines }: { lines: readonly string[] }) {
@@ -677,6 +694,10 @@ const styles = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.chip, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, alignSelf: 'flex-start' },
   chipText: { ...textStyle(T.labelXS) },
   skeleton: { backgroundColor: skeletonToken.bg, borderRadius: radius.box },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: touch.minTargetPx, paddingVertical: spacing.sm },
+  checkBox: { width: spacing.lg, height: spacing.lg, borderWidth: H.medium, borderColor: C.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
+  checkBoxOn: { backgroundColor: C.ink, borderColor: C.ink },
+  checkLabel: { ...textStyle(T.row), color: C.ink, flex: 1 },
   emptyState: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
   emptyTitle: { ...textStyle(T.body), color: C.body, textAlign: 'center' },
   pendingNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },

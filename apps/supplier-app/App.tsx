@@ -23,6 +23,7 @@ import {
   AmountHero,
   AppHeader,
   CelebrationLayer,
+  CheckRow,
   EmptyState,
   HairlineBox,
   Icon,
@@ -147,6 +148,13 @@ export default function App() {
   // is a re-offer (v2: « la v1 reste servie tant que la v2 n'est pas validée »).
   const [priceInput, setPriceInput] = useState(String(E1_B));
   const [reoffer, setReoffer] = useState(false);
+  // B7 « produit prêt » — the checklist gate + the four honest states. The
+  // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
+  // (offline-first doctrine: queued = pending, never done).
+  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed'>('ready');
+  const [check1, setCheck1] = useState(false);
+  const [check2, setCheck2] = useState(false);
+  const [confirmNet, setConfirmNet] = useState(0);
   // Offline is a GLOBAL, designed state (offline-first doctrine): the banner
   // rides under the header and actions queue as pending — never lost, never
   // silently done. A demo toggle makes the honest state reachable.
@@ -183,6 +191,35 @@ export default function App() {
     setOffline(false);
     setPriceInput(String(E1_B));
     setReoffer(false);
+    setB7Phase('ready');
+    setCheck1(false);
+    setCheck2(false);
+    setConfirmNet(0);
+  }, []);
+  // B7 — enter the ready (à confirmer) state with a fresh checklist; the net to
+  // be received after validated delivery is captured for the confirmed panel.
+  const enterReady = useCallback((net: number) => {
+    setConfirmNet(net);
+    setB7Phase('ready');
+    setCheck1(false);
+    setCheck2(false);
+  }, []);
+  // Both checks passed → confirm. Offline queues (never done, never celebrates);
+  // online hands off to the operator wait (« envoyé — en attente »).
+  const confirmReady = useCallback(() => {
+    if (!(check1 && check2)) return;
+    setB7Phase(offline ? 'queued' : 'pending');
+  }, [check1, check2, offline]);
+  // The operator confirmed — NOW it is true: confirmed + the one celebration.
+  const finishConfirmation = useCallback(() => {
+    setB7Phase('confirmed');
+    setCelebrating(true);
+  }, []);
+  const resetB7 = useCallback(() => {
+    setB7Phase('ready');
+    setCheck1(false);
+    setCheck2(false);
+    setCelebrating(false);
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
   // IS the stored derivative; EXIF proven stripped on its bytes. A failed
@@ -525,7 +562,7 @@ export default function App() {
                   addDemoProduct(world, priceB, offerC);
                   setWorld({ ...world });
                   setPendingKey('ready.pending');
-                  setCelebrating(true);
+                  enterReady(offerNet); // → B7 « à confirmer » (no celebration yet)
                   go('pret');
                 }}
               />
@@ -534,13 +571,75 @@ export default function App() {
         )}
 
         {screen === 'pret' && (
-          <HairlineBox>
-            <StatusChip tone="fact" label={t('statut.pret')} icon="coche" />
-            <Text style={styles.message}>{t('ready.next')}</Text>
-            <Text style={styles.deadline}>{t('deadline.today')}</Text>
-            <UnderlineLink label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
-            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
-          </HairlineBox>
+          <View style={styles.stackGap}>
+            {/* The paid order that triggers B7 — provider-confirmed upstream;
+                the supplier prepares (never claims payment itself). */}
+            <View style={styles.orderCard}>
+              <View style={styles.orderHead}>
+                <StatusChip tone="fact" label={t('pret.badge_payee')} icon="coche" />
+              </View>
+              <Text style={styles.message}>{t('pret.commande_payee')}</Text>
+            </View>
+
+            {/* B7 « à confirmer » — the two-point readiness gate. */}
+            {b7Phase === 'ready' && (
+              <>
+                <HairlineBox>
+                  <CheckRow label={t('pret.check_photo')} checked={check1} onToggle={() => setCheck1((v) => !v)} />
+                  <CheckRow label={t('pret.check_ferme')} checked={check2} onToggle={() => setCheck2((v) => !v)} />
+                </HairlineBox>
+                <PrimaryButton
+                  label={t('pret.confirmer')}
+                  disabled={!(check1 && check2)}
+                  disabledLabel={t('pret.confirm_gate')}
+                  onPress={confirmReady}
+                />
+                <Text style={styles.deadline}>{t('deadline.today')}</Text>
+              </>
+            )}
+
+            {/* B7 « attente réseau » — sent, awaiting the operator (slow net); no
+                success is claimed before the operator confirms. */}
+            {b7Phase === 'pending' && (
+              <>
+                <PendingNotice lines={[t('ready.pending_slow')]} />
+                <UnderlineLink label={t('pret.simuler_confirmation')} onPress={finishConfirmation} />
+                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+              </>
+            )}
+
+            {/* B7 « hors ligne (file) » — queued, never done, NEVER celebrated. */}
+            {b7Phase === 'queued' && (
+              <>
+                <PendingNotice lines={[t('ready.queued_offline')]} />
+                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+              </>
+            )}
+
+            {/* B7 « confirmé » — now it is true: Séra comes, the net after
+                validated delivery, the deadline. The celebration rides above. */}
+            {b7Phase === 'confirmed' && (
+              <>
+                <HairlineBox ink style={styles.confirmedPanel}>
+                  <StatusChip tone="fact" label={t('statut.pret')} icon="coche" />
+                  <Text style={styles.message}>{t('ready.next')}</Text>
+                  <View style={styles.netRow}>
+                    <Text style={styles.netRowLabel}>{t('pret.net_apres')}</Text>
+                    <Text style={styles.netRowValue}>
+                      {t('money.amount_f').replace('{amount}', formatFcfa(confirmNet))}
+                    </Text>
+                  </View>
+                  <View style={styles.deadlineRow}>
+                    <Icon name="horloge" size={17} color={C.ink} />
+                    <Text style={styles.deadline}>{t('deadline.today')}</Text>
+                  </View>
+                </HairlineBox>
+                <UnderlineLink label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
+                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+                <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+              </>
+            )}
+          </View>
         )}
 
         {screen === 'corrective' && (
@@ -568,7 +667,7 @@ export default function App() {
                     markCorrected(world, refused.id);
                     setWorld({ ...world });
                     setPendingKey('refused.fixed_pending');
-                    setCelebrating(true);
+                    enterReady(refused.money.sellerNet); // → B7 « à confirmer »
                     go('pret');
                   }}
                 />
@@ -661,7 +760,7 @@ export default function App() {
           </View>
         )}
 
-        {pendingKey !== null && screen !== 'accueil' && (
+        {pendingKey !== null && screen !== 'accueil' && screen !== 'pret' && (
           <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
         )}
       </View>
@@ -692,8 +791,12 @@ export default function App() {
       )}
 
       {/* « Produit prêt » — the named celebration (≤ 800 ms, non-blocking,
-          reduced-motion respected in the kit). */}
-      <CelebrationLayer visible={celebrating && screen === 'pret'} onDone={endCelebration} />
+          reduced-motion respected in the kit). Fires ONLY on the confirmed
+          state — never on a queued (offline) or pending confirmation. */}
+      <CelebrationLayer
+        visible={celebrating && screen === 'pret' && b7Phase === 'confirmed'}
+        onDone={endCelebration}
+      />
     </SafeAreaView>
   );
 }
@@ -717,6 +820,21 @@ const styles = StyleSheet.create({
   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
   message: { ...textStyle(T.body), color: C.ink },
   ruleNote: { ...textStyle(T.caption), color: C.muted },
+  orderCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm },
+  orderHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  confirmedPanel: { gap: spacing.md },
+  netRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    borderTopWidth: interaction.hairline.thin,
+    borderTopColor: C.hairline,
+    paddingTop: spacing.sm,
+  },
+  netRowLabel: { ...textStyle(T.body), color: C.body, flex: 1 },
+  netRowValue: { ...textStyle(T.bodyStrong), color: C.primaryStrong, fontVariant: ['tabular-nums'] },
+  deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   v2Banner: { backgroundColor: C.sand, padding: spacing.md },
   v2Text: { ...textStyle(T.body), color: C.body },
   fieldAide: { ...textStyle(T.caption), color: C.muted },

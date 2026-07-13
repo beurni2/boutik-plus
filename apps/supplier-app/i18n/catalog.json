@@ -760,5 +760,71 @@
     "fr": "F",
     "register": "money",
     "screenClass": "label"
+  },
+  {
+    "key": "pret.commande_payee",
+    "fr": "Commande payée. Préparez le colis — Séra viendra le chercher.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "pret.badge_payee",
+    "fr": "Payée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.check_photo",
+    "fr": "Le colis correspond à la photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.check_ferme",
+    "fr": "Fermé, prêt à partir",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.confirmer",
+    "fr": "Confirmer : produit prêt",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.confirm_gate",
+    "fr": "Cochez les deux points d'abord.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.pending_slow",
+    "fr": "Envoyé — en attente de confirmation. Le réseau est lent, rien n'est perdu.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.queued_offline",
+    "fr": "C'est noté. En attente du réseau — votre confirmation partira toute seule.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "pret.simuler_confirmation",
+    "fr": "Simuler la confirmation (démo)",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.revenir",
+    "fr": "Revenir à l'état initial",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "pret.net_apres",
+    "fr": "Vous recevrez, après livraison validée",
+    "register": "money",
+    "screenClass": "label"
   }
 ]
