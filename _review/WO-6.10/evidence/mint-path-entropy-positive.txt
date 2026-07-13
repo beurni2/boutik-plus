@@ -1,0 +1,3 @@
+$ node scripts/gates/check-mint-path-entropy.mjs
+mint-path-entropy OK: 1 mint path(s) draw from the OS CSPRNG; zero Math.random
+(exit code: 0)

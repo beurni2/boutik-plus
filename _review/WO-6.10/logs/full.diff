@@ -1,0 +1,824 @@
+diff --git a/JOURNAL.md b/JOURNAL.md
+index 17b1cf7..2d6e8c4 100644
+--- a/JOURNAL.md
++++ b/JOURNAL.md
+@@ -488,3 +488,14 @@ Format per entry:
+ - **The money-separator paint check no longer skips.** `test/money-render.test.ts` read cmaps via python/fontTools and RETURNED EARLY when absent — green while asserting nothing about which glyphs paint « 11 500 F ». Extended the WO-6.7 reader (`src/ui/sfnt.ts`, not a second parser) with a bounds-checked **cmap reader** resolving the Unicode format-4 (BMP) and format-12 (full) subtables → `readCmap(bytes).has(cp)`. The test now runs in EVERY environment on the intersection of all five weights: **U+00A0 PRESENT** (the rendered separator paints) · every « 11 500 F » codepoint present · **U+202F ABSENT — PINNED to its current state.**
+ - **The U+202F transition can never happen silently.** The founder has asked the designer to add U+202F to the Archivo subset. The `expect(inAll(0x202f)).toBe(false)` assertion is commented so that WHEN her new bytes land it **FAILS LOUDLY**, forcing the adopting slice to consciously flip it AND re-verify `formatFcfa`'s separator choice (the U+00A0 fallback becomes obsolete). Verified today against the committed bytes: U+202F absent in all five, U+00A0 present in all five — the fallback is still correct, so `formatFcfa` is UNTOUCHED (no STOP-and-flag triggered).
+ - **Non-vacuity, both directions, planted:** a minimal format-4 cmap built byte-by-byte maps exactly U+0041 + U+00A0; the reader FINDS both and REJECTS U+202F and U+0042 — proving it reads actual coverage, not a trivial pass. 121/121 tests, typecheck 0, run-gates ALL GREEN. No product code touched (test + `src/ui/sfnt.ts` extension only; `formatFcfa`/`store.ts` byte-frozen).
++
++## 2026-07-13 · WO-6.10 · ADOPT THE MINT RULE — done, IN REVIEW (🟠 AMBER — DO NOT MERGE)
++- **The Math.random NAMED DEBT (0663c9c) is CLOSED — this slice is its executioner.** Canon ruled the mint (WO-5.9, `docs/derivations/COMMAND-ID-MINT.md`, v0.9.5): UUIDv4, minted client-side ONCE, persisted, never recomputed, entropy from the OS CSPRNG; `Math.random()` forbidden as an idempotency-key source. `src/offline/commandId.ts` no longer contains `Math.random` at all — the local v4-shape helper is DELETED and the seam now delegates to `@platform/contracts`' `mintCommandId` (a branded UUIDv4, read out of `globalThis.crypto.randomUUID`, validated by `CommandIdSchema.parse`). The debt named at WO-6.5 is executed exactly where it said it would be: one seam, one dep.
++- **THE PIN — canon v0.9.5 (`2153661`).** Every `@platform/*` ref moved `fa2ff24` (v0.9.0) → `2153661` (v0.9.5) across all package.json (root + supplier-app + 6 services + commerce-core) + `pnpm.overrides` (5) + `pnpm-workspace.yaml overrides` (3). Lockfile regenerated: **0 × old sha, 0 × ssh-form git URL** (GUARD 0 / `no-ssh-lockfile` gate green on the committed bytes). Installed: contracts/kernel-types/i18n/ui-tokens/certification all 0.9.5.
++- **Docs re-synced (canon moved 0.9.0→0.9.5):** two drifted docs pulled byte-exact from the pinned sha — `Ecosystem-Engineering-Execution-Contract.md` (adds §3.1 the RED·AMBER·GREEN tiering, sha256 `069cd35c…`) and `ECOSYSTEM-MASTER-REFERENCE.md` (Séra terminal `return_required`→`return`; homeless-ops repo recommendation `platform-ops`→`platform`; sha256 `4fd065c7…`). Both untouched-open-decision territory, neither near this seam. Drift-check `--pinned-version` bumped 0.9.0→0.9.5 (positive + tampered-negative) → `drift-check OK: 11 canonical docs match manifest (packageVersion 0.9.5)`.
++- **RN CSPRNG wiring, and the HONESTY contract on its absence.** `expo-crypto ~15.0.9` (SDK-54 bundled) is the OS-CSPRNG dep the founder directed in. `commandId.ts` surfaces its `randomUUID` under the Web Crypto shape canon reads, once, as a module side-effect — and installs **no Math.random shim**: if a real CSPRNG cannot be wired the global stays absent and `mintCommandId` THROWS. `App.confirmReady` wraps the mint in try/catch → `setB7Phase('queue_error')` and returns — never enqueues, never claims « en attente ». Same honesty contract as the queue's id-collision path (which is unchanged and still surfaces `queue_error`).
++- **The mint-path entropy gate — INHERITED from canon (WO-5.9), adapted UNCHANGED in logic.** `scripts/gates/check-mint-path-entropy.mjs` scans every `command-id*`/`commandId*` mint file, fails on any `Math.random(` CALL, and requires a real CSPRNG draw (`randomUUID`/`getRandomValues`) so no file passes vacuously. The ONLY change from canon's copy is the scan root: canon's mint lives under `packages/`, boutik's under `apps/` — this walks the repo's workspace source roots (apps/, packages/, services/). Non-vacuity by a **planted** offender (`show-mint-path-entropy-negative.sh`: copies the real `commandId.ts`, plants `Math.random`, re-roots the gate, asserts exit 1 AND the output names `Math.random`). Wired into `run-gates.sh` (positive + planted negative). Positive today: `1 mint path(s) draw from the OS CSPRNG; zero Math.random`.
++- **The WO-6.5 offline-queue behaviour tests stayed GREEN, UNCHANGED — `git diff` on `test/offline-queue.test.ts` = 0 lines.** All 8 pass (minted-once persisted, reboot-safe cold boot, idempotent replay, id-collision REFUSED + surfaced, poison→named-failed, queued-never-succeeds). The queue takes a `string` command_id (format-agnostic idempotency key), so canon's branded `CommandId` flows through untouched. The STOP-AND-FLAG clause (scoped to these tests) did not trigger.
++- **FLAG ① — the ONE test edit (founder's veto, at AMBER):** `test/grand-teint.test.ts` dep-allowlist guard (`founder rulings 2026-07-12 — nothing else`) now records `expo-crypto ~15.0.9`. This is NOT a WO-6.5 behaviour test; it is a manifest guard, and `expo-crypto` is a dependency THIS WO directed in ("RN needs the ambient Web Crypto global"). The guard's purpose — block *unapproved* deps — is preserved (any further new dep still fails). Cited to WO-6.10 in-line, mirroring its existing WO-6.0/WO-6.5 citations. Surfaced here so the founder can HOLD it if he reads the allowlist as his to extend.
++- **FLAG ② — corrected a stale prose pin:** `pnpm-workspace.yaml`'s overrides comment still cited `sha 539dbc8a (canon v0.6.0)` and transitive versions `0.5.0`/`0.4.0` — a lie after this re-pin. Updated to `2153661` / v0.9.5 and the real transitive versions (`kernel-types@0.9.5`, `certification@0.9.5`→`contracts@0.9.5`+`ui-tokens@0.9.5`). Override VALUES were already correct; only the comment moved. (Left as history: `_review/wo-6.5-evidence/*` and `design-reference/README.md`'s reference-only pin note — out of the dependency-pin scope.)
++- **Evidence:** typecheck 0 (11/11) · supplier-app **121/121** incl. offline-queue 8/8 unchanged · full suite 19/19 (one inventory-service e2e flake under parallel load, green in isolation and on re-run — touches nothing here) · full `run-gates.sh` **ALL GREEN** (every positive passed, every negative failed as required; mint-path-entropy positive+negative + drift-check@0.9.5 included) · **warm** both-platform export android **832** / ios **834** modules (was 828/830; +expo-crypto graph), Hermes `.hbc` emitted, exit 0. **Cold proof (fresh HOME + fresh empty store + frozen lockfile) and the fresh-context AMBER verifier run on the pushed final bytes — logs in the packet.** DO NOT MERGE.
+diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
+index 12a0811..d7c1355 100644
+--- a/apps/supplier-app/App.tsx
++++ b/apps/supplier-app/App.tsx
+@@ -236,11 +236,19 @@ export default function App() {
+         setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
+         return;
+       }
+-      // The command_id is minted ONCE here and PERSISTED by the queue — never
+-      // recomputed, so a reboot cannot make it collide with itself. « queued »
+-      // is claimed ONLY after the store confirms the append; a collision (the
+-      // queue REFUSING an id clash) is surfaced honestly, never faked as pending.
+-      const commandId = mintCommandId();
++      // The command_id is minted ONCE here from the OS CSPRNG (canon mintCommandId)
++      // and PERSISTED by the queue — never recomputed, so a reboot cannot make it
++      // collide with itself. If no CSPRNG is available the mint THROWS: we surface
++      // queue_error and never fake « en attente ». « queued » is claimed ONLY after
++      // the store confirms the append; an id-collision (the queue REFUSING a clash)
++      // is surfaced honestly the same way.
++      let commandId: string;
++      try {
++        commandId = mintCommandId();
++      } catch {
++        setB7Phase('queue_error');
++        return;
++      }
+       void q.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet }).then((result) => {
+         if (result.outcome === 'collision') {
+           setB7Phase('queue_error');
+diff --git a/apps/supplier-app/package.json b/apps/supplier-app/package.json
+index 81a3996..f40fe2e 100644
+--- a/apps/supplier-app/package.json
++++ b/apps/supplier-app/package.json
+@@ -12,10 +12,11 @@
+     "test": "vitest run"
+   },
+   "dependencies": {
+-    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n",
+-    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens",
++    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
++    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens",
+     "expo": "~54.0.35",
+     "expo-camera": "~17.0.10",
++    "expo-crypto": "~15.0.9",
+     "expo-file-system": "~19.0.23",
+     "expo-font": "~14.0.12",
+     "expo-haptics": "~15.0.8",
+diff --git a/apps/supplier-app/src/offline/commandId.ts b/apps/supplier-app/src/offline/commandId.ts
+index 3887a29..fe63315 100644
+--- a/apps/supplier-app/src/offline/commandId.ts
++++ b/apps/supplier-app/src/offline/commandId.ts
+@@ -1,45 +1,51 @@
+ /**
+- * WO-6.5 · B2.1 — the command_id seam.
++ * WO-6.10 · ADOPT THE MINT RULE — the command_id seam now delegates to CANON.
+  *
+- * ⏳ CANON GAP (flagged to the founder — not filled by my judgement): the
+- * Execution Contract §3 envelope CARRIES `command_id` (`EventEnvelopeSchema`:
+- * `command_id: z.ZodString`) but canon is SILENT on HOW a client MINTS one —
+- * no format, no generator, no idempotency-key rule anywhere in `contracts/` or
+- * `/docs`. That rule belongs in `platform-contracts`, not here.
++ * Canon (WO-5.9, docs/derivations/COMMAND-ID-MINT.md, @platform/contracts v0.9.5)
++ * ruled the mint: `command_id` is a UUIDv4, minted CLIENT-side exactly ONCE at
++ * command creation, PERSISTED with the command, and NEVER recomputed — with its
++ * entropy from the OS CSPRNG. `Math.random()` is FORBIDDEN as an idempotency-key
++ * source: it carries only its SEED's entropy (unproven on a cold-booted Android-Go
++ * device), so two commands can collide into one idempotency key — a double-charge
++ * or a lost action. The old Math.random v4-shape helper that lived here is DELETED;
++ * this file now hands off to `@platform/contracts`' `mintCommandId`.
+  *
+- * What is NOT a judgement call — it is FORCED by offline-first + the founder's
+- * own diagnosis ("reproducibility is the bug — the id collides because it is
+- * RECOMPUTED after a reboot"): the id is minted CLIENT-side (there is no server
+- * offline), minted exactly ONCE at the moment the command is created, and
+- * PERSISTED with the entry — so it is NEVER recomputed and cannot collide with
+- * itself across an app-kill/reboot. A wall-clock is wrong twice over (it is
+- * recomputed, and on Android Go the RTC runs backwards).
+- *
+- * The safest-default FORMAT pending the founder's canon ruling: a v4-shaped,
+- * 122-bit random token — the industry-standard idempotency key. It is an
+- * idempotency key, NOT a security token, so a non-CSPRNG source is adequate for
+- * collision-resistance (~2^-122 per pair). If canon prefers a different format
+- * (ULID for sortability, a device-scoped persisted counter, a domain-derived
+- * key), that is the founder's call — this is the single seam to change.
++ * `mintCommandId` reads the AMBIENT Web Crypto global (`globalThis.crypto.randomUUID`)
++ * — never an import of the node `crypto` builtin. Node/web expose it natively; React
++ * Native does NOT, so this module surfaces expo-crypto's OS CSPRNG under that shape.
++ * We NEVER install a Math.random shim: if a real CSPRNG cannot be wired, the global
++ * stays absent and canon's helper THROWS at command creation — which the caller
++ * (App.confirmReady) surfaces as `queue_error`, never a fabricated key, never a faked
++ * « en attente ». Same honesty contract as the queue's id-collision path.
+  */
++import * as Crypto from 'expo-crypto';
++import { mintCommandId as canonMintCommandId, type CommandId } from '@platform/contracts';
+ 
+-/** Mint a fresh command_id ONCE, at command creation. The caller MUST persist
+- * it (via the durable queue) and never recompute it. */
+-export function mintCommandId(): string {
+-  // v4 UUID shape (8-4-4-4-12), random bits from Math.random — sufficient for
+-  // an idempotency key (see the canon-gap note above; NOT a security token).
+-  const hex = '0123456789abcdef';
+-  let out = '';
+-  for (let i = 0; i < 36; i++) {
+-    if (i === 8 || i === 13 || i === 18 || i === 23) {
+-      out += '-';
+-    } else if (i === 14) {
+-      out += '4'; // version 4
+-    } else if (i === 19) {
+-      out += hex[(Math.floor(Math.random() * 16) & 0x3) | 0x8]!; // variant 10xx
+-    } else {
+-      out += hex[Math.floor(Math.random() * 16)]!;
+-    }
++// Wire expo-crypto's randomUUID (the OS CSPRNG) into the Web Crypto shape canon
++// reads — once, as a module side-effect, before any mint. No-op when the runtime
++// already exposes it. No Math.random fallback: if this cannot install a real
++// CSPRNG, the global stays absent and mintCommandId throws (honest failure).
++const g = globalThis as { crypto?: { randomUUID?: () => string } };
++if (typeof g.crypto?.randomUUID !== 'function' && typeof Crypto.randomUUID === 'function') {
++  const randomUUID = (): string => Crypto.randomUUID();
++  if (g.crypto && Object.isExtensible(g.crypto)) {
++    g.crypto.randomUUID = randomUUID;
++  } else {
++    Object.defineProperty(globalThis, 'crypto', {
++      value: { ...(g.crypto ?? {}), randomUUID },
++      configurable: true,
++      writable: true,
++    });
+   }
+-  return out;
++}
++
++/**
++ * Mint a fresh command_id ONCE, at command creation, from the OS CSPRNG (canon
++ * `mintCommandId`). The caller MUST persist it (via the durable queue) and NEVER
++ * recompute it, so it cannot collide with itself across an app-kill/reboot.
++ * THROWS when no CSPRNG is available — the caller surfaces that honestly
++ * (queue_error), never a Math.random fallback.
++ */
++export function mintCommandId(): CommandId {
++  return canonMintCommandId();
+ }
+diff --git a/apps/supplier-app/test/grand-teint.test.ts b/apps/supplier-app/test/grand-teint.test.ts
+index 7c97793..ebfc38d 100644
+--- a/apps/supplier-app/test/grand-teint.test.ts
++++ b/apps/supplier-app/test/grand-teint.test.ts
+@@ -107,11 +107,16 @@ describe('the two approved dependencies (founder rulings 2026-07-12) — nothing
+     // gated on forcing evidence — quoted from its installed types in
+     // src/offline/expoStore.ts (SDK-54 bundled version).
+     expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
++    // WO-6.10 · ADOPT THE MINT RULE: expo-crypto is the OS-CSPRNG dep the founder
++    // directed in ("RN needs the ambient Web Crypto global"), so canon's
++    // mintCommandId can read globalThis.crypto.randomUUID at the offline seam
++    // (src/offline/commandId.ts). SDK-54 bundled version.
++    expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
+     const before = new Set([
+       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
+       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
+     ]);
+     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
+-    expect(added.sort()).toEqual(['expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
++    expect(added.sort()).toEqual(['expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
+   });
+ });
+diff --git a/docs/ECOSYSTEM-MASTER-REFERENCE.md b/docs/ECOSYSTEM-MASTER-REFERENCE.md
+index 7fcf33c..5706e6b 100644
+--- a/docs/ECOSYSTEM-MASTER-REFERENCE.md
++++ b/docs/ECOSYSTEM-MASTER-REFERENCE.md
+@@ -487,7 +487,7 @@ One **RouteManifest** per rider · **one current stop** (SE-I03) · **exactly on
+ 
+ ### 4. The exceptions desk *(the most important screen in the building)*
+ Every failure lands here with a **structured reason + evidence**. The dispatcher applies exactly one explicit outcome:
+-**retry · reschedule · return_required · incident** — and **there is no generic "failed"** (SE-I10). A package is **never unowned**: custody stays with the rider or the hub until a **two-key return handoff + inspection** puts it back with the supplier.
++**retry · reschedule · return · incident** — and **there is no generic "failed"** (SE-I10). A package is **never unowned**: custody stays with the rider or the hub until a **two-key return handoff + inspection** puts it back with the supplier.
+ 
+ ### 5. Break-glass verification *(the maker-checker seam)*
+ Two different people, deliberately:
+@@ -512,7 +512,7 @@ Pickup dwell **over 2–4 min is an ops signal** (a supplier who is slow to veri
+ 
+ # PART 9 — THE PLATFORM OPS CONSOLE (the back-office — and an honest gap)
+ 
+-> **⚠ FOUNDER DECISION REQUIRED.** The ops **roles** are defined across all three specs (Boutik+: "verification/moderation operator — Ops only"; Séra: payment operator, fleet manager, HR/payroll maker-checker). But the repo topology we locked — three apps + `platform-contracts` — **gives the cross-app Ops surface no home.** Protection Fund solvency, claims adjudication, and provider reconciliation are *inherently cross-domain*: they cannot live inside any one app without that app becoming a de-facto platform brain. **Recommendation: a fifth repo, `platform-ops`** — its own deployable, consuming the same pinned `platform-contracts`, reading through the authoritative services and **never writing to another domain's database.** (Alternatives: scatter admin screens per-app — but then the fund and reconciliation have no owner; or fold Ops into `platform-contracts` — rejected, contracts must stay a pure package, not a deployable.)
++> **⚠ FOUNDER DECISION REQUIRED.** The ops **roles** are defined across all three specs (Boutik+: "verification/moderation operator — Ops only"; Séra: payment operator, fleet manager, HR/payroll maker-checker). But the repo topology we locked — three apps + `platform-contracts` — **gives the cross-app Ops surface no home.** Protection Fund solvency, claims adjudication, and provider reconciliation are *inherently cross-domain*: they cannot live inside any one app without that app becoming a de-facto platform brain. **Recommendation: a fifth repo, `platform`** (github.com/beurni2/platform) — its own deployable, consuming the same pinned `platform-contracts`, reading through the authoritative services and **never writing to another domain's database.** (Alternatives: scatter admin screens per-app — but then the fund and reconciliation have no owner; or fold Ops into `platform-contracts` — rejected, contracts must stay a pure package, not a deployable.)
+ 
+ ## 9.1 The iron rule of Ops
+ > **Ops never edits the ledger. No human ever "just fixes" money.**
+@@ -709,7 +709,7 @@ Performance budgets are named at E0 and enforced: 60fps feel on a 1GB device, sk
+ | Tax / invoice / record retention | Launch | Retain everything |
+ | **PackLab:** the three ceiling values · restock multiple · upgrade score · platform-as-owner legal structure | B+9 | Gate closed |
+ | **Cercle:** campaign-allocation structure at the partner · MoMo top-up legality · moderation SLA | SP9 | Gate closed |
+-| **⚠ Where the platform Ops console lives** (recommend a fifth repo `platform-ops`) — see Part 9 | Fund, claims, reconciliation, moderation, T&S, kill-switches | **Undecided — ops functions are specified but homeless** |
++| **⚠ Where the platform Ops console lives** (recommend a fifth repo `platform`) — see Part 9 | Fund, claims, reconciliation, moderation, T&S, kill-switches | **Undecided — ops functions are specified but homeless** |
+ | Dispatcher/incident-response staffing SLA | Pilot | Contract E-exit requires it |
+ 
+ **The discipline:** an open decision is **never** closed by an agent or by convenience. It is implemented at its documented safest default, flagged, and escalated to the founder.
+diff --git a/docs/Ecosystem-Engineering-Execution-Contract.md b/docs/Ecosystem-Engineering-Execution-Contract.md
+index aa41f84..ca1499e 100644
+--- a/docs/Ecosystem-Engineering-Execution-Contract.md
++++ b/docs/Ecosystem-Engineering-Execution-Contract.md
+@@ -93,6 +93,17 @@ Boutik+ (supply)     Séra (custody/delivery)     Shop+ (reseller + buyer + chec
+ 
+ ---
+ 
++## 3.1 Tiered review — RED · AMBER · GREEN (founder-ruled 2026-07-12)
++**Every work order declares its TIER in its first line. The CTO assigns it; the session obeys it. A session may NEVER self-assign a tier.** The tier sets the ceremony a slice must clear before it merges — never the care taken building it.
++
++- 🔴 **RED** — money · custody · secrets · attribution · canon shapes · safety (SOS, break-glass, maker-checker) · **anything that could move a franc or orphan a package.** Full ceremony: packet · fresh-context verifier · CTO line-by-line · founder ruling · **merge only on an explicit paste.** NEVER accelerated. A rubber-stamped money slice destroys the only asset this project has.
++- 🟠 **AMBER** — multi-screen UX on **frozen semantics** · consoles · ops surfaces · canon docs/tokens. Packet + fresh-context verifier + CTO review, but **BATCHED**: the CTO may approve several at once, and a session may **start the next slice while the previous is in review**. **Merge still requires the CTO's paste.**
++- 🟢 **GREEN** — pure restyles on frozen semantics · gallery/docs refreshes · string-catalog updates · lint/test hygiene. The session runs its own fresh-context verifier and, on a full-green verdict, **MERGES ITSELF** and reports one paragraph. The CTO audits; it does not gate. **GREEN IS FORFEIT ON SIGHT:** any surprise — a semantic change, a failing gate, a dropped state, an invented value — reverts the slice to AMBER and it **stays there**.
++
++**UNCHANGED AND ABSOLUTE IN ALL TIERS:** packet-primacy · derive-never-invent · self-anchoring guards · the isolation-evidence law · no state dropped to fit a design · STOP-and-flag over guess.
++
++---
++
+ ## 4. Schema & event migration standard
+ - **Expand → migrate → contract.** No destructive schema change may ship in the **same release** that introduces its replacement.
+ - **Backfills** are **resumable + idempotent**, with a written plan and a verification step. **Financial and custody records are verified post-migration** against the immutable event log.
+diff --git a/package.json b/package.json
+index b45d616..b73271a 100644
+--- a/package.json
++++ b/package.json
+@@ -17,25 +17,25 @@
+     "baseline-check": "node scripts/baseline-check.mjs"
+   },
+   "dependencies": {
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts",
+-    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types",
+-    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n",
+-    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
++    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types",
++    "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
++    "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens"
+   },
+   "devDependencies": {
+     "@types/node": "^22.20.1",
+     "turbo": "^2.5.4",
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification"
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
+   },
+   "pnpm": {
+     "overrides": {
+-      "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts",
+-      "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types",
+-      "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n",
+-      "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens",
+-      "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification"
++      "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
++      "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types",
++      "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n",
++      "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens",
++      "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
+     }
+   }
+ }
+diff --git a/packages/commerce-core/package.json b/packages/commerce-core/package.json
+index 9b717bd..454d732 100644
+--- a/packages/commerce-core/package.json
++++ b/packages/commerce-core/package.json
+@@ -19,8 +19,8 @@
+     "test": "vitest run"
+   },
+   "dependencies": {
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts",
+-    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
++    "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a2eba9c..6d7cb88 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -5,32 +5,32 @@ settings:
+   excludeLinksFromLockfile: false
+ 
+ overrides:
+-  '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-  '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
+-  '@platform/i18n': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n
+-  '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
+-  '@platform/certification': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
++  '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++  '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++  '@platform/i18n': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
++  '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++  '@platform/certification': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+ 
+ importers:
+ 
+   .:
+     dependencies:
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+       '@platform/i18n':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
+       '@platform/kernel-types':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+       '@platform/ui-tokens':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+       '@types/node':
+         specifier: ^22.20.1
+         version: 22.20.1
+@@ -47,17 +47,20 @@ importers:
+   apps/supplier-app:
+     dependencies:
+       '@platform/i18n':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n
+       '@platform/ui-tokens':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+       expo:
+         specifier: ~54.0.35
+         version: 54.0.35(@babel/core@7.29.7)(@expo/dom-webview@57.0.0)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+       expo-camera:
+         specifier: ~17.0.10
+         version: 17.0.10(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
++      expo-crypto:
++        specifier: ~15.0.9
++        version: 15.0.9(expo@54.0.35)
+       expo-file-system:
+         specifier: ~19.0.23
+         version: 19.0.23(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))
+@@ -105,11 +108,11 @@ importers:
+   packages/commerce-core:
+     dependencies:
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+       '@platform/kernel-types':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -142,8 +145,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -158,12 +161,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+       typescript:
+         specifier: ^5.9.2
+         version: 5.9.3
+@@ -177,8 +180,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       '@cloudflare/workers-types':
+         specifier: ^4.20250705.0
+@@ -202,8 +205,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -218,12 +221,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       '@platform/certification':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification
+       typescript:
+         specifier: ^5.9.2
+         version: 5.9.3
+@@ -240,8 +243,8 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/observability
+       '@platform/contracts':
+-        specifier: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-        version: git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
++        specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++        version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+@@ -1450,27 +1453,27 @@ packages:
+   '@jridgewell/trace-mapping@0.3.9':
+     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+ 
+-  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification':
+-    resolution: {commit: fa2ff246dc747a6d28f319278ecf85d54ca067dd, path: packages/certification, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.0
++  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification':
++    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/certification, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.5
+ 
+-  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts':
+-    resolution: {commit: fa2ff246dc747a6d28f319278ecf85d54ca067dd, path: packages/contracts, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.0
++  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts':
++    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/contracts, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.5
+     hasBin: true
+ 
+-  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n':
+-    resolution: {commit: fa2ff246dc747a6d28f319278ecf85d54ca067dd, path: packages/i18n, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.0
++  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n':
++    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/i18n, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.5
+     hasBin: true
+ 
+-  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types':
+-    resolution: {commit: fa2ff246dc747a6d28f319278ecf85d54ca067dd, path: packages/kernel-types, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.0
++  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types':
++    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/kernel-types, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.5
+ 
+-  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens':
+-    resolution: {commit: fa2ff246dc747a6d28f319278ecf85d54ca067dd, path: packages/ui-tokens, repo: https://github.com/beurni2/platform-contracts.git, type: git}
+-    version: 0.9.0
++  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens':
++    resolution: {commit: 2153661134c7da6fc921c14fb6c7b363001e2854, path: packages/ui-tokens, repo: https://github.com/beurni2/platform-contracts.git, type: git}
++    version: 0.9.5
+ 
+   '@poppinss/colors@4.1.6':
+     resolution: {integrity: sha512-H9xkIdFswbS8n1d6vmRd8+c10t2Qe+rZITbbDHHkQixH5+2x1FDGmi/0K+WgWiqQFKPSlIYB7jlH6Kpfn6Fleg==}
+@@ -2358,6 +2361,11 @@ packages:
+       expo: '*'
+       react-native: '*'
+ 
++  expo-crypto@15.0.9:
++    resolution: {integrity: sha512-SNWKa2fXx7v9gkp1h/7nqXY5XN7qgNDn3yRc2aO0gWGbeMbvob/haMxxsPFe9f51aqH5NjNCqHf2kvLhvAd8KQ==}
++    peerDependencies:
++      expo: '*'
++
+   expo-eas-client@1.0.8:
+     resolution: {integrity: sha512-5or11NJhSeDoHHI6zyvQDW2cz/yFyE+1Cz8NTs5NK8JzC7J0JrkUgptWtxyfB6Xs/21YRNifd3qgbBN3hfKVgA==}
+ 
+@@ -5173,26 +5181,26 @@ snapshots:
+       '@jridgewell/resolve-uri': 3.1.2
+       '@jridgewell/sourcemap-codec': 1.5.5
+ 
+-  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification':
++  '@platform/certification@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification':
+     dependencies:
+-      '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts
+-      '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens
++      '@platform/contracts': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++      '@platform/ui-tokens': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens
+       zod: 4.4.3
+ 
+-  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts':
++  '@platform/contracts@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts':
+     dependencies:
+-      '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types
++      '@platform/kernel-types': git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types
+       zod: 4.4.3
+ 
+-  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/i18n':
++  '@platform/i18n@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/i18n':
+     dependencies:
+       zod: 4.4.3
+ 
+-  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/kernel-types':
++  '@platform/kernel-types@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types':
+     dependencies:
+       zod: 4.4.3
+ 
+-  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens': {}
++  '@platform/ui-tokens@git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens': {}
+ 
+   '@poppinss/colors@4.1.6':
+     dependencies:
+@@ -6138,6 +6146,11 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
++  expo-crypto@15.0.9(expo@54.0.35):
++    dependencies:
++      base64-js: 1.5.1
++      expo: 54.0.35(@babel/core@7.29.7)(@expo/dom-webview@57.0.0)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
++
+   expo-eas-client@1.0.8: {}
+ 
+   expo-file-system@19.0.23(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)):
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 2bd7ff8..5328e59 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -12,16 +12,15 @@ onlyBuiltDependencies:
+   - "@platform/ui-tokens"
+   - "@platform/certification"
+ 
+-# @platform/contracts depends on @platform/kernel-types@0.5.0, which exists
++# @platform/contracts depends on @platform/kernel-types@0.9.5, which exists
+ # on no registry; this override routes that transitive resolution to the
+-# same pinned git ref (CONSUMING.md). Pin = sha 539dbc8a (canon v0.6.0;
+-# founder ruling: the release ref is the commit — the v0.3.0 tag on origin
+-# is mis-pointed at the v0.2.0 commit, report-only).
+-# @platform/certification (0.4.0, devDep) additionally depends on
+-# @platform/contracts@0.5.0 and @platform/ui-tokens@0.5.0 by VERSION —
+-# also registry-absent, so they are routed the same way (CONSUMING.md at
+-# v0.4.0 now documents all three overrides — upstream fix landed).
++# same pinned git ref (CONSUMING.md). Pin = sha 2153661 (canon v0.9.5 — the
++# mint-rule pin: WO-6.10 adopts CommandIdSchema + mintCommandId + the
++# mint-path entropy gate; founder ruling: the release ref is the commit).
++# @platform/certification (0.9.5, devDep) additionally depends on
++# @platform/contracts@0.9.5 and @platform/ui-tokens@0.9.5 by VERSION —
++# also registry-absent, so they are routed the same way.
+ overrides:
+-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/kernel-types"
+-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/contracts"
+-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/ui-tokens"
++  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types"
++  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens"
+diff --git a/scripts/gates/check-mint-path-entropy.mjs b/scripts/gates/check-mint-path-entropy.mjs
+new file mode 100755
+index 0000000..7c28b2d
+--- /dev/null
++++ b/scripts/gates/check-mint-path-entropy.mjs
+@@ -0,0 +1,69 @@
++#!/usr/bin/env node
++// WO-6.10 — the MINT-PATH ENTROPY gate, INHERITED from canon (WO-5.9, founder
++// ruling Beurni 2026-07-13; "every repo inherits"). No command_id mint path may
++// draw its idempotency key from `Math.random` — only the OS CSPRNG. `Math.random()`
++// carries only its SEED's entropy (unproven on a cold-booted Android-Go device), so
++// two commands can collide into one idempotency key — a double-charge or a lost
++// action. This gate scans every mint-path source file (`command-id*` / `commandId*`)
++// and fails the build on any `Math.random`, and requires each to actually draw from a
++// CSPRNG (randomUUID/getRandomValues) so an empty file cannot pass vacuously.
++//
++// Adapted from canon UNCHANGED in logic; the ONLY change is the scan root. Canon's
++// mint path lives under `packages/`; boutik's lives at its isolated offline seam
++// (`apps/supplier-app/src/offline/commandId.ts`). So this walks boutik's workspace
++// source roots (apps/, packages/, services/) instead of just packages/. The
++// Math.random check and the CSPRNG non-vacuity token are byte-for-byte canon's — a
++// consumer that wires expo-crypto's `randomUUID` satisfies it honestly (no weakening).
++import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
++import { dirname, join } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
++
++/** Collect mint-path files under a source root, skipping node_modules/dist/test. */
++function walk(dir, acc) {
++  if (!existsSync(dir)) return acc;
++  for (const name of readdirSync(dir)) {
++    const p = join(dir, name);
++    if (statSync(p).isDirectory()) {
++      if (name === 'node_modules' || name === 'dist' || name === 'test') continue;
++      walk(p, acc);
++    } else if (/(command-id|commandId)[^/\\]*\.(ts|mjs|js)$/.test(name)) {
++      acc.push(p);
++    }
++  }
++  return acc;
++}
++const files = ['apps', 'packages', 'services'].reduce((acc, d) => walk(join(root, d), acc), []);
++
++if (files.length === 0) {
++  console.log('mint-path-entropy OK: no command-id mint path present in this repo');
++  process.exit(0);
++}
++
++// Scan CODE, not prose: a comment that says "Math.random is forbidden" is the rule
++// being documented, not a violation. Strip block + line comments before scanning.
++function stripComments(src) {
++  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
++}
++
++const problems = [];
++for (const f of files) {
++  const code = stripComments(readFileSync(f, 'utf8'));
++  const rel = f.slice(root.length + 1);
++  // A CALL — `Math.random(` — is the violation; a throw/message string that names
++  // it (no call paren) is the rule being stated, not drawn from.
++  if (/Math\s*\.\s*random\s*\(/.test(code)) {
++    problems.push(`${rel}: calls Math.random( — FORBIDDEN as an idempotency-key source (mint from the OS CSPRNG)`);
++  }
++  if (!/\b(randomUUID|getRandomValues)\b/.test(code)) {
++    problems.push(`${rel}: no OS CSPRNG draw (randomUUID/getRandomValues) — a mint path must not pass vacuously`);
++  }
++}
++
++if (problems.length) {
++  console.error('mint-path-entropy FAILED:');
++  for (const p of problems) console.error('  - ' + p);
++  process.exit(1);
++}
++console.log(`mint-path-entropy OK: ${files.length} mint path(s) draw from the OS CSPRNG; zero Math.random`);
+diff --git a/scripts/gates/show-mint-path-entropy-negative.sh b/scripts/gates/show-mint-path-entropy-negative.sh
+new file mode 100755
+index 0000000..2f43029
+--- /dev/null
++++ b/scripts/gates/show-mint-path-entropy-negative.sh
+@@ -0,0 +1,33 @@
++#!/usr/bin/env bash
++# Negative fixture for the mint-path entropy gate (WO-6.10, inherited from canon
++# WO-5.9). A planted Math.random in a mint path must be REJECTED — and rejected BY
++# CATCHING THE OFFENDER, not by some other exit-1 path (the vacuous-proof lesson:
++# assert the output names the offender AND the sed re-root actually changed the
++# gate). Run under `capture ... fail`, so this EXITS 1 only when the plant is
++# caught. Real repo untouched (plant lives in a tmp copy).
++set -uo pipefail
++ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
++TMP="$(mktemp -d)"
++# copy the REAL mint path (apps/supplier-app/src/offline/commandId.ts) into a
++# tmp source tree, then plant the forbidden entropy source in it
++mkdir -p "$TMP/apps/supplier-app/src/offline"
++cp "$ROOT/apps/supplier-app/src/offline/commandId.ts" "$TMP/apps/supplier-app/src/offline/commandId.ts"
++MINT="$TMP/apps/supplier-app/src/offline/commandId.ts"
++printf '\nexport const __bad = () => Math.random().toString(36);\n' >> "$MINT"
++# re-root the gate at the tampered tree (replace the single root expression)
++sed "s#join(dirname(fileURLToPath(import.meta.url)), '..', '..')#'$TMP'#" \
++  "$ROOT/scripts/gates/check-mint-path-entropy.mjs" > "$TMP/check.mjs"
++
++# (1) the sed re-root must have actually changed the gate's bytes:
++if cmp -s "$ROOT/scripts/gates/check-mint-path-entropy.mjs" "$TMP/check.mjs"; then
++  echo "NEGATIVE FIXTURE MISBEHAVED — the sed re-root did not change the gate"
++  exit 0
++fi
++# (2) the plant must be CAUGHT — exit 1 AND the failure names Math.random:
++out="$(node "$TMP/check.mjs" 2>&1)"; code=$?
++if [ "$code" -eq 1 ] && printf '%s' "$out" | grep -q 'Math.random'; then
++  echo "mint-path-entropy negative OK: planted Math.random in commandId.ts CAUGHT (exit 1; output names Math.random)"
++  exit 1   # the fixture failed as required — harness expects 'fail'
++fi
++echo "NEGATIVE FIXTURE MISBEHAVED — exit $code, output did not name Math.random: $out"
++exit 0     # a pass here means the plant slipped through — harness alarms
+diff --git a/scripts/run-gates.sh b/scripts/run-gates.sh
+index 15d9c43..1045409 100755
+--- a/scripts/run-gates.sh
++++ b/scripts/run-gates.sh
+@@ -146,14 +146,20 @@ capture no-ssh-lockfile-positive pass node scripts/gates/no-ssh-lockfile.mjs pnp
+ log "gate: no-ssh-lockfile — NEGATIVE FIXTURE (ssh-form git URL, must fail)"
+ capture no-ssh-lockfile-negative fail node scripts/gates/no-ssh-lockfile.mjs gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml
+ 
++log "gate: mint-path entropy — command_id mint paths draw from the OS CSPRNG, zero Math.random (WO-6.10, inherited from canon; must pass)"
++capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entropy.mjs
++
++log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mint path must fail)"
++capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
++
+ log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
+-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.0
++capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.5
+ 
+ log "gate: contracts drift-check — TAMPERED doc (must fail)"
+ DRIFT_TMP="$(mktemp -d)"
+ cp -r docs "$DRIFT_TMP/docs"
+ printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
+-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.0
++capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.5
+ rm -rf "$DRIFT_TMP"
+ 
+ if [ $FAILED -ne 0 ]; then
+diff --git a/services/catalog-service/package.json b/services/catalog-service/package.json
+index 0db63a4..f8e97e8 100644
+--- a/services/catalog-service/package.json
++++ b/services/catalog-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/fulfillment-service/package.json b/services/fulfillment-service/package.json
+index a26518f..30c7c67 100644
+--- a/services/fulfillment-service/package.json
++++ b/services/fulfillment-service/package.json
+@@ -20,11 +20,11 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification"
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification"
+   }
+ }
+diff --git a/services/inventory-service/package.json b/services/inventory-service/package.json
+index 971162f..dd50381 100644
+--- a/services/inventory-service/package.json
++++ b/services/inventory-service/package.json
+@@ -22,7 +22,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/media-service/package.json b/services/media-service/package.json
+index abbbe8e..336d2ca 100644
+--- a/services/media-service/package.json
++++ b/services/media-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/offer-service/package.json b/services/offer-service/package.json
+index 5dea60e..3b4ca24 100644
+--- a/services/offer-service/package.json
++++ b/services/offer-service/package.json
+@@ -20,12 +20,12 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+     "vitest": "^3.2.4",
+-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/certification",
++    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/certification",
+     "zod": "^4.1.5"
+   }
+ }
+diff --git a/services/supplier-service/package.json b/services/supplier-service/package.json
+index 7866247..63572a3 100644
+--- a/services/supplier-service/package.json
++++ b/services/supplier-service/package.json
+@@ -15,7 +15,7 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",

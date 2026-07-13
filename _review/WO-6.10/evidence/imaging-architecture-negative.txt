@@ -1,0 +1,6 @@
+$ node scripts/gates/imaging-architecture.mjs gates/fixtures/negative/imaging-architecture
+imaging-architecture FAILED (B+I-11 deterministic only) — 3 problem(s):
+  gates/fixtures/negative/imaging-architecture/package.json: banned ML/inference dependency "@tensorflow/tfjs" (matches "tensorflow")
+  gates/fixtures/negative/imaging-architecture/package.json: banned ML/inference dependency "@tensorflow/tfjs" (matches "@tensorflow")
+  gates/fixtures/negative/imaging-architecture/infer.ts:3 [import:onnx] import { InferenceSession } from 'onnxruntime-node';
+(exit code: 1)

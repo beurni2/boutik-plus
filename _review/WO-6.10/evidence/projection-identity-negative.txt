@@ -1,0 +1,5 @@
+$ node scripts/gates/projection-identity-free.mjs gates/fixtures/negative/projection.identity-leak.json
+VIOLATION: not the pinned strict supply-projection contract (undeclared or missing fields)
+VIOLATION: identity/contact/pickup material in projection key 'supplierPhone'
+VIOLATION: identity/contact/pickup material in projection key 'pickupLandmark'
+(exit code: 1)
