@@ -1,0 +1,3 @@
+$ node scripts/gates/premium-frame-assets.mjs gates/fixtures/negative/assets.price-overlaid.json
+VIOLATION: price material overlaid on the asset (assets are PRICE-FREE, B+I-02)
+(exit code: 1)

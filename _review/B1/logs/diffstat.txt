@@ -1,0 +1,8 @@
+ JOURNAL.md                                         | 10 +++
+ apps/supplier-app/App.tsx                          | 59 +++++++++----
+ apps/supplier-app/i18n/catalog.json                | 78 +++++++++++++++++
+ apps/supplier-app/src/demo/store.ts                | 63 +++++++++++++-
+ apps/supplier-app/src/settlement/readModel.ts      | 71 ++++++++++++++++
+ .../test/settlement-read-model.test.ts             | 98 ++++++++++++++++++++++
+ .../no-wallet-no-funds/settlement-balance.ts       | 13 +++
+ 7 files changed, 373 insertions(+), 19 deletions(-)

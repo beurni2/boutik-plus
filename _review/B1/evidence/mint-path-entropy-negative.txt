@@ -1,0 +1,3 @@
+$ bash scripts/gates/show-mint-path-entropy-negative.sh
+mint-path-entropy negative OK: planted Math.random in commandId.ts CAUGHT (exit 1; output names Math.random)
+(exit code: 1)

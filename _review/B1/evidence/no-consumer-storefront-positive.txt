@@ -1,0 +1,3 @@
+$ node scripts/gates/no-consumer-storefront.mjs
+no-consumer-storefront OK — no banned pattern in services, apps (spec §1 / B+I-15 — no consumer storefront or checkout in Boutik+)
+(exit code: 0)

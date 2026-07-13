@@ -1,4 +1,5 @@
-import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
+import { assertQuoteReconciles, computeWaterfall, type PlatformEvent } from '@platform/contracts';
+import { projectReceivables, type SupplierReceivable } from '../settlement/readModel';
 
 type QuoteMoney = ReturnType<typeof computeWaterfall>;
 
@@ -55,8 +56,16 @@ export interface DemoProduct {
   readonly changeReasons?: readonly ChangeReason[];
 }
 
+/** A supplier receivable for B10 « Mes recettes » — the projected settlement
+ * obligation (state + LOCKED amount) plus the demo product label to show it by. */
+export interface DemoReceivable {
+  readonly label: string;
+  readonly obligation: SupplierReceivable;
+}
+
 export interface DemoWorld {
   products: DemoProduct[];
+  receivables: DemoReceivable[];
 }
 
 /**
@@ -139,8 +148,58 @@ export function seedProducts(): DemoProduct[] {
   ];
 }
 
+/**
+ * Demo settlement EVENTS (as the Ledger&Settlement authority would emit them),
+ * projected through the read model into B10's receivables. The demo does NOT
+ * write states directly — it emits events and lets the reducer compute them, so
+ * B10 shows exactly what the read model produces (a spread across states). The
+ * `amount` on each event is the LOCKED obligation (sellerNet at quote time);
+ * B10 never recomputes it (B+I-05).
+ */
+const lockedNet = (b: number, c: number): number => quoteFor(b, c).sellerNet;
+const settlementEnv = (n: number) => ({
+  command_id: `cmd-set-${n}`,
+  correlation_id: `corr-set-${n}`,
+  aggregateVersion: n,
+  actor: 'ledger-settlement',
+  serverTime: '2026-07-13T09:00:00.000Z',
+  version: 'v1',
+});
+const setEvent = (name: string, n: number, payload: Record<string, unknown>): PlatformEvent =>
+  ({ name, envelope: settlementEnv(n), payload }) as PlatformEvent;
+const payable = (orderId: string, b: number, c: number, state: string, extra: Record<string, unknown> = {}): PlatformEvent =>
+  setEvent('settlement.supplier_payable.v1', 1, { orderId, party: 'supplier-1', amount: lockedNet(b, c), state, ...extra });
+
+export function demoSettlementEvents(): PlatformEvent[] {
+  return [
+    payable('o-karite', 3_500, 350, 'Eligible'), // en attente
+    payable('o-pagne', 10_000, 1_000, 'Payable'), // en attente (prochain versement)
+    payable('o-sac', 15_500, 1_500, 'Eligible'),
+    setEvent('payout.submitted.v1', 2, { orderId: 'o-sac' }), // → Processing
+    payable('o-bissap', 2_000, 200, 'Eligible'),
+    setEvent('payout.submitted.v1', 2, { orderId: 'o-bissap' }),
+    setEvent('payout.paid.v1', 3, { orderId: 'o-bissap', payoutRef: 'MM-2026-0713-004' }), // → Paid (provider ref)
+    payable('o-collier', 9_000, 900, 'Held', { holds: ['revue-1'] }), // en révision
+  ];
+}
+
+const RECEIVABLE_LABELS: Record<string, string> = {
+  'o-karite': 'Beurre de karité 500 g (démo)',
+  'o-pagne': 'Pagne tissé main (démo)',
+  'o-sac': 'Sac en cuir de Kaya (démo)',
+  'o-bissap': 'Bissap séché 1 kg (démo)',
+  'o-collier': 'Collier bronze de Ouaga (démo)',
+};
+
+export function seedReceivables(): DemoReceivable[] {
+  return [...projectReceivables(demoSettlementEvents()).values()].map((obligation) => ({
+    label: RECEIVABLE_LABELS[obligation.orderId] ?? obligation.orderId,
+    obligation,
+  }));
+}
+
 export function createDemoWorld(): DemoWorld {
-  return { products: seedProducts() };
+  return { products: seedProducts(), receivables: seedReceivables() };
 }
 
 /** The « nouveau produit » walk publishes an honest pending product. */
