@@ -44,7 +44,10 @@ machine, and wires the B11 « Modération » screen to it.
   ssh) + fresh empty store + `--frozen-lockfile` + fresh clone of `2c6a8de` → `run-gates.sh`
   **exit 0, ALL GATES GREEN** from nothing.
 - `head-sha.txt` · `branch-log.txt` · `full.diff` · `diffstat.txt` — atomic, one HEAD.
-- `verifier-report.md` — fresh-context AMBER verifier verdict on the final bytes.
+- `verifier-report.md` — fresh-context AMBER verifier on the final bytes: **VERDICT PASS · 0
+  BLOCKERS** (it wrote its own scratch spec + planted a `decide` lever to prove the absence
+  test has teeth). One non-blocking finding: inventory-service's concurrency e2e is flaky
+  test-infra debt under parallel load (A1 touches none of it).
 
 ## Test counts
 catalog-service **12/12** (state machine + 4 negatives) · supplier-app **123/123** (incl. the
