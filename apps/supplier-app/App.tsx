@@ -18,6 +18,7 @@ import {
   markCorrected,
   type DemoProduct,
   type DemoWorld,
+  type ModerationState,
 } from './src/demo/store';
 import { captureShot, type CaptureResult } from './src/studio/capture';
 import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
@@ -133,13 +134,16 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
   moderation: 'moderation.title',
 };
 
-// B11 — the demo product status mapped to its moderation state + copy.
-const MODERATION: Record<DemoProduct['status'], { tone: ChipTone; label: string; line: string }> = {
-  pret: { tone: 'fact', label: 'statut.pret', line: 'moderation.approuve' },
-  en_attente: { tone: 'pending', label: 'statut.en_attente', line: 'moderation.en_revue' },
-  correction_en_cours: { tone: 'pending', label: 'statut.correction', line: 'moderation.modifs' },
-  refuse_correctable: { tone: 'problem', label: 'statut.refuse', line: 'moderation.refuse' },
-  echeance_depassee: { tone: 'problem', label: 'statut.echeance', line: 'moderation.refuse' },
+// B11 (A1) — the REAL moderationState → chip + honest line. Keyed off the
+// moderation state (canon: submitted → changes_requested → approved; B2.2:
+// timeout = pending), NOT the fulfillment lifecycle `status`. A timeout renders
+// « en attente », never a fake « approuvé »; changes_requested lists its
+// specific reasons (never a silent rejection).
+const MODERATION: Record<ModerationState, { tone: ChipTone; label: string; line: string }> = {
+  approved: { tone: 'fact', label: 'moderation.chip_approuve', line: 'moderation.approuve' },
+  submitted: { tone: 'pending', label: 'moderation.chip_soumis', line: 'moderation.en_revue' },
+  pending: { tone: 'pending', label: 'moderation.chip_attente', line: 'moderation.en_attente' },
+  changes_requested: { tone: 'problem', label: 'moderation.chip_modifs', line: 'moderation.modifs' },
 };
 
 export default function App() {
@@ -822,26 +826,36 @@ export default function App() {
         )}
 
         {/* B11 — Modération: each product's honest review state + a plain,
-            actionable reason. Never a silent rejection. */}
+            actionable reason. Never a silent rejection; offline never fakes an approval. */}
         {screen === 'moderation' && (
           <View style={styles.listWrap}>
+            {offline && <Text style={styles.modOffline}>{t('moderation.hors_ligne')}</Text>}
             <FlatList
               data={world.products}
               keyExtractor={(p) => p.id}
               initialNumToRender={6}
               windowSize={5}
               contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => (
-                <View style={styles.modCard}>
-                  <View style={styles.modHead}>
-                    <Text style={styles.modName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <StatusChip tone={MODERATION[item.status].tone} label={t(MODERATION[item.status].label)} />
+              renderItem={({ item }) => {
+                const mod = MODERATION[item.moderationState];
+                return (
+                  <View style={styles.modCard}>
+                    <View style={styles.modHead}>
+                      <Text style={styles.modName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <StatusChip tone={mod.tone} label={t(mod.label)} />
+                    </View>
+                    <Text style={styles.message}>{t(mod.line)}</Text>
+                    {item.moderationState === 'changes_requested' &&
+                      item.changeReasons?.map((r) => (
+                        <Text key={r} style={styles.modReason}>
+                          {`• ${t(`moderation.reason.${r}`)}`}
+                        </Text>
+                      ))}
                   </View>
-                  <Text style={styles.message}>{t(MODERATION[item.status].line)}</Text>
-                </View>
-              )}
+                );
+              }}
             />
             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </View>
@@ -911,6 +925,8 @@ const styles = StyleSheet.create({
   modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
   message: { ...textStyle(T.body), color: C.ink },
+  modReason: { ...textStyle(T.body), color: C.ink, paddingLeft: spacing.sm },
+  modOffline: { ...textStyle(T.caption), color: C.muted, paddingBottom: spacing.sm },
   ruleNote: { ...textStyle(T.caption), color: C.muted },
   orderCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm },
   orderHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

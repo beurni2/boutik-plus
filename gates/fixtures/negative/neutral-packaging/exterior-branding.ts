@@ -14,5 +14,5 @@ export const packagingCopy = {
 export interface ParcelExteriorLabel {
   colisLogoUrl: string; // compound: colis+logo
   exteriorBrandingText: string; // compound: exterior+brand
-  packagingContactPhone: string; // compound: packaging+contact
+  colisContactPhone: string; // compound: colis+contact
 }
