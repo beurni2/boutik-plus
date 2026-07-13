@@ -107,11 +107,16 @@ describe('the two approved dependencies (founder rulings 2026-07-12) — nothing
     // gated on forcing evidence — quoted from its installed types in
     // src/offline/expoStore.ts (SDK-54 bundled version).
     expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
+    // WO-6.10 · ADOPT THE MINT RULE: expo-crypto is the OS-CSPRNG dep the founder
+    // directed in ("RN needs the ambient Web Crypto global"), so canon's
+    // mintCommandId can read globalThis.crypto.randomUUID at the offline seam
+    // (src/offline/commandId.ts). SDK-54 bundled version.
+    expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
     ]);
     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
-    expect(added.sort()).toEqual(['expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
+    expect(added.sort()).toEqual(['expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
   });
 });

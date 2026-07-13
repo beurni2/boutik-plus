@@ -12,16 +12,15 @@ onlyBuiltDependencies:
   - "@platform/ui-tokens"
   - "@platform/certification"
 
-# @platform/contracts depends on @platform/kernel-types@0.5.0, which exists
+# @platform/contracts depends on @platform/kernel-types@0.9.5, which exists
 # on no registry; this override routes that transitive resolution to the
-# same pinned git ref (CONSUMING.md). Pin = sha 539dbc8a (canon v0.6.0;
-# founder ruling: the release ref is the commit — the v0.3.0 tag on origin
-# is mis-pointed at the v0.2.0 commit, report-only).
-# @platform/certification (0.4.0, devDep) additionally depends on
-# @platform/contracts@0.5.0 and @platform/ui-tokens@0.5.0 by VERSION —
-# also registry-absent, so they are routed the same way (CONSUMING.md at
-# v0.4.0 now documents all three overrides — upstream fix landed).
+# same pinned git ref (CONSUMING.md). Pin = sha 2153661 (canon v0.9.5 — the
+# mint-rule pin: WO-6.10 adopts CommandIdSchema + mintCommandId + the
+# mint-path entropy gate; founder ruling: the release ref is the commit).
+# @platform/certification (0.9.5, devDep) additionally depends on
+# @platform/contracts@0.9.5 and @platform/ui-tokens@0.9.5 by VERSION —
+# also registry-absent, so they are routed the same way.
 overrides:
-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/kernel-types"
-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/contracts"
-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#539dbc8ac8372d0d98606428258f79ad0f1ceaaa&path:packages/ui-tokens"
+  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/kernel-types"
+  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
+  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/ui-tokens"

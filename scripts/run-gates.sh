@@ -146,14 +146,20 @@ capture no-ssh-lockfile-positive pass node scripts/gates/no-ssh-lockfile.mjs pnp
 log "gate: no-ssh-lockfile — NEGATIVE FIXTURE (ssh-form git URL, must fail)"
 capture no-ssh-lockfile-negative fail node scripts/gates/no-ssh-lockfile.mjs gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml
 
+log "gate: mint-path entropy — command_id mint paths draw from the OS CSPRNG, zero Math.random (WO-6.10, inherited from canon; must pass)"
+capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entropy.mjs
+
+log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mint path must fail)"
+capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
+
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 0.9.5
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 0.9.5
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then
