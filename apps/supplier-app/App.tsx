@@ -315,7 +315,7 @@ export default function App() {
         {screen === 'accueil' && (
           <View style={styles.stackGap}>
             {/* B1 « colis refusé » mode — the refusal leads, dignified, and
-                says the balance is safe (never punished). */}
+                says the order stays protected (never punished). */}
             {refused !== undefined && (
               <Pressable style={styles.refuseBanner} onPress={() => go('corrective')} accessibilityRole="button">
                 <StatusChip tone="problem" label={t('statut.refuse')} icon="refus" />
