@@ -103,8 +103,10 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     });
     for (const f of ['src/studio/normalization.ts', 'src/studio/capture.ts', 'src/studio/guidance.ts']) {
       const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      // WO-6.5: the ML threat term is « segmentation » (Ten Laws #5), not the
+      // JPEG-structural « segment » the allow-list stripper legitimately uses.
       expect(src, `${f} must carry no inference/moderation (comments stripped)`).not.toMatch(
-        /tensorflow|onnx|opencv|segment|classif|inference|moderation/i,
+        /tensorflow|onnx|opencv|segmentation|classif|inference|moderation/i,
       );
     }
   });

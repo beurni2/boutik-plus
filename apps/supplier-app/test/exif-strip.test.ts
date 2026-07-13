@@ -43,39 +43,43 @@ function jpeg(...parts: number[][]): Uint8Array {
 
 const DIRTY = jpeg(SOI, APP0_JFIF, APP1_EXIF, COM, DQT, SOF0, DHT, APP13_IPTC, SOS_HEADER, ENTROPY, EOI);
 const CLEAN = jpeg(SOI, APP0_JFIF, APP2_ICC, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
+// WO-6.5 B1.3: the allow-list keeps ONLY DQT·SOF·DHT·SOS+entropy·EOI. A JPEG
+// carrying nothing else is what survives byte-identical.
+const CLEAN_ALLOWLISTED = jpeg(SOI, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('WO-4.2E — the stripper rewrites the stream', () => {
-  it('drops APP1-Exif, APP13 and COM; keeps JFIF/ICC/DQT/SOF/DHT and the entropy stream VERBATIM', () => {
+describe('WO-6.5 B1.3 — the stripper rewrites the stream by ALLOW-LIST', () => {
+  it('keeps ONLY DQT/SOF/DHT/SOS+entropy/EOI; drops APP0/JFIF, APP1, APP13 and COM by default', () => {
     const out = stripJpegMetadata(DIRTY);
-    expect(out).toEqual(jpeg(SOI, APP0_JFIF, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI));
+    expect(out).toEqual(CLEAN_ALLOWLISTED); // APP0/JFIF now dropped too (was kept under the drop-list)
     expect(jpegCarriesExif(out)).toBe(false);
     expect(() => assertExifFree(out)).not.toThrow();
   });
 
-  it('an XMP-bearing APP1 (no Exif identifier) is ALSO dropped — the whole APP1 class is a metadata carrier', () => {
+  it('an XMP-bearing APP1 (no Exif identifier) is dropped — the whole APP1 class is a metadata carrier', () => {
     const out = stripJpegMetadata(jpeg(SOI, APP1_XMP, DQT, SOS_HEADER, ENTROPY, EOI));
     expect(out).toEqual(jpeg(SOI, DQT, SOS_HEADER, ENTROPY, EOI));
   });
 
-  it('a clean JPEG passes through BYTE-IDENTICAL (rendering segments incl. ICC untouched)', () => {
-    expect(stripJpegMetadata(CLEAN)).toEqual(CLEAN);
+  it('APP2/ICC and APP0/JFIF are NOT rendering-exempt under the allow-list — both are dropped', () => {
+    // CLEAN carries APP0/JFIF + APP2/ICC; the allow-list strips them to the image core.
+    expect(stripJpegMetadata(CLEAN)).toEqual(CLEAN_ALLOWLISTED);
+    // and a JPEG that already carries only allow-listed segments passes BYTE-IDENTICAL.
+    expect(stripJpegMetadata(CLEAN_ALLOWLISTED)).toEqual(CLEAN_ALLOWLISTED);
   });
 
-  it('the WO-4.2D verifier\'s own crafted layouts strip clean', () => {
-    // its clean layout: SOI+APP0/JFIF+DQT+SOS — passes through identically
+  it('the WO-4.2D verifier\'s own crafted layouts strip clean (APP0/JFIF now dropped)', () => {
     const theirClean = jpeg(SOI, APP0_JFIF, DQT, SOS_HEADER, ENTROPY, EOI);
-    expect(stripJpegMetadata(theirClean)).toEqual(theirClean);
-    // its EXIF layout: APP1 Exif\0\0 + TIFF header — dropped
+    expect(stripJpegMetadata(theirClean)).toEqual(jpeg(SOI, DQT, SOS_HEADER, ENTROPY, EOI));
     const theirDirty = jpeg(SOI, APP1_EXIF, DQT, SOS_HEADER, ENTROPY, EOI);
     expect(jpegCarriesExif(theirDirty)).toBe(true);
     expect(jpegCarriesExif(stripJpegMetadata(theirDirty))).toBe(false);
   });
 
-  it('standalone markers (TEM/RSTn) before the scan are copied, never mis-read as length segments', () => {
-    const withTem = jpeg(SOI, [0xff, 0x01], DQT, SOS_HEADER, ENTROPY, EOI);
-    expect(stripJpegMetadata(withTem)).toEqual(withTem);
+  it('a standalone TEM before the scan carries nothing the header needs → dropped, never mis-read', () => {
+    const withTem = jpeg(SOI, [0xff, 0x01], DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
+    expect(stripJpegMetadata(withTem)).toEqual(CLEAN_ALLOWLISTED);
   });
 
   it('FAIL-CLOSED (strip_failed): non-JPEG, garbage segment, truncated header, overrunning length, and no-SOS streams all REFUSE', () => {

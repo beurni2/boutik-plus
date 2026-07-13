@@ -832,5 +832,17 @@
     "fr": "Pas d'appareil photo ? Pas grave. Continuez sans photo pour la démo.",
     "register": "selling",
     "screenClass": "selling_surface"
+  },
+  {
+    "key": "shell.queue_durable",
+    "fr": "Enregistré sur ce téléphone : {count} en attente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ready.queue_error",
+    "fr": "Cette confirmation n'a pas pu être enregistrée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

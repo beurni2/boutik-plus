@@ -1,0 +1,17 @@
+=== ios export (isolated: /tmp/r5-ios.ouRt) ===
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+iOS apps/supplier-app/index.ts ▓░░░░░░░░░░░░░░░  9.8% ( 56/183)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 71.9% (419/494)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.9% (712/755)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (830/830)
+iOS Bundled 13639ms apps/supplier-app/index.ts (830 modules)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (830/830)
+
+› ios bundles (1):
+_expo/static/js/ios/index-df68892a71717fcaa31d5cc152617904.hbc (2.74 MB)
+
+› Files (1):
+metadata.json (142 B)
+
+Exported: /tmp/r5o-ios.Dcp5

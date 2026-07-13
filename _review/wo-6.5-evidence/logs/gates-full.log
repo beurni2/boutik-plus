@@ -1,0 +1,667 @@
+
+=== typecheck (all workspace packages, incl. the Expo app shell) ===
+
+> boutik-plus@0.0.1 typecheck /home/user/boutik-plus
+> turbo run typecheck
+
+• turbo 2.10.4
+
+   • Packages in scope: @boutik/catalog-service, @boutik/commerce-core, @boutik/flags-client, @boutik/fulfillment-service, @boutik/inventory-service, @boutik/media-service, @boutik/observability, @boutik/offer-service, @boutik/supplier-app, @boutik/supplier-service
+   • Running typecheck in 10 packages
+   • Remote caching disabled
+
+@boutik/supplier-app:typecheck: cache miss, executing 8338fcc5c1865bd2
+@boutik/commerce-core:typecheck: cache hit, replaying logs 2a662cf83b27b6b8
+@boutik/flags-client:typecheck: cache hit, replaying logs 78a99028828fe997
+@boutik/observability:build: cache hit, replaying logs a15ad838db10ee65
+@boutik/commerce-core:typecheck: 
+@boutik/commerce-core:typecheck: > @boutik/commerce-core@0.0.1 typecheck /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/commerce-core:typecheck: 
+@boutik/flags-client:typecheck: 
+@boutik/flags-client:typecheck: > @boutik/flags-client@0.0.1 typecheck /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/flags-client:typecheck: 
+@boutik/observability:build: 
+@boutik/observability:build: > @boutik/observability@0.0.1 build /home/user/boutik-plus/packages/observability
+@boutik/observability:build: > tsc -p tsconfig.json
+@boutik/observability:build: 
+@boutik/observability:typecheck: cache hit, replaying logs 064fe6de01914845
+@boutik/observability:typecheck: 
+@boutik/observability:typecheck: > @boutik/observability@0.0.1 typecheck /home/user/boutik-plus/packages/observability
+@boutik/observability:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/observability:typecheck: 
+@boutik/supplier-service:typecheck: cache hit, replaying logs 127c1c3e5a042c07
+@boutik/catalog-service:typecheck: cache hit, replaying logs 4732cfe1922bcae8
+@boutik/supplier-service:typecheck: 
+@boutik/supplier-service:typecheck: > @boutik/supplier-service@0.0.1 typecheck /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-service:typecheck: 
+@boutik/catalog-service:typecheck: 
+@boutik/catalog-service:typecheck: > @boutik/catalog-service@0.0.1 typecheck /home/user/boutik-plus/services/catalog-service
+@boutik/media-service:typecheck: cache hit, replaying logs 1bfc71693c947c62
+@boutik/catalog-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/catalog-service:typecheck: 
+@boutik/inventory-service:typecheck: cache hit, replaying logs 85f67455c5cbf0a7
+@boutik/media-service:typecheck: 
+@boutik/media-service:typecheck: > @boutik/media-service@0.0.1 typecheck /home/user/boutik-plus/services/media-service
+@boutik/media-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/media-service:typecheck: 
+@boutik/inventory-service:typecheck: 
+@boutik/inventory-service:typecheck: > @boutik/inventory-service@0.0.1 typecheck /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:typecheck: > tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json
+@boutik/inventory-service:typecheck: 
+@boutik/supplier-app:typecheck: 
+@boutik/supplier-app:typecheck: > @boutik/supplier-app@0.0.1 typecheck /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-app:typecheck: 
+@boutik/offer-service:typecheck: cache hit, replaying logs 258c8195e92e4f00
+@boutik/offer-service:typecheck: 
+@boutik/offer-service:typecheck: > @boutik/offer-service@0.0.1 typecheck /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/offer-service:typecheck: 
+@boutik/fulfillment-service:typecheck: cache hit, replaying logs e5ab362d3d1bdc83
+@boutik/fulfillment-service:typecheck: 
+@boutik/fulfillment-service:typecheck: > @boutik/fulfillment-service@0.0.1 typecheck /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/fulfillment-service:typecheck: 
+
+ Tasks:    11 successful, 11 total
+Cached:    10 cached, 11 total
+  Time:    5.784s 
+(exit code: 0)
+
+=== tests (money gate, correlation hello-world, flags, service health, app catalog) ===
+
+> boutik-plus@0.0.1 test /home/user/boutik-plus
+> turbo run test
+
+• turbo 2.10.4
+
+   • Packages in scope: @boutik/catalog-service, @boutik/commerce-core, @boutik/flags-client, @boutik/fulfillment-service, @boutik/inventory-service, @boutik/media-service, @boutik/observability, @boutik/offer-service, @boutik/supplier-app, @boutik/supplier-service
+   • Running test in 10 packages
+   • Remote caching disabled
+
+@boutik/commerce-core:build: cache hit, replaying logs 710c6a05a59de66e
+@boutik/commerce-core:build: 
+@boutik/commerce-core:build: > @boutik/commerce-core@0.0.1 build /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:build: > tsc -p tsconfig.json
+@boutik/commerce-core:build: 
+@boutik/flags-client:build: cache hit, replaying logs 1d99605163703e5c
+@boutik/flags-client:build: 
+@boutik/flags-client:build: > @boutik/flags-client@0.0.1 build /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:build: > tsc -p tsconfig.json
+@boutik/flags-client:build: 
+@boutik/supplier-app:test: cache miss, executing 8f386ab79577a02d
+@boutik/commerce-core:test: cache hit, replaying logs 2cf60b19ce126621
+@boutik/observability:build: cache hit, replaying logs a15ad838db10ee65
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test: > @boutik/commerce-core@0.0.1 test /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:test: > vitest run
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  ✓ test/money-gate.test.ts (6 tests) 35ms
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  Test Files  1 passed (1)
+@boutik/commerce-core:test:       Tests  6 passed (6)
+@boutik/commerce-core:test:    Start at  23:55:58
+@boutik/commerce-core:test:    Duration  4.82s (transform 599ms, setup 0ms, collect 1.14s, tests 35ms, environment 0ms, prepare 953ms)
+@boutik/commerce-core:test: 
+@boutik/flags-client:test: cache hit, replaying logs 1372c6e29bf10026
+@boutik/observability:build: 
+@boutik/observability:build: > @boutik/observability@0.0.1 build /home/user/boutik-plus/packages/observability
+@boutik/observability:build: > tsc -p tsconfig.json
+@boutik/observability:build: 
+@boutik/flags-client:test: 
+@boutik/flags-client:test: > @boutik/flags-client@0.0.1 test /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:test: > vitest run
+@boutik/flags-client:test: 
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  ✓ test/flags.test.ts (3 tests) 22ms
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  Test Files  1 passed (1)
+@boutik/flags-client:test:       Tests  3 passed (3)
+@boutik/flags-client:test:    Start at  23:55:59
+@boutik/flags-client:test:    Duration  3.63s (transform 307ms, setup 0ms, collect 229ms, tests 22ms, environment 0ms, prepare 922ms)
+@boutik/flags-client:test: 
+@boutik/fulfillment-service:build: cache hit, replaying logs 81bf2d83e64d0063
+@boutik/fulfillment-service:build: 
+@boutik/fulfillment-service:build: > @boutik/fulfillment-service@0.0.1 build /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:build: > tsc -p tsconfig.json
+@boutik/fulfillment-service:build: 
+@boutik/observability:test: cache hit, replaying logs 13cd5e624bd9b79c
+@boutik/observability:test: 
+@boutik/observability:test: > @boutik/observability@0.0.1 test /home/user/boutik-plus/packages/observability
+@boutik/observability:test: > vitest run
+@boutik/observability:test: 
+@boutik/observability:test: 
+@boutik/observability:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/observability
+@boutik/observability:test: 
+@boutik/observability:test:  ✓ test/correlation.test.ts (3 tests) 37ms
+@boutik/observability:test: 
+@boutik/observability:test:  Test Files  1 passed (1)
+@boutik/observability:test:       Tests  3 passed (3)
+@boutik/observability:test:    Start at  19:25:15
+@boutik/observability:test:    Duration  1.84s (transform 255ms, setup 0ms, collect 247ms, tests 37ms, environment 0ms, prepare 366ms)
+@boutik/observability:test: 
+@boutik/supplier-service:build: cache hit, replaying logs 35e8043c6b0f3d9b
+@boutik/supplier-service:build: 
+@boutik/supplier-service:build: > @boutik/supplier-service@0.0.1 build /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:build: > tsc -p tsconfig.json
+@boutik/supplier-service:build: 
+@boutik/catalog-service:build: cache hit, replaying logs 58c6c99c7c118bad
+@boutik/media-service:build: cache hit, replaying logs 0451ea095985fbb9
+@boutik/catalog-service:build: 
+@boutik/catalog-service:build: > @boutik/catalog-service@0.0.1 build /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:build: > tsc -p tsconfig.json
+@boutik/catalog-service:build: 
+@boutik/offer-service:build: cache hit, replaying logs f95dd242cf4b5ece
+@boutik/offer-service:build: 
+@boutik/offer-service:build: > @boutik/offer-service@0.0.1 build /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:build: > tsc -p tsconfig.json
+@boutik/offer-service:build: 
+@boutik/media-service:build: 
+@boutik/media-service:build: > @boutik/media-service@0.0.1 build /home/user/boutik-plus/services/media-service
+@boutik/media-service:build: > tsc -p tsconfig.json
+@boutik/media-service:build: 
+@boutik/fulfillment-service:test: cache hit, replaying logs fee6f564347cf9c1
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: > @boutik/fulfillment-service@0.0.1 test /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:test: > vitest run
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/fulfillment-failures.test.ts (24 tests) 157ms
+@boutik/fulfillment-service:test: stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
+@boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
+@boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 47ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
+@boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
+@boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/refusal-mock-certification.test.ts (2 tests) 82ms
+@boutik/fulfillment-service:test: stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
+@boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
+@boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 41ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
+@boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
+@boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/sera-mock-certification.test.ts (2 tests) 91ms
+@boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > serves /health and names itself
+@boutik/fulfillment-service:test: {"ts":"2026-07-12T23:56:05.445Z","level":"info","correlation_id":"a630208f-6f7a-4086-b8da-15097fa2ab70","service":"fulfillment-service","msg":"health check","path":"/health"}
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > unknown routes are 404 — no features at this slice
+@boutik/fulfillment-service:test: {"ts":"2026-07-12T23:56:05.455Z","level":"warn","correlation_id":"e58c5076-7190-49b5-91b4-33f93f480a00","service":"fulfillment-service","msg":"route not found","path":"/anything"}
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/health.test.ts (2 tests) 16ms
+@boutik/fulfillment-service:test:  ✓ test/fulfillment.test.ts (6 tests) 64ms
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  Test Files  5 passed (5)
+@boutik/fulfillment-service:test:       Tests  36 passed (36)
+@boutik/fulfillment-service:test:    Start at  23:55:59
+@boutik/fulfillment-service:test:    Duration  6.32s (transform 2.38s, setup 0ms, collect 4.56s, tests 410ms, environment 1ms, prepare 2.98s)
+@boutik/fulfillment-service:test: 
+@boutik/supplier-service:test: cache hit, replaying logs fcbd72e711cc676d
+@boutik/inventory-service:build: cache hit, replaying logs a98c9b975e9fc905
+@boutik/supplier-service:test: 
+@boutik/catalog-service:test: cache hit, replaying logs 7aa9d1e2a1764c15
+@boutik/inventory-service:build: 
+@boutik/inventory-service:build: > @boutik/inventory-service@0.0.1 build /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:build: > tsc -p tsconfig.json
+@boutik/inventory-service:build: 
+@boutik/supplier-service:test: > @boutik/supplier-service@0.0.1 test /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:test: > vitest run
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  ✓ test/onboarding.test.ts (4 tests) 43ms
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > serves /health and names itself
+@boutik/supplier-service:test: {"ts":"2026-07-12T23:56:03.339Z","level":"info","correlation_id":"ab82a90e-aedd-4e84-826d-d97e9e3c5fce","service":"supplier-service","msg":"health check","path":"/health"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > unknown routes are 404 — no features at this slice
+@boutik/supplier-service:test: {"ts":"2026-07-12T23:56:03.432Z","level":"warn","correlation_id":"f89e0209-e14d-4f6f-84ba-22f7f6130c0f","service":"supplier-service","msg":"route not found","path":"/anything"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  ✓ test/health.test.ts (2 tests) 97ms
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  Test Files  2 passed (2)
+@boutik/supplier-service:test:       Tests  6 passed (6)
+@boutik/supplier-service:test:    Start at  23:55:58
+@boutik/supplier-service:test:    Duration  5.15s (transform 1.37s, setup 0ms, collect 3.51s, tests 140ms, environment 0ms, prepare 2.22s)
+@boutik/supplier-service:test: 
+@boutik/media-service:test: cache hit, replaying logs 9fcce40221a8d5a6
+@boutik/media-service:test: 
+@boutik/media-service:test: > @boutik/media-service@0.0.1 test /home/user/boutik-plus/services/media-service
+@boutik/media-service:test: > vitest run
+@boutik/media-service:test: 
+@boutik/media-service:test: 
+@boutik/media-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/media-service
+@boutik/media-service:test: 
+@boutik/media-service:test:  ✓ test/premium-frame.test.ts (4 tests) 65ms
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > serves /health and names itself
+@boutik/media-service:test: {"ts":"2026-07-12T23:56:03.145Z","level":"info","correlation_id":"4183863d-40b9-4712-8365-b50eccb21a4e","service":"media-service","msg":"health check","path":"/health"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: > @boutik/catalog-service@0.0.1 test /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:test: > vitest run
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  ✓ test/product.test.ts (3 tests) 32ms
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > serves /health and names itself
+@boutik/catalog-service:test: {"ts":"2026-07-12T23:56:04.307Z","level":"info","correlation_id":"c3ac76cf-8e62-4d76-ba93-72c88860e1c5","service":"catalog-service","msg":"health check","path":"/health"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > unknown routes are 404 — no features at this slice
+@boutik/catalog-service:test: {"ts":"2026-07-12T23:56:04.324Z","level":"warn","correlation_id":"44a5dae8-20f8-474f-a9fa-651fef8a36b4","service":"catalog-service","msg":"route not found","path":"/anything"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  ✓ test/health.test.ts (2 tests) 21ms
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  Test Files  2 passed (2)
+@boutik/catalog-service:test:       Tests  5 passed (5)
+@boutik/catalog-service:test:    Start at  23:56:00
+@boutik/catalog-service:test:    Duration  3.89s (transform 759ms, setup 0ms, collect 1.82s, tests 53ms, environment 1ms, prepare 909ms)
+@boutik/catalog-service:test: 
+@boutik/media-service:test: 
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > unknown routes are 404 — no features at this slice
+@boutik/media-service:test: {"ts":"2026-07-12T23:56:03.171Z","level":"warn","correlation_id":"99dc714b-6f60-41b9-9a47-ff0c63ea93a5","service":"media-service","msg":"route not found","path":"/anything"}
+@boutik/media-service:test: 
+@boutik/media-service:test:  ✓ test/health.test.ts (2 tests) 65ms
+@boutik/media-service:test: 
+@boutik/media-service:test:  Test Files  2 passed (2)
+@boutik/media-service:test:       Tests  6 passed (6)
+@boutik/media-service:test:    Start at  23:55:57
+@boutik/media-service:test:    Duration  5.56s (transform 2.00s, setup 0ms, collect 4.22s, tests 131ms, environment 1ms, prepare 1.52s)
+@boutik/media-service:test: 
+@boutik/offer-service:test: cache hit, replaying logs 8eba9c80179002b2
+@boutik/offer-service:test: 
+@boutik/offer-service:test: > @boutik/offer-service@0.0.1 test /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:test: > vitest run
+@boutik/offer-service:test: 
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/offer.test.ts (4 tests) 39ms
+@boutik/offer-service:test:  ✓ test/projection.test.ts (3 tests) 25ms
+@boutik/offer-service:test: stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
+@boutik/offer-service:test: CERTIFIED — supply-projection — 8/8 §3 behaviors
+@boutik/offer-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/offer-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/offer-service:test:   ✓ delays_events: requested 40ms, observed 46ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/offer-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/offer-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/offer-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
+@boutik/offer-service:test:   ✓ rejects_invalid_state_transitions: expired -> active: accepted=false (an expired offer version never reactivates — a change is a new version (B+I-04))
+@boutik/offer-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/shop-mock-certification.test.ts (2 tests) 100ms
+@boutik/offer-service:test: stdout | test/health.test.ts > offer-service > serves /health and names itself
+@boutik/offer-service:test: {"ts":"2026-07-12T23:56:05.079Z","level":"info","correlation_id":"6226391e-40d5-464e-9881-fdc0e7062690","service":"offer-service","msg":"health check","path":"/health"}
+@boutik/offer-service:test: 
+@boutik/offer-service:test: stdout | test/health.test.ts > offer-service > unknown routes are 404 — no features at this slice
+@boutik/offer-service:test: {"ts":"2026-07-12T23:56:05.087Z","level":"warn","correlation_id":"fddf51ad-2672-4ccb-abad-00cb509d9865","service":"offer-service","msg":"route not found","path":"/anything"}
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/health.test.ts (2 tests) 12ms
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  Test Files  4 passed (4)
+@boutik/offer-service:test:       Tests  11 passed (11)
+@boutik/offer-service:test:    Start at  23:55:57
+@boutik/offer-service:test:    Duration  7.19s (transform 1.93s, setup 0ms, collect 7.28s, tests 177ms, environment 21ms, prepare 3.69s)
+@boutik/offer-service:test: 
+@boutik/inventory-service:test: cache hit, replaying logs b60743d257ec2b98
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 pretest /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > pnpm bundle:worker
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 bundle:worker /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > esbuild worker/stock-reservation-do.ts --bundle --format=esm --outfile=dist-worker/stock-worker.mjs --platform=neutral --conditions=import
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:   dist-worker/stock-worker.mjs  3.7kb
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: ⚡ Done in 3ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 test /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > vitest run
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  ✓ test/stock-core.test.ts (3 tests) 6ms
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > serves /health and names itself
+@boutik/inventory-service:test: {"ts":"2026-07-13T01:25:13.493Z","level":"info","correlation_id":"a1508963-006f-4ce6-b1ef-b808596d89f1","service":"inventory-service","msg":"health check","path":"/health"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > unknown routes are 404 — no features at this slice
+@boutik/inventory-service:test: {"ts":"2026-07-13T01:25:13.516Z","level":"warn","correlation_id":"7b75eeaa-ac31-4ee6-9b39-f9a83b6af752","service":"inventory-service","msg":"route not found","path":"/anything"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  ✓ test/health.test.ts (2 tests) 31ms
+@boutik/inventory-service:test:  ✓ test/stock-do.e2e.test.ts (3 tests) 744ms
+@boutik/inventory-service:test:    ✓ StockReservationDO on workerd > TWENTY CONCURRENT RESERVES on stock 1 → EXACTLY ONE winner, nineteen insufficient_stock, stock 0, never negative  643ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  Test Files  3 passed (3)
+@boutik/inventory-service:test:       Tests  8 passed (8)
+@boutik/inventory-service:test:    Start at  01:25:12
+@boutik/inventory-service:test:    Duration  2.94s (transform 412ms, setup 0ms, collect 1.78s, tests 781ms, environment 1ms, prepare 753ms)
+@boutik/inventory-service:test: 
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test: > @boutik/supplier-app@0.0.1 test /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:test: > vitest run
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  RUN  v3.2.7 /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  ✓ test/grand-teint.test.ts (8 tests) 37ms
+@boutik/supplier-app:test:  ✓ test/font-embedding.test.ts (5 tests) 177ms
+@boutik/supplier-app:test:  ✓ test/money-render.test.ts (3 tests) 284ms
+@boutik/supplier-app:test:  ✓ test/offline-queue.test.ts (8 tests) 19ms
+@boutik/supplier-app:test:  ✓ test/capture-incident.test.ts (15 tests) 22ms
+@boutik/supplier-app:test:  ✓ test/exif-strip.test.ts (8 tests) 24ms
+@boutik/supplier-app:test:  ✓ test/ui-studio.test.ts (18 tests) 15ms
+@boutik/supplier-app:test:  ✓ test/ui-kit.test.ts (9 tests) 13ms
+@boutik/supplier-app:test:  ✓ test/catalog.test.ts (4 tests) 12ms
+@boutik/supplier-app:test:  ✓ test/hostile-corpus.test.ts (16 tests) 10ms
+@boutik/supplier-app:test:  ✓ test/demo-store.test.ts (6 tests) 8ms
+@boutik/supplier-app:test:  ✓ test/token-docket.test.ts (3 tests) 7ms
+@boutik/supplier-app:test:  ✓ test/journey-spine.test.ts (4 tests) 6ms
+@boutik/supplier-app:test:  ✓ test/motion-easing.test.ts (4 tests) 8ms
+@boutik/supplier-app:test:  ✓ test/runtime-imports.test.ts (2 tests) 6ms
+@boutik/supplier-app:test:  ✓ test/reencode-order.test.ts (4 tests) 4ms
+@boutik/supplier-app:test:  ✓ test/preview-banner.test.ts (2 tests) 3ms
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  Test Files  17 passed (17)
+@boutik/supplier-app:test:       Tests  119 passed (119)
+@boutik/supplier-app:test:    Start at  05:30:37
+@boutik/supplier-app:test:    Duration  2.64s (transform 425ms, setup 0ms, collect 1.05s, tests 657ms, environment 4ms, prepare 1.58s)
+@boutik/supplier-app:test: 
+
+ Tasks:    19 successful, 19 total
+Cached:    18 cached, 19 total
+  Time:    3.699s 
+(exit code: 0)
+
+=== consumption baseline — pinned computeWaterfall reproduces the §5.4 worked baseline ===
+productSubtotal           11500
+buyerTotal                12500
+sellerNet                 8500
+resellerNet               2000
+platformProductFeeRevenue 1000
+assertQuoteReconciles: no throw
+§5.4 worked baseline OK (10,000 / 1,000 / 1,500 / 1,000)
+(exit code: 0)
+
+=== gate: money-reconciliation — §5.4 baseline fixture quote (must pass) ===
+money-reconciliation OK — gates/fixtures/quote.baseline.json reconciles to the franc (§5.4)
+(exit code: 0)
+
+=== gate: money-reconciliation — NEGATIVE FIXTURE (independent-multiplication sellerNet, must fail) ===
+money-reconciliation FAILED on gates/fixtures/negative/quote.independent-multiplication.json:
+Quote does not reconcile to the franc:
+  - productSubtotal (10779) != sellerNet + resellerNet + platformProductFeeRevenue (9167 + 889 + 722 = 10778)
+(exit code: 1)
+
+=== gate: unverified-cannot-publish — verified supplier (must pass) ===
+OK: supplier supplier-1 is phone-verified (tier provisional) — publish allowed
+(exit code: 0)
+
+=== gate: unverified-cannot-publish — NEGATIVE FIXTURE (unverified supplier publishing, must REFUSE CLOSED) ===
+VIOLATION: fixture publishes as alias-02, whose phone is UNVERIFIED — publish REFUSED CLOSED (B0.2)
+(exit code: 1)
+
+=== gate: premium-frame-assets — canonical EXIF-free price-free assets (must pass) ===
+OK: canonical premium-frame assets — EXIF-free, price-free, contact-free, private master
+(exit code: 0)
+
+=== gate: premium-frame-assets — NEGATIVE FIXTURE (EXIF-bearing derivative, must fail) ===
+VIOLATION: not the canonical strict ProductAssets — undeclared keys (e.g. exif) or missing fields
+VIOLATION: EXIF/GPS metadata material present in the asset record
+(exit code: 1)
+
+=== gate: premium-frame-assets — NEGATIVE FIXTURE (price-overlaid asset, must fail) ===
+VIOLATION: price material overlaid on the asset (assets are PRICE-FREE, B+I-02)
+(exit code: 1)
+
+=== gate: projection-identity-free — pinned contract shape (must pass) ===
+OK: projection matches the pinned contract Shop+ reads — five fields, identity-free
+(exit code: 0)
+
+=== gate: projection-identity-free — NEGATIVE FIXTURE (supplier identity + pickup leak, must fail) ===
+VIOLATION: not the pinned strict supply-projection contract (undeclared or missing fields)
+VIOLATION: identity/contact/pickup material in projection key 'supplierPhone'
+VIOLATION: identity/contact/pickup material in projection key 'pickupLandmark'
+(exit code: 1)
+
+=== gate: readiness — happy path with live challenge (must pass) ===
+OK: readiness confirmed with a live challenge — order-e1-0001 is pickup-eligible, and only now
+(exit code: 0)
+
+=== gate: readiness — NEGATIVE FIXTURE (pickup task before readiness, must REFUSE CLOSED) ===
+VIOLATION: fixture requests a pickup task for order-e1-0001 with NO confirmed readiness — refused (B6.2: no pickup task before readiness)
+(exit code: 1)
+
+=== gate: readiness — NEGATIVE FIXTURE (buyerDropCode in readiness payload, must REFUSE CLOSED) ===
+VIOLATION (caught, refused closed): scenario 'drop_code' → not_canonical_or_foreign_secret; no pickup eligibility exists
+(exit code: 1)
+
+=== gate: readiness — NEGATIVE FIXTURE (expired challenge, must REFUSE CLOSED) ===
+VIOLATION (caught, refused closed): scenario 'expired_challenge' → challenge_expired; no pickup eligibility exists
+(exit code: 1)
+
+=== mock certification — all three in-repo mocks 8/8 via the pinned @platform/certification suite (must pass) ===
+
+=== Séra pickup-consumer mock (readiness domain) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
+CERTIFIED — readiness — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+ ✓ test/sera-mock-certification.test.ts (2 tests) 53ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:44
+   Duration  507ms (transform 68ms, setup 0ms, collect 141ms, tests 53ms, environment 0ms, prepare 71ms)
+
+=== Shop+ projection-consumer mock (supply-projection domain) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/offer-service
+stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
+CERTIFIED — supply-projection — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: expired -> active: accepted=false (an expired offer version never reactivates — a change is a new version (B+I-04))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+ ✓ test/shop-mock-certification.test.ts (2 tests) 58ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:45
+   Duration  538ms (transform 74ms, setup 0ms, collect 164ms, tests 58ms, environment 0ms, prepare 72ms)
+
+=== Séra pickup-refusal emitter mock (readiness domain, WO-2.6) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
+CERTIFIED — readiness — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
+ ✓ test/refusal-mock-certification.test.ts (2 tests) 52ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:47
+   Duration  491ms (transform 57ms, setup 0ms, collect 130ms, tests 52ms, environment 0ms, prepare 72ms)
+(exit code: 0)
+
+=== gate: no-seller-deposit — repo source (must pass) ===
+no-seller-deposit OK — no banned pattern in apps, services, packages (B+I-12 zero seller deposit/reserve/bond, ever)
+(exit code: 0)
+
+=== gate: no-seller-deposit — NEGATIVE FIXTURE (sellerDeposit field, must fail) ===
+no-seller-deposit FAILED (B+I-12 zero seller deposit/reserve/bond, ever) — 7 hit(s):
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:1 [deposit] // NEGATIVE FIXTURE (WO-B0.1 DoD): a seller deposit field/flow — the
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:2 [deposit] // no-seller-deposit gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:5 [deposit] sellerDeposit: number; // banned: B+I-12 — zero seller deposit, ever
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:6 [reserveField/Balance/Amount] reserveBalance: number; // banned: no reserve field
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:8 [onboardingFee] export function collectOnboardingFee(seller: SellerAccount, onboardingFee: number): void {
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:9 [deposit] seller.sellerDeposit += onboardingFee;
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:9 [onboardingFee] seller.sellerDeposit += onboardingFee;
+(exit code: 1)
+
+=== gate: no-seller-debit — repo source (must pass) ===
+no-seller-debit OK — no banned pattern in apps, services, packages (B+I-12 seller consequences access-based — never money)
+(exit code: 0)
+
+=== gate: no-seller-debit — NEGATIVE FIXTURE (debitFcfa/deduct/retenue flow, must fail) ===
+no-seller-debit FAILED (B+I-12 seller consequences access-based — never money) — 13 hit(s):
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:2 [debit] // no-seller-debit gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:5 [debit] debitFcfa: number; // banned: B+I-12 — consequences are access-based, never money
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:7 [deduct] export function deductFromSellerPayout(consequence: SellerFaultConsequence): number {
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:8 [withhold/withheld] // banned: withholding the seller's money over a fault
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:9 [debit] const retenue = consequence.debitFcfa; // banned: retenue sur ventes
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:9 [retenue (fr)] const retenue = consequence.debitFcfa; // banned: retenue sur ventes
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:10 [retenue (fr)] return retenue;
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:13 [penalty/pénalité] export const penaltyFcfa = 500; // banned: penalty
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:14 [amende (fr)] export const amendeFcfa = 500; // banned: amende
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:15 [clawback] export const clawbackFcfa = 500; // banned: clawback
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:16 [sanction] export const payoutSanction = 'suspend'; // banned: sanction
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:17 [withhold/withheld] export const withheldFcfa = 500; // banned: withheld (past tense escaped /withh?old/)
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:18 [fine (money)] export const fineFcfa = 500; // banned: fine
+(exit code: 1)
+
+=== gate: no-expo-token-leak — repo source + workflows + lockfile (must pass) ===
+no-expo-token-leak OK — no banned pattern in .github/workflows/ci.yml, .github/workflows/expo-preview.yml, AGENTS.md, CLAUDE.md, JOURNAL.md, PREVIEW.md, SDK-REPORT-v3-CANDIDATES.md, WORK-ORDERS/WO-B0.1.md, _review/wo-6.5-evidence/journal-boutik.md, _review/wo-6.5-evidence/verifier-report.md, adr/ADR-001-commerce-core-scope.md, apps/supplier-app/App.tsx, apps/supplier-app/WALKTHROUGH.md, apps/supplier-app/app.json, apps/supplier-app/assets/fonts/BUILD.md, apps/supplier-app/assets/fonts/COLD-START.md, apps/supplier-app/assets/fonts/EMBEDDING.md, apps/supplier-app/babel.config.js, apps/supplier-app/i18n/catalog.json, apps/supplier-app/index.ts, apps/supplier-app/package.json, apps/supplier-app/run-preview.bat, apps/supplier-app/run-preview.sh, apps/supplier-app/src/demo/store.ts, apps/supplier-app/src/i18n.ts, apps/supplier-app/src/journey.ts, apps/supplier-app/src/offline/expoStore.ts, apps/supplier-app/src/offline/queue.ts, apps/supplier-app/src/preview.ts, apps/supplier-app/src/studio/capture.ts, apps/supplier-app/src/studio/guidance.ts, apps/supplier-app/src/studio/normalization.ts, apps/supplier-app/src/ui/fonts.ts, apps/supplier-app/src/ui/icons.tsx, apps/supplier-app/src/ui/kit.tsx, apps/supplier-app/src/ui/motion.ts, apps/supplier-app/test/capture-incident.test.ts, apps/supplier-app/test/catalog.test.ts, apps/supplier-app/test/demo-store.test.ts, apps/supplier-app/test/exif-strip.test.ts, apps/supplier-app/test/font-embedding.test.ts, apps/supplier-app/test/grand-teint.test.ts, apps/supplier-app/test/hostile-corpus.test.ts, apps/supplier-app/test/journey-spine.test.ts, apps/supplier-app/test/money-render.test.ts, apps/supplier-app/test/motion-easing.test.ts, apps/supplier-app/test/offline-queue.test.ts, apps/supplier-app/test/preview-banner.test.ts, apps/supplier-app/test/runtime-imports.test.ts, apps/supplier-app/test/token-docket.test.ts, apps/supplier-app/test/ui-kit.test.ts, apps/supplier-app/test/ui-studio.test.ts, apps/supplier-app/tsconfig.json, design-reference/README.md, design-reference/faso-commerce-prototype.jsx, design-reference/grand-teint/README.md, design-reference/grand-teint/docs/budget.md, design-reference/grand-teint/docs/components.md, design-reference/grand-teint/docs/copy.md, design-reference/grand-teint/docs/design-system.md, design-reference/grand-teint/docs/flows.md, design-reference/grand-teint/docs/motion.md, design-reference/grand-teint/docs/proposals.md, design-reference/grand-teint/docs/tokens.json, design-reference/grand-teint/icons/README.md, design-reference/grand-teint/share-cards/README.md, design-reference/grand-teint/support.js, docs/Boutik-Plus-Build-Spec.md, docs/Boutik-Plus-Building-Plan.md, docs/DESIGN-LANGUAGE.md, docs/ECOSYSTEM-MASTER-REFERENCE.md, docs/Ecosystem-Engineering-Execution-Contract.md, docs/GRAND-TEINT.md, docs/PERF-BUDGETS.md, docs/Sera-Build-Spec.md, docs/Sera-Building-Plan.md, docs/Shop-Plus-Build-Spec.md, docs/Shop-Plus-Building-Plan.md, package.json, packages/commerce-core/package.json, packages/commerce-core/src/fixtures.ts, packages/commerce-core/src/index.ts, packages/commerce-core/test/money-gate.test.ts, packages/commerce-core/tsconfig.json, packages/flags-client/package.json, packages/flags-client/src/index.ts, packages/flags-client/test/flags.test.ts, packages/flags-client/tsconfig.json, packages/observability/package.json, packages/observability/src/health.ts, packages/observability/src/index.ts, packages/observability/src/logger.ts, packages/observability/test/correlation.test.ts, packages/observability/tsconfig.json, pnpm-lock.yaml, pnpm-workspace.yaml, scripts/baseline-check.mjs, scripts/certify-mocks.mjs, scripts/gates/imaging-architecture.mjs, scripts/gates/money-reconciliation.mjs, scripts/gates/no-consumer-storefront.mjs, scripts/gates/no-emoji.mjs, scripts/gates/no-expo-token-leak.mjs, scripts/gates/no-seller-debit.mjs, scripts/gates/no-seller-deposit.mjs, scripts/gates/no-wallet-no-funds.mjs, scripts/gates/phone-alias.mjs, scripts/gates/premium-frame-assets.mjs, scripts/gates/projection-identity-free.mjs, scripts/gates/readiness-gate.mjs, scripts/gates/scan.mjs, scripts/gates/single-level.mjs, scripts/gates/unverified-cannot-publish.mjs, scripts/run-gates.sh, services/catalog-service/package.json, services/catalog-service/src/index.ts, services/catalog-service/src/product.ts, services/catalog-service/test/health.test.ts, services/catalog-service/test/product.test.ts, services/catalog-service/tsconfig.json, services/fulfillment-service/mocks/sera-pickup-consumer-mock.ts, services/fulfillment-service/mocks/sera-refusal-emitter-mock.ts, services/fulfillment-service/package.json, services/fulfillment-service/src/fulfillment.ts, services/fulfillment-service/src/index.ts, services/fulfillment-service/src/protection.ts, services/fulfillment-service/test/fulfillment-failures.test.ts, services/fulfillment-service/test/fulfillment.test.ts, services/fulfillment-service/test/health.test.ts, services/fulfillment-service/test/refusal-mock-certification.test.ts, services/fulfillment-service/test/sera-mock-certification.test.ts, services/fulfillment-service/tsconfig.json, services/inventory-service/dist-worker/stock-worker.mjs, services/inventory-service/package.json, services/inventory-service/src/index.ts, services/inventory-service/src/stock-reservation.ts, services/inventory-service/test/health.test.ts, services/inventory-service/test/stock-core.test.ts, services/inventory-service/test/stock-do.e2e.test.ts, services/inventory-service/tsconfig.json, services/inventory-service/worker/stock-reservation-do.ts, services/inventory-service/worker/tsconfig.json, services/media-service/package.json, services/media-service/src/index.ts, services/media-service/src/premium-frame.ts, services/media-service/test/health.test.ts, services/media-service/test/premium-frame.test.ts, services/media-service/tsconfig.json, services/offer-service/mocks/shop-projection-consumer-mock.ts, services/offer-service/package.json, services/offer-service/src/index.ts, services/offer-service/src/offer.ts, services/offer-service/src/projection.ts, services/offer-service/test/health.test.ts, services/offer-service/test/offer.test.ts, services/offer-service/test/projection.test.ts, services/offer-service/test/shop-mock-certification.test.ts, services/offer-service/tsconfig.json, services/supplier-service/package.json, services/supplier-service/src/index.ts, services/supplier-service/src/onboarding.ts, services/supplier-service/test/health.test.ts, services/supplier-service/test/onboarding.test.ts, services/supplier-service/tsconfig.json, tsconfig.base.json, turbo.json (WO-4.0 credentials never committed)
+(exit code: 0)
+
+=== gate: no-expo-token-leak — NEGATIVE FIXTURE (committed token literal, must fail) ===
+no-expo-token-leak FAILED (WO-4.0 credentials never committed) — 8 hit(s):
+  gates/fixtures/negative/no-expo-token-leak/leak-config.json:1 [EXPO_TOKEN literal assignment] { "EXPO_TOKEN": "jsonLeak0987654321" }
+  gates/fixtures/negative/no-expo-token-leak/leaked-token.yml:3 [EXPO_TOKEN literal assignment] EXPO_TOKEN: "abcdef1234567890abcdef"
+  gates/fixtures/negative/no-expo-token-leak/leaked-token.yml:4 [expo token shape] other: expo_pat_AbCdEf123456_planted
+  gates/fixtures/negative/no-expo-token-leak/leaked-token.yml:6 [EXPO_TOKEN literal assignment] "EXPO_TOKEN": plantedYamlQuoted123
+  gates/fixtures/negative/no-expo-token-leak/leaky-run.sh:3 [EXPO_TOKEN literal assignment] EXPO_TOKEN=shellScriptLeak12345 npx eas update
+  gates/fixtures/negative/no-expo-token-leak/planted.env:1 [EXPO_TOKEN literal assignment] EXPO_TOKEN=dotenvLeak0192837465
+  gates/fixtures/negative/no-expo-token-leak/planted.env.local:2 [EXPO_TOKEN literal assignment] EXPO_TOKEN=dotenvLocalLeak123456
+  gates/fixtures/negative/no-expo-token-leak/secrets.env.production:2 [EXPO_TOKEN literal assignment] "EXPO_TOKEN": "dotenvProdLeak654321"
+(exit code: 1)
+
+=== gate: single-level — repo source (must pass) ===
+single-level OK — no banned pattern in apps, services, packages (B+I-10 single-level only — no recruitment/downline mechanics)
+(exit code: 0)
+
+=== gate: single-level — NEGATIVE FIXTURE (downline/recruit, must fail) ===
+single-level FAILED (B+I-10 single-level only — no recruitment/downline mechanics) — 6 hit(s):
+  gates/fixtures/negative/single-level/downline.ts:1 [downline] // NEGATIVE FIXTURE: recruitment/downline mechanics — the single-level gate
+  gates/fixtures/negative/single-level/downline.ts:1 [recruit] // NEGATIVE FIXTURE: recruitment/downline mechanics — the single-level gate
+  gates/fixtures/negative/single-level/downline.ts:5 [downline] downline: string[]; // banned: B+I-10 single-level only
+  gates/fixtures/negative/single-level/downline.ts:6 [upline] uplineId?: string;
+  gates/fixtures/negative/single-level/downline.ts:8 [recruit] export function recruitReseller(network: ResellerNetwork, newId: string): void {
+  gates/fixtures/negative/single-level/downline.ts:9 [downline] network.downline.push(newId);
+(exit code: 1)
+
+=== gate: no-emoji — app chrome (WO-6.0 ruling ①, must pass) ===
+no-emoji OK — no emoji in rendered chrome under apps (WO-6.0 ruling ①)
+(exit code: 0)
+
+=== gate: no-emoji — NEGATIVE FIXTURE (emoji in chrome, must fail) ===
+no-emoji FAILED (WO-6.0 ruling ① — zero emoji in app chrome) — 1 hit(s):
+  gates/fixtures/negative/no-emoji/emoji.tsx:3 export const BadHeader = () => <Text>Accueil 🏠</Text>;
+(exit code: 1)
+
+=== gate: phone-alias — repo source (must pass) ===
+phone-alias OK — no banned pattern in apps, services, packages (§5.1 phone is an alias, never the DB key)
+(exit code: 0)
+
+=== gate: phone-alias — NEGATIVE FIXTURE (phone as DB key, must fail) ===
+phone-alias FAILED (§5.1 phone is an alias, never the DB key) — 2 hit(s):
+  gates/fixtures/negative/phone-alias/phone-as-key.ts:4 [id-typed-as-phone] id: 'phone'; // banned: §5.1 — phone is an alias, never the DB key
+  gates/fixtures/negative/phone-alias/phone-as-key.ts:9 [sql-phone-primary-key] PRIMARY KEY (phone)
+(exit code: 1)
+
+=== gate: imaging-architecture — repo deps + imports (must pass) ===
+imaging-architecture OK — no ML/generative/inference dependency or import in apps, services, packages (B+I-11 deterministic only)
+(exit code: 0)
+
+=== gate: imaging-architecture — NEGATIVE FIXTURE (tensorflow dep + onnx import, must fail) ===
+imaging-architecture FAILED (B+I-11 deterministic only) — 3 problem(s):
+  gates/fixtures/negative/imaging-architecture/package.json: banned ML/inference dependency "@tensorflow/tfjs" (matches "tensorflow")
+  gates/fixtures/negative/imaging-architecture/package.json: banned ML/inference dependency "@tensorflow/tfjs" (matches "@tensorflow")
+  gates/fixtures/negative/imaging-architecture/infer.ts:3 [import:onnx] import { InferenceSession } from 'onnxruntime-node';
+(exit code: 1)
+
+=== gate: no-wallet-no-funds — repo source (must pass) ===
+no-wallet-no-funds OK — no banned pattern in apps, services, packages (Ten Laws #2 — no app holds funds; no wallet/balance module)
+(exit code: 0)
+
+=== gate: no-wallet-no-funds — NEGATIVE FIXTURE (wallet/balance module, must fail) ===
+no-wallet-no-funds FAILED (Ten Laws #2 — no app holds funds; no wallet/balance module) — 8 hit(s):
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:1 [wallet] // NEGATIVE FIXTURE: a wallet/balance module — the no-wallet-no-funds gate
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:1 [balance] // NEGATIVE FIXTURE: a wallet/balance module — the no-wallet-no-funds gate
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:3 [wallet] export interface SupplierWallet {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:5 [balance] balance: number; // banned: no app computes an independent balance
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:7 [wallet] export function holdFunds(wallet: SupplierWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:7 [holdFunds/captureFunds/releaseFunds] export function holdFunds(wallet: SupplierWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:8 [wallet] wallet.balance -= amount;
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:8 [balance] wallet.balance -= amount;
+(exit code: 1)
+
+=== gate: no-consumer-storefront — services/ + apps/ (must pass) ===
+no-consumer-storefront OK — no banned pattern in services, apps (spec §1 / B+I-15 — no consumer storefront or checkout in Boutik+)
+(exit code: 0)
+
+=== gate: no-consumer-storefront — NEGATIVE FIXTURE (storefront/checkout/cart routes, must fail) ===
+no-consumer-storefront FAILED (spec §1 / B+I-15 — no consumer storefront or checkout in Boutik+) — 6 hit(s):
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:1 [storefront] // NEGATIVE FIXTURE: consumer storefront/checkout routes in Boutik+ — the
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:1 [checkout-route] // NEGATIVE FIXTURE: consumer storefront/checkout routes in Boutik+ — the
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:2 [storefront] // no-consumer-storefront gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:4 [storefront] { path: '/storefront/:slug', handler: 'renderStorefront' },
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:5 [checkout-route] { path: '/checkout', handler: 'startCheckout' },
+  gates/fixtures/negative/no-consumer-storefront/routes.ts:6 [cart] { path: '/cart/add', handler: 'addToCart' },
+(exit code: 1)
+
+=== gate: French Voice copy-lint — supplier-app catalog (must pass) ===
+copy-lint OK: 141 entries, 0 violations
+(exit code: 0)
+
+=== gate: French Voice copy-lint — NEGATIVE FIXTURE (veuillez/séquestre + marketing-in-money + Mooré-in-instruction, must fail) ===
+copy-lint FAILED: 4 violation(s) across 3 entries
+  [banned_register_token] negative.administrative_register: banned-register token « séquestre » in fr: "Veuillez patienter pendant la vérification du séquestre susmentionné, conformément à la procédure ci-après."
+  [reading_level] negative.administrative_register: average 2.62 syllables/word exceeds the checkout budget of 2.6: "Veuillez patienter pendant la vérification du séquestre susmentionné, conformément à la procédure ci-après"
+  [register_mismatch] negative.marketing_in_money_moment: marketing/urgency token « profitez » in a register:money string (fr): "Profitez vite de cette offre limitée : payez maintenant !"
+  [local_language_in_money_or_instruction] negative.local_language_in_instruction: Mooré/Dioula token « barka » in a neutral/instruction string: "Barka ! Entrez le code de retrait pour continuer."
+(exit code: 1)
+
+=== gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass) ===
+drift-check OK: 11 canonical docs match manifest (packageVersion 0.9.0)
+(exit code: 0)
+
+=== gate: contracts drift-check — TAMPERED doc (must fail) ===
+drift-check FAILED — consumer /docs diverges from canon:
+  - doc drifted from canon: Boutik-Plus-Build-Spec.md (expected sha256 7d061bf639bc0daf13b1d548735a43c7c32fc23e1af5043b66e237f5f902d053, got c2d0836088652cca92e41cf08df92c5b957fee89095cfb62964e269a9c282fa9)
+(exit code: 1)
+
+ALL GATES GREEN (positives passed; every negative fixture failed as required)

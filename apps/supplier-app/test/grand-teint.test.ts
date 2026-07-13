@@ -103,11 +103,15 @@ describe('the two approved dependencies (founder rulings 2026-07-12) — nothing
     // WO-6.0 ruling ②: expo-font is the one further dep the founder authorized,
     // for the config-plugin native embedding (SDK-54 bundled version).
     expect(pkg.dependencies['expo-font']).toBe('~14.0.12');
+    // WO-6.5 · B2.1: expo-file-system is the durable-storage dep the founder
+    // gated on forcing evidence — quoted from its installed types in
+    // src/offline/expoStore.ts (SDK-54 bundled version).
+    expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
     ]);
     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
-    expect(added.sort()).toEqual(['expo-font', 'expo-haptics', 'react-native-svg']);
+    expect(added.sort()).toEqual(['expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
   });
 });

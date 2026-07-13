@@ -1,0 +1,321 @@
+$ pnpm test
+
+> boutik-plus@0.0.1 test /home/user/boutik-plus
+> turbo run test
+
+• turbo 2.10.4
+
+   • Packages in scope: @boutik/catalog-service, @boutik/commerce-core, @boutik/flags-client, @boutik/fulfillment-service, @boutik/inventory-service, @boutik/media-service, @boutik/observability, @boutik/offer-service, @boutik/supplier-app, @boutik/supplier-service
+   • Running test in 10 packages
+   • Remote caching disabled
+
+@boutik/commerce-core:build: cache hit, replaying logs 710c6a05a59de66e
+@boutik/commerce-core:build: 
+@boutik/commerce-core:build: > @boutik/commerce-core@0.0.1 build /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:build: > tsc -p tsconfig.json
+@boutik/commerce-core:build: 
+@boutik/flags-client:build: cache hit, replaying logs 1d99605163703e5c
+@boutik/flags-client:build: 
+@boutik/flags-client:build: > @boutik/flags-client@0.0.1 build /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:build: > tsc -p tsconfig.json
+@boutik/flags-client:build: 
+@boutik/supplier-app:test: cache miss, executing 8f386ab79577a02d
+@boutik/commerce-core:test: cache hit, replaying logs 2cf60b19ce126621
+@boutik/observability:build: cache hit, replaying logs a15ad838db10ee65
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test: > @boutik/commerce-core@0.0.1 test /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:test: > vitest run
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  ✓ test/money-gate.test.ts (6 tests) 35ms
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  Test Files  1 passed (1)
+@boutik/commerce-core:test:       Tests  6 passed (6)
+@boutik/commerce-core:test:    Start at  23:55:58
+@boutik/commerce-core:test:    Duration  4.82s (transform 599ms, setup 0ms, collect 1.14s, tests 35ms, environment 0ms, prepare 953ms)
+@boutik/commerce-core:test: 
+@boutik/flags-client:test: cache hit, replaying logs 1372c6e29bf10026
+@boutik/observability:build: 
+@boutik/observability:build: > @boutik/observability@0.0.1 build /home/user/boutik-plus/packages/observability
+@boutik/observability:build: > tsc -p tsconfig.json
+@boutik/observability:build: 
+@boutik/flags-client:test: 
+@boutik/flags-client:test: > @boutik/flags-client@0.0.1 test /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:test: > vitest run
+@boutik/flags-client:test: 
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  ✓ test/flags.test.ts (3 tests) 22ms
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  Test Files  1 passed (1)
+@boutik/flags-client:test:       Tests  3 passed (3)
+@boutik/flags-client:test:    Start at  23:55:59
+@boutik/flags-client:test:    Duration  3.63s (transform 307ms, setup 0ms, collect 229ms, tests 22ms, environment 0ms, prepare 922ms)
+@boutik/flags-client:test: 
+@boutik/fulfillment-service:build: cache hit, replaying logs 81bf2d83e64d0063
+@boutik/fulfillment-service:build: 
+@boutik/fulfillment-service:build: > @boutik/fulfillment-service@0.0.1 build /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:build: > tsc -p tsconfig.json
+@boutik/fulfillment-service:build: 
+@boutik/observability:test: cache hit, replaying logs 13cd5e624bd9b79c
+@boutik/observability:test: 
+@boutik/observability:test: > @boutik/observability@0.0.1 test /home/user/boutik-plus/packages/observability
+@boutik/observability:test: > vitest run
+@boutik/observability:test: 
+@boutik/observability:test: 
+@boutik/observability:test:  RUN  v3.2.7 /home/user/boutik-plus/packages/observability
+@boutik/observability:test: 
+@boutik/observability:test:  ✓ test/correlation.test.ts (3 tests) 37ms
+@boutik/observability:test: 
+@boutik/observability:test:  Test Files  1 passed (1)
+@boutik/observability:test:       Tests  3 passed (3)
+@boutik/observability:test:    Start at  19:25:15
+@boutik/observability:test:    Duration  1.84s (transform 255ms, setup 0ms, collect 247ms, tests 37ms, environment 0ms, prepare 366ms)
+@boutik/observability:test: 
+@boutik/supplier-service:build: cache hit, replaying logs 35e8043c6b0f3d9b
+@boutik/supplier-service:build: 
+@boutik/supplier-service:build: > @boutik/supplier-service@0.0.1 build /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:build: > tsc -p tsconfig.json
+@boutik/supplier-service:build: 
+@boutik/catalog-service:build: cache hit, replaying logs 58c6c99c7c118bad
+@boutik/media-service:build: cache hit, replaying logs 0451ea095985fbb9
+@boutik/catalog-service:build: 
+@boutik/catalog-service:build: > @boutik/catalog-service@0.0.1 build /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:build: > tsc -p tsconfig.json
+@boutik/catalog-service:build: 
+@boutik/offer-service:build: cache hit, replaying logs f95dd242cf4b5ece
+@boutik/offer-service:build: 
+@boutik/offer-service:build: > @boutik/offer-service@0.0.1 build /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:build: > tsc -p tsconfig.json
+@boutik/offer-service:build: 
+@boutik/media-service:build: 
+@boutik/media-service:build: > @boutik/media-service@0.0.1 build /home/user/boutik-plus/services/media-service
+@boutik/media-service:build: > tsc -p tsconfig.json
+@boutik/media-service:build: 
+@boutik/fulfillment-service:test: cache hit, replaying logs fee6f564347cf9c1
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: > @boutik/fulfillment-service@0.0.1 test /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:test: > vitest run
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/fulfillment-failures.test.ts (24 tests) 157ms
+@boutik/fulfillment-service:test: stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
+@boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
+@boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 47ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
+@boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
+@boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/refusal-mock-certification.test.ts (2 tests) 82ms
+@boutik/fulfillment-service:test: stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
+@boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
+@boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 41ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
+@boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
+@boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/sera-mock-certification.test.ts (2 tests) 91ms
+@boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > serves /health and names itself
+@boutik/fulfillment-service:test: {"ts":"2026-07-12T23:56:05.445Z","level":"info","correlation_id":"a630208f-6f7a-4086-b8da-15097fa2ab70","service":"fulfillment-service","msg":"health check","path":"/health"}
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > unknown routes are 404 — no features at this slice
+@boutik/fulfillment-service:test: {"ts":"2026-07-12T23:56:05.455Z","level":"warn","correlation_id":"e58c5076-7190-49b5-91b4-33f93f480a00","service":"fulfillment-service","msg":"route not found","path":"/anything"}
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/health.test.ts (2 tests) 16ms
+@boutik/fulfillment-service:test:  ✓ test/fulfillment.test.ts (6 tests) 64ms
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  Test Files  5 passed (5)
+@boutik/fulfillment-service:test:       Tests  36 passed (36)
+@boutik/fulfillment-service:test:    Start at  23:55:59
+@boutik/fulfillment-service:test:    Duration  6.32s (transform 2.38s, setup 0ms, collect 4.56s, tests 410ms, environment 1ms, prepare 2.98s)
+@boutik/fulfillment-service:test: 
+@boutik/supplier-service:test: cache hit, replaying logs fcbd72e711cc676d
+@boutik/inventory-service:build: cache hit, replaying logs a98c9b975e9fc905
+@boutik/supplier-service:test: 
+@boutik/catalog-service:test: cache hit, replaying logs 7aa9d1e2a1764c15
+@boutik/inventory-service:build: 
+@boutik/inventory-service:build: > @boutik/inventory-service@0.0.1 build /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:build: > tsc -p tsconfig.json
+@boutik/inventory-service:build: 
+@boutik/supplier-service:test: > @boutik/supplier-service@0.0.1 test /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:test: > vitest run
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  ✓ test/onboarding.test.ts (4 tests) 43ms
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > serves /health and names itself
+@boutik/supplier-service:test: {"ts":"2026-07-12T23:56:03.339Z","level":"info","correlation_id":"ab82a90e-aedd-4e84-826d-d97e9e3c5fce","service":"supplier-service","msg":"health check","path":"/health"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > unknown routes are 404 — no features at this slice
+@boutik/supplier-service:test: {"ts":"2026-07-12T23:56:03.432Z","level":"warn","correlation_id":"f89e0209-e14d-4f6f-84ba-22f7f6130c0f","service":"supplier-service","msg":"route not found","path":"/anything"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  ✓ test/health.test.ts (2 tests) 97ms
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  Test Files  2 passed (2)
+@boutik/supplier-service:test:       Tests  6 passed (6)
+@boutik/supplier-service:test:    Start at  23:55:58
+@boutik/supplier-service:test:    Duration  5.15s (transform 1.37s, setup 0ms, collect 3.51s, tests 140ms, environment 0ms, prepare 2.22s)
+@boutik/supplier-service:test: 
+@boutik/media-service:test: cache hit, replaying logs 9fcce40221a8d5a6
+@boutik/media-service:test: 
+@boutik/media-service:test: > @boutik/media-service@0.0.1 test /home/user/boutik-plus/services/media-service
+@boutik/media-service:test: > vitest run
+@boutik/media-service:test: 
+@boutik/media-service:test: 
+@boutik/media-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/media-service
+@boutik/media-service:test: 
+@boutik/media-service:test:  ✓ test/premium-frame.test.ts (4 tests) 65ms
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > serves /health and names itself
+@boutik/media-service:test: {"ts":"2026-07-12T23:56:03.145Z","level":"info","correlation_id":"4183863d-40b9-4712-8365-b50eccb21a4e","service":"media-service","msg":"health check","path":"/health"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: > @boutik/catalog-service@0.0.1 test /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:test: > vitest run
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  ✓ test/product.test.ts (3 tests) 32ms
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > serves /health and names itself
+@boutik/catalog-service:test: {"ts":"2026-07-12T23:56:04.307Z","level":"info","correlation_id":"c3ac76cf-8e62-4d76-ba93-72c88860e1c5","service":"catalog-service","msg":"health check","path":"/health"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > unknown routes are 404 — no features at this slice
+@boutik/catalog-service:test: {"ts":"2026-07-12T23:56:04.324Z","level":"warn","correlation_id":"44a5dae8-20f8-474f-a9fa-651fef8a36b4","service":"catalog-service","msg":"route not found","path":"/anything"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  ✓ test/health.test.ts (2 tests) 21ms
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  Test Files  2 passed (2)
+@boutik/catalog-service:test:       Tests  5 passed (5)
+@boutik/catalog-service:test:    Start at  23:56:00
+@boutik/catalog-service:test:    Duration  3.89s (transform 759ms, setup 0ms, collect 1.82s, tests 53ms, environment 1ms, prepare 909ms)
+@boutik/catalog-service:test: 
+@boutik/media-service:test: 
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > unknown routes are 404 — no features at this slice
+@boutik/media-service:test: {"ts":"2026-07-12T23:56:03.171Z","level":"warn","correlation_id":"99dc714b-6f60-41b9-9a47-ff0c63ea93a5","service":"media-service","msg":"route not found","path":"/anything"}
+@boutik/media-service:test: 
+@boutik/media-service:test:  ✓ test/health.test.ts (2 tests) 65ms
+@boutik/media-service:test: 
+@boutik/media-service:test:  Test Files  2 passed (2)
+@boutik/media-service:test:       Tests  6 passed (6)
+@boutik/media-service:test:    Start at  23:55:57
+@boutik/media-service:test:    Duration  5.56s (transform 2.00s, setup 0ms, collect 4.22s, tests 131ms, environment 1ms, prepare 1.52s)
+@boutik/media-service:test: 
+@boutik/offer-service:test: cache hit, replaying logs 8eba9c80179002b2
+@boutik/offer-service:test: 
+@boutik/offer-service:test: > @boutik/offer-service@0.0.1 test /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:test: > vitest run
+@boutik/offer-service:test: 
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/offer.test.ts (4 tests) 39ms
+@boutik/offer-service:test:  ✓ test/projection.test.ts (3 tests) 25ms
+@boutik/offer-service:test: stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
+@boutik/offer-service:test: CERTIFIED — supply-projection — 8/8 §3 behaviors
+@boutik/offer-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+@boutik/offer-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+@boutik/offer-service:test:   ✓ delays_events: requested 40ms, observed 46ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/offer-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
+@boutik/offer-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
+@boutik/offer-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
+@boutik/offer-service:test:   ✓ rejects_invalid_state_transitions: expired -> active: accepted=false (an expired offer version never reactivates — a change is a new version (B+I-04))
+@boutik/offer-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/shop-mock-certification.test.ts (2 tests) 100ms
+@boutik/offer-service:test: stdout | test/health.test.ts > offer-service > serves /health and names itself
+@boutik/offer-service:test: {"ts":"2026-07-12T23:56:05.079Z","level":"info","correlation_id":"6226391e-40d5-464e-9881-fdc0e7062690","service":"offer-service","msg":"health check","path":"/health"}
+@boutik/offer-service:test: 
+@boutik/offer-service:test: stdout | test/health.test.ts > offer-service > unknown routes are 404 — no features at this slice
+@boutik/offer-service:test: {"ts":"2026-07-12T23:56:05.087Z","level":"warn","correlation_id":"fddf51ad-2672-4ccb-abad-00cb509d9865","service":"offer-service","msg":"route not found","path":"/anything"}
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  ✓ test/health.test.ts (2 tests) 12ms
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  Test Files  4 passed (4)
+@boutik/offer-service:test:       Tests  11 passed (11)
+@boutik/offer-service:test:    Start at  23:55:57
+@boutik/offer-service:test:    Duration  7.19s (transform 1.93s, setup 0ms, collect 7.28s, tests 177ms, environment 21ms, prepare 3.69s)
+@boutik/offer-service:test: 
+@boutik/inventory-service:test: cache hit, replaying logs b60743d257ec2b98
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 pretest /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > pnpm bundle:worker
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 bundle:worker /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > esbuild worker/stock-reservation-do.ts --bundle --format=esm --outfile=dist-worker/stock-worker.mjs --platform=neutral --conditions=import
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:   dist-worker/stock-worker.mjs  3.7kb
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: ⚡ Done in 3ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 test /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: > vitest run
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  RUN  v3.2.7 /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  ✓ test/stock-core.test.ts (3 tests) 6ms
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > serves /health and names itself
+@boutik/inventory-service:test: {"ts":"2026-07-13T01:25:13.493Z","level":"info","correlation_id":"a1508963-006f-4ce6-b1ef-b808596d89f1","service":"inventory-service","msg":"health check","path":"/health"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > unknown routes are 404 — no features at this slice
+@boutik/inventory-service:test: {"ts":"2026-07-13T01:25:13.516Z","level":"warn","correlation_id":"7b75eeaa-ac31-4ee6-9b39-f9a83b6af752","service":"inventory-service","msg":"route not found","path":"/anything"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  ✓ test/health.test.ts (2 tests) 31ms
+@boutik/inventory-service:test:  ✓ test/stock-do.e2e.test.ts (3 tests) 744ms
+@boutik/inventory-service:test:    ✓ StockReservationDO on workerd > TWENTY CONCURRENT RESERVES on stock 1 → EXACTLY ONE winner, nineteen insufficient_stock, stock 0, never negative  643ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  Test Files  3 passed (3)
+@boutik/inventory-service:test:       Tests  8 passed (8)
+@boutik/inventory-service:test:    Start at  01:25:12
+@boutik/inventory-service:test:    Duration  2.94s (transform 412ms, setup 0ms, collect 1.78s, tests 781ms, environment 1ms, prepare 753ms)
+@boutik/inventory-service:test: 
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test: > @boutik/supplier-app@0.0.1 test /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:test: > vitest run
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  RUN  v3.2.7 /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  ✓ test/grand-teint.test.ts (8 tests) 37ms
+@boutik/supplier-app:test:  ✓ test/font-embedding.test.ts (5 tests) 177ms
+@boutik/supplier-app:test:  ✓ test/money-render.test.ts (3 tests) 284ms
+@boutik/supplier-app:test:  ✓ test/offline-queue.test.ts (8 tests) 19ms
+@boutik/supplier-app:test:  ✓ test/capture-incident.test.ts (15 tests) 22ms
+@boutik/supplier-app:test:  ✓ test/exif-strip.test.ts (8 tests) 24ms
+@boutik/supplier-app:test:  ✓ test/ui-studio.test.ts (18 tests) 15ms
+@boutik/supplier-app:test:  ✓ test/ui-kit.test.ts (9 tests) 13ms
+@boutik/supplier-app:test:  ✓ test/catalog.test.ts (4 tests) 12ms
+@boutik/supplier-app:test:  ✓ test/hostile-corpus.test.ts (16 tests) 10ms
+@boutik/supplier-app:test:  ✓ test/demo-store.test.ts (6 tests) 8ms
+@boutik/supplier-app:test:  ✓ test/token-docket.test.ts (3 tests) 7ms
+@boutik/supplier-app:test:  ✓ test/journey-spine.test.ts (4 tests) 6ms
+@boutik/supplier-app:test:  ✓ test/motion-easing.test.ts (4 tests) 8ms
+@boutik/supplier-app:test:  ✓ test/runtime-imports.test.ts (2 tests) 6ms
+@boutik/supplier-app:test:  ✓ test/reencode-order.test.ts (4 tests) 4ms
+@boutik/supplier-app:test:  ✓ test/preview-banner.test.ts (2 tests) 3ms
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  Test Files  17 passed (17)
+@boutik/supplier-app:test:       Tests  119 passed (119)
+@boutik/supplier-app:test:    Start at  05:30:37
+@boutik/supplier-app:test:    Duration  2.64s (transform 425ms, setup 0ms, collect 1.05s, tests 657ms, environment 4ms, prepare 1.58s)
+@boutik/supplier-app:test: 
+
+ Tasks:    19 successful, 19 total
+Cached:    18 cached, 19 total
+  Time:    3.699s 
+(exit code: 0)

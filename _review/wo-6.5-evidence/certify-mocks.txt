@@ -1,0 +1,56 @@
+$ node scripts/certify-mocks.mjs
+
+=== Séra pickup-consumer mock (readiness domain) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
+CERTIFIED — readiness — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+ ✓ test/sera-mock-certification.test.ts (2 tests) 53ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:44
+   Duration  507ms (transform 68ms, setup 0ms, collect 141ms, tests 53ms, environment 0ms, prepare 71ms)
+
+=== Shop+ projection-consumer mock (supply-projection domain) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/offer-service
+stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
+CERTIFIED — supply-projection — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: expired -> active: accepted=false (an expired offer version never reactivates — a change is a new version (B+I-04))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
+ ✓ test/shop-mock-certification.test.ts (2 tests) 58ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:45
+   Duration  538ms (transform 74ms, setup 0ms, collect 164ms, tests 58ms, environment 0ms, prepare 72ms)
+
+=== Séra pickup-refusal emitter mock (readiness domain, WO-2.6) ===
+ RUN  v3.2.7 /home/user/boutik-plus/services/fulfillment-service
+stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
+CERTIFIED — readiness — 8/8 §3 behaviors
+  ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
+  ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
+  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ returns_stale_projections: fresh version 2, stale version 1
+  ✓ simulates_timeouts: MockTimeoutError raised
+  ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
+  ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
+  ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
+ ✓ test/refusal-mock-certification.test.ts (2 tests) 52ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:30:47
+   Duration  491ms (transform 57ms, setup 0ms, collect 130ms, tests 52ms, environment 0ms, prepare 72ms)
+(exit code: 0)

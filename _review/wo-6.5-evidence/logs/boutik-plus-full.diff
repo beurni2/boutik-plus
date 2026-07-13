@@ -1,0 +1,1280 @@
+diff --git a/JOURNAL.md b/JOURNAL.md
+index 825e434..e1deb28 100644
+--- a/JOURNAL.md
++++ b/JOURNAL.md
+@@ -424,3 +424,50 @@ Format per entry:
+   - **⑤** icon `size` props (17/28/12) and the B6/B7 **source-scan tests** ride to the next boutik touch.
+   - **⑥** `CATEGORY_FLOOR_FCFA = 5 000` is correctly grounded and correctly flagged as an **OPEN founder decision — it stays ⏳** (per-category floor list unresolved).
+ - **⚠ CROSS-REPO CARRY (must action):** the **WO-5.1 font name-table collision is fixed here** (5 TTFs → distinct weight-specific families, guarded by `font-embedding.test.ts`) **and MUST be checked in sera, which merged the same WO-5.1 font files.** If sera carries the identical `Archivo SemiBold`/`ArchivoSemiBold-Regular` collision, its native embedding would register only one weight — same defect, same fix owed. (shop-plus is web/variable-font — not the same failure surface, but worth a glance at its subset.)
++
++## WO-6.5 · TIER RED — the two pilot-gating safety debts (branch e6/wo-6.5 off main aa18c25)
++
++### Part A · B1.3 — the hostile-image ALLOW-LIST (immune system)
++- **The ruling (WO-4.2E NB①) applied:** `stripJpegMetadata` (src/studio/normalization.ts) moved from a DROP-LIST to an ALLOW-LIST. The old stripper copied every segment except APP1/APP13/COM, kept APP0/APP2/APP14, and at SOS copied the rest of the stream VERBATIM — so a hostile APPn (APP2/ICC, APP15…), a post-SOS/post-EOI payload (polyglot), or ICC-borne data survived. Now: copies ONLY **SOI · DQT · SOF · DHT · SOS+entropy · EOI**; EVERY other segment is dropped BY DEFAULT; the entropy stream is bounded to its REAL EOI via a stuffing-aware marker scan (nothing after EOI ships); SOF dimensions are checked against a ceiling (`MAX_JPEG_EDGE_PX = 8192`, decompression-bomb / overflow); fill-bytes (0xFF runs) are consumed; malformed/oversize → fail-closed (`strip_failed`), never a crash.
++- **Deliberate stricture (flagged):** APP0/JFIF and APP2/ICC are now DROPPED (a baseline JPEG decodes without JFIF; the derivative is already sRGB from the encoder, so a dropped ICC profile is assumed sRGB) — a chosen trade of a colour-profile carrier for dropping every non-image segment by default. DRI/restart-interval is not on the list; the shipped encoder emits baseline-no-restart, so no product regression (a hostile DRI is simply dropped).
++- **THE CORPUS (test/hostile-corpus.test.ts) — 13 fixtures, EACH a NAMED outcome (clean | fail-closed):** APP2/ICC+APP15 metadata · post-scan COM · post-EOI ZIP polyglot · post-EOI HTML polyglot · multi-APP1 · fill-bytes · a valid-looking APP1 embedded in the entropy stream · lying-length header · decompression bomb (65535²) · dimension overflow (0x8000) · zero dimension · corrupt-after-SOI · PNG. Nothing silently passes.
++- **NON-VACUITY PROVEN:** the OLD drop-list (faithfully reproduced in the test) LEAKS the ICC payload + the APP15 blob + an appended post-EOI ZIP where the allow-list output is exactly the image core. A hardening that changes nothing is not a hardening — this one changes the outcome on real fixtures.
++- **A test false-positive fixed honestly:** the anti-ML regex `/segment/i` (Ten Laws #5) matched the JPEG-structural `isAllowedHeaderSegment`; tightened to `/segmentation/i` — the real ML term — preserving the invariant while allowing the correct JPEG vocabulary.
++
++### Part B · B2.1 — the DURABLE offline queue (an offline action that dies at reboot is a lie)
++- **New src/offline/queue.ts `DurableQueue`** — storage-INJECTED (QueueStore), ordered, IDEMPOTENT by `command_id` (the E1 pattern — `EventEnvelope.command_id`, Execution Contract §3: "every event carries command_id… same command_id = same command"). Persists every mutation; `open()` RESTORES persisted state (the reboot path; a corrupt/wrong-version blob refuses into empty, never crashes). `deliver()` replays pending IN ORDER; a success marks delivered (never re-sent); a **PoisonError → 'failed' with a named reason** (a designed terminal, never a silent drop); a transient error retries to `maxAttempts` then fails — **a poison can never block the queue forever**; ordering among the delivered is preserved, a failed entry set aside.
++- **New src/offline/expoStore.ts** — the production backend on **Expo's document store** ("safe from being deleted by the system"). The dep `expo-file-system ~19.0.23` is the founder-gated durable-storage dep; **forcing evidence is QUOTED from the installed .d.ts** in the module header (`class File { write(string|Uint8Array): void; text(): Promise<string>; exists; create() }`, `class Paths { static get document(): Directory }`). Imported ONLY by the app; the pure queue + its tests never touch native.
++- **SURVIVAL PROVEN BY EXECUTION (test/offline-queue.test.ts, 7):** a REAL on-disk store (Node fs, temp file) — a fresh `DurableQueue.open()` over the same path is a genuine COLD BOOT reading bytes another instance wrote; nothing shared in memory. Proven: actions queued offline survive an app-kill and are STILL PENDING (in order) on cold boot, then deliver · a partial-delivery kill leaves only the undelivered survivor, the delivered ones NOT re-sent · idempotent replay (dedupe on enqueue; deliver-twice + re-open-and-deliver sends ONCE) · a poison → named 'failed', entries behind it still deliver in order · a transient failure retries to maxAttempts then fails honestly · the honesty law: a pending entry is never 'delivered' across a reboot until an actual successful send.
++- **Wired into the app (real, not dead code):** App B7 offline-confirm PERSISTS a `fulfillment.ready.v1` to the durable queue; the queued state surfaces the REAL persisted pending count (`shell.queue_durable`); reconnect (offline→off) flushes it. journey/money/kit UNTOUCHED (verified: `git diff main...HEAD` shows journey.ts, kit.tsx, store.ts unchanged).
++- **Catalog 139→140** (+`shell.queue_durable`), copy-lint 140/0.
++
++### DoD — GREEN (evidence)
++- typecheck **0** · supplier-app **114/114 (16 files)** incl. hostile-corpus (16) + offline-queue (7) · full `run-gates.sh` **ALL GATES GREEN** (GATES_EXIT=0; workspace `pnpm test` builds the inventory worker via its pretest — the earlier ENOENT was only a direct-vitest invocation bypassing that build, not a regression) · copy-lint 140/0 · no-emoji PASS · **both-platform cache-isolated COLD-CLONE export**: fresh clone of committed HEAD (f2f8947) + `pnpm install --frozen-lockfile` (exit 0, expo-file-system 19.0.23 present) + **android 827 modules · ios 829 modules** (was 815/817 at WO-6.0 — the named delta is expo-file-system + the two src/offline modules), each isolated `TMPDIR`/`XDG_CACHE_HOME` with `--clear`.
++- **NEXT:** fresh-context RED verifier (own hostile image · kill-mid-queue by its own hands · double-delivery · queued-success attempt — running) → verdict verbatim → packet /_review/WO-6.5-review.zip. Do NOT merge.
++
++### WO-6.5 · verifier PASS + packet closed (NOT merged)
++- **Fresh-context RED verifier (round 1) — VERDICT: PASS (0 blockers, 2 concerns).** It performed all four mandated attacks with its own hands (full report verbatim in the packet `verifier-report.md`): (1) crafted 8 hostile fixtures the corpus lacks — APP4 « Exif GPS 12.37,-1.53 Ouagadougou », APP13/IPTC, COM-URL, APP0/JFIF, APP14, post-EOI ELF + %PDF, malformed APP1 len=0/1 — every one DROPPED or fail-closed; (2) killed a queue mid-flight and cold-booted a fresh instance over the same file → still pending, in order, delivered once; (3) double-delivery → exactly once; (4) tried to force a queued action to 'delivered' without a resolved send → impossible, poison → 'failed' with reason, never silent. Non-vacuity confirmed genuine; DoD gates green; FORBIDDEN held (store/journey/kit byte-untouched); dep justified by the quoted installed types.
++- **Concern #2 (documented limit, not a defect):** entropy-stream bytes pass through verbatim — inherent to a byte-level stripper (SOS+entropy IS the allow-list; hidden entropy bytes are indistinguishable from attacker-controlled pixels), and the production path re-encodes via expo-image-manipulator before this guard. Every metadata SEGMENT + post-EOI polyglot is dropped. Named for the founder as the honest boundary of a segment-level stripper.
++- **Concern #10 (real glue-layer hole — FIXED, 08f548e):** the demo command_id was a volatile `useRef` counter that resets on app-kill → a post-reboot confirm could regenerate a colliding `ready:1` and be silently deduped (the exact lost-action failure B2.1 targets, at the glue layer). Fixed to a reboot-safe wall-clock+counter id. **Production B2.1 wiring must derive command_id from the domain event, not app glue — flagged for the founder.** The DurableQueue idempotency contract itself was already sound (unaffected).
++- **Packet:** `/_review/WO-6.5-review.zip` — verifier report · branch log · full + focused diffs · `run-gates.sh` full log + every gate's positive/negative capture · both-platform cache-isolated cold-clone export logs · this journal. Committed; branch pushed. **NOT merged — the founder's reviewer decides.**
++
++### WO-6.5 · CTO RULING — HELD, PASS VOID → rebuilt (branch e6/wo-6.5)
++- **What went wrong (owned):** the packet I sent was internally inconsistent — `branch-log.txt` + both diffs were generated at `dd03619` (BEFORE the fix `08f548e`), then zipped with a `head-sha.txt` from a later commit, so the fix appeared in NO artifact. A verifier PASS covers only the bytes it read; the bytes changed after the verdict; the verdict was VOID. Correct. The regenerate-atomically discipline below prevents recurrence.
++- **① command_id — REBUILT (wall-clock withdrawn).** The founder's diagnosis is exact: reproducibility IS the bug — a recomputed id (counter reset on reboot; wall-clock runs backwards on Android Go's dead RTC / NTP / user clock) collides with its persisted self. **CANON GAP FLAGGED (⏳, to CANON — not filled by my judgement):** Execution Contract §3 `EventEnvelopeSchema` CARRIES `command_id: z.ZodString`, but canon is SILENT on how a client MINTS one — no format, no generator, no idempotency-key rule anywhere in `contracts/` or `/docs` (searched: mint/uuid/ulid/idempotency-key/generate — none). The rule belongs in `platform-contracts`. What is NOT judgement (it is FORCED by offline-first + the founder's diagnosis): the id is minted CLIENT-side, ONCE, at command creation, and PERSISTED with the entry — never recomputed. `src/offline/commandId.ts` mints a v4-shaped 122-bit idempotency key (the safest-default FORMAT, flagged); the single seam changes when the founder rules the canon format (UUID / ULID / device-scoped persisted counter / domain-derived).
++- **② enqueue no longer lies by silence.** `enqueue` returns a discriminated `{ outcome: 'enqueued' | 'duplicate' | 'collision'; entry }` the caller MUST handle. A true replay (same id, same name+payload) → `duplicate` (safe no-op). A **COLLISION** (same id, DIFFERENT payload) → REFUSED, original retained, NOT overwritten — and the App surfaces an honest `queue_error` (« Cette confirmation n'a pas pu être enregistrée. Réessayez. »), NEVER a false « en attente » for an action that does not exist. Test `offline-queue.test.ts` proves the collision outcome + original-retained.
++- **③ re-encode order gated (concern #2 no longer prose).** `test/reencode-order.test.ts` pins, in `capture.ts`, that `renderDerivative` (expo-image-manipulator: manipulate → renderAsync → saveAsync(JPEG)) runs BEFORE `stripJpegMetadata`, the stripper is fed the RE-ENCODED derivative bytes (never the raw master), and `assertExifFree` runs on the stripped output. The re-encode regenerates the entropy stream from decoded pixels — destroying any bytes smuggled in the original entropy (the honest limit of a byte-level stripper, now enforced by construction, not prose).
++- **KEPT (founder ruling):** the B1.3 allow-list (default-deny · fail-closed · bomb ceiling · stuffing-aware EOI bound) and the queue survival tests — correct, unchanged.
++- **Evidence:** typecheck 0 · supplier-app **119/119 (17 files)** incl. reencode-order (4) + the collision case · full `run-gates.sh` ALL GREEN · copy-lint 141/0 · both-platform export android 828 / ios 830 (+1 = commandId.ts). **④ fresh-context RED verifier re-running on the FINAL bytes; ⑤ packet regenerated atomically from one HEAD (logs/branch-log.txt + diff + head-sha describe the same commit).** Do NOT merge.
++
++### WO-6.5 · re-verifier PASS on the FINAL bytes (round 2) — HELD for the founder's command_id ruling
++- **Fresh-context RED re-verifier (round 2, on HEAD 8a46e7e after the round-1 PASS was VOIDED) — VERDICT: PASS (0 blockers, 1 concern).** All attacks by its own hands (verbatim in the packet `verifier-report-round2.md`): 18/18 hostile images defeated (11 self-crafted, incl. progressive-SOF2 bomb, width-8193 one-past-ceiling, lying-length on an allowed segment); **command_id proven reboot-safe by EXECUTION — the id crossed the reboot boundary IN the persisted file (never recomputed), 200,000 mints zero duplicates**; the canon gap confirmed GENUINE (`command_id: z.string().min(1)`, no mint rule in `contracts/` or `/docs`); the collision REFUSED + surfaced as `queue_error` (App proven to handle the result, never fall through to « en attente »); 17/17 queue scenarios; the re-encode gate proven NON-vacuous by mutation. Gates green; FORBIDDEN diff (store/journey/kit) = 0 lines.
++- **Concern (non-blocking, honest limit):** the re-encode gate is a source-text test — it pins the ordering + data-flow (re-encode before strip; stripper fed the derivative, not the master) but cannot exercise native expo-image-manipulator to prove the entropy stream is regenerated at runtime. That native efficacy is untestable in-sandbox (same class as the WO-6.0 font-embedding proof, which needed a prebuilt artifact); a device/e2e test would close it. Architecture correct; residual risk is the native library, not the diff.
++- **Minor observation (flagged, not a defect):** the demo's online-flush uses an always-resolving no-op send (`deliver(async () => {})`) — every queued item flips to delivered on reconnect, because E1 has no backend. Honest for the walking skeleton and commented; the queue's OWN failure/poison/transient behaviour is proven against rejecting sends in its tests. Named so it is not mistaken for a certified failing mock.
++- **⏳ OPEN — the founder's call (blocks a restored PASS's finality):** the command_id MINTING FORMAT is a canon gap. I shipped a v4-shaped idempotency key as the flagged safest-default; the founder ratifies it or specifies the canon rule (belongs in `platform-contracts`). The one seam is `src/offline/commandId.ts`.
++- **Packet:** `/_review/WO-6.5-review.zip` — regenerated ATOMICALLY from one HEAD (`logs/head-sha.txt` + `logs/branch-log.txt` + the diffs describe the SAME commit; the prior packet's cross-commit inconsistency is fixed). **NOT merged.**
++
++### WO-6.5 · CLEAN-STORE COLD PROOF added + Math.random debt named (HELD-on-artifact cleared; command_id ruling → WO-5.8)
++- **The held artifact — CLEAN-STORE COLD PROOF (now in the packet, `logs/coldproof.log`):** round 2 shipped only an in-place export; a slice that ADDS a dependency (`expo-file-system`) and CLAIMS a bundling number owes installability-from-nothing. Run on the final bytes (clone 3db9057): `pnpm install --frozen-lockfile --store-dir <FRESH EMPTY STORE>` → exit 0 (every dep fetched from scratch, not hardlinked from a warm store), `expo-file-system@19.0.23` present, then **android 828 / ios 830 modules, both exit 0** from that cold clone. Installability + the claimed numbers proven from nothing. (No source byte changed → per the founder's ruling the round-2 verifier PASS carries; not re-run.)
++- **NAMED DEBT — `Math.random()` in `mintCommandId()` (executioner: CANON WO-5.8, the command_id format ruling).** The founder's correction stands and my earlier defence is withdrawn: "a non-CSPRNG source is adequate (~2^-122 per pair)" is PROSE, not proof — `Math.random()` carries the entropy of its SEED, not 122 bits, and on a cold-booted Android Go device an identically-reseeded PRNG makes the FIRST mint after boot equal the first mint after the previous boot (a cross-boot collision my 200k within-realm test does NOT measure). **NOT A BLOCKER** — the collision is REFUSED and surfaced as `queue_error`, never faked as « en attente » (the canon law no longer lies). The fix is one line — **expo-crypto** (a CSPRNG seeded from the OS pool, cold-boot-safe BY CONSTRUCTION) — and it rides the SAME `src/offline/commandId.ts` seam and the SAME decision as the format ruling. Do NOT change it twice: **both land in WO-5.8.** Left untouched here by design.
++- **Round-1 correction, on the record (founder):** round 1 was NOT fabrication — `08f548e` and `0630304` were real commits in the branch log; the packet artifacts were STALE (generated across the fix). Sloppiness, not lying. The regenerate-atomically discipline (this packet) is the fix.
++- **Cross-repo carry — ACTIONED by the founder:** the WO-5.1 font name-table collision fix (5 TTFs → distinct weight-specific families + `font-embedding.test.ts`) is going to BOSSY for **sera**, which merged the same font files with only "EAS publish succeeded" as evidence (green whether or not five weights collapse to one). Logged as closed-out here.
+diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
+index 194da16..12a0811 100644
+--- a/apps/supplier-app/App.tsx
++++ b/apps/supplier-app/App.tsx
+@@ -1,4 +1,4 @@
+-import { useCallback, useMemo, useRef, useState } from 'react';
++import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { StatusBar } from 'expo-status-bar';
+ import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+ import { CameraView, useCameraPermissions } from 'expo-camera';
+@@ -7,6 +7,9 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
+ import { IS_PREVIEW } from './src/preview';
+ import { t } from './src/i18n';
+ import { JOURNEY, START, type Screen } from './src/journey';
++import { DurableQueue } from './src/offline/queue';
++import { expoDocumentStore } from './src/offline/expoStore';
++import { mintCommandId } from './src/offline/commandId';
+ import {
+   addDemoProduct,
+   baselineQuote,
+@@ -151,7 +154,7 @@ export default function App() {
+   // B7 « produit prêt » — the checklist gate + the four honest states. The
+   // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
+   // (offline-first doctrine: queued = pending, never done).
+-  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed'>('ready');
++  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed' | 'queue_error'>('ready');
+   const [check1, setCheck1] = useState(false);
+   const [check2, setCheck2] = useState(false);
+   const [confirmNet, setConfirmNet] = useState(0);
+@@ -159,6 +162,12 @@ export default function App() {
+   // rides under the header and actions queue as pending — never lost, never
+   // silently done. A demo toggle makes the honest state reachable.
+   const [offline, setOffline] = useState(false);
++  // WO-6.5 · B2.1 — the DURABLE offline queue (survives app-kill + reboot). An
++  // offline confirmation is enqueued to Expo's document store; the surfaced
++  // count is the REAL persisted pending, not an in-memory flag. The queue's
++  // full survival/idempotency/poison contract is proven in test/offline-queue.
++  const queueRef = useRef<DurableQueue | null>(null);
++  const [queuedCount, setQueuedCount] = useState(0);
+   // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
+   const [category, setCategory] = useState<CaptureCategory>('mode');
+   const [shot, setShotKind] = useState<ShotKind>('hero');
+@@ -204,12 +213,51 @@ export default function App() {
+     setCheck1(false);
+     setCheck2(false);
+   }, []);
+-  // Both checks passed → confirm. Offline queues (never done, never celebrates);
+-  // online hands off to the operator wait (« envoyé — en attente »).
++  // Open the durable queue once, restoring anything a previous run left pending
++  // (the reboot path — an action queued before an app-kill is STILL here).
++  useEffect(() => {
++    let alive = true;
++    void DurableQueue.open(expoDocumentStore()).then((q) => {
++      if (!alive) return;
++      queueRef.current = q;
++      setQueuedCount(q.pending().length);
++    });
++    return () => {
++      alive = false;
++    };
++  }, []);
++  // Both checks passed → confirm. Offline PERSISTS the action to the durable
++  // queue (never done, never celebrates); online hands off to the operator wait.
+   const confirmReady = useCallback(() => {
+     if (!(check1 && check2)) return;
+-    setB7Phase(offline ? 'queued' : 'pending');
+-  }, [check1, check2, offline]);
++    if (offline) {
++      const q = queueRef.current;
++      if (q === null) {
++        setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
++        return;
++      }
++      // The command_id is minted ONCE here and PERSISTED by the queue — never
++      // recomputed, so a reboot cannot make it collide with itself. « queued »
++      // is claimed ONLY after the store confirms the append; a collision (the
++      // queue REFUSING an id clash) is surfaced honestly, never faked as pending.
++      const commandId = mintCommandId();
++      void q.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet }).then((result) => {
++        if (result.outcome === 'collision') {
++          setB7Phase('queue_error');
++          return;
++        }
++        setB7Phase('queued');
++        setQueuedCount(q.pending().length);
++      });
++      return;
++    }
++    setB7Phase('pending');
++  }, [check1, check2, offline, confirmNet]);
++  // The network returned — flush the durable queue (the demo's send resolves;
++  // the honesty law holds: only a real delivery clears a pending entry).
++  const flushQueue = useCallback(() => {
++    void queueRef.current?.deliver(async () => {}).then(() => setQueuedCount(queueRef.current?.pending().length ?? 0));
++  }, []);
+   // The operator confirmed — NOW it is true: confirmed + the one celebration.
+   const finishConfirmation = useCallback(() => {
+     setB7Phase('confirmed');
+@@ -624,7 +672,25 @@ export default function App() {
+             {/* B7 « hors ligne (file) » — queued, never done, NEVER celebrated. */}
+             {b7Phase === 'queued' && (
+               <>
+-                <PendingNotice lines={[t('ready.queued_offline')]} />
++                <PendingNotice
++                  lines={[
++                    t('ready.queued_offline'),
++                    t('shell.queue_durable').replace('{count}', String(queuedCount)),
++                  ]}
++                />
++                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
++              </>
++            )}
++
++            {/* B7 — the durable queue REFUSED this confirm (id collision, or no
++                store yet): an honest error state, NEVER a false « en attente ». */}
++            {b7Phase === 'queue_error' && (
++              <>
++                <View style={styles.floorNote}>
++                  <Icon name="alerte" size={17} color={C.warning} />
++                  <Text style={styles.floorNoteText}>{t('ready.queue_error')}</Text>
++                </View>
++                <PrimaryButton label={t('pret.confirmer')} onPress={confirmReady} />
+                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+               </>
+             )}
+@@ -782,7 +848,12 @@ export default function App() {
+       <View style={styles.footer}>
+         <Pressable
+           style={styles.resetAction}
+-          onPress={() => setOffline((v) => !v)}
++          onPress={() =>
++            setOffline((v) => {
++              if (v) flushQueue(); // going back ONLINE → the durable queue drains
++              return !v;
++            })
++          }
+           accessibilityRole="switch"
+           accessibilityState={{ checked: offline }}
+         >
+diff --git a/apps/supplier-app/i18n/catalog.json b/apps/supplier-app/i18n/catalog.json
+index c7412a4..cbe8fc9 100644
+--- a/apps/supplier-app/i18n/catalog.json
++++ b/apps/supplier-app/i18n/catalog.json
+@@ -832,5 +832,17 @@
+     "fr": "Pas d'appareil photo ? Pas grave. Continuez sans photo pour la démo.",
+     "register": "selling",
+     "screenClass": "selling_surface"
++  },
++  {
++    "key": "shell.queue_durable",
++    "fr": "Enregistré sur ce téléphone : {count} en attente.",
++    "register": "neutral",
++    "screenClass": "status"
++  },
++  {
++    "key": "ready.queue_error",
++    "fr": "Cette confirmation n'a pas pu être enregistrée. Réessayez.",
++    "register": "neutral",
++    "screenClass": "status"
+   }
+ ]
+diff --git a/apps/supplier-app/package.json b/apps/supplier-app/package.json
+index 2ebcc6f..81a3996 100644
+--- a/apps/supplier-app/package.json
++++ b/apps/supplier-app/package.json
+@@ -16,6 +16,7 @@
+     "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#fa2ff246dc747a6d28f319278ecf85d54ca067dd&path:packages/ui-tokens",
+     "expo": "~54.0.35",
+     "expo-camera": "~17.0.10",
++    "expo-file-system": "~19.0.23",
+     "expo-font": "~14.0.12",
+     "expo-haptics": "~15.0.8",
+     "expo-image-manipulator": "~14.0.8",
+diff --git a/apps/supplier-app/src/offline/commandId.ts b/apps/supplier-app/src/offline/commandId.ts
+new file mode 100644
+index 0000000..3887a29
+--- /dev/null
++++ b/apps/supplier-app/src/offline/commandId.ts
+@@ -0,0 +1,45 @@
++/**
++ * WO-6.5 · B2.1 — the command_id seam.
++ *
++ * ⏳ CANON GAP (flagged to the founder — not filled by my judgement): the
++ * Execution Contract §3 envelope CARRIES `command_id` (`EventEnvelopeSchema`:
++ * `command_id: z.ZodString`) but canon is SILENT on HOW a client MINTS one —
++ * no format, no generator, no idempotency-key rule anywhere in `contracts/` or
++ * `/docs`. That rule belongs in `platform-contracts`, not here.
++ *
++ * What is NOT a judgement call — it is FORCED by offline-first + the founder's
++ * own diagnosis ("reproducibility is the bug — the id collides because it is
++ * RECOMPUTED after a reboot"): the id is minted CLIENT-side (there is no server
++ * offline), minted exactly ONCE at the moment the command is created, and
++ * PERSISTED with the entry — so it is NEVER recomputed and cannot collide with
++ * itself across an app-kill/reboot. A wall-clock is wrong twice over (it is
++ * recomputed, and on Android Go the RTC runs backwards).
++ *
++ * The safest-default FORMAT pending the founder's canon ruling: a v4-shaped,
++ * 122-bit random token — the industry-standard idempotency key. It is an
++ * idempotency key, NOT a security token, so a non-CSPRNG source is adequate for
++ * collision-resistance (~2^-122 per pair). If canon prefers a different format
++ * (ULID for sortability, a device-scoped persisted counter, a domain-derived
++ * key), that is the founder's call — this is the single seam to change.
++ */
++
++/** Mint a fresh command_id ONCE, at command creation. The caller MUST persist
++ * it (via the durable queue) and never recompute it. */
++export function mintCommandId(): string {
++  // v4 UUID shape (8-4-4-4-12), random bits from Math.random — sufficient for
++  // an idempotency key (see the canon-gap note above; NOT a security token).
++  const hex = '0123456789abcdef';
++  let out = '';
++  for (let i = 0; i < 36; i++) {
++    if (i === 8 || i === 13 || i === 18 || i === 23) {
++      out += '-';
++    } else if (i === 14) {
++      out += '4'; // version 4
++    } else if (i === 19) {
++      out += hex[(Math.floor(Math.random() * 16) & 0x3) | 0x8]!; // variant 10xx
++    } else {
++      out += hex[Math.floor(Math.random() * 16)]!;
++    }
++  }
++  return out;
++}
+diff --git a/apps/supplier-app/src/offline/expoStore.ts b/apps/supplier-app/src/offline/expoStore.ts
+new file mode 100644
+index 0000000..fae6cb5
+--- /dev/null
++++ b/apps/supplier-app/src/offline/expoStore.ts
+@@ -0,0 +1,37 @@
++import { File, Paths } from 'expo-file-system';
++import type { QueueStore } from './queue';
++
++/**
++ * WO-6.5 · B2.1 — the PRODUCTION QueueStore: Expo's own durable document store
++ * (SDK 54, expo-file-system 19). Forcing evidence, quoted from the installed
++ * package's types (node_modules/expo-file-system/build/…):
++ *
++ *   FileSystem.d.ts   class Paths { static get document(): Directory }
++ *                     // "the document directory – a place to store files that
++ *                     //  are safe from being deleted by the system."
++ *   ExpoFileSystem.types.d.ts
++ *                     class File {
++ *                       constructor(...uris: (string | File | Directory)[]);
++ *                       text(): Promise<string>;
++ *                       write(content: string | Uint8Array, options?): void;
++ *                       create(options?): void;
++ *                       exists: boolean;
++ *                     }
++ *
++ * The document directory survives app-kill and reboot (unlike the cache dir),
++ * so a single JSON blob there IS the durable queue. This file is imported ONLY
++ * by the app; the pure queue (queue.ts) and its survival test never touch
++ * native — they run the identical logic over an on-disk store.
++ */
++export function expoDocumentStore(fileName = 'offline-queue.v1.json'): QueueStore {
++  const file = new File(Paths.document, fileName);
++  return {
++    async read(): Promise<string | null> {
++      return file.exists ? file.text() : null;
++    },
++    async write(data: string): Promise<void> {
++      if (!file.exists) file.create();
++      file.write(data);
++    },
++  };
++}
+diff --git a/apps/supplier-app/src/offline/queue.ts b/apps/supplier-app/src/offline/queue.ts
+new file mode 100644
+index 0000000..b244293
+--- /dev/null
++++ b/apps/supplier-app/src/offline/queue.ts
+@@ -0,0 +1,168 @@
++/**
++ * WO-6.5 · B2.1 — THE DURABLE OFFLINE QUEUE. D17: every queued action survives
++ * APP-KILL AND REBOOT. An in-memory queue is a lie — a seller believes she
++ * published and did not. This queue PERSISTS every mutation to an injected
++ * store, restores on open, replays IN ORDER, is IDEMPOTENT by command_id (the
++ * E1 pattern — `EventEnvelope.command_id`, Execution Contract §3: "every event
++ * carries `command_id`… same command_id = same command"), and gives a poisoned
++ * entry a NAMED honest failure state (never a silent drop). Storage is INJECTED
++ * (QueueStore) so the SAME logic runs on Expo's durable document store (the app)
++ * and on a real on-disk store (the survival test) — durability is proven by
++ * execution across instances, not asserted.
++ */
++
++export interface QueueStore {
++  /** The persisted blob, or null if nothing has been written yet. */
++  read(): Promise<string | null>;
++  /** Persist the blob (create-or-overwrite; durable across process death). */
++  write(data: string): Promise<void>;
++}
++
++export type QueueStatus = 'pending' | 'delivered' | 'failed';
++
++export interface QueueEntry {
++  /** The E1 idempotency key (EventEnvelope.command_id). */
++  readonly commandId: string;
++  /** The event name (e.g. 'fulfillment.ready.v1'). */
++  readonly name: string;
++  /** The action data (JSON-serializable). */
++  readonly payload: unknown;
++  status: QueueStatus;
++  attempts: number;
++  readonly enqueuedAt: number;
++  /** Set when status becomes 'failed' — the honest reason, never a silent drop. */
++  failureReason?: string;
++}
++
++/** A PERMANENT failure — the entry is poison and must not be retried. */
++export class PoisonError extends Error {
++  override readonly name = 'PoisonError';
++}
++
++/**
++ * The outcome of an enqueue — the caller MUST handle it; enqueue never no-ops
++ * by silence (verifier concern / founder ruling). A dedupe that is correct for
++ * a TRUE replay is SILENT DATA LOSS for a colliding-but-different command, and
++ * the command_id is the only thing between them — so the two are distinct:
++ *   'enqueued'  — a new command was appended.
++ *   'duplicate' — this exact command (same id, same name+payload) is already
++ *                 queued: an idempotent replay, safely a no-op.
++ *   'collision' — this command_id already exists with a DIFFERENT name/payload:
++ *                 REFUSED (the new command was NOT queued). The caller must
++ *                 surface this honestly — never show the seller « en attente »
++ *                 for an action that does not exist.
++ */
++export type EnqueueResult =
++  | { outcome: 'enqueued'; entry: QueueEntry }
++  | { outcome: 'duplicate'; entry: QueueEntry }
++  | { outcome: 'collision'; entry: QueueEntry };
++
++interface Persisted {
++  version: 1;
++  entries: QueueEntry[];
++}
++
++const SCHEMA_VERSION = 1 as const;
++
++export class DurableQueue {
++  private constructor(
++    private readonly store: QueueStore,
++    private entries: QueueEntry[],
++    private readonly maxAttempts: number,
++    private readonly now: () => number,
++  ) {}
++
++  /** Open the queue, RESTORING any persisted state (the reboot path). A
++   * corrupt or wrong-version blob is refused into an empty queue rather than
++   * crashing — the durable file is never trusted blindly. */
++  static async open(
++    store: QueueStore,
++    opts: { maxAttempts?: number; now?: () => number } = {},
++  ): Promise<DurableQueue> {
++    const raw = await store.read();
++    let entries: QueueEntry[] = [];
++    if (raw !== null && raw.length > 0) {
++      try {
++        const parsed = JSON.parse(raw) as Persisted;
++        if (parsed.version === SCHEMA_VERSION && Array.isArray(parsed.entries)) {
++          entries = parsed.entries;
++        }
++      } catch {
++        entries = [];
++      }
++    }
++    return new DurableQueue(store, entries, opts.maxAttempts ?? 5, opts.now ?? Date.now);
++  }
++
++  private async persist(): Promise<void> {
++    const blob: Persisted = { version: SCHEMA_VERSION, entries: this.entries };
++    await this.store.write(JSON.stringify(blob));
++  }
++
++  /** Append a command, returning an outcome the caller MUST handle (never a
++   * no-op by silence). IDEMPOTENT by commandId: an identical command (same
++   * name+payload) is a 'duplicate'; a SAME id with a DIFFERENT name/payload is
++   * a 'collision' — REFUSED, not overwritten, not silently dropped. Persisted
++   * before returning on the append path, so an app-kill right after cannot lose
++   * it. */
++  async enqueue(commandId: string, name: string, payload: unknown): Promise<EnqueueResult> {
++    const existing = this.entries.find((e) => e.commandId === commandId);
++    if (existing !== undefined) {
++      const identical = existing.name === name && JSON.stringify(existing.payload) === JSON.stringify(payload);
++      return { outcome: identical ? 'duplicate' : 'collision', entry: existing };
++    }
++    const entry: QueueEntry = { commandId, name, payload, status: 'pending', attempts: 0, enqueuedAt: this.now() };
++    this.entries.push(entry);
++    await this.persist();
++    return { outcome: 'enqueued', entry };
++  }
++
++  /** Pending entries, in insertion order (never the delivered/failed ones). */
++  pending(): readonly QueueEntry[] {
++    return this.entries.filter((e) => e.status === 'pending');
++  }
++
++  /** The full ordered snapshot — incl. failed entries, so nothing is hidden. */
++  snapshot(): readonly QueueEntry[] {
++    return this.entries.slice();
++  }
++
++  /**
++   * Replay pending entries IN ORDER through `send`. Success marks the entry
++   * delivered — its commandId NEVER sends again (idempotent replay across
++   * deliver() calls and across reboots). A PoisonError is permanent → the
++   * entry is marked 'failed' at once. A transient error leaves it pending until
++   * maxAttempts, after which it also fails — a poison can NEVER block the queue
++   * forever. Ordering among the DELIVERED is preserved; a failed entry is set
++   * aside with a named reason, never silently dropped. Persisted after every
++   * outcome (durable mid-replay).
++   */
++  async deliver(
++    send: (entry: QueueEntry) => Promise<void>,
++  ): Promise<{ delivered: number; failed: number; remaining: number }> {
++    let delivered = 0;
++    let failed = 0;
++    for (const entry of this.entries) {
++      if (entry.status !== 'pending') continue; // delivered → never re-sent
++      try {
++        await send(entry);
++        entry.status = 'delivered';
++        delivered++;
++      } catch (error) {
++        entry.attempts++;
++        if (error instanceof PoisonError) {
++          entry.status = 'failed';
++          entry.failureReason = error.message;
++          failed++;
++        } else if (entry.attempts >= this.maxAttempts) {
++          entry.status = 'failed';
++          entry.failureReason = error instanceof Error ? error.message : String(error);
++          failed++;
++        }
++        // else: transient — stays pending, retried on the next deliver().
++      }
++      await this.persist();
++    }
++    return { delivered, failed, remaining: this.pending().length };
++  }
++}
+diff --git a/apps/supplier-app/src/studio/normalization.ts b/apps/supplier-app/src/studio/normalization.ts
+index c591afc..bf0c98e 100644
+--- a/apps/supplier-app/src/studio/normalization.ts
++++ b/apps/supplier-app/src/studio/normalization.ts
+@@ -204,18 +204,77 @@ export function base64ToBytes(b64: string): Uint8Array {
+ }
+ 
+ /**
+- * WO-4.2E — STRIP, DON'T TRUST (founder device evidence: « détail :
+- * exif_leak » — the iOS encoder preserves EXIF through saveAsync's
+- * re-encode; the fail-closed guard correctly refused). The stripper is the
+- * `jpegCarriesExif` walker's sibling: it REWRITES the JPEG stream, copying
+- * every structural segment (SOI · APP0/JFIF · APP2/ICC · APP14/Adobe —
+- * rendering-relevant, kept · DQT · SOF* · DHT · DRI · SOS + the entropy
+- * stream + EOI) and DROPPING the metadata carriers: APP1 (Exif/XMP),
+- * APP13 (IPTC/Photoshop), COM (comments). Deterministic, zero deps.
+- * Malformed streams REFUSE (detail: 'strip_failed') — never a silent
+- * best-effort copy.
++ * WO-6.5 · B1.3 — STRIP BY ALLOW-LIST (the hostile-encoder threat model).
++ * The WO-4.2E stripper was a DROP-LIST accepted for the BENIGN-leak threat
++ * only: it copied every segment except APP1/APP13/COM, kept APP0/APP2/APP14,
++ * and at SOS copied the rest of the stream VERBATIM — so a hostile APPn
++ * (APP2/ICC, APP15…), a post-SOS or post-EOI payload (polyglot), or
++ * ICC-borne data survived. The ruling (WO-4.2E NB①): move to an ALLOW-LIST —
++ * copy ONLY the segments a shipped product photo needs (SOI · DQT · SOF ·
++ * DHT · SOS + entropy · EOI); EVERYTHING else is discarded BY DEFAULT, the
++ * entropy stream is bounded to its REAL EOI (nothing after EOI ships), and
++ * SOF dimensions are checked against a ceiling (decompression-bomb /
++ * overflow). Malformed or oversize → fail-closed ('strip_failed') — never a
++ * crash, never a best-effort copy. Deterministic, zero deps.
++ *
++ * Deliberate stricture vs WO-4.2E: APP0/JFIF and APP2/ICC are now DROPPED.
++ * A baseline JPEG decodes without JFIF (SOF carries the frame); the shipped
++ * derivative is already sRGB from the encoder, so a dropped ICC profile is
++ * assumed sRGB — a chosen trade of a colour-profile carrier for the security
++ * of dropping every non-image segment by default.
+  */
+-const STRIPPED_MARKERS = new Set([0xe1, 0xed, 0xfe]); // APP1 · APP13 · COM
++
++/** Security ceiling on declared JPEG dimensions. A shipped derivative is
++ * <= DERIVATIVE_SPEC_V1.maxEdgePx (1280) on its longest edge; a hostile SOF
++ * beyond this would make a downstream decoder allocate W*H*components bytes.
++ * A bound, not a design token. */
++export const MAX_JPEG_EDGE_PX = 8192;
++
++/** SOF0..SOF15 (0xC0..0xCF) excluding DHT(0xC4), JPGn(0xC8), DAC(0xCC). */
++function isSofMarker(marker: number): boolean {
++  return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
++}
++
++/** The allow-list: the ONLY header segments copied into the shipped JPEG. */
++function isAllowedHeaderSegment(marker: number): boolean {
++  return marker === 0xdb /* DQT */ || marker === 0xc4 /* DHT */ || isSofMarker(marker);
++}
++
++/** Refuse a SOF whose declared dimensions are zero or beyond the ceiling
++ * (decompression-bomb / dimension-overflow guard). */
++function assertSofDimensionsSane(bytes: Uint8Array, i: number, len: number): void {
++  // SOF payload: precision(1) height(2) width(2) components(1) …
++  if (len < 8 || i + 9 > bytes.length) {
++    throw new ExifLeakError('SOF too short to carry dimensions — refusing the capture', 'strip_failed');
++  }
++  const height = ((bytes[i + 5]! << 8) | bytes[i + 6]!) >>> 0;
++  const width = ((bytes[i + 7]! << 8) | bytes[i + 8]!) >>> 0;
++  if (width === 0 || height === 0) {
++    throw new ExifLeakError('SOF declares a zero dimension — refusing the capture', 'strip_failed');
++  }
++  if (width > MAX_JPEG_EDGE_PX || height > MAX_JPEG_EDGE_PX) {
++    throw new ExifLeakError(
++      `SOF declares ${width}x${height}, beyond the ${MAX_JPEG_EDGE_PX}px ceiling — refusing the capture`,
++      'strip_failed',
++    );
++  }
++}
++
++/** The index of the next REAL JPEG marker in an entropy stream from `from`:
++ * a 0xFF NOT followed by 0x00 (byte-stuffing) nor a restart marker
++ * (0xD0..0xD7). Returns bytes.length if the stream ends without one — the
++ * caller then fails closed (no EOI). */
++function nextEntropyMarker(bytes: Uint8Array, from: number): number {
++  let i = from;
++  while (i + 1 < bytes.length) {
++    if (bytes[i] === 0xff) {
++      const next = bytes[i + 1]!;
++      if (next !== 0x00 && !(next >= 0xd0 && next <= 0xd7)) return i;
++    }
++    i++;
++  }
++  return bytes.length;
++}
+ 
+ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
+   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+@@ -231,25 +290,41 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
+       throw new ExifLeakError('malformed JPEG marker stream — refusing the capture', 'strip_failed');
+     }
+     const marker = bytes[i + 1]!;
+-    // Standalone markers (no length field) before the scan: TEM / RSTn.
+-    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+-      out[o++] = 0xff;
+-      out[o++] = marker;
+-      i += 2;
++    // Fill bytes: any run of 0xFF may precede a real marker — consume one and
++    // retry (they carry nothing; they are not copied).
++    if (marker === 0xff) {
++      i += 1;
+       continue;
+     }
+-    if (marker === 0xda) {
+-      // Start-of-scan: copy the SOS segment and EVERYTHING after it
+-      // verbatim (entropy-coded data, restart markers, EOI).
+-      out.set(bytes.subarray(i), o);
+-      o += bytes.length - i;
+-      return out.subarray(0, o);
++    // TEM (standalone, no length) carries nothing the header needs → dropped.
++    if (marker === 0x01) {
++      i += 2;
++      continue;
+     }
+     if (marker === 0xd9) {
++      // EOI — terminal. Append and STOP; anything after EOI never ships
++      // (this is what discards a post-EOI polyglot payload).
+       out[o++] = 0xff;
+       out[o++] = 0xd9;
+       return out.subarray(0, o);
+     }
++    if (marker === 0xda) {
++      // SOS: copy the scan header, then the entropy stream bounded to its
++      // real terminator; continue the walk there so any segment injected
++      // between the scan and EOI is dropped, not copied.
++      if (i + 4 > bytes.length) {
++        throw new ExifLeakError('truncated SOS header — refusing the capture', 'strip_failed');
++      }
++      const len = ((bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
++      if (len < 2 || i + 2 + len > bytes.length) {
++        throw new ExifLeakError('SOS header length overruns the stream — refusing the capture', 'strip_failed');
++      }
++      const entropyEnd = nextEntropyMarker(bytes, i + 2 + len);
++      out.set(bytes.subarray(i, entropyEnd), o);
++      o += entropyEnd - i;
++      i = entropyEnd;
++      continue;
++    }
+     if (i + 4 > bytes.length) {
+       throw new ExifLeakError('truncated JPEG marker header — refusing the capture', 'strip_failed');
+     }
+@@ -257,13 +332,16 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
+     if (len < 2 || i + 2 + len > bytes.length) {
+       throw new ExifLeakError('JPEG block length overruns the stream — refusing the capture', 'strip_failed');
+     }
+-    if (!STRIPPED_MARKERS.has(marker)) {
++    if (isAllowedHeaderSegment(marker)) {
++      if (isSofMarker(marker)) assertSofDimensionsSane(bytes, i, len);
+       out.set(bytes.subarray(i, i + 2 + len), o);
+       o += 2 + len;
+     }
++    // else: DROPPED by default — APPn (incl. APP0/JFIF, APP2/ICC, APP14),
++    // COM, DRI, DNL, and every reserved marker leave no bytes in the output.
+     i += 2 + len;
+   }
+-  throw new ExifLeakError('JPEG stream ended before start-of-scan — refusing the capture', 'strip_failed');
++  throw new ExifLeakError('JPEG stream ended before EOI — refusing the capture', 'strip_failed');
+ }
+ 
+ /** bytes → base64, PURE JS (the decoder's sibling): the stripped artifact
+diff --git a/apps/supplier-app/test/exif-strip.test.ts b/apps/supplier-app/test/exif-strip.test.ts
+index 4f22dd5..173b3d3 100644
+--- a/apps/supplier-app/test/exif-strip.test.ts
++++ b/apps/supplier-app/test/exif-strip.test.ts
+@@ -43,39 +43,43 @@ function jpeg(...parts: number[][]): Uint8Array {
+ 
+ const DIRTY = jpeg(SOI, APP0_JFIF, APP1_EXIF, COM, DQT, SOF0, DHT, APP13_IPTC, SOS_HEADER, ENTROPY, EOI);
+ const CLEAN = jpeg(SOI, APP0_JFIF, APP2_ICC, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
++// WO-6.5 B1.3: the allow-list keeps ONLY DQT·SOF·DHT·SOS+entropy·EOI. A JPEG
++// carrying nothing else is what survives byte-identical.
++const CLEAN_ALLOWLISTED = jpeg(SOI, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
+ 
+ afterEach(() => vi.unstubAllGlobals());
+ 
+-describe('WO-4.2E — the stripper rewrites the stream', () => {
+-  it('drops APP1-Exif, APP13 and COM; keeps JFIF/ICC/DQT/SOF/DHT and the entropy stream VERBATIM', () => {
++describe('WO-6.5 B1.3 — the stripper rewrites the stream by ALLOW-LIST', () => {
++  it('keeps ONLY DQT/SOF/DHT/SOS+entropy/EOI; drops APP0/JFIF, APP1, APP13 and COM by default', () => {
+     const out = stripJpegMetadata(DIRTY);
+-    expect(out).toEqual(jpeg(SOI, APP0_JFIF, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI));
++    expect(out).toEqual(CLEAN_ALLOWLISTED); // APP0/JFIF now dropped too (was kept under the drop-list)
+     expect(jpegCarriesExif(out)).toBe(false);
+     expect(() => assertExifFree(out)).not.toThrow();
+   });
+ 
+-  it('an XMP-bearing APP1 (no Exif identifier) is ALSO dropped — the whole APP1 class is a metadata carrier', () => {
++  it('an XMP-bearing APP1 (no Exif identifier) is dropped — the whole APP1 class is a metadata carrier', () => {
+     const out = stripJpegMetadata(jpeg(SOI, APP1_XMP, DQT, SOS_HEADER, ENTROPY, EOI));
+     expect(out).toEqual(jpeg(SOI, DQT, SOS_HEADER, ENTROPY, EOI));
+   });
+ 
+-  it('a clean JPEG passes through BYTE-IDENTICAL (rendering segments incl. ICC untouched)', () => {
+-    expect(stripJpegMetadata(CLEAN)).toEqual(CLEAN);
++  it('APP2/ICC and APP0/JFIF are NOT rendering-exempt under the allow-list — both are dropped', () => {
++    // CLEAN carries APP0/JFIF + APP2/ICC; the allow-list strips them to the image core.
++    expect(stripJpegMetadata(CLEAN)).toEqual(CLEAN_ALLOWLISTED);
++    // and a JPEG that already carries only allow-listed segments passes BYTE-IDENTICAL.
++    expect(stripJpegMetadata(CLEAN_ALLOWLISTED)).toEqual(CLEAN_ALLOWLISTED);
+   });
+ 
+-  it('the WO-4.2D verifier\'s own crafted layouts strip clean', () => {
+-    // its clean layout: SOI+APP0/JFIF+DQT+SOS — passes through identically
++  it('the WO-4.2D verifier\'s own crafted layouts strip clean (APP0/JFIF now dropped)', () => {
+     const theirClean = jpeg(SOI, APP0_JFIF, DQT, SOS_HEADER, ENTROPY, EOI);
+-    expect(stripJpegMetadata(theirClean)).toEqual(theirClean);
+-    // its EXIF layout: APP1 Exif\0\0 + TIFF header — dropped
++    expect(stripJpegMetadata(theirClean)).toEqual(jpeg(SOI, DQT, SOS_HEADER, ENTROPY, EOI));
+     const theirDirty = jpeg(SOI, APP1_EXIF, DQT, SOS_HEADER, ENTROPY, EOI);
+     expect(jpegCarriesExif(theirDirty)).toBe(true);
+     expect(jpegCarriesExif(stripJpegMetadata(theirDirty))).toBe(false);
+   });
+ 
+-  it('standalone markers (TEM/RSTn) before the scan are copied, never mis-read as length segments', () => {
+-    const withTem = jpeg(SOI, [0xff, 0x01], DQT, SOS_HEADER, ENTROPY, EOI);
+-    expect(stripJpegMetadata(withTem)).toEqual(withTem);
++  it('a standalone TEM before the scan carries nothing the header needs → dropped, never mis-read', () => {
++    const withTem = jpeg(SOI, [0xff, 0x01], DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI);
++    expect(stripJpegMetadata(withTem)).toEqual(CLEAN_ALLOWLISTED);
+   });
+ 
+   it('FAIL-CLOSED (strip_failed): non-JPEG, garbage segment, truncated header, overrunning length, and no-SOS streams all REFUSE', () => {
+diff --git a/apps/supplier-app/test/grand-teint.test.ts b/apps/supplier-app/test/grand-teint.test.ts
+index 528637c..7c97793 100644
+--- a/apps/supplier-app/test/grand-teint.test.ts
++++ b/apps/supplier-app/test/grand-teint.test.ts
+@@ -103,11 +103,15 @@ describe('the two approved dependencies (founder rulings 2026-07-12) — nothing
+     // WO-6.0 ruling ②: expo-font is the one further dep the founder authorized,
+     // for the config-plugin native embedding (SDK-54 bundled version).
+     expect(pkg.dependencies['expo-font']).toBe('~14.0.12');
++    // WO-6.5 · B2.1: expo-file-system is the durable-storage dep the founder
++    // gated on forcing evidence — quoted from its installed types in
++    // src/offline/expoStore.ts (SDK-54 bundled version).
++    expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
+     const before = new Set([
+       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
+       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
+     ]);
+     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
+-    expect(added.sort()).toEqual(['expo-font', 'expo-haptics', 'react-native-svg']);
++    expect(added.sort()).toEqual(['expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
+   });
+ });
+diff --git a/apps/supplier-app/test/hostile-corpus.test.ts b/apps/supplier-app/test/hostile-corpus.test.ts
+new file mode 100644
+index 0000000..6a737c3
+--- /dev/null
++++ b/apps/supplier-app/test/hostile-corpus.test.ts
+@@ -0,0 +1,236 @@
++import { describe, expect, it } from 'vitest';
++import {
++  ExifLeakError,
++  MAX_JPEG_EDGE_PX,
++  jpegCarriesExif,
++  stripJpegMetadata,
++} from '../src/studio/normalization';
++
++/**
++ * WO-6.5 · B1.3 — THE HOSTILE-IMAGE CORPUS (the trust factory's immune
++ * system). Threat model: a HOSTILE ENCODER, not a benign camera. Each fixture
++ * below has a NAMED expected outcome — clean (the payload does not survive) or
++ * fail-closed (a refusal, never a crash). Nothing silently passes. The final
++ * block proves NON-VACUITY: the OLD drop-list stripper LEAKS on fixtures the
++ * allow-list keeps clean — a hardening that changes nothing is not a hardening.
++ */
++
++// ── fixture grammar (real JPEG segments, deterministic bytes) ──────────────
++const SOI = [0xff, 0xd8];
++const EOI = [0xff, 0xd9];
++function seg(marker: number, payload: number[]): number[] {
++  const len = payload.length + 2;
++  return [0xff, marker, (len >> 8) & 0xff, len & 0xff, ...payload];
++}
++const chars = (s: string): number[] => [...s].map((c) => c.charCodeAt(0));
++const DQT = seg(0xdb, [0x00, ...Array.from({ length: 64 }, (_, i) => (i % 16) + 1)]);
++const SOF0 = seg(0xc0, [8, 0, 16, 0, 16, 1, 0x11, 0]); // 16×16 baseline
++const DHT = seg(0xc4, [0x00, ...Array.from({ length: 16 }, () => 0), 0x05]);
++const SOS_HEADER = seg(0xda, [1, 0, 0, 0, 63, 0]);
++const ENTROPY = [0x12, 0x34, 0xff, 0x00, 0x56, 0xff, 0xd3, 0x78]; // stuffed FF00 + RST3
++function jpeg(...parts: number[][]): Uint8Array {
++  return new Uint8Array(parts.flat());
++}
++const CORE = [DQT, SOF0, DHT, SOS_HEADER, ENTROPY]; // the allow-listed image core (pre-EOI)
++const CLEAN_CORE = jpeg(SOI, ...CORE, EOI);
++
++// hostile carriers
++const EXIF_ID = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
++const APP1_EXIF = seg(0xe1, [...EXIF_ID, 0x49, 0x49, 0x2a, 0x00, 8, 0, 0, 0]);
++const APP2_ICC = seg(0xe2, chars('ICC_PROFILE\0secret-location-payload'));
++const APP15 = seg(0xef, chars('APP15-HOSTILE-BLOB'));
++const COM_PAYLOAD = seg(0xfe, chars('ship-this-to-the-buyer'));
++const ZIP_LOCAL = chars('PKhidden.zip-entry'); // a real ZIP local-file signature
++const HTML_POLYGLOT = chars('<html><script>steal()</script>');
++
++// a byte-subsequence search (did a payload survive?)
++function contains(haystack: Uint8Array, needle: number[]): boolean {
++  outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
++    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
++    return true;
++  }
++  return false;
++}
++
++// the OLD DROP-LIST stripper, reproduced faithfully (pre-WO-6.5): copy every
++// segment except APP1/APP13/COM; at SOS copy the rest of the stream VERBATIM.
++function legacyDropListStrip(bytes: Uint8Array): Uint8Array {
++  const STRIPPED = new Set([0xe1, 0xed, 0xfe]);
++  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Error('not jpeg');
++  const out = new Uint8Array(bytes.length);
++  out[0] = 0xff;
++  out[1] = 0xd8;
++  let o = 2;
++  let i = 2;
++  while (i + 2 <= bytes.length) {
++    if (bytes[i] !== 0xff) throw new Error('bad marker');
++    const marker = bytes[i + 1]!;
++    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
++      out[o++] = 0xff;
++      out[o++] = marker;
++      i += 2;
++      continue;
++    }
++    if (marker === 0xda) {
++      out.set(bytes.subarray(i), o); // ← copies EVERYTHING after SOS, incl. post-EOI
++      o += bytes.length - i;
++      return out.subarray(0, o);
++    }
++    if (marker === 0xd9) {
++      out[o++] = 0xff;
++      out[o++] = 0xd9;
++      return out.subarray(0, o);
++    }
++    if (i + 4 > bytes.length) throw new Error('trunc');
++    const len = ((bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
++    if (len < 2 || i + 2 + len > bytes.length) throw new Error('overrun');
++    if (!STRIPPED.has(marker)) {
++      out.set(bytes.subarray(i, i + 2 + len), o); // ← keeps APP2/ICC, APP15, APP0…
++      o += 2 + len;
++    }
++    i += 2 + len;
++  }
++  throw new Error('no scan');
++}
++
++// ── THE CORPUS — each fixture with its ONE named expected outcome ──────────
++type Outcome = 'clean' | 'fail-closed';
++interface Fixture {
++  name: string;
++  bytes: Uint8Array;
++  outcome: Outcome;
++  /** For 'clean': byte payloads that MUST NOT survive into the output. */
++  mustNotSurvive?: number[][];
++}
++
++const CORPUS: Fixture[] = [
++  {
++    name: 'metadata in a segment the old drop-list ignored (APP2/ICC + APP15)',
++    bytes: jpeg(SOI, APP2_ICC, DQT, SOF0, DHT, APP15, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'clean',
++    mustNotSurvive: [chars('ICC_PROFILE'), chars('secret-location-payload'), chars('APP15-HOSTILE-BLOB')],
++  },
++  {
++    name: 'a COM payload injected AFTER the scan, before EOI',
++    bytes: jpeg(SOI, ...CORE, COM_PAYLOAD, EOI),
++    outcome: 'clean',
++    mustNotSurvive: [chars('ship-this-to-the-buyer')],
++  },
++  {
++    name: 'post-EOI polyglot payload (valid JPEG + appended ZIP)',
++    bytes: jpeg(SOI, ...CORE, EOI, ZIP_LOCAL),
++    outcome: 'clean',
++    mustNotSurvive: [chars('PK'), chars('hidden.zip-entry')],
++  },
++  {
++    name: 'post-EOI polyglot payload (valid JPEG + appended HTML)',
++    bytes: jpeg(SOI, ...CORE, EOI, HTML_POLYGLOT),
++    outcome: 'clean',
++    mustNotSurvive: [chars('<html>'), chars('steal()')],
++  },
++  {
++    name: 'multi-APP1 (three Exif carriers in a row)',
++    bytes: jpeg(SOI, APP1_EXIF, APP1_EXIF, APP1_EXIF, DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'clean',
++    mustNotSurvive: [EXIF_ID],
++  },
++  {
++    name: 'fill-bytes (a run of 0xFF) before the real markers',
++    bytes: jpeg(SOI, [0xff, 0xff, 0xff], DQT, SOF0, DHT, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'clean',
++  },
++  {
++    name: 'a valid-looking APP1 marker embedded INSIDE the entropy stream',
++    // FF E1 with a valid length carrying "Exif\0\0…"; a real EOI follows.
++    bytes: jpeg(SOI, DQT, SOF0, DHT, SOS_HEADER, [0x12, 0x34], seg(0xe1, [...EXIF_ID, 1, 2, 3, 4]), EOI),
++    outcome: 'clean',
++    mustNotSurvive: [EXIF_ID],
++  },
++  {
++    name: 'lying-length header (APP1 claims a length that overruns the buffer)',
++    bytes: new Uint8Array([...SOI, 0xff, 0xe1, 0xff, 0xf0, 0x45, 0x78, ...DQT, ...SOS_HEADER, ...EOI]),
++    outcome: 'fail-closed',
++  },
++  {
++    name: 'decompression bomb (SOF declares 65535×65535)',
++    bytes: jpeg(SOI, DQT, seg(0xc0, [8, 0xff, 0xff, 0xff, 0xff, 1, 0x11, 0]), DHT, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'fail-closed',
++  },
++  {
++    name: 'dimension overflow past the ceiling (SOF declares 0x8000 on an edge)',
++    bytes: jpeg(SOI, DQT, seg(0xc0, [8, 0x80, 0x00, 0x00, 0x10, 1, 0x11, 0]), DHT, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'fail-closed',
++  },
++  {
++    name: 'zero dimension (SOF declares width 0)',
++    bytes: jpeg(SOI, DQT, seg(0xc0, [8, 0, 16, 0, 0, 1, 0x11, 0]), DHT, SOS_HEADER, ENTROPY, EOI),
++    outcome: 'fail-closed',
++  },
++  {
++    name: 'a corrupt file (JPEG SOI then garbage, no valid marker) — must fail closed, never crash',
++    bytes: new Uint8Array([...SOI, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55]),
++    outcome: 'fail-closed',
++  },
++  {
++    name: 'not a JPEG at all (PNG signature)',
++    bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
++    outcome: 'fail-closed',
++  },
++];
++
++describe('WO-6.5 B1.3 — the hostile-image corpus, each with a named outcome', () => {
++  for (const fx of CORPUS) {
++    it(`${fx.name} → ${fx.outcome}`, () => {
++      if (fx.outcome === 'fail-closed') {
++        let caught: unknown;
++        try {
++          stripJpegMetadata(fx.bytes);
++        } catch (error) {
++          caught = error;
++        }
++        expect(caught, 'must refuse, not pass').toBeInstanceOf(ExifLeakError);
++        expect((caught as ExifLeakError).detail).toBe('strip_failed');
++        return;
++      }
++      // 'clean': it produces output, carries NO EXIF, and drops every payload.
++      const out = stripJpegMetadata(fx.bytes);
++      expect(jpegCarriesExif(out), 'no EXIF survives').toBe(false);
++      for (const payload of fx.mustNotSurvive ?? []) {
++        expect(contains(out, payload), `payload survived: ${String.fromCharCode(...payload.slice(0, 12))}…`).toBe(false);
++      }
++      // the output is a well-formed SOI…EOI envelope
++      expect([out[0], out[1]]).toEqual([0xff, 0xd8]);
++      expect([out[out.length - 2], out[out.length - 1]]).toEqual([0xff, 0xd9]);
++    });
++  }
++
++  it('the ceiling constant is a real bound the SOF guard enforces', () => {
++    expect(MAX_JPEG_EDGE_PX).toBe(8192);
++    // exactly at the ceiling passes; one past it refuses
++    const atCeiling = jpeg(SOI, DQT, seg(0xc0, [8, 0x20, 0x00, 0x00, 0x10, 1, 0x11, 0]), DHT, SOS_HEADER, ENTROPY, EOI);
++    expect(() => stripJpegMetadata(atCeiling)).not.toThrow(); // 0x2000 = 8192
++    const pastCeiling = jpeg(SOI, DQT, seg(0xc0, [8, 0x20, 0x01, 0x00, 0x10, 1, 0x11, 0]), DHT, SOS_HEADER, ENTROPY, EOI);
++    expect(() => stripJpegMetadata(pastCeiling)).toThrow(ExifLeakError); // 0x2001 = 8193
++  });
++});
++
++describe('WO-6.5 B1.3 — NON-VACUITY: the old drop-list LEAKS where the allow-list is clean', () => {
++  it('APP2/ICC survives the old drop-list, and is dropped by the allow-list', () => {
++    const fx = jpeg(SOI, APP2_ICC, DQT, SOF0, DHT, APP15, SOS_HEADER, ENTROPY, EOI);
++    const legacy = legacyDropListStrip(fx);
++    const hardened = stripJpegMetadata(fx);
++    expect(contains(legacy, chars('ICC_PROFILE')), 'old drop-list LEAKS the ICC payload').toBe(true);
++    expect(contains(legacy, chars('APP15-HOSTILE-BLOB')), 'old drop-list LEAKS the APP15 blob').toBe(true);
++    expect(contains(hardened, chars('ICC_PROFILE')), 'allow-list drops it').toBe(false);
++    expect(contains(hardened, chars('APP15-HOSTILE-BLOB')), 'allow-list drops it').toBe(false);
++  });
++
++  it('a post-EOI polyglot payload survives the old drop-list (SOS-to-end verbatim), and is dropped by the allow-list', () => {
++    const fx = jpeg(SOI, ...CORE, EOI, ZIP_LOCAL);
++    const legacy = legacyDropListStrip(fx);
++    const hardened = stripJpegMetadata(fx);
++    expect(contains(legacy, chars('PK')), 'old drop-list SHIPS the appended ZIP').toBe(true);
++    expect(contains(hardened, chars('PK')), 'allow-list discards it at EOI').toBe(false);
++    expect(hardened).toEqual(CLEAN_CORE); // exactly the image core survives
++  });
++});
+diff --git a/apps/supplier-app/test/offline-queue.test.ts b/apps/supplier-app/test/offline-queue.test.ts
+new file mode 100644
+index 0000000..d33c7a2
+--- /dev/null
++++ b/apps/supplier-app/test/offline-queue.test.ts
+@@ -0,0 +1,201 @@
++import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { afterEach, describe, expect, it } from 'vitest';
++import { DurableQueue, PoisonError, type QueueEntry, type QueueStore } from '../src/offline/queue';
++
++/**
++ * WO-6.5 · B2.1 — the durable queue proven BY EXECUTION, not by assertion.
++ *
++ * The store here is a REAL on-disk file (Node fs): a fresh DurableQueue.open()
++ * over the same path is a genuine COLD BOOT — it reads bytes another instance
++ * wrote to disk, exactly as the app's Expo document store reads across an
++ * app-kill/reboot. Nothing is shared in memory between "runs"; the durability
++ * is the file. (The Expo adapter's write/read-string contract is type-proven
++ * in src/offline/expoStore.ts — the SAME logic runs over it.)
++ */
++
++const dirs: string[] = [];
++function diskStore(): { store: QueueStore; path: string } {
++  const dir = mkdtempSync(join(tmpdir(), 'oq-'));
++  dirs.push(dir);
++  const path = join(dir, 'queue.json');
++  // a brand-new store instance each call — no in-memory sharing, only the file.
++  const store: QueueStore = {
++    async read() {
++      return existsSync(path) ? readFileSync(path, 'utf8') : null;
++    },
++    async write(data) {
++      writeFileSync(path, data);
++    },
++  };
++  return { store, path };
++}
++/** A fresh store over an existing path — the "reboot" reads the same file. */
++function reopenStore(path: string): QueueStore {
++  return {
++    async read() {
++      return existsSync(path) ? readFileSync(path, 'utf8') : null;
++    },
++    async write(data) {
++      writeFileSync(path, data);
++    },
++  };
++}
++
++afterEach(() => {
++  for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
++});
++
++describe('WO-6.5 B2.1 — survival across app-kill + reboot (EXECUTED)', () => {
++  it('actions queued offline survive an app-kill and are STILL PENDING (in order) on cold boot, then deliver', async () => {
++    const { store, path } = diskStore();
++
++    // ── run 1: the seller confirms three products while offline, then the OS
++    //    kills the app before the network ever returns. Nothing was delivered. ──
++    const q1 = await DurableQueue.open(store);
++    await q1.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' });
++    await q1.enqueue('ready:p2', 'fulfillment.ready.v1', { productId: 'p2' });
++    await q1.enqueue('ready:p3', 'fulfillment.ready.v1', { productId: 'p3' });
++    // (the app is now "killed" — q1 is dropped; the file on disk is all that survives)
++    expect(existsSync(path)).toBe(true);
++
++    // ── run 2: COLD BOOT — a fresh queue over the same file ──
++    const q2 = await DurableQueue.open(reopenStore(path));
++    expect(q2.pending().map((e) => e.commandId)).toEqual(['ready:p1', 'ready:p2', 'ready:p3']); // STILL PENDING, in order
++    expect(q2.snapshot().every((e) => e.status === 'pending')).toBe(true); // none faked as done
++
++    const sent: string[] = [];
++    const res = await q2.deliver(async (e) => void sent.push(e.commandId));
++    expect(sent).toEqual(['ready:p1', 'ready:p2', 'ready:p3']); // delivered in insertion order
++    expect(res).toEqual({ delivered: 3, failed: 0, remaining: 0 });
++  });
++
++  it('a kill AFTER a partial delivery: the undelivered action survives; the delivered one is NOT re-sent', async () => {
++    const { store, path } = diskStore();
++
++    // run 1: p1 delivers; p2 hits a transient error and stays pending; the
++    // resilient queue still tries p3, which delivers. Then the app is killed.
++    const q1 = await DurableQueue.open(store);
++    await q1.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' });
++    await q1.enqueue('ready:p2', 'fulfillment.ready.v1', { productId: 'p2' });
++    await q1.enqueue('ready:p3', 'fulfillment.ready.v1', { productId: 'p3' });
++    const sent1: string[] = [];
++    await q1.deliver(async (e) => {
++      if (e.commandId === 'ready:p2') throw new Error('network blipped on p2');
++      sent1.push(e.commandId);
++    });
++    expect(sent1).toEqual(['ready:p1', 'ready:p3']); // p2 failed transiently, did not block p3
++
++    // run 2: cold boot — only p2 is still pending; p1 and p3 stay delivered.
++    const q2 = await DurableQueue.open(reopenStore(path));
++    expect(q2.pending().map((e) => e.commandId)).toEqual(['ready:p2']);
++    const sent2: string[] = [];
++    const res = await q2.deliver(async (e) => void sent2.push(e.commandId));
++    expect(sent2).toEqual(['ready:p2']); // ONLY the survivor — p1/p3 never re-sent (idempotent)
++    expect(res).toEqual({ delivered: 1, failed: 0, remaining: 0 });
++  });
++
++  it('an EMPTY store opens to an empty queue; a corrupt blob refuses into empty, never crashes', async () => {
++    const { store, path } = diskStore();
++    const fresh = await DurableQueue.open(store);
++    expect(fresh.pending()).toEqual([]);
++    writeFileSync(path, '{not json at all');
++    const q = await DurableQueue.open(reopenStore(path));
++    expect(q.pending()).toEqual([]);
++  });
++});
++
++describe('WO-6.5 B2.1 — idempotent replay (command_id, the E1 pattern)', () => {
++  it('enqueue returns an outcome the caller must handle; a true replay dedupes; delivery is exactly-once', async () => {
++    const { store, path } = diskStore();
++    const q = await DurableQueue.open(store);
++    const first = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' });
++    expect(first.outcome).toBe('enqueued');
++    const again = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { productId: 'p1' }); // identical
++    expect(again.outcome).toBe('duplicate'); // a true idempotent replay, safely a no-op
++    expect(q.snapshot()).toHaveLength(1);
++
++    const sends: string[] = [];
++    await q.deliver(async (e) => void sends.push(e.commandId));
++    await q.deliver(async (e) => void sends.push(e.commandId)); // replay
++    expect(sends).toEqual(['ready:p1']); // delivered exactly ONCE
++
++    const rebooted = await DurableQueue.open(reopenStore(path));
++    const afterReboot: string[] = [];
++    await rebooted.deliver(async (e) => void afterReboot.push(e.commandId));
++    expect(afterReboot).toEqual([]); // a delivered command never sends again
++  });
++
++  it('a COLLISION (same command_id, DIFFERENT payload) is REFUSED and surfaced — never silent data loss', async () => {
++    const { store } = diskStore();
++    const q = await DurableQueue.open(store);
++    await q.enqueue('ready:p1', 'fulfillment.ready.v1', { net: 8500 });
++    const clash = await q.enqueue('ready:p1', 'fulfillment.ready.v1', { net: 13725 }); // same id, different action
++    expect(clash.outcome).toBe('collision'); // the caller MUST handle this, not show « en attente »
++    expect(clash.entry.payload).toEqual({ net: 8500 }); // the ORIGINAL is retained, never overwritten
++    expect(q.snapshot()).toHaveLength(1); // the colliding command was NOT queued — but the caller was TOLD
++  });
++});
++
++describe('WO-6.5 B2.1 — a poisoned entry cannot block the queue forever', () => {
++  it('a PoisonError → NAMED failed state (never a silent drop); entries behind it still deliver, in order', async () => {
++    const { store } = diskStore();
++    const q = await DurableQueue.open(store);
++    await q.enqueue('good:1', 'fulfillment.ready.v1', { i: 1 });
++    await q.enqueue('poison', 'fulfillment.ready.v1', { i: 2 });
++    await q.enqueue('good:2', 'fulfillment.ready.v1', { i: 3 });
++
++    const sent: string[] = [];
++    const res = await q.deliver(async (e) => {
++      if (e.commandId === 'poison') throw new PoisonError('payload rejected by the server');
++      sent.push(e.commandId);
++    });
++
++    expect(sent).toEqual(['good:1', 'good:2']); // ordering preserved, poison did not block
++    expect(res).toEqual({ delivered: 2, failed: 1, remaining: 0 });
++    const poison = q.snapshot().find((e) => e.commandId === 'poison')!;
++    expect(poison.status).toBe('failed'); // a designed terminal, not a generic drop
++    expect(poison.failureReason).toBe('payload rejected by the server'); // honest reason
++    // it is STILL in the snapshot — nothing was silently dropped
++    expect(q.snapshot().map((e) => e.commandId)).toContain('poison');
++  });
++
++  it('a transient failure retries up to maxAttempts, then fails honestly (never an infinite block)', async () => {
++    const { store } = diskStore();
++    const q = await DurableQueue.open(store, { maxAttempts: 3 });
++    await q.enqueue('flaky', 'fulfillment.ready.v1', {});
++    const alwaysFails = async () => {
++      throw new Error('network down');
++    };
++    await q.deliver(alwaysFails); // attempt 1
++    expect(q.pending().map((e) => e.commandId)).toEqual(['flaky']); // still pending
++    await q.deliver(alwaysFails); // attempt 2
++    expect(q.pending()).toHaveLength(1);
++    await q.deliver(alwaysFails); // attempt 3 → maxAttempts → failed
++    expect(q.pending()).toHaveLength(0);
++    expect(q.snapshot()[0]!.status).toBe('failed');
++    expect(q.snapshot()[0]!.failureReason).toBe('network down');
++  });
++});
++
++describe('WO-6.5 B2.1 — the honesty law: queued NEVER shows success', () => {
++  it('a pending entry is never delivered; it stays pending across a reboot until it actually delivers', async () => {
++    const { store, path } = diskStore();
++    const q = await DurableQueue.open(store);
++    await q.enqueue('ready:p9', 'fulfillment.ready.v1', { productId: 'p9' });
++
++    // the surfaced state while offline: pending, never 'delivered'
++    const shown = (entries: readonly QueueEntry[]) => entries.map((e) => e.status);
++    expect(shown(q.snapshot())).toEqual(['pending']);
++
++    // reboot without ever delivering → STILL pending (no success was invented)
++    const q2 = await DurableQueue.open(reopenStore(path));
++    expect(shown(q2.snapshot())).toEqual(['pending']);
++    expect(q2.snapshot().some((e) => e.status === 'delivered')).toBe(false);
++
++    // only an actual successful send flips it to delivered
++    await q2.deliver(async () => {});
++    expect(shown(q2.snapshot())).toEqual(['delivered']);
++  });
++});
+diff --git a/apps/supplier-app/test/reencode-order.test.ts b/apps/supplier-app/test/reencode-order.test.ts
+new file mode 100644
+index 0000000..134edec
+--- /dev/null
++++ b/apps/supplier-app/test/reencode-order.test.ts
+@@ -0,0 +1,52 @@
++import { readFileSync } from 'node:fs';
++import { join } from 'node:path';
++import { describe, expect, it } from 'vitest';
++
++/**
++ * WO-6.5 · B1.3 — the RE-ENCODE ORDER is LOAD-BEARING and now ENFORCED (not
++ * prose). The allow-list stripper is a byte-level segment rewriter: it drops
++ * every metadata segment and every post-EOI payload, but it cannot tell bytes
++ * hidden INSIDE the compressed entropy stream from real pixel data — no
++ * segment-level stripper can (verifier concern #2). What makes that acceptable
++ * against the hostile-encoder threat is that the capture path RE-ENCODES the
++ * pixels through expo-image-manipulator (decode → re-encode JPEG) BEFORE the
++ * stripper runs — the re-encode regenerates the entropy stream from decoded
++ * pixels, destroying any bytes smuggled in the original's entropy. A safety
++ * property held by prose is a vacuous test; this gate pins the ordering in the
++ * source so it cannot silently regress.
++ */
++
++const appDir = join(import.meta.dirname, '..');
++const capture = readFileSync(join(appDir, 'src/studio/capture.ts'), 'utf8');
++
++describe('WO-6.5 B1.3 — the capture path re-encodes BEFORE it strips', () => {
++  it('renderDerivative (the expo-image-manipulator re-encode) runs before stripJpegMetadata', () => {
++    const iReencode = capture.indexOf('renderDerivative(');
++    const iStrip = capture.indexOf('stripJpegMetadata(');
++    expect(iReencode, 'renderDerivative is called').toBeGreaterThan(-1);
++    expect(iStrip, 'stripJpegMetadata is called').toBeGreaterThan(-1);
++    expect(iReencode, 'the re-encode precedes the strip').toBeLessThan(iStrip);
++  });
++
++  it('renderDerivative IS a real re-encode: ImageManipulator.manipulate → renderAsync → saveAsync(JPEG)', () => {
++    const body = capture.slice(capture.indexOf('function renderDerivative'), capture.indexOf('function renderMetricsFrame'));
++    expect(body).toMatch(/ImageManipulator\.manipulate\(/);
++    expect(body).toMatch(/renderAsync\(/);
++    expect(body).toMatch(/saveAsync\(\{[^}]*format:\s*SaveFormat\.JPEG/);
++  });
++
++  it('the stripper is fed the RE-ENCODED derivative bytes, never the raw camera master', () => {
++    // bytes come from the derivative's base64 (the re-encode output) …
++    expect(capture).toMatch(/const\s+bytes\s*=\s*base64ToBytes\(derivative\.base64/);
++    expect(capture).toMatch(/stripJpegMetadata\(bytes\)/);
++    // … and the master (photo.uri) is NEVER handed to the stripper directly.
++    expect(capture).not.toMatch(/stripJpegMetadata\([^)]*photo/);
++  });
++
++  it('the post-condition (assertExifFree) runs on the STRIPPED bytes, after the strip', () => {
++    const iStrip = capture.indexOf('stripJpegMetadata(bytes)');
++    const iAssert = capture.indexOf('assertExifFree(stripped)');
++    expect(iStrip).toBeGreaterThan(-1);
++    expect(iAssert).toBeGreaterThan(iStrip);
++  });
++});
+diff --git a/apps/supplier-app/test/ui-studio.test.ts b/apps/supplier-app/test/ui-studio.test.ts
+index 7344fb1..06123d2 100644
+--- a/apps/supplier-app/test/ui-studio.test.ts
++++ b/apps/supplier-app/test/ui-studio.test.ts
+@@ -103,8 +103,10 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
+     });
+     for (const f of ['src/studio/normalization.ts', 'src/studio/capture.ts', 'src/studio/guidance.ts']) {
+       const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
++      // WO-6.5: the ML threat term is « segmentation » (Ten Laws #5), not the
++      // JPEG-structural « segment » the allow-list stripper legitimately uses.
+       expect(src, `${f} must carry no inference/moderation (comments stripped)`).not.toMatch(
+-        /tensorflow|onnx|opencv|segment|classif|inference|moderation/i,
++        /tensorflow|onnx|opencv|segmentation|classif|inference|moderation/i,
+       );
+     }
+   });
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a47c916..a2eba9c 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -58,6 +58,9 @@ importers:
+       expo-camera:
+         specifier: ~17.0.10
+         version: 17.0.10(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
++      expo-file-system:
++        specifier: ~19.0.23
++        version: 19.0.23(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))
+       expo-font:
+         specifier: ~14.0.12
+         version: 14.0.12(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)

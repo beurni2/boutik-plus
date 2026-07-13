@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -7,6 +7,9 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
 import { IS_PREVIEW } from './src/preview';
 import { t } from './src/i18n';
 import { JOURNEY, START, type Screen } from './src/journey';
+import { DurableQueue } from './src/offline/queue';
+import { expoDocumentStore } from './src/offline/expoStore';
+import { mintCommandId } from './src/offline/commandId';
 import {
   addDemoProduct,
   baselineQuote,
@@ -151,7 +154,7 @@ export default function App() {
   // B7 « produit prêt » — the checklist gate + the four honest states. The
   // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
   // (offline-first doctrine: queued = pending, never done).
-  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed'>('ready');
+  const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed' | 'queue_error'>('ready');
   const [check1, setCheck1] = useState(false);
   const [check2, setCheck2] = useState(false);
   const [confirmNet, setConfirmNet] = useState(0);
@@ -159,6 +162,12 @@ export default function App() {
   // rides under the header and actions queue as pending — never lost, never
   // silently done. A demo toggle makes the honest state reachable.
   const [offline, setOffline] = useState(false);
+  // WO-6.5 · B2.1 — the DURABLE offline queue (survives app-kill + reboot). An
+  // offline confirmation is enqueued to Expo's document store; the surfaced
+  // count is the REAL persisted pending, not an in-memory flag. The queue's
+  // full survival/idempotency/poison contract is proven in test/offline-queue.
+  const queueRef = useRef<DurableQueue | null>(null);
+  const [queuedCount, setQueuedCount] = useState(0);
   // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
   const [category, setCategory] = useState<CaptureCategory>('mode');
   const [shot, setShotKind] = useState<ShotKind>('hero');
@@ -204,12 +213,51 @@ export default function App() {
     setCheck1(false);
     setCheck2(false);
   }, []);
-  // Both checks passed → confirm. Offline queues (never done, never celebrates);
-  // online hands off to the operator wait (« envoyé — en attente »).
+  // Open the durable queue once, restoring anything a previous run left pending
+  // (the reboot path — an action queued before an app-kill is STILL here).
+  useEffect(() => {
+    let alive = true;
+    void DurableQueue.open(expoDocumentStore()).then((q) => {
+      if (!alive) return;
+      queueRef.current = q;
+      setQueuedCount(q.pending().length);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  // Both checks passed → confirm. Offline PERSISTS the action to the durable
+  // queue (never done, never celebrates); online hands off to the operator wait.
   const confirmReady = useCallback(() => {
     if (!(check1 && check2)) return;
-    setB7Phase(offline ? 'queued' : 'pending');
-  }, [check1, check2, offline]);
+    if (offline) {
+      const q = queueRef.current;
+      if (q === null) {
+        setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
+        return;
+      }
+      // The command_id is minted ONCE here and PERSISTED by the queue — never
+      // recomputed, so a reboot cannot make it collide with itself. « queued »
+      // is claimed ONLY after the store confirms the append; a collision (the
+      // queue REFUSING an id clash) is surfaced honestly, never faked as pending.
+      const commandId = mintCommandId();
+      void q.enqueue(commandId, 'fulfillment.ready.v1', { net: confirmNet }).then((result) => {
+        if (result.outcome === 'collision') {
+          setB7Phase('queue_error');
+          return;
+        }
+        setB7Phase('queued');
+        setQueuedCount(q.pending().length);
+      });
+      return;
+    }
+    setB7Phase('pending');
+  }, [check1, check2, offline, confirmNet]);
+  // The network returned — flush the durable queue (the demo's send resolves;
+  // the honesty law holds: only a real delivery clears a pending entry).
+  const flushQueue = useCallback(() => {
+    void queueRef.current?.deliver(async () => {}).then(() => setQueuedCount(queueRef.current?.pending().length ?? 0));
+  }, []);
   // The operator confirmed — NOW it is true: confirmed + the one celebration.
   const finishConfirmation = useCallback(() => {
     setB7Phase('confirmed');
@@ -624,7 +672,25 @@ export default function App() {
             {/* B7 « hors ligne (file) » — queued, never done, NEVER celebrated. */}
             {b7Phase === 'queued' && (
               <>
-                <PendingNotice lines={[t('ready.queued_offline')]} />
+                <PendingNotice
+                  lines={[
+                    t('ready.queued_offline'),
+                    t('shell.queue_durable').replace('{count}', String(queuedCount)),
+                  ]}
+                />
+                <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
+              </>
+            )}
+
+            {/* B7 — the durable queue REFUSED this confirm (id collision, or no
+                store yet): an honest error state, NEVER a false « en attente ». */}
+            {b7Phase === 'queue_error' && (
+              <>
+                <View style={styles.floorNote}>
+                  <Icon name="alerte" size={17} color={C.warning} />
+                  <Text style={styles.floorNoteText}>{t('ready.queue_error')}</Text>
+                </View>
+                <PrimaryButton label={t('pret.confirmer')} onPress={confirmReady} />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
               </>
             )}
@@ -782,7 +848,12 @@ export default function App() {
       <View style={styles.footer}>
         <Pressable
           style={styles.resetAction}
-          onPress={() => setOffline((v) => !v)}
+          onPress={() =>
+            setOffline((v) => {
+              if (v) flushQueue(); // going back ONLINE → the durable queue drains
+              return !v;
+            })
+          }
           accessibilityRole="switch"
           accessibilityState={{ checked: offline }}
         >
