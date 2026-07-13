@@ -1,3 +1,5 @@
+0663c9c docs(e6): WO-6.5 — clean-store cold proof added; Math.random debt named (executioner WO-5.8); round-1 correction on record
+3db9057 docs(e6): WO-6.5 — review packet regenerated atomically from HEAD 5ec71a1 (round-2 verifier PASS; no merge)
 5ec71a1 docs(e6): WO-6.5 JOURNAL — round-2 verifier PASS on final bytes; command_id format still open for founder ruling
 d5fde12 chore(e6): WO-6.5 — stage packet evidence atomically from HEAD 8a46e7e (gates, exports, diffs, branch-log, journal)
 8a46e7e docs(e6): WO-6.5 JOURNAL — CTO ruling response (command_id canon gap flagged, enqueue result, re-encode gate; PASS void→rebuilt)

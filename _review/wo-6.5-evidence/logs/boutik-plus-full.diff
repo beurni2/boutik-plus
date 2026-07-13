@@ -1,8 +1,8 @@
 diff --git a/JOURNAL.md b/JOURNAL.md
-index 825e434..acd7f92 100644
+index 825e434..e1deb28 100644
 --- a/JOURNAL.md
 +++ b/JOURNAL.md
-@@ -424,3 +424,44 @@ Format per entry:
+@@ -424,3 +424,50 @@ Format per entry:
    - **⑤** icon `size` props (17/28/12) and the B6/B7 **source-scan tests** ride to the next boutik touch.
    - **⑥** `CATEGORY_FLOOR_FCFA = 5 000` is correctly grounded and correctly flagged as an **OPEN founder decision — it stays ⏳** (per-category floor list unresolved).
  - **⚠ CROSS-REPO CARRY (must action):** the **WO-5.1 font name-table collision is fixed here** (5 TTFs → distinct weight-specific families, guarded by `font-embedding.test.ts`) **and MUST be checked in sera, which merged the same WO-5.1 font files.** If sera carries the identical `Archivo SemiBold`/`ArchivoSemiBold-Regular` collision, its native embedding would register only one weight — same defect, same fix owed. (shop-plus is web/variable-font — not the same failure surface, but worth a glance at its subset.)
@@ -47,6 +47,12 @@ index 825e434..acd7f92 100644
 +- **Minor observation (flagged, not a defect):** the demo's online-flush uses an always-resolving no-op send (`deliver(async () => {})`) — every queued item flips to delivered on reconnect, because E1 has no backend. Honest for the walking skeleton and commented; the queue's OWN failure/poison/transient behaviour is proven against rejecting sends in its tests. Named so it is not mistaken for a certified failing mock.
 +- **⏳ OPEN — the founder's call (blocks a restored PASS's finality):** the command_id MINTING FORMAT is a canon gap. I shipped a v4-shaped idempotency key as the flagged safest-default; the founder ratifies it or specifies the canon rule (belongs in `platform-contracts`). The one seam is `src/offline/commandId.ts`.
 +- **Packet:** `/_review/WO-6.5-review.zip` — regenerated ATOMICALLY from one HEAD (`logs/head-sha.txt` + `logs/branch-log.txt` + the diffs describe the SAME commit; the prior packet's cross-commit inconsistency is fixed). **NOT merged.**
++
++### WO-6.5 · CLEAN-STORE COLD PROOF added + Math.random debt named (HELD-on-artifact cleared; command_id ruling → WO-5.8)
++- **The held artifact — CLEAN-STORE COLD PROOF (now in the packet, `logs/coldproof.log`):** round 2 shipped only an in-place export; a slice that ADDS a dependency (`expo-file-system`) and CLAIMS a bundling number owes installability-from-nothing. Run on the final bytes (clone 3db9057): `pnpm install --frozen-lockfile --store-dir <FRESH EMPTY STORE>` → exit 0 (every dep fetched from scratch, not hardlinked from a warm store), `expo-file-system@19.0.23` present, then **android 828 / ios 830 modules, both exit 0** from that cold clone. Installability + the claimed numbers proven from nothing. (No source byte changed → per the founder's ruling the round-2 verifier PASS carries; not re-run.)
++- **NAMED DEBT — `Math.random()` in `mintCommandId()` (executioner: CANON WO-5.8, the command_id format ruling).** The founder's correction stands and my earlier defence is withdrawn: "a non-CSPRNG source is adequate (~2^-122 per pair)" is PROSE, not proof — `Math.random()` carries the entropy of its SEED, not 122 bits, and on a cold-booted Android Go device an identically-reseeded PRNG makes the FIRST mint after boot equal the first mint after the previous boot (a cross-boot collision my 200k within-realm test does NOT measure). **NOT A BLOCKER** — the collision is REFUSED and surfaced as `queue_error`, never faked as « en attente » (the canon law no longer lies). The fix is one line — **expo-crypto** (a CSPRNG seeded from the OS pool, cold-boot-safe BY CONSTRUCTION) — and it rides the SAME `src/offline/commandId.ts` seam and the SAME decision as the format ruling. Do NOT change it twice: **both land in WO-5.8.** Left untouched here by design.
++- **Round-1 correction, on the record (founder):** round 1 was NOT fabrication — `08f548e` and `0630304` were real commits in the branch log; the packet artifacts were STALE (generated across the fix). Sloppiness, not lying. The regenerate-atomically discipline (this packet) is the fix.
++- **Cross-repo carry — ACTIONED by the founder:** the WO-5.1 font name-table collision fix (5 TTFs → distinct weight-specific families + `font-embedding.test.ts`) is going to BOSSY for **sera**, which merged the same font files with only "EAS publish succeeded" as evidence (green whether or not five weights collapse to one). Logged as closed-out here.
 diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
 index 194da16..12a0811 100644
 --- a/apps/supplier-app/App.tsx

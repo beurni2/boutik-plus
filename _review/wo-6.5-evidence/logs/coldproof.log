@@ -1,0 +1,37 @@
+=== CLEAN-STORE COLD PROOF — final bytes (e6/wo-6.5) ===
+cloned 3db9057
+=== pnpm install --frozen-lockfile with a FRESH EMPTY STORE (/tmp/clean-store-65) — fetches every dep from scratch ===
+expo-file-system in clean-store clone: 19.0.23
+=== COLD-CLONE (clean store) android export ===
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Android apps/supplier-app/index.ts ▓▓░░░░░░░░░░░░░░ 14.1% ( 43/181)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓░░░░░░░░░ 48.4% (315/453)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 87.1% (587/742)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (828/828)
+Android Bundled 15186ms apps/supplier-app/index.ts (828 modules)
+
+› android bundles (1):
+_expo/static/js/android/index-76e0a26311facb53327a70b53588f147.hbc (2.75 MB)
+
+› Files (1):
+metadata.json (150 B)
+
+Exported: /tmp/cp65o-android.LlEH
+android_EXIT=0
+=== COLD-CLONE (clean store) ios export ===
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+iOS apps/supplier-app/index.ts ▓▓░░░░░░░░░░░░░░ 14.1% ( 86/244)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.8% (508/544)
+iOS apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (830/830)
+iOS Bundled 12746ms apps/supplier-app/index.ts (830 modules)
+
+› ios bundles (1):
+_expo/static/js/ios/index-df68892a71717fcaa31d5cc152617904.hbc (2.74 MB)
+
+› Files (1):
+metadata.json (142 B)
+
+Exported: /tmp/cp65o-ios.YCFR
+ios_EXIT=0
