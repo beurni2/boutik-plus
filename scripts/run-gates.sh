@@ -134,6 +134,12 @@ capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-stor
 log "gate: no-consumer-storefront — NEGATIVE FIXTURE (storefront/checkout/cart routes, must fail)"
 capture no-consumer-storefront-negative fail node scripts/gates/no-consumer-storefront.mjs gates/fixtures/negative/no-consumer-storefront
 
+log "gate: neutral-packaging — repo source (B+3: no supplier branding/contact on the exterior, must pass)"
+capture neutral-packaging-positive pass node scripts/gates/neutral-packaging.mjs
+
+log "gate: neutral-packaging — NEGATIVE FIXTURE (supplier branding/contact on the exterior, must fail)"
+capture neutral-packaging-negative fail node scripts/gates/neutral-packaging.mjs gates/fixtures/negative/neutral-packaging
+
 log "gate: French Voice copy-lint — supplier-app catalog (must pass)"
 capture copy-lint-positive pass pnpm exec copy-lint apps/supplier-app/i18n/catalog.json
 
