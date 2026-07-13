@@ -1,0 +1,8 @@
+############ B1 COLD-GATES PROOF (fresh HOME + auth line + fresh empty store + frozen lockfile) ############
+AUTH LINE: fresh HOME carried ONLY  url."http://local_proxy@127.0.0.1:41729/git/".insteadOf "https://github.com/"  — transparent HTTPS->proxy, NOT ssh.
+clone: b1/settlement-read-model @ e5d307d (fresh HOME)
+frozen install from the FRESH EMPTY store: exit 0 (every dep fetched from nothing; @platform/* built via the HTTPS proxy).
+NOTE: the first run-gates invocation hit the harness 2-minute command timeout mid-typecheck (NOT a gate failure); re-run from the same installed clone with a fresh HOME:
+run-gates.sh from the cold clone → cold run-gates exit: 0
+
+ALL GATES GREEN (positives passed; every negative fixture failed as required)

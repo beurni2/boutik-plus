@@ -1,0 +1,4 @@
+=== B1 RED PROOF: adversarial tests fail BEFORE implementation (read model absent) ===
+$ vitest run test/settlement-read-model.test.ts
+Failed to load url ../src/settlement/readModel — Does the file exist? → Test Files 1 failed (1), Tests: no tests
+(the tests bite: they cannot pass without the read model — RED protocol satisfied)

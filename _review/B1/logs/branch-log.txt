@@ -1,0 +1,1 @@
+e5d307d feat(red): B1 — the settlement projection read model; B+I-05 + provider-ref-before-Paid, adversarial-first

@@ -1,0 +1,10 @@
+$ node scripts/gates/no-seller-deposit.mjs gates/fixtures/negative/no-seller-deposit
+no-seller-deposit FAILED (B+I-12 zero seller deposit/reserve/bond, ever) — 7 hit(s):
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:1 [deposit] // NEGATIVE FIXTURE (WO-B0.1 DoD): a seller deposit field/flow — the
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:2 [deposit] // no-seller-deposit gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:5 [deposit] sellerDeposit: number; // banned: B+I-12 — zero seller deposit, ever
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:6 [reserveField/Balance/Amount] reserveBalance: number; // banned: no reserve field
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:8 [onboardingFee] export function collectOnboardingFee(seller: SellerAccount, onboardingFee: number): void {
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:9 [deposit] seller.sellerDeposit += onboardingFee;
+  gates/fixtures/negative/no-seller-deposit/seller-schema.ts:9 [onboardingFee] seller.sellerDeposit += onboardingFee;
+(exit code: 1)

@@ -1,0 +1,24 @@
+$ node scripts/gates/no-wallet-no-funds.mjs gates/fixtures/negative/no-wallet-no-funds
+no-wallet-no-funds FAILED (Ten Laws #2 — no app holds funds; no wallet/balance module) — 21 hit(s):
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:1 [balance] // NEGATIVE FIXTURE (B1 · B7.1): a settlement surface that keeps a LOCAL BALANCE
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:2 [withdrawal] // and offers a WITHDRAWAL — both forbidden (B7.1: "no withdrawal; no local
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:3 [balance] // balance"; Ten Laws #2: no app holds funds). Boutik+ READS SettlementObligation;
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:4 [balance] // it never computes a running balance and never offers a withdraw button. The
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:4 [withdrawal] // it never computes a running balance and never offers a withdraw button. The
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:5 [wallet] // no-wallet-no-funds gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:6 [wallet] export interface SupplierSettlementWallet {
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:8 [balance] balance: number; // banned: no local balance — the receivable is READ, never accumulated
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:10 [wallet] export function withdrawSettlement(w: SupplierSettlementWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:10 [withdrawal] export function withdrawSettlement(w: SupplierSettlementWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:11 [balance] // banned: a withdrawal that mutates a locally-held balance
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:11 [withdrawal] // banned: a withdrawal that mutates a locally-held balance
+  gates/fixtures/negative/no-wallet-no-funds/settlement-balance.ts:12 [balance] w.balance -= amount;
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:1 [wallet] // NEGATIVE FIXTURE: a wallet/balance module — the no-wallet-no-funds gate
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:1 [balance] // NEGATIVE FIXTURE: a wallet/balance module — the no-wallet-no-funds gate
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:3 [wallet] export interface SupplierWallet {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:5 [balance] balance: number; // banned: no app computes an independent balance
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:7 [wallet] export function holdFunds(wallet: SupplierWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:7 [holdFunds/captureFunds/releaseFunds] export function holdFunds(wallet: SupplierWallet, amount: number): void {
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:8 [wallet] wallet.balance -= amount;
+  gates/fixtures/negative/no-wallet-no-funds/wallet.ts:8 [balance] wallet.balance -= amount;
+(exit code: 1)

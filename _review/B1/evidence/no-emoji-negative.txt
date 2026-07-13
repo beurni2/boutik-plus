@@ -1,0 +1,4 @@
+$ node scripts/gates/no-emoji.mjs gates/fixtures/negative/no-emoji
+no-emoji FAILED (WO-6.0 ruling ① — zero emoji in app chrome) — 1 hit(s):
+  gates/fixtures/negative/no-emoji/emoji.tsx:3 export const BadHeader = () => <Text>Accueil 🏠</Text>;
+(exit code: 1)

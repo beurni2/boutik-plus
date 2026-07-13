@@ -1,0 +1,3 @@
+$ node scripts/gates/no-emoji.mjs apps
+no-emoji OK — no emoji in rendered chrome under apps (WO-6.0 ruling ①)
+(exit code: 0)
