@@ -1,3 +1,5 @@
+5ec71a1 docs(e6): WO-6.5 JOURNAL — round-2 verifier PASS on final bytes; command_id format still open for founder ruling
+d5fde12 chore(e6): WO-6.5 — stage packet evidence atomically from HEAD 8a46e7e (gates, exports, diffs, branch-log, journal)
 8a46e7e docs(e6): WO-6.5 JOURNAL — CTO ruling response (command_id canon gap flagged, enqueue result, re-encode gate; PASS void→rebuilt)
 991d58f fix(e6): WO-6.5 — CTO ruling: reboot-safe minted-once command_id + enqueue discriminated result + re-encode-order gate
 af17359 docs(e6): WO-6.5 — review packet /_review/WO-6.5-review.zip (verifier PASS; no merge)

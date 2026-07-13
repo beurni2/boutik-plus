@@ -1,8 +1,8 @@
 diff --git a/JOURNAL.md b/JOURNAL.md
-index 825e434..b155ab0 100644
+index 825e434..acd7f92 100644
 --- a/JOURNAL.md
 +++ b/JOURNAL.md
-@@ -424,3 +424,37 @@ Format per entry:
+@@ -424,3 +424,44 @@ Format per entry:
    - **⑤** icon `size` props (17/28/12) and the B6/B7 **source-scan tests** ride to the next boutik touch.
    - **⑥** `CATEGORY_FLOOR_FCFA = 5 000` is correctly grounded and correctly flagged as an **OPEN founder decision — it stays ⏳** (per-category floor list unresolved).
  - **⚠ CROSS-REPO CARRY (must action):** the **WO-5.1 font name-table collision is fixed here** (5 TTFs → distinct weight-specific families, guarded by `font-embedding.test.ts`) **and MUST be checked in sera, which merged the same WO-5.1 font files.** If sera carries the identical `Archivo SemiBold`/`ArchivoSemiBold-Regular` collision, its native embedding would register only one weight — same defect, same fix owed. (shop-plus is web/variable-font — not the same failure surface, but worth a glance at its subset.)
@@ -40,6 +40,13 @@ index 825e434..b155ab0 100644
 +- **③ re-encode order gated (concern #2 no longer prose).** `test/reencode-order.test.ts` pins, in `capture.ts`, that `renderDerivative` (expo-image-manipulator: manipulate → renderAsync → saveAsync(JPEG)) runs BEFORE `stripJpegMetadata`, the stripper is fed the RE-ENCODED derivative bytes (never the raw master), and `assertExifFree` runs on the stripped output. The re-encode regenerates the entropy stream from decoded pixels — destroying any bytes smuggled in the original entropy (the honest limit of a byte-level stripper, now enforced by construction, not prose).
 +- **KEPT (founder ruling):** the B1.3 allow-list (default-deny · fail-closed · bomb ceiling · stuffing-aware EOI bound) and the queue survival tests — correct, unchanged.
 +- **Evidence:** typecheck 0 · supplier-app **119/119 (17 files)** incl. reencode-order (4) + the collision case · full `run-gates.sh` ALL GREEN · copy-lint 141/0 · both-platform export android 828 / ios 830 (+1 = commandId.ts). **④ fresh-context RED verifier re-running on the FINAL bytes; ⑤ packet regenerated atomically from one HEAD (logs/branch-log.txt + diff + head-sha describe the same commit).** Do NOT merge.
++
++### WO-6.5 · re-verifier PASS on the FINAL bytes (round 2) — HELD for the founder's command_id ruling
++- **Fresh-context RED re-verifier (round 2, on HEAD 8a46e7e after the round-1 PASS was VOIDED) — VERDICT: PASS (0 blockers, 1 concern).** All attacks by its own hands (verbatim in the packet `verifier-report-round2.md`): 18/18 hostile images defeated (11 self-crafted, incl. progressive-SOF2 bomb, width-8193 one-past-ceiling, lying-length on an allowed segment); **command_id proven reboot-safe by EXECUTION — the id crossed the reboot boundary IN the persisted file (never recomputed), 200,000 mints zero duplicates**; the canon gap confirmed GENUINE (`command_id: z.string().min(1)`, no mint rule in `contracts/` or `/docs`); the collision REFUSED + surfaced as `queue_error` (App proven to handle the result, never fall through to « en attente »); 17/17 queue scenarios; the re-encode gate proven NON-vacuous by mutation. Gates green; FORBIDDEN diff (store/journey/kit) = 0 lines.
++- **Concern (non-blocking, honest limit):** the re-encode gate is a source-text test — it pins the ordering + data-flow (re-encode before strip; stripper fed the derivative, not the master) but cannot exercise native expo-image-manipulator to prove the entropy stream is regenerated at runtime. That native efficacy is untestable in-sandbox (same class as the WO-6.0 font-embedding proof, which needed a prebuilt artifact); a device/e2e test would close it. Architecture correct; residual risk is the native library, not the diff.
++- **Minor observation (flagged, not a defect):** the demo's online-flush uses an always-resolving no-op send (`deliver(async () => {})`) — every queued item flips to delivered on reconnect, because E1 has no backend. Honest for the walking skeleton and commented; the queue's OWN failure/poison/transient behaviour is proven against rejecting sends in its tests. Named so it is not mistaken for a certified failing mock.
++- **⏳ OPEN — the founder's call (blocks a restored PASS's finality):** the command_id MINTING FORMAT is a canon gap. I shipped a v4-shaped idempotency key as the flagged safest-default; the founder ratifies it or specifies the canon rule (belongs in `platform-contracts`). The one seam is `src/offline/commandId.ts`.
++- **Packet:** `/_review/WO-6.5-review.zip` — regenerated ATOMICALLY from one HEAD (`logs/head-sha.txt` + `logs/branch-log.txt` + the diffs describe the SAME commit; the prior packet's cross-commit inconsistency is fixed). **NOT merged.**
 diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
 index 194da16..12a0811 100644
 --- a/apps/supplier-app/App.tsx
