@@ -1,0 +1,6 @@
+$ cd services/catalog-service && npx vitest run
+ ✓ test/health.test.ts (2 tests) 10ms
+ ✓ test/product.test.ts (3 tests) 19ms
+ ✓ test/moderation.test.ts (8 tests) 24ms
+ Test Files  3 passed (3)
+      Tests  13 passed (13)

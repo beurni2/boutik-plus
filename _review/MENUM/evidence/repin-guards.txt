@@ -1,0 +1,10 @@
+$ node -e "console.log(require(@platform/contracts/package.json).version)"
+0.9.6
+
+$ node scripts/gates/no-ssh-lockfile.mjs
+no-ssh-lockfile OK — pnpm-lock.yaml carries no ssh-form git URL
+exit=0
+
+new sha ba6f16d in lockfile: 57
+old sha 2153661 in lockfile: 0
+0

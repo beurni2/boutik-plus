@@ -1,0 +1,16 @@
+=== DEATH-PROOF (committed sha c722daa) ===
+
+① local enum/decision DEFINITIONS in catalog-service src — expect NONE:
+   0 — the local A1 enum + decision schema + isModerationOperator are GONE from catalog-service
+
+② catalog-service now CONSUMES canon (not redefines):
+c722daa:services/catalog-service/src/moderation.ts:1:import { PlatformEventSchema, type PlatformEvent, type ModerationReasonCode } from '@platform/contracts';
+c722daa:services/catalog-service/src/product.ts:1:import { ProductVersionSchema, VariantSchema, ModerationDecisionSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
+
+③ the sole ModerationDecisionSchema/ModerationReasonCodeSchema DEFINITION is canon's:
+   node_modules/@platform/contracts/dist/enums.js: 1 def
+   node_modules/@platform/contracts/dist/shapes/moderation.js: 1 def
+
+NAMED OUT-OF-SCOPE (founder): the supplier-app UI mirror `ChangeReason` in
+apps/supplier-app/src/demo/store.ts is a B11 display type, NOT a catalog-service
+definition. It is left for the live-Desk-3 wiring slice (A1 ratification ②).

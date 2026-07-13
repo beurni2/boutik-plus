@@ -1,0 +1,6 @@
+c722daa feat(amber): moderation enum LOCAL→CANON — catalog-service adopts canon ModerationReasonCodeSchema + ModerationDecisionSchema (v0.9.6)
+76c1b60 docs(journal): Batch B done — B1 bfb8d7d + B2 387b843 merged (RED review PASS)
+387b843 merge(red): B2 — statements + trust/consequence view; seller-never-debited, access-based consequences — founder review passed (RED)
+91c0cc4 merge: bring B1's merge (main) into B2 before merge — stacked-slice sync, no code delta
+bfb8d7d merge(red): B1 — settlement projection read model; B+I-05 verbatim + Paid-requires-provider-ref — founder review passed (RED)
+404ec7a docs(evidence): B2 review packet zip (RED · do not merge)

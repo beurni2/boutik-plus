@@ -1,0 +1,17 @@
+ apps/supplier-app/package.json                   |   4 +-
+ package.json                                     |  20 ++--
+ packages/commerce-core/package.json              |   4 +-
+ pnpm-lock.yaml                                   | 124 +++++++++++------------
+ pnpm-workspace.yaml                              |  19 ++--
+ scripts/run-gates.sh                             |   4 +-
+ services/catalog-service/package.json            |   2 +-
+ services/catalog-service/src/moderation.ts       |  89 +++++-----------
+ services/catalog-service/src/product.ts          |  19 ++--
+ services/catalog-service/test/moderation.test.ts |  61 +++++++----
+ services/catalog-service/test/product.test.ts    |   4 +-
+ services/fulfillment-service/package.json        |   4 +-
+ services/inventory-service/package.json          |   2 +-
+ services/media-service/package.json              |   2 +-
+ services/offer-service/package.json              |   4 +-
+ services/supplier-service/package.json           |   2 +-
+ 16 files changed, 180 insertions(+), 184 deletions(-)
