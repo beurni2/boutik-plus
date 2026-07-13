@@ -55,7 +55,7 @@
   },
   {
     "key": "offer.net_preview",
-    "fr": "Vous recevrez {amount} F",
+    "fr": "Vous recevrez {amount} F",
     "register": "money",
     "screenClass": "general"
   },
@@ -199,7 +199,7 @@
   },
   {
     "key": "produits.net_ligne",
-    "fr": "Vous recevrez {amount} F",
+    "fr": "Vous recevrez {amount} F",
     "register": "money",
     "screenClass": "label"
   },
@@ -343,7 +343,7 @@
   },
   {
     "key": "money.amount_f",
-    "fr": "{amount} F",
+    "fr": "{amount} F",
     "register": "money",
     "screenClass": "general"
   },

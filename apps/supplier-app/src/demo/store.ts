@@ -125,4 +125,14 @@ export function markCorrected(world: DemoWorld, id: string): void {
 
 // Bare number — the catalog string supplies « F » (the doubled-suffix
 // regression was the WO-4.1 verifier's blocking finding #2).
-export const formatFcfa = (n: number): string => `${n.toLocaleString('fr-FR').replace(/[  ]/g, ' ')}`;
+// WO-6.0 ruling ③ — the money separator must PAINT, not tofu. fr-FR groups
+// with U+202F (narrow no-break space), but Archivo has no U+202F glyph (nor
+// U+2009 thin space) in any available subset — it WOULD tofu. The founder's
+// ruling ③ authorizes a fallback: normalize every narrow/no-break space to
+// U+00A0 (NBSP), which Archivo DOES draw and which keeps « 11 500 F »
+// unbreakable. money.groupSeparator stays U+202F (the intent); this is the
+// renderable display fallback for a typeface that lacks the glyph.
+/** NBSP — the renderable no-break money space (ruling ③ fallback for U+202F). */
+export const MONEY_SPACE = ' ';
+export const formatFcfa = (n: number): string =>
+  n.toLocaleString('fr-FR').replace(/[\u202f\u00a0\u2009]/g, MONEY_SPACE);
