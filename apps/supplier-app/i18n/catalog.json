@@ -690,6 +690,78 @@
     "screenClass": "general"
   },
   {
+    "key": "moderation.en_attente",
+    "fr": "L'examen prend un peu plus de temps. On revient vers vous très vite.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.hors_ligne",
+    "fr": "Hors ligne : voici le dernier état connu. Rien n'est confirmé tant que le réseau n'est pas revenu.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.chip_approuve",
+    "fr": "Approuvé",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.chip_soumis",
+    "fr": "Envoyé",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.chip_attente",
+    "fr": "En attente",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.chip_modifs",
+    "fr": "À retoucher",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.facts_incomplete",
+    "fr": "Ajoutez un détail — matière, taille ou couleur — pour rassurer l'acheteur.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.no_public_safe_proof",
+    "fr": "Il manque une photo de l'objet réel, prise par vous.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.price_or_contact_in_image",
+    "fr": "Retirez le prix ou le numéro visible sur la photo.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.not_neutral_packaging",
+    "fr": "Gardez l'emballage tout simple, sans rien écrire dessus.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.prohibited_or_unlaunched_category",
+    "fr": "Cette catégorie n'est pas encore ouverte à la vente.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.reason.authenticity_concern",
+    "fr": "On a besoin d'une preuve de plus que l'article est bien authentique.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "accueil.refuse_banner",
     "fr": "Un colis a été refusé. Vous pouvez corriger — la commande reste protégée.",
     "register": "neutral",

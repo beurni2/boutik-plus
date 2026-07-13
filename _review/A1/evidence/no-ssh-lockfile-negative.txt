@@ -1,0 +1,3 @@
+$ node scripts/gates/no-ssh-lockfile.mjs gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml
+no-ssh-lockfile FAILED — 3 ssh-form git URL(s) in gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml (must be 0; https-form only)
+(exit code: 1)

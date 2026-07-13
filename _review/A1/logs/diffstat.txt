@@ -1,0 +1,16 @@
+ JOURNAL.md                                         |  13 +++
+ apps/supplier-app/App.tsx                          |  52 ++++++---
+ apps/supplier-app/i18n/catalog.json                |  72 ++++++++++++
+ apps/supplier-app/src/demo/store.ts                |  47 +++++++-
+ apps/supplier-app/test/no-self-moderation.test.ts  |  48 ++++++++
+ .../neutral-packaging/exterior-branding.ts         |   2 +-
+ pnpm-lock.yaml                                     |   3 +
+ scripts/gates/neutral-packaging.mjs                |  19 ++--
+ services/catalog-service/package.json              |   3 +-
+ services/catalog-service/src/moderation.ts         | 109 +++++++++++++++++++
+ services/catalog-service/src/product.ts            | 121 ++++++++++++++++++---
+ services/catalog-service/test/moderation.test.ts   | 107 ++++++++++++++++++
+ services/catalog-service/test/product.test.ts      |  21 +++-
+ services/offer-service/test/projection.test.ts     |   2 +-
+ .../test/shop-mock-certification.test.ts           |   2 +-
+ 15 files changed, 567 insertions(+), 54 deletions(-)

@@ -6,7 +6,7 @@ import { buildSupplyProjection } from '../src/projection.js';
 const NOW = '2026-07-15T12:00:00.000Z';
 const product = ProductVersionSchema.parse({
   id: 'pv-1', supplierId: 'supplier-1', version: 1, name: 'Pagne', productCode: 'PAG-01',
-  facts: {}, category: 'textile', zone: 'Gounghin', moderationState: 'approved_e1_sandbox',
+  facts: {}, category: 'textile', zone: 'Gounghin', moderationState: 'approved',
   status: 'active', supplyMode: 'SELLER_HELD',
 });
 const offer = SupplierOfferSchema.parse({

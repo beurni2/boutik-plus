@@ -24,7 +24,7 @@ describe('Shop+ projection-consumer mock — certified by the pinned §3 suite',
     // The REAL producer path feeds the consumer cleanly (schema identity end-to-end).
     const product = ProductVersionSchema.parse({
       id: 'pv-9', supplierId: 'supplier-9', version: 1, name: 'Pagne', productCode: 'PAG-09', facts: {},
-      category: 'textile', zone: 'Gounghin', moderationState: 'approved_e1_sandbox', status: 'active', supplyMode: 'SELLER_HELD',
+      category: 'textile', zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
     });
     const offer = SupplierOfferSchema.parse({
       id: 'offer-9', productVersionId: 'pv-9', version: 1, basePrice: 10_000, resellerCommission: 1_000,

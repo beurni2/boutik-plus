@@ -1,0 +1,3 @@
+$ node scripts/gates/no-ssh-lockfile.mjs pnpm-lock.yaml
+no-ssh-lockfile OK — pnpm-lock.yaml carries no ssh-form git URL
+(exit code: 0)
