@@ -1,0 +1,20 @@
+=== android export (isolated: /tmp/r5-android.Ktpq) ===
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Android apps/supplier-app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android apps/supplier-app/index.ts ▓░░░░░░░░░░░░░░░ 12.5% ( 16/133)
+Android apps/supplier-app/index.ts ▓░░░░░░░░░░░░░░░ 12.5% ( 69/225)
+Android apps/supplier-app/index.ts ▓▓▓░░░░░░░░░░░░░ 20.8% (125/274)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓░░░░░░░░ 55.6% (346/464)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.7% (591/742)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (828/828)
+Android Bundled 25071ms apps/supplier-app/index.ts (828 modules)
+Android apps/supplier-app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (828/828)
+
+› android bundles (1):
+_expo/static/js/android/index-76e0a26311facb53327a70b53588f147.hbc (2.75 MB)
+
+› Files (1):
+metadata.json (150 B)
+
+Exported: /tmp/r5o-android.IfQ9

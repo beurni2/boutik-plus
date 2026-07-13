@@ -1,0 +1,9 @@
+8a46e7e docs(e6): WO-6.5 JOURNAL — CTO ruling response (command_id canon gap flagged, enqueue result, re-encode gate; PASS void→rebuilt)
+991d58f fix(e6): WO-6.5 — CTO ruling: reboot-safe minted-once command_id + enqueue discriminated result + re-encode-order gate
+af17359 docs(e6): WO-6.5 — review packet /_review/WO-6.5-review.zip (verifier PASS; no merge)
+0630304 docs(e6): WO-6.5 JOURNAL — verifier PASS (0 blockers, 2 concerns; #10 fixed, #2 documented limit)
+08f548e fix(e6): WO-6.5 — reboot-safe command_id in the B7 offline wiring (verifier concern #10)
+c5450e7 chore(e6): WO-6.5 — stage packet evidence (branch log, full diff, export + cold-clone logs)
+dd03619 docs(e6): WO-6.5 JOURNAL — B1.3 allow-list + corpus/non-vacuity, B2.1 durable queue survival-by-execution, DoD green, FORBIDDEN clean
+f2f8947 feat(e6): WO-6.5 Part B (B2.1) — durable offline queue (survives app-kill + reboot)
+8dc25ec feat(e6): WO-6.5 Part A (B1.3) — hostile-image allow-list stripper + corpus
