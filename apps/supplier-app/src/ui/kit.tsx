@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type StyleProp,
   type TextStyle,
@@ -309,6 +310,53 @@ export function AmountHero({
   );
 }
 
+/** MoneyField — the B6 money input (components.md: « Hairline 1.5 box h 56;
+ * amount `page` scale `tnum` right-aligned; « F » suffix fixed; numeric
+ * keypad »). The field itself stays calm in every state — the below-floor
+ * refusal is a SIBLING note the screen owns, never a red field that scolds.
+ * `readOnly` renders the value as a settled figure (no keypad) for shares the
+ * seller has fixed. */
+export function MoneyField({
+  label,
+  value,
+  suffix,
+  onChangeText,
+  placeholder,
+  readOnly,
+}: {
+  label: string;
+  value: string;
+  suffix: string;
+  onChangeText?: ((t: string) => void) | undefined;
+  placeholder?: string | undefined;
+  readOnly?: boolean | undefined;
+}) {
+  return (
+    <View style={styles.fieldBlock}>
+      <Overline>{label}</Overline>
+      <View style={styles.fieldBox}>
+        {readOnly === true ? (
+          <Text style={styles.fieldInput} numberOfLines={1}>
+            {value}
+          </Text>
+        ) : (
+          <TextInput
+            style={styles.fieldInput}
+            value={value}
+            onChangeText={onChangeText}
+            keyboardType="number-pad"
+            placeholder={placeholder}
+            placeholderTextColor={C.soft}
+            maxLength={9}
+            accessibilityLabel={label}
+          />
+        )}
+        <Text style={styles.fieldSuffix}>{suffix}</Text>
+      </View>
+    </View>
+  );
+}
+
 /** PriceBand — the signature money moment: full-width theme block, tiny
  * caps label + big tabular amount (onPrimary) + right-column honesty note. */
 export function PriceBand({
@@ -601,6 +649,19 @@ const styles = StyleSheet.create({
   buttonSecondaryDangerText: { color: C.danger },
   linkHit: { minHeight: touch.minTargetPx, justifyContent: 'center', alignSelf: 'flex-start' },
   linkText: { ...textStyle(T.labelXS), color: C.primaryStrong, textDecorationLine: 'underline' },
+  fieldBlock: { gap: spacing.xs },
+  fieldBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 56,
+    borderWidth: H.medium,
+    borderColor: C.hairlineStrong,
+    borderRadius: radius.box,
+    paddingHorizontal: spacing.md,
+  },
+  fieldInput: { flex: 1, ...textStyle({ ...money.amountScale.page }), color: C.ink, fontVariant: ['tabular-nums'], textAlign: 'right', padding: 0 },
+  fieldSuffix: { ...textStyle({ ...money.amountScale.page }), color: C.muted, fontVariant: ['tabular-nums'] },
   amountHeroBlock: { gap: spacing.xs },
   amountHeroLabel: { ...textStyle(T.labelXS), color: C.muted },
   amountHero: { ...textStyle({ ...money.amountScale.hero }), color: C.ink, fontVariant: ['tabular-nums'] },

@@ -27,6 +27,7 @@ import {
   HairlineBox,
   Icon,
   ListRow,
+  MoneyField,
   OfflineBanner,
   Overline,
   palette,
@@ -57,6 +58,17 @@ const T = typeTokens.scale;
 
 const E1_B = 10_000;
 const E1_C = 1_000;
+
+// B6 « sous le plancher » — the seller's base price B has a floor. The value is
+// the canon Build Spec's committed MINIMUM (B+4: « category floor >=5,000 FCFA »,
+// authority level 2), already carried by the catalog string `offer.floor_block`
+// (« ... Le minimum est 5 000 F. »). The FINAL per-category floor list is an
+// OPEN Decision (Build Spec register: « Final launch/prohibited category list +
+// floor »): the design bundle shows a clothing floor of 8 000 F (copy.md) and a
+// 4 000 F example (components.md, which sits BELOW the >=5,000 minimum). Canon
+// governs the prototype: the demo holds the Build Spec minimum and does not
+// invent a per-category value. Flagged in JOURNAL.md.
+const CATEGORY_FLOOR_FCFA = 5_000;
 
 // The WO-1.4 direct-canon-root proof stays live: the offre screen computes
 // its preview through the pinned waterfall at render time.
@@ -131,6 +143,10 @@ export default function App() {
   const [stack, setStack] = useState<Screen[]>([START]);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+  // B6 — the seller's base price as text (numeric-only), and whether this offre
+  // is a re-offer (v2: « la v1 reste servie tant que la v2 n'est pas validée »).
+  const [priceInput, setPriceInput] = useState(String(E1_B));
+  const [reoffer, setReoffer] = useState(false);
   // Offline is a GLOBAL, designed state (offline-first doctrine): the banner
   // rides under the header and actions queue as pending — never lost, never
   // silently done. A demo toggle makes the honest state reachable.
@@ -165,6 +181,8 @@ export default function App() {
     setCapturing(false);
     setFailureDetail(null);
     setOffline(false);
+    setPriceInput(String(E1_B));
+    setReoffer(false);
   }, []);
   // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
   // IS the stored derivative; EXIF proven stripped on its bytes. A failed
@@ -191,6 +209,7 @@ export default function App() {
       return;
     }
     setPendingKey('studio.queue_pending');
+    setReoffer(false); // a fresh capture → a v1 offer
     go('offre');
   }, [pending, shot, go]);
   // Waypoint reset, never an edge: each hub state is already reachable from
@@ -217,7 +236,17 @@ export default function App() {
   // rendering it asserts it reconciled (baselineQuote throws otherwise).
   useMemo(() => baselineQuote(), []);
 
-  const heroAmount = t('money.amount_f').replace('{amount}', formatFcfa(livePreviewNet(E1_B, E1_C)));
+  // B6 derived money — the seller's own live offer through the pinned waterfall.
+  // Commission (the reseller's seller-funded share) is a fixed chosen value in
+  // this slice; the base price B is the editable input the floor block guards.
+  const priceB = Number.parseInt(priceInput, 10) || 0;
+  const offerC = E1_C;
+  const belowMin = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
+  const belowFloor = priceB > 0 && priceB < CATEGORY_FLOOR_FCFA; // a real too-low entry
+  const offerNet = belowMin ? 0 : livePreviewNet(priceB, offerC);
+  // Fee is derived FROM the pinned net (net = B − fee − C), so the reconcile
+  // line is franc-exact by construction — never an independently-computed 5 %.
+  const offerFee = belowMin ? 0 : priceB - offerC - offerNet;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -314,7 +343,14 @@ export default function App() {
                       meta={`${t('produits.repere')} : ${item.landmark}`}
                       value={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
                       chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
-                      onPress={() => (item.status === 'refuse_correctable' ? go('corrective') : go('offre'))}
+                      onPress={() => {
+                        if (item.status === 'refuse_correctable') {
+                          go('corrective');
+                          return;
+                        }
+                        setReoffer(true); // an already-listed product → a v2 re-offer
+                        go('offre');
+                      }}
                     />
                   )}
                 />
@@ -358,7 +394,13 @@ export default function App() {
             <PrimaryButton label={t('studio.autoriser')} onPress={() => void requestPermission()} />
             {/* The demo stays walkable if the camera is refused — honest
                 fallback, capture simply absent (journaled). */}
-            <UnderlineLink label={t('studio.sans_photo')} onPress={() => go('offre')} />
+            <UnderlineLink
+              label={t('studio.sans_photo')}
+              onPress={() => {
+                setReoffer(false);
+                go('offre');
+              }}
+            />
           </HairlineBox>
         )}
 
@@ -430,30 +472,65 @@ export default function App() {
         )}
 
         {screen === 'offre' && (
-          <HairlineBox>
-            {shots.hero !== undefined && shots.preuve !== undefined && (
-              <StatusChip tone="fact" label={t('studio.photos_pretes')} icon="coche" />
+          <View style={styles.stackGap}>
+            {/* B6 « offre v2 » — a re-offer; the v1 stays served until this is
+                validated (honest, never a silent overwrite). */}
+            {reoffer && (
+              <View style={styles.v2Banner}>
+                <Text style={styles.v2Text}>{t('offre.v2')}</Text>
+              </View>
             )}
-            <AmountHero label={t('offer.net_label')} amount={heroAmount} />
-            <View style={styles.baselineCard}>
-              <Overline>{t('offre.baseline_title')}</Overline>
-              <Text style={styles.baselineLine}>{t('offre.baseline_vendeur')}</Text>
-              <Text style={styles.baselineLine}>{t('offre.baseline_revendeur')}</Text>
-              <Text style={styles.baselineLine}>{t('offre.baseline_service')}</Text>
-              <Text style={styles.baselineLine}>{t('offre.baseline_livraison')}</Text>
-            </View>
-            <PrimaryButton
-              label={t('ready.action')}
-              money
-              onPress={() => {
-                addDemoProduct(world, E1_B, E1_C);
-                setWorld({ ...world });
-                setPendingKey('ready.pending');
-                setCelebrating(true);
-                go('pret');
-              }}
-            />
-          </HairlineBox>
+            <HairlineBox>
+              {shots.hero !== undefined && shots.preuve !== undefined && (
+                <StatusChip tone="fact" label={t('studio.photos_pretes')} icon="coche" />
+              )}
+              <MoneyField
+                label={t('offre.champ_prix')}
+                value={priceInput}
+                suffix={t('money.franc')}
+                onChangeText={(txt) => setPriceInput(txt.replace(/[^0-9]/g, ''))}
+              />
+              <MoneyField label={t('offre.champ_commission')} value={formatFcfa(offerC)} suffix={t('money.franc')} readOnly />
+              <Text style={styles.fieldAide}>{t('offre.commission_aide')}</Text>
+              {/* B6 « sous le plancher » — a gentle refusal (warningTint, never a
+                  red scold); the CTA is blocked below, with the reason on it. */}
+              {belowFloor && (
+                <View style={styles.floorNote}>
+                  <Icon name="alerte" size={17} color={C.warning} />
+                  <Text style={styles.floorNoteText}>{t('offer.floor_block')}</Text>
+                </View>
+              )}
+              {/* Live net through the pinned waterfall — muted when the offer
+                  isn't yet valid (empty field or below the floor). */}
+              <AmountHero
+                label={t('offer.net_label')}
+                amount={t('money.amount_f').replace('{amount}', formatFcfa(offerNet))}
+                pending={belowMin}
+              />
+              {!belowMin && (
+                <ReconcileLine>
+                  {t('offre.reconcile')
+                    .replace('{net}', formatFcfa(offerNet))
+                    .replace('{prix}', formatFcfa(priceB))
+                    .replace('{part}', formatFcfa(offerC))
+                    .replace('{frais}', formatFcfa(offerFee))}
+                </ReconcileLine>
+              )}
+              <PrimaryButton
+                label={t('offre.publier')}
+                money
+                disabled={belowMin}
+                disabledLabel={t('offer.floor_block')}
+                onPress={() => {
+                  addDemoProduct(world, priceB, offerC);
+                  setWorld({ ...world });
+                  setPendingKey('ready.pending');
+                  setCelebrating(true);
+                  go('pret');
+                }}
+              />
+            </HairlineBox>
+          </View>
         )}
 
         {screen === 'pret' && (
@@ -640,13 +717,11 @@ const styles = StyleSheet.create({
   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
   message: { ...textStyle(T.body), color: C.ink },
   ruleNote: { ...textStyle(T.caption), color: C.muted },
-  baselineCard: {
-    borderWidth: interaction.hairline.medium,
-    borderColor: C.hairlineStrong,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  baselineLine: { ...textStyle(T.body), color: C.body, fontVariant: ['tabular-nums'] },
+  v2Banner: { backgroundColor: C.sand, padding: spacing.md },
+  v2Text: { ...textStyle(T.body), color: C.body },
+  fieldAide: { ...textStyle(T.caption), color: C.muted },
+  floorNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: C.warningTint, padding: spacing.md },
+  floorNoteText: { ...textStyle(T.body), color: C.warning, flex: 1 },
   photoFrame: {
     borderWidth: interaction.hairline.medium,
     borderColor: C.hairlineStrong,

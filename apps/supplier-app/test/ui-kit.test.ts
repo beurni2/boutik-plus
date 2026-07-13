@@ -36,10 +36,14 @@ describe('WO-6.0 Grand Teint visual layer', () => {
     const kit = read('src/ui/kit.tsx');
     expect(kit).toMatch(/money\.amountScale\.hero/);
     expect(kit).toMatch(/fontVariant: \['tabular-nums'\]/);
-    // the App renders the hero on the offre screen from the catalog template
+    // the App renders the hero on the offre screen from the catalog template.
+    // WO-6.0 B6: the amount is the seller's LIVE net (their editable base price
+    // through the pinned waterfall), not a hardcoded example.
     const app = read('App.tsx');
-    expect(app).toMatch(/AmountHero label=\{t\('offer\.net_label'\)\}/);
-    expect(app).toMatch(/t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(livePreviewNet\(E1_B, E1_C\)\)\)/);
+    expect(app).toMatch(/AmountHero\s+label=\{t\('offer\.net_label'\)\}/);
+    expect(app).toMatch(/amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(offerNet\)\)\}/);
+    // and offerNet is the pinned-waterfall net of the entered price (never invented)
+    expect(app).toMatch(/const offerNet = belowMin \? 0 : livePreviewNet\(priceB, offerC\)/);
     // francs render tabular in the App too (baseline + stats)
     expect(app).toMatch(/fontVariant: \['tabular-nums'\]/);
     // the hero is bigger than the stat display (doctrine: the amount is the hero)
