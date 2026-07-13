@@ -688,5 +688,17 @@
     "fr": "Non retenu pour cette fois — le motif est indiqué, vous pouvez corriger.",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "accueil.refuse_banner",
+    "fr": "Un colis a été refusé. Vous pouvez corriger — la commande reste protégée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "accueil.urgent_banner",
+    "fr": "Une échéance approche. Corrigez avant ce soir 18 h.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

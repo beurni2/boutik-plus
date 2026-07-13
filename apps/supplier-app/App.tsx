@@ -199,6 +199,11 @@ export default function App() {
   const enLigne = world.products.filter((p) => p.status === 'pret').length;
   // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
   const recettes = world.products.filter((p) => p.status === 'pret');
+  // B1 modes are data-driven: an urgent deadline or a refused package changes
+  // what the home screen leads with — shown only when the data warrants it.
+  const urgent = world.products.some(
+    (p) => p.status === 'echeance_depassee' || (p.correctionMinLeft !== undefined && p.correctionMinLeft <= 60),
+  );
   const aCorriger = world.products.filter(
     (p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee',
   ).length;
@@ -230,6 +235,21 @@ export default function App() {
       <View style={styles.content}>
         {screen === 'accueil' && (
           <View style={styles.stackGap}>
+            {/* B1 « colis refusé » mode — the refusal leads, dignified, and
+                says the balance is safe (never punished). */}
+            {refused !== undefined && (
+              <Pressable style={styles.refuseBanner} onPress={() => go('corrective')} accessibilityRole="button">
+                <StatusChip tone="problem" label={t('statut.refuse')} icon="refus" />
+                <Text style={styles.bannerText}>{t('accueil.refuse_banner')}</Text>
+              </Pressable>
+            )}
+            {/* B1 « échéance urgente » mode — the clock leads. */}
+            {urgent && (
+              <Pressable style={styles.urgentBanner} onPress={() => go('echeances')} accessibilityRole="button">
+                <Icon name="horloge" size={17} color={C.warning} />
+                <Text style={styles.bannerText}>{t('accueil.urgent_banner')}</Text>
+              </Pressable>
+            )}
             <View style={styles.statGrid}>
               <HairlineBox style={styles.statCard}>
                 <Overline>{t('accueil.stat_en_ligne')}</Overline>
@@ -581,6 +601,9 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
   stackGap: { gap: spacing.md, paddingTop: spacing.sm },
   accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, paddingTop: spacing.sm },
+  refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.dangerTint, padding: spacing.md },
+  urgentBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
+  bannerText: { ...textStyle(T.row), color: C.ink, flex: 1 },
   statGrid: { flexDirection: 'row', gap: spacing.md },
   statCard: { flex: 1 },
   statValue: { ...textStyle(T.display), color: C.ink, fontVariant: ['tabular-nums'] },
