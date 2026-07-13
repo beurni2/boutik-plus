@@ -40,7 +40,12 @@
   `@platform/contracts` prints **0.9.6**; drift-check OK @ 0.9.6; every negative fixture fired).
 - `evidence/` — re-pin guards · death-proof grep · caller-binding scratch proof · catalog tests.
 - `logs/head-sha.txt` · `logs/branch-log.txt` · `logs/full.diff` · `logs/diffstat.txt` — atomic, one HEAD.
-- `logs/verifier-report.md` — fresh-context AMBER verifier on the final bytes: **[VERDICT — see report]**.
+- `logs/verifier-report.md` — fresh-context AMBER verifier on the final bytes: **VERDICT PASS · 0
+  BLOCKERS**. It mutation-tested the stamp (both its own scratch smuggle-test AND the shipped ⑤
+  flipped to approving the smuggle, then reverted), re-proved the re-pin/death/13-invariants, and
+  confirmed gate scripts byte-unchanged. One recorded observation (out of scope): catalog-service
+  test files aren't CI type-checked, so the `@ts-expect-error` guards are runtime-only — the
+  `safeParse` assertions still protect the invariant.
 
 ## Test counts
 catalog-service **13/13** (moderation 8 incl. ③ + ⑤ caller-binding · product 3 · health 2) · full suite 19/19
