@@ -45,7 +45,9 @@ pass. The STOP-AND-FLAG clause (scoped to those tests) did not trigger.
   the cold-cloned lockfile; **cold both-platform export android 832 / ios 834, both exit 0** —
   byte-matching the warm export.
 - `head-sha.txt` · `branch-log.txt` · `full.diff` · `diffstat.txt` — atomic, one HEAD.
-- `verifier-report.md` — fresh-context AMBER verifier verdict on the final bytes.
+- `verifier-report.md` — fresh-context AMBER verifier on the final bytes: **VERDICT PASS · 0
+  BLOCKERS** (one non-blocking observation: the queue tests use hardcoded ids, so the runtime
+  mint + expo-crypto side-effect rest on canon's own unit tests + the static entropy gate).
 
 ## Warm proof
 Both-platform export from the working tree: android **832** / ios **834** modules (was
