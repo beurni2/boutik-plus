@@ -1,0 +1,3 @@
+$ node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.pickup-before.json
+VIOLATION: fixture requests a pickup task for order-e1-0001 with NO confirmed readiness — refused (B6.2: no pickup task before readiness)
+(exit code: 1)

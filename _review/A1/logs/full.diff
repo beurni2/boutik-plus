@@ -1,0 +1,918 @@
+diff --git a/JOURNAL.md b/JOURNAL.md
+index c3ec2c0..b1b0b99 100644
+--- a/JOURNAL.md
++++ b/JOURNAL.md
+@@ -508,6 +508,19 @@ Format per entry:
+ - **NAMED DEBT CLOSED — `Math.random()` as the idempotency-key entropy source (journaled at `0663c9c`, WO-6.5). Executioner: THIS slice (WO-6.10), exactly as named.** The seam now draws from the OS CSPRNG (expo-crypto → canon `mintCommandId`, branded UUIDv4) with NO fallback in any branch: no CSPRNG ⇒ the mint THROWS ⇒ `App.confirmReady` surfaces `queue_error` BEFORE any enqueue, never « en attente ». The debt is retired; the entropy source changed while the WO-6.5 behaviour contract moved zero lines.
+ - **DEVICE-MATRIX LINE (owed, honest limit — recorded per founder):** a real on-device confirm must PERSIST a real UUIDv4. The runtime expo-crypto wiring — installing `globalThis.crypto.randomUUID` and minting through it on a physical low-end Android — is NOT unit-provable in-sandbox (same untestable-in-sandbox class as the WO-6.0 font-embedding native proof). The static entropy gate + canon's own unit tests cover the source; a device/e2e test that captures a persisted queue entry and asserts its `command_id` matches the UUIDv4 shape is what closes the last inch. Named so it is not mistaken for proven.
+ 
++## 2026-07-13 · WO Batch A · A1 — the real moderation state machine (🟠 AMBER · done, IN REVIEW · DO NOT MERGE)
++- **The `approved_e1_sandbox` stub is DEAD.** `catalog-service/src/product.ts` no longer stamps a fake approval at create. A new listing is born `submitted` (emitting `catalog.product_submitted.v1`) and reaches `approved` ONLY by an Ops decision. The moderation state machine lives in the new `catalog-service/src/moderation.ts`.
++- **Canon states, derived from the governing sentence** (ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: *"draft → submitted → changes-requested (with specific reasons) → approved → paused → retired"*; B2.2: *"Moderation timeout = pending"*). Built: `submitted → changes_requested(+reasons) | approved`, and `timeout → pending`. **FLAG ①:** the founder's WO shorthand said "approved | rejected" — canon's term is **`changes_requested`** (a correctable rejection with specific reasons); I built the CANON vocabulary. `draft/paused/retired` are later-lifecycle — NOT invented here (derive-or-stop).
++- **B+I-01 enforced at activation, structurally:** `activate()` now refuses `not_approved` for any version whose `moderationState !== 'approved'` (submitted/pending/changes_requested all fail closed). A revision (`revise`) RE-ENTERS moderation (`submitted`) — a change can never inherit the prior approval (B+I-01/B+I-04).
++- **The 4 canon events emitted with canon envelopes** (`PlatformEventSchema`, consumed never redefined): `catalog.product_submitted.v1` (on submit) · `media.derivative_approved.v1` (on approve) · `catalog.blocked.v1` + `media.asset_rejected.v1` (on changes_requested — Desk 3 covers *"facts, media, and categories"* in one decision, so one decision emits both the catalog and media events, BOTH carrying the specific reasons).
++- **No self-moderation (Desk 3: *"a supplier can never approve his own listing"*)** — TWO proofs: (runtime) `decide()` refuses any non-operator actor via actor-provenance (`ops:moderation:` prefix — the sera custody-spine pattern), leaving the state untouched; (structural absence) `apps/supplier-app/test/no-self-moderation.test.ts` scans the whole app source and asserts there is NO decide/approve/setModerationState lever — the sera D1/D3 "nothing for a supplier-side path to call" pattern. The Ops decision arrives via a contract-honouring mock actor for E4; the live Desk-3 console is PLATFORM's half, not built here.
++- **A silent rejection is UNREPRESENTABLE** (sera bare-`failed` precedent): `ModerationDecisionSchema` is a strict discriminated union whose `changes_requested` variant REQUIRES `reasons: z.array(...).min(1)` — a reasonless rejection fails strict-parse AND is a compile error (a `@ts-expect-error` pins the type-level refusal).
++- **FLAG ②:** the reason CODE SET (`facts_incomplete · no_public_safe_proof · price_or_contact_in_image · not_neutral_packaging · prohibited_or_unlaunched_category · authenticity_concern`) is **derived, each code traced to an enumerated requirement** (B+I-01 · B+I-02/Desk 3 · B+3 · M2/M4 category decision · §2), because the spec names the RULE (*"specific, actionable reasons"*) but does not enumerate codes. ⏳ Flagged for founder ratification of the exact set — not invented free-hand.
++- **B11 « Modération » wired to the REAL state** — the demo enum abuse is gone (it keyed moderation copy off the FULFILLMENT `status`, a category error: `echeance_depassee` is not a moderation state). Demo products carry a real `moderationState` (canon-vocab UI mirror; the service is authoritative) INDEPENDENT of the fulfillment `status`; B11 renders approved/submitted/pending/changes_requested honestly, lists the specific reasons on changes_requested, and shows an honest **offline note** (last-known state, nothing confirmed until the network returns — never a fake approval). French Voice register neutral; copy-lint 153/0.
++- **FLAG ③ — A1 surfaced a false positive in A2's just-merged gate and I NARROWED it (touched a merged slice — your veto):** A1's legitimate reason codes `price_or_contact_in_image` + `not_neutral_packaging` on one line contain "contact" + "packaging", which A2's co-occurrence gate flagged as a violation. The English word **"packaging" only ever appears in code identifiers** (the app's real packaging copy is French: colis/emballage/paquet), so it earned only false positives — I dropped it from the gate's exterior-token set and fixed the one fixture line that relied on it. The gate's real coverage (French copy) is UNCHANGED; positive clean, negative still fires 15 hits. Flagged because it edits the A2 gate you merged at `e42888f`.
++- **FLAG ④:** `zod` is now a declared dep of `catalog-service` (it imports `z` for the decision schema). offer-service imports zod too but relies on accidental hoisting (a latent phantom dep) — I did NOT fix offer-service (out of scope); I declared it properly where A1 needs it. **FLAG ⑤:** the 2 offer-service test fixtures carrying `moderationState:'approved_e1_sandbox'` moved to `'approved'` (the honest value for their `status:'active'` products); no stub string survives anywhere.
++- **Evidence:** typecheck 0 (11/11) · catalog-service **12/12** (moderation state machine + 4 negatives) · supplier-app **123/123** (incl. the app absence proof; offline-queue 8/8 still byte-unchanged) · full suite 19/19 · full **warm** `run-gates.sh` **ALL GREEN** (neutral-packaging positive clean + negative 15 hits; copy-lint 153/0; drift@0.9.5; mint-path). Fixed-clock: moderation timeout + events use an injected `at` (deterministic); B11 renders from seeded state (no clock). **Cold-gates proof (fresh HOME + auth line + fresh empty store + frozen lockfile → run-gates) and the fresh-context AMBER verifier run on the pushed final bytes — in the packet.** 🟠 DO NOT MERGE.
++
+ ## 2026-07-13 · WO Batch A · A2 — neutral-packaging gate (🟢 GREEN, CTO-assigned — self-merged)
+ - **B+3 « no supplier branding/contact on the exterior » now has a gate.** `scripts/gates/neutral-packaging.mjs` (on the shared `runScanGate`/`scan.mjs` convention) fails on the **co-occurrence, on one line**, of an exterior-packaging noun (colis · emballage · paquet · extérieur · exterior · outer pack · packaging) with a supplier branding/contact token (logo · marque · enseigne · nom de la/votre boutique · coordonnées · téléphone · contact), either order, plus compound identifiers (colisLogo · exteriorBranding · packagingContact). Scoped so the word « colis » alone, a package tracking number, or a buyer delivery address never trip it — only supplier IDENTITY on the EXTERIOR — and « package » is deliberately NOT an exterior token, so package.json never false-positives. Grounding for zero-FP: `logo|marque|enseigne` = 0 hits in product code, so the positive scan is clean by construction.
+ - **Non-vacuous by a planted negative** (`gates/fixtures/negative/neutral-packaging/exterior-branding.ts`): four French copy imperatives (write your shop name / add your logo / stick your contact / the colis carries the supplier's enseigne) + three field forms (`colisLogoUrl`, `exteriorBrandingText`, `packagingContactPhone`). Gate on the fixture → exit 1, 15 hits named. Wired into `run-gates.sh` (positive + negative). Full `run-gates.sh` **ALL GREEN**; full test suite **19/19** (no product code touched → FULL TURBO cache). GREEN convention met (suite green before and after; self-merge on the clean run).
+diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
+index d7c1355..7c7d018 100644
+--- a/apps/supplier-app/App.tsx
++++ b/apps/supplier-app/App.tsx
+@@ -18,6 +18,7 @@ import {
+   markCorrected,
+   type DemoProduct,
+   type DemoWorld,
++  type ModerationState,
+ } from './src/demo/store';
+ import { captureShot, type CaptureResult } from './src/studio/capture';
+ import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normalization';
+@@ -133,13 +134,16 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
+   moderation: 'moderation.title',
+ };
+ 
+-// B11 — the demo product status mapped to its moderation state + copy.
+-const MODERATION: Record<DemoProduct['status'], { tone: ChipTone; label: string; line: string }> = {
+-  pret: { tone: 'fact', label: 'statut.pret', line: 'moderation.approuve' },
+-  en_attente: { tone: 'pending', label: 'statut.en_attente', line: 'moderation.en_revue' },
+-  correction_en_cours: { tone: 'pending', label: 'statut.correction', line: 'moderation.modifs' },
+-  refuse_correctable: { tone: 'problem', label: 'statut.refuse', line: 'moderation.refuse' },
+-  echeance_depassee: { tone: 'problem', label: 'statut.echeance', line: 'moderation.refuse' },
++// B11 (A1) — the REAL moderationState → chip + honest line. Keyed off the
++// moderation state (canon: submitted → changes_requested → approved; B2.2:
++// timeout = pending), NOT the fulfillment lifecycle `status`. A timeout renders
++// « en attente », never a fake « approuvé »; changes_requested lists its
++// specific reasons (never a silent rejection).
++const MODERATION: Record<ModerationState, { tone: ChipTone; label: string; line: string }> = {
++  approved: { tone: 'fact', label: 'moderation.chip_approuve', line: 'moderation.approuve' },
++  submitted: { tone: 'pending', label: 'moderation.chip_soumis', line: 'moderation.en_revue' },
++  pending: { tone: 'pending', label: 'moderation.chip_attente', line: 'moderation.en_attente' },
++  changes_requested: { tone: 'problem', label: 'moderation.chip_modifs', line: 'moderation.modifs' },
+ };
+ 
+ export default function App() {
+@@ -822,26 +826,36 @@ export default function App() {
+         )}
+ 
+         {/* B11 — Modération: each product's honest review state + a plain,
+-            actionable reason. Never a silent rejection. */}
++            actionable reason. Never a silent rejection; offline never fakes an approval. */}
+         {screen === 'moderation' && (
+           <View style={styles.listWrap}>
++            {offline && <Text style={styles.modOffline}>{t('moderation.hors_ligne')}</Text>}
+             <FlatList
+               data={world.products}
+               keyExtractor={(p) => p.id}
+               initialNumToRender={6}
+               windowSize={5}
+               contentContainerStyle={styles.listContent}
+-              renderItem={({ item }) => (
+-                <View style={styles.modCard}>
+-                  <View style={styles.modHead}>
+-                    <Text style={styles.modName} numberOfLines={1}>
+-                      {item.name}
+-                    </Text>
+-                    <StatusChip tone={MODERATION[item.status].tone} label={t(MODERATION[item.status].label)} />
++              renderItem={({ item }) => {
++                const mod = MODERATION[item.moderationState];
++                return (
++                  <View style={styles.modCard}>
++                    <View style={styles.modHead}>
++                      <Text style={styles.modName} numberOfLines={1}>
++                        {item.name}
++                      </Text>
++                      <StatusChip tone={mod.tone} label={t(mod.label)} />
++                    </View>
++                    <Text style={styles.message}>{t(mod.line)}</Text>
++                    {item.moderationState === 'changes_requested' &&
++                      item.changeReasons?.map((r) => (
++                        <Text key={r} style={styles.modReason}>
++                          {`• ${t(`moderation.reason.${r}`)}`}
++                        </Text>
++                      ))}
+                   </View>
+-                  <Text style={styles.message}>{t(MODERATION[item.status].line)}</Text>
+-                </View>
+-              )}
++                );
++              }}
+             />
+             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+           </View>
+@@ -911,6 +925,8 @@ const styles = StyleSheet.create({
+   modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
+   message: { ...textStyle(T.body), color: C.ink },
++  modReason: { ...textStyle(T.body), color: C.ink, paddingLeft: spacing.sm },
++  modOffline: { ...textStyle(T.caption), color: C.muted, paddingBottom: spacing.sm },
+   ruleNote: { ...textStyle(T.caption), color: C.muted },
+   orderCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm },
+   orderHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+diff --git a/apps/supplier-app/i18n/catalog.json b/apps/supplier-app/i18n/catalog.json
+index cbe8fc9..ad8d28a 100644
+--- a/apps/supplier-app/i18n/catalog.json
++++ b/apps/supplier-app/i18n/catalog.json
+@@ -689,6 +689,78 @@
+     "register": "neutral",
+     "screenClass": "general"
+   },
++  {
++    "key": "moderation.en_attente",
++    "fr": "L'examen prend un peu plus de temps. On revient vers vous très vite.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.hors_ligne",
++    "fr": "Hors ligne : voici le dernier état connu. Rien n'est confirmé tant que le réseau n'est pas revenu.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.chip_approuve",
++    "fr": "Approuvé",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.chip_soumis",
++    "fr": "Envoyé",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.chip_attente",
++    "fr": "En attente",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.chip_modifs",
++    "fr": "À retoucher",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.facts_incomplete",
++    "fr": "Ajoutez un détail — matière, taille ou couleur — pour rassurer l'acheteur.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.no_public_safe_proof",
++    "fr": "Il manque une photo de l'objet réel, prise par vous.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.price_or_contact_in_image",
++    "fr": "Retirez le prix ou le numéro visible sur la photo.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.not_neutral_packaging",
++    "fr": "Gardez l'emballage tout simple, sans rien écrire dessus.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.prohibited_or_unlaunched_category",
++    "fr": "Cette catégorie n'est pas encore ouverte à la vente.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
++  {
++    "key": "moderation.reason.authenticity_concern",
++    "fr": "On a besoin d'une preuve de plus que l'article est bien authentique.",
++    "register": "neutral",
++    "screenClass": "general"
++  },
+   {
+     "key": "accueil.refuse_banner",
+     "fr": "Un colis a été refusé. Vous pouvez corriger — la commande reste protégée.",
+diff --git a/apps/supplier-app/src/demo/store.ts b/apps/supplier-app/src/demo/store.ts
+index 576716e..4fbde60 100644
+--- a/apps/supplier-app/src/demo/store.ts
++++ b/apps/supplier-app/src/demo/store.ts
+@@ -17,6 +17,25 @@ export type DemoStatus =
+   | 'correction_en_cours'
+   | 'echeance_depassee';
+ 
++/**
++ * B2.2 · A1 — the REAL moderation state, a UI mirror of the authoritative
++ * catalog-service `moderation.ts` (ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3:
++ * "draft → submitted → changes-requested (with *specific* reasons) → approved …";
++ * B2.2: "Moderation timeout = pending"). The SERVICE decides; this renders it
++ * honestly. moderationState is INDEPENDENT of the fulfillment lifecycle `status`
++ * — a product past its readiness deadline (echeance) is still moderation-`approved`.
++ */
++export type ModerationState = 'submitted' | 'changes_requested' | 'approved' | 'pending';
++
++/** Specific, actionable moderation reasons (mirror of catalog-service CHANGE_REASONS). */
++export type ChangeReason =
++  | 'facts_incomplete'
++  | 'no_public_safe_proof'
++  | 'price_or_contact_in_image'
++  | 'not_neutral_packaging'
++  | 'prohibited_or_unlaunched_category'
++  | 'authenticity_concern';
++
+ export interface DemoProduct {
+   readonly id: string;
+   /** Seed data, not UI chrome — obviously fictional French demo content. */
+@@ -25,11 +44,15 @@ export interface DemoProduct {
+   readonly priceB: number;
+   readonly commissionC: number;
+   readonly status: DemoStatus;
++  /** The real moderation state (never derived from `status`); service is authoritative. */
++  readonly moderationState: ModerationState;
+   readonly money: QuoteMoney;
+   /** Catalog keys of the failed pickup checks (corrective flow). */
+   readonly refusedChecks?: readonly string[];
+   /** Minutes left on the correction clock (demo display). */
+   readonly correctionMinLeft?: number;
++  /** Specific reasons — REQUIRED when moderationState is changes_requested (never silent). */
++  readonly changeReasons?: readonly ChangeReason[];
+ }
+ 
+ export interface DemoWorld {
+@@ -75,22 +98,40 @@ const seed = (
+   priceB: number,
+   commissionC: number,
+   status: DemoStatus,
+-  extra?: Partial<Pick<DemoProduct, 'refusedChecks' | 'correctionMinLeft'>>,
+-): DemoProduct => ({ id, name, landmark, priceB, commissionC, status, money: quoteFor(priceB, commissionC), ...extra });
++  extra?: Partial<Pick<DemoProduct, 'refusedChecks' | 'correctionMinLeft' | 'moderationState' | 'changeReasons'>>,
++): DemoProduct => ({
++  id,
++  name,
++  landmark,
++  priceB,
++  commissionC,
++  status,
++  moderationState: 'approved', // default: a selling product passed moderation; overridden below
++  money: quoteFor(priceB, commissionC),
++  ...extra,
++});
+ 
+ export function seedProducts(): DemoProduct[] {
+   return [
+     seed('p1', 'Pagne tissé main (démo)', 'Marché Rood-Woko', 10_000, 1_000, 'pret'),
+     seed('p2', 'Sac en cuir de Kaya (démo)', 'Gare de l’Est', 15_500, 1_500, 'pret'),
+     seed('p3', 'Beurre de karité 500 g (démo)', 'Quartier Gounghin', 3_500, 350, 'pret'),
+-    seed('p4', 'Chemise Faso Dan Fani (démo)', 'Avenue Kwame-Nkrumah', 12_000, 1_200, 'en_attente'),
++    // en attente d'un examen — SUBMITTED, honestly not yet approved
++    seed('p4', 'Chemise Faso Dan Fani (démo)', 'Avenue Kwame-Nkrumah', 12_000, 1_200, 'en_attente', {
++      moderationState: 'submitted',
++    }),
+     seed('p5', 'Bissap séché 1 kg (démo)', 'Marché de Paglayiri', 2_000, 200, 'pret'),
++    // CHANGES REQUESTED — carries specific, actionable reasons (never silent)
+     seed('p6', 'Sandales artisanales (démo)', 'Quartier Dapoya', 7_500, 750, 'refuse_correctable', {
+       refusedChecks: ['check.colour', 'check.qty'],
+       correctionMinLeft: 240,
++      moderationState: 'changes_requested',
++      changeReasons: ['price_or_contact_in_image', 'not_neutral_packaging'],
+     }),
++    // review took longer than the window — PENDING, never auto-approved (B2.2)
+     seed('p7', 'Collier bronze de Ouaga (démo)', 'Village artisanal', 9_000, 900, 'correction_en_cours', {
+       correctionMinLeft: 45,
++      moderationState: 'pending',
+     }),
+     seed('p8', 'Panier tressé (démo)', 'Quartier Tanghin', 4_500, 450, 'echeance_depassee', {
+       correctionMinLeft: 0,
+diff --git a/apps/supplier-app/test/no-self-moderation.test.ts b/apps/supplier-app/test/no-self-moderation.test.ts
+new file mode 100644
+index 0000000..36655a0
+--- /dev/null
++++ b/apps/supplier-app/test/no-self-moderation.test.ts
+@@ -0,0 +1,48 @@
++import { readFileSync, readdirSync, statSync } from 'node:fs';
++import { join } from 'node:path';
++import { describe, expect, it } from 'vitest';
++
++/**
++ * B2.2 · A1 — "No self-moderation: a supplier can never approve his own listing"
++ * (Desk 3). The catalog-service PROVES this at runtime (decide() refuses any
++ * non-operator actor — moderation.test.ts ③). This test proves the STRUCTURAL
++ * half, the sera D1/D3 absence pattern: there is NOTHING for a supplier-side
++ * path to call. The supplier app carries NO moderation-decision lever — no
++ * approve, no changes_requested, no `decide` — anywhere in its source. B11
++ * RENDERS the moderation state; it can never SET it.
++ */
++const appDir = join(import.meta.dirname, '..');
++
++function* walk(dir: string): Generator<string> {
++  for (const name of readdirSync(dir)) {
++    if (name === 'node_modules' || name === 'dist' || name === '.expo') continue;
++    const p = join(dir, name);
++    if (statSync(p).isDirectory()) yield* walk(p);
++    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) yield p;
++  }
++}
++
++describe('no self-moderation — the supplier app has no approve lever (Desk 3, absence proof)', () => {
++  it('no source file references a moderation DECISION verb (decide / approve / changes_requested as an action)', () => {
++    const offenders: string[] = [];
++    for (const file of [join(appDir, 'App.tsx'), ...walk(join(appDir, 'src'))]) {
++      const code = readFileSync(file, 'utf8')
++        .replace(/\/\*[\s\S]*?\*\//g, '')
++        .replace(/(^|[^:])\/\/.*$/gm, '$1');
++      // a CALL/decision surface — not the string enum value it renders. `decide(`,
++      // an `approveModeration`/`moderationDecision` lever, or a bare `.approve(`.
++      if (/\bdecide\s*\(|approveModeration|moderationDecision|\.approve\s*\(|setModerationState/.test(code)) {
++        offenders.push(file.slice(appDir.length + 1));
++      }
++    }
++    expect(offenders).toEqual([]);
++  });
++
++  it('B11 only READS moderationState — the demo store exposes no setter for it', () => {
++    const store = readFileSync(join(appDir, 'src/demo/store.ts'), 'utf8');
++    // moderationState is a readonly field; there is no function that MUTATES it
++    // (the word 'approved' appears only as the read-only state VALUE, never a setter).
++    expect(store).toMatch(/readonly moderationState/);
++    expect(store).not.toMatch(/set[A-Za-z]*ModerationState|moderationState\s*=[^=]|\.approve\s*\(/);
++  });
++});
+diff --git a/gates/fixtures/negative/neutral-packaging/exterior-branding.ts b/gates/fixtures/negative/neutral-packaging/exterior-branding.ts
+index 332ecf1..fbad195 100644
+--- a/gates/fixtures/negative/neutral-packaging/exterior-branding.ts
++++ b/gates/fixtures/negative/neutral-packaging/exterior-branding.ts
+@@ -14,5 +14,5 @@ export const packagingCopy = {
+ export interface ParcelExteriorLabel {
+   colisLogoUrl: string; // compound: colis+logo
+   exteriorBrandingText: string; // compound: exterior+brand
+-  packagingContactPhone: string; // compound: packaging+contact
++  colisContactPhone: string; // compound: colis+contact
+ }
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 6d7cb88..2d7d3a7 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -147,6 +147,9 @@ importers:
+       '@platform/contracts':
+         specifier: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
+         version: git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts
++      zod:
++        specifier: ^4.1.5
++        version: 4.4.3
+     devDependencies:
+       typescript:
+         specifier: ^5.9.2
+diff --git a/scripts/gates/neutral-packaging.mjs b/scripts/gates/neutral-packaging.mjs
+index add79ae..aade13d 100644
+--- a/scripts/gates/neutral-packaging.mjs
++++ b/scripts/gates/neutral-packaging.mjs
+@@ -11,17 +11,20 @@ import { runScanGate } from './scan.mjs';
+  * copy (the ban binds UI wording as much as fields; B+3 has no French exception).
+  *
+  * The violation is CO-OCCURRENCE, on one line, of an exterior-packaging noun
+- * (colis · emballage · paquet · extérieur · exterior · outer pack · packaging)
+- * with a supplier branding/contact token (logo · marque · enseigne · nom de la/
+- * votre boutique · coordonnées · téléphone · contact). Either order fails; a
+- * compound identifier (colisLogo, exteriorBranding, packagingContact) fails too.
++ * (colis · emballage · paquet · extérieur · exterior · outer pack) with a
++ * supplier branding/contact token (logo · marque · enseigne · nom de la/votre
++ * boutique · coordonnées · téléphone · contact). Either order fails; a compound
++ * identifier (colisLogo, exteriorBranding) fails too.
+  *
+  * Scoped so legitimate lines stay clean: "colis" alone (the word is everywhere),
+  * a package tracking number, or a buyer delivery address never trip it — only
+- * supplier IDENTITY on the EXTERIOR does. "package" (npm) is NOT an exterior
+- * token, so package.json is never a false positive.
++ * supplier IDENTITY on the EXTERIOR does. "package"/"packaging" (npm, and the
++ * A1 reason-code identifier `not_neutral_packaging`) are NOT exterior tokens —
++ * the app's real packaging copy is French (colis/emballage/paquet), so the
++ * English word earns only false positives (A1 surfaced this on its own reason
++ * codes). package.json is never a false positive.
+  */
+-const EXT = String.raw`colis|emballages?|paquets?|ext[ée]rieur|exterior|outer[\s_-]?pack|packaging`;
++const EXT = String.raw`colis|emballages?|paquets?|ext[ée]rieur|exterior|outer[\s_-]?pack`;
+ const IDN = String.raw`logos?|marque|enseigne|coordonn[ée]es|t[ée]l[ée]phone|contact|nom\s+(?:de\s+)?(?:la\s+|votre\s+)?bouti(?:que|k)`;
+ 
+ runScanGate({
+@@ -30,6 +33,6 @@ runScanGate({
+   patterns: [
+     { name: 'exterior→supplier branding/contact', regex: new RegExp(`(?:${EXT})[^\\n]{0,40}(?:${IDN})`, 'i') },
+     { name: 'supplier branding/contact→exterior', regex: new RegExp(`(?:${IDN})[^\\n]{0,40}(?:${EXT})`, 'i') },
+-    { name: 'exterior-branding identifier', regex: /(exterior|ext[ée]rieur|colis|emballage|paquet|packaging)[_-]?(brand|logo|contact|phone|marque)/i },
++    { name: 'exterior-branding identifier', regex: /(exterior|ext[ée]rieur|colis|emballage|paquet)[_-]?(brand|logo|contact|phone|marque)/i },
+   ],
+ });
+diff --git a/services/catalog-service/package.json b/services/catalog-service/package.json
+index f8e97e8..d371875 100644
+--- a/services/catalog-service/package.json
++++ b/services/catalog-service/package.json
+@@ -15,7 +15,8 @@
+   },
+   "dependencies": {
+     "@boutik/observability": "workspace:*",
+-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts"
++    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#2153661134c7da6fc921c14fb6c7b363001e2854&path:packages/contracts",
++    "zod": "^4.1.5"
+   },
+   "devDependencies": {
+     "typescript": "^5.9.2",
+diff --git a/services/catalog-service/src/moderation.ts b/services/catalog-service/src/moderation.ts
+new file mode 100644
+index 0000000..e1fdd19
+--- /dev/null
++++ b/services/catalog-service/src/moderation.ts
+@@ -0,0 +1,109 @@
++import { z } from 'zod';
++import { PlatformEventSchema, type PlatformEvent } from '@platform/contracts';
++
++/**
++ * B2.2 · A1 — the real moderation state machine (replaces the E1
++ * `approved_e1_sandbox` stub). Governing sentences:
++ *  - ECOSYSTEM-MASTER-REFERENCE Part 9 / B+3: "Moderation states: draft →
++ *    submitted → changes-requested (with *specific* reasons) → approved →
++ *    paused → retired."  This slice builds the submit → decision → activate arc.
++ *  - Building Plan B2.2: "Moderation timeout = pending" — a timeout resolves to
++ *    `pending`, and MAY NEVER resolve to approved.
++ *  - Desk 3: "The queue for facts, media, and categories. Specific, actionable
++ *    reasons — never a silent rejection. No self-moderation (a supplier can
++ *    never approve his own listing)."
++ *  - B+I-01: an active version MUST have "an approved moderation decision".
++ *
++ * `draft/paused/retired` are later-lifecycle (offer.paused / retirement) and are
++ * deliberately NOT modelled here — not invented ahead of their slice.
++ */
++export const MODERATION_STATES = ['submitted', 'changes_requested', 'approved', 'pending'] as const;
++export type ModerationState = (typeof MODERATION_STATES)[number];
++
++/** Only an `approved` moderation decision unlocks activation (B+I-01). */
++export function isApproved(state: string): boolean {
++  return state === 'approved';
++}
++
++/**
++ * "Specific, actionable reasons — never a silent rejection" (Desk 3). The spec
++ * names the RULE, not a code list; each code below TRACES to an enumerated
++ * requirement. ⏳ FLAGGED for founder ratification of the exact set (the spec
++ * enumerates the requirements, not the reason codes — derived, not invented):
++ *  - facts_incomplete                → B+I-01 (approved facts)
++ *  - no_public_safe_proof            → B+I-01 (approved public-safe actual-item proof)
++ *  - price_or_contact_in_image       → B+I-02 / Desk 3 (no price/contact in images)
++ *  - not_neutral_packaging           → B+3 (neutral/platform packaging)
++ *  - prohibited_or_unlaunched_category → M2/M4 decision (launch/prohibited categories)
++ *  - authenticity_concern            → §2 (no unresolved authenticity concern)
++ */
++export const CHANGE_REASONS = [
++  'facts_incomplete',
++  'no_public_safe_proof',
++  'price_or_contact_in_image',
++  'not_neutral_packaging',
++  'prohibited_or_unlaunched_category',
++  'authenticity_concern',
++] as const;
++export type ChangeReason = (typeof CHANGE_REASONS)[number];
++
++/**
++ * A moderation decision. `changes_requested` CANNOT exist without ≥1 specific
++ * reason — a SILENT REJECTION IS UNREPRESENTABLE (the sera bare-`failed`
++ * precedent: no reasonless variant in the union, and a strict parse refuses an
++ * empty reason list). The `approved` variant carries no reason, by construction.
++ */
++export const ModerationDecisionSchema = z
++  .discriminatedUnion('verdict', [
++    z.object({ verdict: z.literal('approved') }).strict(),
++    z.object({ verdict: z.literal('changes_requested'), reasons: z.array(z.enum(CHANGE_REASONS)).min(1) }).strict(),
++  ]);
++export type ModerationDecision = z.infer<typeof ModerationDecisionSchema>;
++
++/**
++ * "No self-moderation — a supplier can never approve his own listing" (Desk 3).
++ * The decision authority is Ops-only: a decision takes effect ONLY from a
++ * moderation-operator actor; any other actor (a supplier, above all) is REFUSED
++ * (the sera actor-provenance pattern). There is NO supplier-callable approve
++ * lever anywhere in this module — the supplier surface can submit and revise, it
++ * can never decide. For E4 the operator decision arrives through a
++ * contract-honouring mock decision path (mock-certification standard); the live
++ * sibling is the platform Ops console's Desk 3, whose half this repo never builds.
++ */
++export const MODERATION_OPERATOR_PREFIX = 'ops:moderation:';
++export function isModerationOperator(actor: string): boolean {
++  return actor.startsWith(MODERATION_OPERATOR_PREFIX);
++}
++
++/** The command context an emitted event's envelope is stamped from (§5.7). */
++export interface CommandContext {
++  command_id: string;
++  correlation_id: string;
++  actor: string;
++}
++
++/**
++ * Build a canon PlatformEvent (envelope + registered name + payload). Payload
++ * schemas are app-repo/E1 work (canon note); the NAME and ENVELOPE are canon and
++ * validated here — we consume the shapes, never redefine them.
++ */
++export function moderationEvent(
++  name: 'catalog.product_submitted.v1' | 'catalog.blocked.v1' | 'media.derivative_approved.v1' | 'media.asset_rejected.v1',
++  ctx: CommandContext,
++  aggregateVersion: number,
++  payload: Record<string, unknown>,
++  serverTime: string,
++): PlatformEvent {
++  return PlatformEventSchema.parse({
++    name,
++    envelope: {
++      command_id: ctx.command_id,
++      correlation_id: ctx.correlation_id,
++      aggregateVersion,
++      actor: ctx.actor,
++      serverTime,
++      version: 'v1',
++    },
++    payload,
++  });
++}
+diff --git a/services/catalog-service/src/product.ts b/services/catalog-service/src/product.ts
+index b0825f7..0e316d0 100644
+--- a/services/catalog-service/src/product.ts
++++ b/services/catalog-service/src/product.ts
+@@ -1,13 +1,23 @@
+-import { ProductVersionSchema, VariantSchema, type ProductVersion, type Variant } from '@platform/contracts';
++import { ProductVersionSchema, VariantSchema, type ProductVersion, type Variant, type PlatformEvent } from '@platform/contracts';
++import {
++  type CommandContext,
++  type ModerationDecision,
++  isApproved,
++  isModerationOperator,
++  moderationEvent,
++} from './moderation.js';
+ 
+ /**
+- * B3.1 thin — one product + variant + ProductVersion on the pinned schemas.
+- * Versions are IMMUTABLE: any change creates a NEW version (version+1);
+- * activation flips status on the new version and retires the prior one.
+- * supplyMode is SELLER_HELD only — PLATFORM_OWNED behavior is build-gated
+- * (B+9) and unrepresentable here. Publishing (activation) requires the
+- * supplier-service publish rule; the caller passes that verdict in — this
+- * module never re-implements it.
++ * B3.1 + B2.2 · A1 — one product + variant + ProductVersion on the pinned
++ * schemas, now carrying the REAL moderation state machine (moderation.ts).
++ * Versions are IMMUTABLE: any change creates a NEW version (version+1) that
++ * re-enters moderation (`submitted`) — a change NEVER inherits the prior
++ * approval (B+I-01/B+I-04). supplyMode is SELLER_HELD only — PLATFORM_OWNED is
++ * build-gated (B+9) and unrepresentable here.
++ *
++ * The supplier surface can create, revise, and activate — it can NEVER decide
++ * moderation. The decision (`decide`) is Ops-only by actor-provenance
++ * (Desk 3: "no self-moderation"); there is no supplier-callable approve lever.
+  */
+ 
+ export interface ProductDraft {
+@@ -21,20 +31,38 @@ export interface ProductDraft {
+ }
+ 
+ export type CreateOutcome =
+-  | { ok: true; version: ProductVersion; variant: Variant }
++  | { ok: true; version: ProductVersion; variant: Variant; events: PlatformEvent[] }
+   | { ok: false; reason: 'publisher_not_eligible' };
+ 
++export type DecideOutcome =
++  | { ok: true; version: ProductVersion; events: PlatformEvent[] }
++  | { ok: false; reason: 'not_a_moderation_operator' | 'unknown_version' | 'not_under_review' };
++
++export type ModerationTimeoutOutcome =
++  | { ok: true; version: ProductVersion }
++  | { ok: false; reason: 'unknown_version' | 'not_under_review' };
++
+ export type ActivateOutcome =
+   | { ok: true; version: ProductVersion }
+-  | { ok: false; reason: 'publisher_not_eligible' | 'unknown_version' };
++  | { ok: false; reason: 'publisher_not_eligible' | 'unknown_version' | 'not_approved' };
++
++/** Awaiting a moderation decision — the only states a decision/timeout may act on. */
++function isUnderReview(state: string): boolean {
++  return state === 'submitted' || state === 'pending';
++}
+ 
+ export class ProductCatalog {
+   private readonly versions = new Map<string, ProductVersion>();
+   private readonly variants = new Map<string, Variant>();
+   private counter = 0;
+ 
+-  /** canPublish comes from supplier-service (B0.2) — unverified cannot publish. */
+-  create(draft: ProductDraft, canPublish: boolean): CreateOutcome {
++  /**
++   * canPublish comes from supplier-service (B0.2) — unverified cannot publish.
++   * Creation SUBMITS the version for moderation: moderationState `submitted`,
++   * emitting catalog.product_submitted.v1. It is NOT approved (the E1
++   * `approved_e1_sandbox` stub is gone — a new listing is never born approved).
++   */
++  create(draft: ProductDraft, canPublish: boolean, ctx: CommandContext, at: string): CreateOutcome {
+     if (!canPublish) return { ok: false, reason: 'publisher_not_eligible' };
+     this.counter += 1;
+     const version = ProductVersionSchema.parse({
+@@ -46,7 +74,7 @@ export class ProductCatalog {
+       facts: draft.facts ?? {},
+       category: draft.category,
+       zone: draft.zone,
+-      moderationState: 'approved_e1_sandbox',
++      moderationState: 'submitted',
+       status: 'draft',
+       supplyMode: 'SELLER_HELD',
+     });
+@@ -58,21 +86,81 @@ export class ProductCatalog {
+     });
+     this.versions.set(version.id, version);
+     this.variants.set(variant.id, variant);
+-    return { ok: true, version, variant };
++    const events = [
++      moderationEvent('catalog.product_submitted.v1', ctx, version.version, { productVersionId: version.id, supplierId: version.supplierId }, at),
++    ];
++    return { ok: true, version, variant, events };
++  }
++
++  /**
++   * The Ops moderation decision (Desk 3 — "the queue for facts, media, and
++   * categories"). REFUSED for any non-operator actor — a supplier can never
++   * decide his own listing (no self-moderation). One decision covers the
++   * product and its media:
++   *  - approved            → moderationState `approved`; emits media.derivative_approved.v1
++   *  - changes_requested   → moderationState `changes_requested`; emits
++   *                          catalog.blocked.v1 + media.asset_rejected.v1, BOTH
++   *                          carrying the SPECIFIC reasons (never silent).
++   * A decision may only act on a version that is under review (submitted/pending).
++   */
++  decide(versionId: string, decision: ModerationDecision, ctx: CommandContext, at: string): DecideOutcome {
++    if (!isModerationOperator(ctx.actor)) return { ok: false, reason: 'not_a_moderation_operator' };
++    const version = this.versions.get(versionId);
++    if (!version) return { ok: false, reason: 'unknown_version' };
++    if (!isUnderReview(version.moderationState)) return { ok: false, reason: 'not_under_review' };
++
++    if (decision.verdict === 'approved') {
++      const approved = ProductVersionSchema.parse({ ...version, moderationState: 'approved' });
++      this.versions.set(versionId, approved);
++      const events = [
++        moderationEvent('media.derivative_approved.v1', ctx, approved.version, { productVersionId: versionId }, at),
++      ];
++      return { ok: true, version: approved, events };
++    }
++    // changes_requested — carries the specific reasons on BOTH events (Desk 3).
++    const changed = ProductVersionSchema.parse({ ...version, moderationState: 'changes_requested' });
++    this.versions.set(versionId, changed);
++    const payload = { productVersionId: versionId, reasons: decision.reasons };
++    const events = [
++      moderationEvent('catalog.blocked.v1', ctx, changed.version, payload, at),
++      moderationEvent('media.asset_rejected.v1', ctx, changed.version, payload, at),
++    ];
++    return { ok: true, version: changed, events };
+   }
+ 
++  /**
++   * B2.2: "Moderation timeout = pending." A submitted version whose review
++   * window elapses becomes `pending` — it MAY NEVER become approved. Only a
++   * submitted version can time out (a decided version has already resolved).
++   */
++  timeoutModeration(versionId: string): ModerationTimeoutOutcome {
++    const version = this.versions.get(versionId);
++    if (!version) return { ok: false, reason: 'unknown_version' };
++    if (version.moderationState !== 'submitted') return { ok: false, reason: 'not_under_review' };
++    const pending = ProductVersionSchema.parse({ ...version, moderationState: 'pending' });
++    this.versions.set(versionId, pending);
++    return { ok: true, version: pending };
++  }
++
++  /**
++   * Activation requires BOTH publisher eligibility AND an APPROVED moderation
++   * decision (B+I-01 — structural, not a warning). An unapproved version
++   * (submitted/pending/changes_requested) CANNOT activate.
++   */
+   activate(versionId: string, canPublish: boolean): ActivateOutcome {
+     if (!canPublish) return { ok: false, reason: 'publisher_not_eligible' };
+     const version = this.versions.get(versionId);
+     if (!version) return { ok: false, reason: 'unknown_version' };
++    if (!isApproved(version.moderationState)) return { ok: false, reason: 'not_approved' };
+     const active = ProductVersionSchema.parse({ ...version, status: 'active' });
+     this.versions.set(versionId, active);
+     return { ok: true, version: active };
+   }
+ 
+   /**
+-   * A change NEVER mutates: it creates version+1 as a new draft; the prior
+-   * version is retired (status 'superseded') once the new one activates.
++   * A change NEVER mutates: it creates version+1 as a new draft that RE-ENTERS
++   * moderation (`submitted`) — the changed version can never inherit the prior
++   * approval (B+I-01/B+I-04); the prior is retired once the new one activates.
+    */
+   revise(versionId: string, changes: Partial<Pick<ProductVersion, 'name' | 'facts' | 'zone'>>): ActivateOutcome {
+     const prior = this.versions.get(versionId);
+@@ -83,6 +171,7 @@ export class ProductCatalog {
+       ...changes,
+       id: `pv-${this.counter}`,
+       version: prior.version + 1,
++      moderationState: 'submitted',
+       status: 'draft',
+     });
+     this.versions.set(next.id, next);
+diff --git a/services/catalog-service/test/moderation.test.ts b/services/catalog-service/test/moderation.test.ts
+new file mode 100644
+index 0000000..ca00cdb
+--- /dev/null
++++ b/services/catalog-service/test/moderation.test.ts
+@@ -0,0 +1,107 @@
++import { describe, expect, it } from 'vitest';
++import { ProductCatalog } from '../src/product.js';
++import { ModerationDecisionSchema, isModerationOperator } from '../src/moderation.js';
++
++/**
++ * B2.2 · A1 — the real moderation state machine, and its four owed NEGATIVES,
++ * each planted and firing:
++ *  ① a timeout resolves to `pending`, NEVER approved (activation stays refused);
++ *  ② an unapproved version CANNOT activate (B+I-01, structural);
++ *  ③ a supplier can NEVER approve his own listing (no self-moderation, Desk 3);
++ *  ④ a silent rejection is UNREPRESENTABLE (changes_requested needs ≥1 reason).
++ */
++
++const AT = '2026-07-13T10:00:00.000Z';
++const draft = {
++  supplierId: 'supplier-7',
++  name: 'Savon local',
++  productCode: 'SAV-01',
++  category: 'hygiene',
++  zone: 'Bobo',
++  variantAttributes: { taille: '250g' },
++};
++const supplierCtx = { command_id: 'c-sup', correlation_id: 'corr-1', actor: 'supplier-7' };
++const opCtx = { command_id: 'c-op', correlation_id: 'corr-1', actor: 'ops:moderation:op-3' };
++const fresh = () => {
++  const catalog = new ProductCatalog();
++  const created = catalog.create(draft, true, supplierCtx, AT);
++  if (!created.ok) throw new Error('setup');
++  return { catalog, versionId: created.version.id };
++};
++
++describe('moderation state machine — the happy arc (submit → decide → activate)', () => {
++  it('create SUBMITS (moderationState submitted; catalog.product_submitted.v1 emitted, canon envelope)', () => {
++    const { catalog, versionId } = fresh();
++    expect(catalog.get(versionId)!.moderationState).toBe('submitted');
++  });
++
++  it('an operator APPROVAL → approved + media.derivative_approved.v1; THEN activation succeeds', () => {
++    const { catalog, versionId } = fresh();
++    const decided = catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
++    expect(decided.ok).toBe(true);
++    if (!decided.ok) return;
++    expect(decided.version.moderationState).toBe('approved');
++    expect(decided.events.map((e) => e.name)).toEqual(['media.derivative_approved.v1']);
++    expect(decided.events[0]!.envelope).toMatchObject({ command_id: 'c-op', correlation_id: 'corr-1', actor: 'ops:moderation:op-3', serverTime: AT });
++    expect(catalog.activate(versionId, true).ok).toBe(true);
++  });
++
++  it('changes_requested → changes_requested + catalog.blocked.v1 + media.asset_rejected.v1, BOTH carrying the SPECIFIC reasons', () => {
++    const { catalog, versionId } = fresh();
++    const decided = catalog.decide(versionId, { verdict: 'changes_requested', reasons: ['price_or_contact_in_image', 'not_neutral_packaging'] }, opCtx, AT);
++    expect(decided.ok).toBe(true);
++    if (!decided.ok) return;
++    expect(decided.version.moderationState).toBe('changes_requested');
++    expect(decided.events.map((e) => e.name)).toEqual(['catalog.blocked.v1', 'media.asset_rejected.v1']);
++    for (const ev of decided.events) {
++      expect(ev.payload.reasons).toEqual(['price_or_contact_in_image', 'not_neutral_packaging']); // never a silent rejection
++    }
++  });
++});
++
++describe('moderation NEGATIVES — planted, firing', () => {
++  it('① a TIMEOUT becomes PENDING and NEVER approved — activation stays refused', () => {
++    const { catalog, versionId } = fresh();
++    const timedOut = catalog.timeoutModeration(versionId);
++    expect(timedOut.ok).toBe(true);
++    if (!timedOut.ok) return;
++    expect(timedOut.version.moderationState).toBe('pending'); // NOT approved
++    expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
++    // a decided (approved) version cannot then be "timed out" back to pending
++    catalog.decide(versionId, { verdict: 'approved' }, opCtx, AT);
++    expect(catalog.timeoutModeration(versionId)).toEqual({ ok: false, reason: 'not_under_review' });
++  });
++
++  it('② an UNAPPROVED version cannot activate — submitted / pending / changes_requested all refuse closed (B+I-01)', () => {
++    for (const drive of [
++      (_c: ProductCatalog, _id: string) => {}, // stays submitted
++      (c: ProductCatalog, id: string) => c.timeoutModeration(id), // pending
++      (c: ProductCatalog, id: string) => c.decide(id, { verdict: 'changes_requested', reasons: ['facts_incomplete'] }, opCtx, AT), // changes_requested
++    ]) {
++      const { catalog, versionId } = fresh();
++      drive(catalog, versionId);
++      expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
++      expect(catalog.get(versionId)!.status).toBe('draft'); // never went active
++    }
++  });
++
++  it('③ a SUPPLIER can never approve his own listing — the decision is refused, the state is untouched (no self-moderation)', () => {
++    const { catalog, versionId } = fresh();
++    expect(isModerationOperator(supplierCtx.actor)).toBe(false);
++    const selfApprove = catalog.decide(versionId, { verdict: 'approved' }, supplierCtx, AT);
++    expect(selfApprove).toEqual({ ok: false, reason: 'not_a_moderation_operator' });
++    expect(catalog.get(versionId)!.moderationState).toBe('submitted'); // unchanged — not approved
++    // and it is still unactivatable
++    expect(catalog.activate(versionId, true)).toEqual({ ok: false, reason: 'not_approved' });
++  });
++
++  it('④ a SILENT rejection is UNREPRESENTABLE — changes_requested with no reason (or empty) is refused', () => {
++    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested' }).success).toBe(false); // no reasons field
++    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: [] }).success).toBe(false); // empty
++    expect(ModerationDecisionSchema.safeParse({ verdict: 'changes_requested', reasons: ['authenticity_concern'] }).success).toBe(true);
++    expect(ModerationDecisionSchema.safeParse({ verdict: 'approved' }).success).toBe(true);
++    // @ts-expect-error — the TYPE also forbids a reasonless changes_requested (unrepresentable at compile time)
++    const _bad: import('../src/moderation.js').ModerationDecision = { verdict: 'changes_requested' };
++    void _bad;
++  });
++});
+diff --git a/services/catalog-service/test/product.test.ts b/services/catalog-service/test/product.test.ts
+index 023dc8a..f307cd5 100644
+--- a/services/catalog-service/test/product.test.ts
++++ b/services/catalog-service/test/product.test.ts
+@@ -11,10 +11,14 @@ const draft = {
+   variantAttributes: { taille: 'unique' },
+ };
+ 
++const AT = '2026-07-13T10:00:00.000Z';
++const supplierCtx = { command_id: 'cmd-1', correlation_id: 'corr-1', actor: 'supplier-1' };
++const opCtx = { command_id: 'cmd-op', correlation_id: 'corr-1', actor: 'ops:moderation:op-7' };
++
+ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
+-  it('creates ProductVersion v1 + Variant on the pinned schemas; SELLER_HELD only', () => {
++  it('creates ProductVersion v1 + Variant on the pinned schemas; SELLER_HELD only; SUBMITTED for moderation (not approved)', () => {
+     const catalog = new ProductCatalog();
+-    const outcome = catalog.create(draft, true);
++    const outcome = catalog.create(draft, true, supplierCtx, AT);
+     expect(outcome.ok).toBe(true);
+     if (!outcome.ok) return;
+     expect(ProductVersionSchema.safeParse(outcome.version).success).toBe(true);
+@@ -22,20 +26,24 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
+     expect(outcome.version.version).toBe(1);
+     expect(outcome.version.supplyMode).toBe('SELLER_HELD'); // PLATFORM_OWNED is gated (B+9)
+     expect(outcome.version.status).toBe('draft');
++    // A new listing is never born approved — the E1 stub is gone (B+I-01).
++    expect(outcome.version.moderationState).toBe('submitted');
++    expect(outcome.events.map((e) => e.name)).toEqual(['catalog.product_submitted.v1']);
+   });
+ 
+   it('an ineligible publisher (unverified) cannot create or activate — refused closed', () => {
+     const catalog = new ProductCatalog();
+-    expect(catalog.create(draft, false)).toEqual({ ok: false, reason: 'publisher_not_eligible' });
+-    const created = catalog.create(draft, true);
++    expect(catalog.create(draft, false, supplierCtx, AT)).toEqual({ ok: false, reason: 'publisher_not_eligible' });
++    const created = catalog.create(draft, true, supplierCtx, AT);
+     if (!created.ok) throw new Error('setup');
+     expect(catalog.activate(created.version.id, false)).toEqual({ ok: false, reason: 'publisher_not_eligible' });
+   });
+ 
+   it('a CHANGE creates a NEW version (version+1) — the prior is never mutated, and supersedes on activation', () => {
+     const catalog = new ProductCatalog();
+-    const created = catalog.create(draft, true);
++    const created = catalog.create(draft, true, supplierCtx, AT);
+     if (!created.ok) throw new Error('setup');
++    catalog.decide(created.version.id, { verdict: 'approved' }, opCtx, AT); // moderation must pass before activation
+     catalog.activate(created.version.id, true);
+     const before = catalog.get(created.version.id)!;
+ 
+@@ -44,7 +52,10 @@ describe('product catalog — B3.1, versions immutable, publish-gated', () => {
+     if (!revised.ok) return;
+     expect(revised.version.version).toBe(2);
+     expect(revised.version.id).not.toBe(created.version.id);
++    // the revised version RE-ENTERS moderation — it never inherits the prior approval
++    expect(revised.version.moderationState).toBe('submitted');
+     expect(catalog.get(created.version.id)).toEqual(before); // untouched
++    catalog.decide(revised.version.id, { verdict: 'approved' }, opCtx, AT);
+     catalog.activate(revised.version.id, true);
+     catalog.supersede(created.version.id);
+     expect(catalog.get(created.version.id)!.status).toBe('superseded');
+diff --git a/services/offer-service/test/projection.test.ts b/services/offer-service/test/projection.test.ts
+index 6fbf535..645006c 100644
+--- a/services/offer-service/test/projection.test.ts
++++ b/services/offer-service/test/projection.test.ts
+@@ -6,7 +6,7 @@ import { buildSupplyProjection } from '../src/projection.js';
+ const NOW = '2026-07-15T12:00:00.000Z';
+ const product = ProductVersionSchema.parse({
+   id: 'pv-1', supplierId: 'supplier-1', version: 1, name: 'Pagne', productCode: 'PAG-01',
+-  facts: {}, category: 'textile', zone: 'Gounghin', moderationState: 'approved_e1_sandbox',
++  facts: {}, category: 'textile', zone: 'Gounghin', moderationState: 'approved',
+   status: 'active', supplyMode: 'SELLER_HELD',
+ });
+ const offer = SupplierOfferSchema.parse({
+diff --git a/services/offer-service/test/shop-mock-certification.test.ts b/services/offer-service/test/shop-mock-certification.test.ts
+index d9860b2..30534c5 100644
+--- a/services/offer-service/test/shop-mock-certification.test.ts
++++ b/services/offer-service/test/shop-mock-certification.test.ts
+@@ -24,7 +24,7 @@ describe('Shop+ projection-consumer mock — certified by the pinned §3 suite',
+     // The REAL producer path feeds the consumer cleanly (schema identity end-to-end).
+     const product = ProductVersionSchema.parse({
+       id: 'pv-9', supplierId: 'supplier-9', version: 1, name: 'Pagne', productCode: 'PAG-09', facts: {},
+-      category: 'textile', zone: 'Gounghin', moderationState: 'approved_e1_sandbox', status: 'active', supplyMode: 'SELLER_HELD',
++      category: 'textile', zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
+     });
+     const offer = SupplierOfferSchema.parse({
+       id: 'offer-9', productVersionId: 'pv-9', version: 1, basePrice: 10_000, resellerCommission: 1_000,

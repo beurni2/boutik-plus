@@ -1,0 +1,3 @@
+$ node scripts/gates/projection-identity-free.mjs gates/fixtures/projection.contract.json
+OK: projection matches the pinned contract Shop+ reads — five fields, identity-free
+(exit code: 0)

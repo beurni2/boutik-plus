@@ -1,0 +1,18 @@
+$ node scripts/gates/neutral-packaging.mjs gates/fixtures/negative/neutral-packaging
+neutral-packaging FAILED (B+3 neutral/platform packaging — no supplier branding/contact on the exterior) — 15 hit(s):
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:7 [exterior→supplier branding/contact] brandOnColis: 'Écrivez le nom de votre boutique sur le colis', // brand→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:7 [supplier branding/contact→exterior] brandOnColis: 'Écrivez le nom de votre boutique sur le colis', // brand→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:8 [exterior→supplier branding/contact] logoOnEmballage: 'Ajoutez votre logo sur l’emballage extérieur', // brand→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:8 [supplier branding/contact→exterior] logoOnEmballage: 'Ajoutez votre logo sur l’emballage extérieur', // brand→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:9 [exterior→supplier branding/contact] contactOnPaquet: 'Collez vos coordonnées et votre téléphone sur le paquet', // contact→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:9 [supplier branding/contact→exterior] contactOnPaquet: 'Collez vos coordonnées et votre téléphone sur le paquet', // contact→exterior
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:10 [exterior→supplier branding/contact] enseigneExterior: 'Le colis porte l’enseigne du fournisseur', // exterior→brand
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:10 [supplier branding/contact→exterior] enseigneExterior: 'Le colis porte l’enseigne du fournisseur', // exterior→brand
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:15 [exterior→supplier branding/contact] colisLogoUrl: string; // compound: colis+logo
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:15 [supplier branding/contact→exterior] colisLogoUrl: string; // compound: colis+logo
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:15 [exterior-branding identifier] colisLogoUrl: string; // compound: colis+logo
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:16 [exterior-branding identifier] exteriorBrandingText: string; // compound: exterior+brand
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:17 [exterior→supplier branding/contact] colisContactPhone: string; // compound: colis+contact
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:17 [supplier branding/contact→exterior] colisContactPhone: string; // compound: colis+contact
+  gates/fixtures/negative/neutral-packaging/exterior-branding.ts:17 [exterior-branding identifier] colisContactPhone: string; // compound: colis+contact
+(exit code: 1)
