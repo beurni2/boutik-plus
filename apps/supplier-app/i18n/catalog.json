@@ -654,6 +654,84 @@
     "screenClass": "general"
   },
   {
+    "key": "recettes.state_attente",
+    "fr": "En attente du prochain versement.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.state_bientot",
+    "fr": "Prêt pour le prochain versement.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.state_encours",
+    "fr": "Versement en cours vers votre compte Mobile Money.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.state_verse",
+    "fr": "Versé sur votre compte Mobile Money.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.state_revision",
+    "fr": "En révision : on vérifie une dernière fois avant de verser.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.state_echec",
+    "fr": "Le versement n'a pas abouti. On réessaie pour vous.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.ref_ligne",
+    "fr": "Référence de versement : {ref}",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_attente",
+    "fr": "En attente",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_bientot",
+    "fr": "Bientôt",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_encours",
+    "fr": "En cours",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_verse",
+    "fr": "Versé",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_revision",
+    "fr": "En révision",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.chip_echec",
+    "fr": "Réessai",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
     "key": "moderation.title",
     "fr": "Modération",
     "register": "neutral",

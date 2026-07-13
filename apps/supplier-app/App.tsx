@@ -17,6 +17,7 @@ import {
   formatFcfa,
   markCorrected,
   type DemoProduct,
+  type DemoReceivable,
   type DemoWorld,
   type ModerationState,
 } from './src/demo/store';
@@ -144,6 +145,20 @@ const MODERATION: Record<ModerationState, { tone: ChipTone; label: string; line:
   submitted: { tone: 'pending', label: 'moderation.chip_soumis', line: 'moderation.en_revue' },
   pending: { tone: 'pending', label: 'moderation.chip_attente', line: 'moderation.en_attente' },
   changes_requested: { tone: 'problem', label: 'moderation.chip_modifs', line: 'moderation.modifs' },
+};
+
+// B10 (B1) — the REAL settlement state → chip + honest money-register line. The
+// pre-Paid states all read « en attente » (calm, never anxious); Paid appears
+// ONLY with a provider-confirmed ref (B7.1); Held/Failed are honest, not hidden.
+const RECEIVABLE_STATE: Record<DemoReceivable['obligation']['state'], { tone: ChipTone; label: string; line: string }> = {
+  Locked: { tone: 'pending', label: 'recettes.chip_attente', line: 'recettes.state_attente' },
+  Pending: { tone: 'pending', label: 'recettes.chip_attente', line: 'recettes.state_attente' },
+  Eligible: { tone: 'pending', label: 'recettes.chip_attente', line: 'recettes.state_attente' },
+  Payable: { tone: 'pending', label: 'recettes.chip_bientot', line: 'recettes.state_bientot' },
+  Processing: { tone: 'pending', label: 'recettes.chip_encours', line: 'recettes.state_encours' },
+  Paid: { tone: 'fact', label: 'recettes.chip_verse', line: 'recettes.state_verse' },
+  Held: { tone: 'problem', label: 'recettes.chip_revision', line: 'recettes.state_revision' },
+  Failed: { tone: 'problem', label: 'recettes.chip_echec', line: 'recettes.state_echec' },
 };
 
 export default function App() {
@@ -326,7 +341,7 @@ export default function App() {
   const clocks = world.products.filter((p) => p.correctionMinLeft !== undefined);
   const enLigne = world.products.filter((p) => p.status === 'pret').length;
   // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
-  const recettes = world.products.filter((p) => p.status === 'pret');
+  const receivables = world.receivables;
   // B1 modes are data-driven: an urgent deadline or a refused package changes
   // what the home screen leads with — shown only when the data warrants it.
   const urgent = world.products.some(
@@ -794,30 +809,40 @@ export default function App() {
           </View>
         )}
 
-        {/* B10 — Mes recettes: the seller's net per sold product (from the
-            pinned waterfall), « jamais gardé par Boutik+ ». Empty state is
-            designed, never sad. */}
+        {/* B10 — Mes recettes: the seller's receivable per order from the REAL
+            settlement read model — the LOCKED amount (never recomputed, B+I-05)
+            and its honest state (« en attente » until a provider ref confirms
+            « versé »). « jamais gardé par Boutik+ ». Empty state designed, never sad. */}
         {screen === 'recettes' && (
           <View style={styles.listWrap}>
-            {recettes.length === 0 ? (
+            {receivables.length === 0 ? (
               <EmptyState icon="gains" title={t('recettes.vide')} />
             ) : (
               <FlatList
-                data={recettes}
-                keyExtractor={(p) => p.id}
+                data={receivables}
+                keyExtractor={(r) => r.obligation.orderId}
                 initialNumToRender={6}
                 windowSize={5}
                 contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => (
-                  <View style={styles.receiptCard}>
-                    <Overline>{item.name}</Overline>
-                    <AmountHero
-                      label={t('offer.net_label')}
-                      amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
-                    />
-                    <ReconcileLine>{t('recettes.reconcile')}</ReconcileLine>
-                  </View>
-                )}
+                renderItem={({ item }) => {
+                  const st = RECEIVABLE_STATE[item.obligation.state];
+                  return (
+                    <View style={styles.receiptCard}>
+                      <View style={styles.modHead}>
+                        <Overline>{item.label}</Overline>
+                        <StatusChip tone={st.tone} label={t(st.label)} />
+                      </View>
+                      <AmountHero
+                        label={t('offer.net_label')}
+                        amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(item.obligation.amount))}
+                      />
+                      <Text style={styles.message}>{t(st.line)}</Text>
+                      {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
+                        <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', item.obligation.payoutRef)}</ReconcileLine>
+                      )}
+                    </View>
+                  );
+                }}
               />
             )}
             <Text style={styles.ruleNote}>{t('recettes.compte')}</Text>
