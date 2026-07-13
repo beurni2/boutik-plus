@@ -616,5 +616,77 @@
     "fr": "Rapprochez-vous pour montrer le travail de la main.",
     "register": "neutral",
     "screenClass": "instruction"
+  },
+  {
+    "key": "recettes.title",
+    "fr": "Mes recettes",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.vide",
+    "fr": "Pas encore de recette. Votre première vente s'affiche ici.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.net_ligne",
+    "fr": "Vous recevrez {amount} F",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.reconcile",
+    "fr": "Votre part, une fois le produit vendu et livré.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.versement",
+    "fr": "Versement en préparation. L'argent arrive sur votre compte marchand.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recettes.compte",
+    "fr": "Reversé par votre opérateur — jamais gardé par Boutik+.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.title",
+    "fr": "Modération",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.vide",
+    "fr": "Rien à revoir. Tous vos produits sont en règle.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.en_revue",
+    "fr": "En cours de vérification. On regarde vos photos et votre prix.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.modifs",
+    "fr": "Une petite retouche demandée avant la mise en ligne.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.approuve",
+    "fr": "Approuvé. Votre produit est visible pour les acheteurs.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "moderation.refuse",
+    "fr": "Non retenu pour cette fois — le motif est indiqué, vous pouvez corriger.",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

@@ -14,13 +14,18 @@ export type Screen =
   | 'offre'
   | 'pret'
   | 'corrective'
-  | 'echeances';
+  | 'echeances'
+  // WO-6.0 — B10/B11 as ADDITIVE journey nodes (founder-ratified). Every
+  // existing edge/state/money number is untouched; the map-generic spine
+  // test stays green because these are reachable, render, and don't dangle.
+  | 'recettes'
+  | 'moderation';
 
 export const START: Screen = 'accueil';
 
 /** Forward edges only — « Retour » pops the stack and is always available. */
 export const JOURNEY: Record<Screen, readonly Screen[]> = {
-  accueil: ['onboarding', 'produits', 'echeances'],
+  accueil: ['onboarding', 'produits', 'echeances', 'recettes', 'moderation'],
   onboarding: ['produits'],
   produits: ['nouveau', 'offre', 'corrective'],
   nouveau: ['photo'],
@@ -29,4 +34,6 @@ export const JOURNEY: Record<Screen, readonly Screen[]> = {
   pret: ['produits', 'corrective'],
   corrective: ['pret', 'echeances'],
   echeances: ['produits'],
+  recettes: ['produits'],
+  moderation: ['produits'],
 };

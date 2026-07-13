@@ -31,6 +31,7 @@ import {
   palette,
   PendingNotice,
   PrimaryButton,
+  ReconcileLine,
   ScreenEnter,
   SecondaryButton,
   Skeleton,
@@ -111,6 +112,17 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
   pret: 'ready.action',
   corrective: 'corrective.walk_title',
   echeances: 'echeances.title',
+  recettes: 'recettes.title',
+  moderation: 'moderation.title',
+};
+
+// B11 — the demo product status mapped to its moderation state + copy.
+const MODERATION: Record<DemoProduct['status'], { tone: ChipTone; label: string; line: string }> = {
+  pret: { tone: 'fact', label: 'statut.pret', line: 'moderation.approuve' },
+  en_attente: { tone: 'pending', label: 'statut.en_attente', line: 'moderation.en_revue' },
+  correction_en_cours: { tone: 'pending', label: 'statut.correction', line: 'moderation.modifs' },
+  refuse_correctable: { tone: 'problem', label: 'statut.refuse', line: 'moderation.refuse' },
+  echeance_depassee: { tone: 'problem', label: 'statut.echeance', line: 'moderation.refuse' },
 };
 
 export default function App() {
@@ -185,6 +197,8 @@ export default function App() {
   const refused = world.products.find((p) => p.status === 'refuse_correctable');
   const clocks = world.products.filter((p) => p.correctionMinLeft !== undefined);
   const enLigne = world.products.filter((p) => p.status === 'pret').length;
+  // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
+  const recettes = world.products.filter((p) => p.status === 'pret');
   const aCorriger = world.products.filter(
     (p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee',
   ).length;
@@ -228,7 +242,11 @@ export default function App() {
             </View>
             <PrimaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
             <SecondaryButton label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
-            <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+            <View style={styles.accueilLinks}>
+              <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+              <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
+              <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
+            </View>
           </View>
         )}
 
@@ -471,6 +489,63 @@ export default function App() {
           </View>
         )}
 
+        {/* B10 — Mes recettes: the seller's net per sold product (from the
+            pinned waterfall), « jamais gardé par Boutik+ ». Empty state is
+            designed, never sad. */}
+        {screen === 'recettes' && (
+          <View style={styles.listWrap}>
+            {recettes.length === 0 ? (
+              <EmptyState icon="gains" title={t('recettes.vide')} />
+            ) : (
+              <FlatList
+                data={recettes}
+                keyExtractor={(p) => p.id}
+                initialNumToRender={6}
+                windowSize={5}
+                contentContainerStyle={styles.listContent}
+                renderItem={({ item }) => (
+                  <View style={styles.receiptCard}>
+                    <Overline>{item.name}</Overline>
+                    <AmountHero
+                      label={t('offer.net_label')}
+                      amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
+                    />
+                    <ReconcileLine>{t('recettes.reconcile')}</ReconcileLine>
+                  </View>
+                )}
+              />
+            )}
+            <Text style={styles.ruleNote}>{t('recettes.compte')}</Text>
+            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+          </View>
+        )}
+
+        {/* B11 — Modération: each product's honest review state + a plain,
+            actionable reason. Never a silent rejection. */}
+        {screen === 'moderation' && (
+          <View style={styles.listWrap}>
+            <FlatList
+              data={world.products}
+              keyExtractor={(p) => p.id}
+              initialNumToRender={6}
+              windowSize={5}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => (
+                <View style={styles.modCard}>
+                  <View style={styles.modHead}>
+                    <Text style={styles.modName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <StatusChip tone={MODERATION[item.status].tone} label={t(MODERATION[item.status].label)} />
+                  </View>
+                  <Text style={styles.message}>{t(MODERATION[item.status].line)}</Text>
+                </View>
+              )}
+            />
+            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+          </View>
+        )}
+
         {pendingKey !== null && screen !== 'accueil' && (
           <PendingNotice lines={[t(pendingKey), t('shell.offline_pending')]} />
         )}
@@ -505,11 +580,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
   content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
   stackGap: { gap: spacing.md, paddingTop: spacing.sm },
+  accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, paddingTop: spacing.sm },
   statGrid: { flexDirection: 'row', gap: spacing.md },
   statCard: { flex: 1 },
   statValue: { ...textStyle(T.display), color: C.ink, fontVariant: ['tabular-nums'] },
   listWrap: { flex: 1, gap: spacing.md },
   listContent: { paddingBottom: spacing.sm },
+  receiptCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+  modCard: { borderWidth: interaction.hairline.medium, borderColor: C.hairlineStrong, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+  modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
   message: { ...textStyle(T.body), color: C.ink },
   ruleNote: { ...textStyle(T.caption), color: C.muted },
   baselineCard: {
