@@ -1,0 +1,149 @@
+diff --git a/services/catalog-service/src/product.ts b/services/catalog-service/src/product.ts
+index a9647b4..15a00dd 100644
+--- a/services/catalog-service/src/product.ts
++++ b/services/catalog-service/src/product.ts
+@@ -30,8 +30,8 @@ export interface ProductDraft {
+ }
+ 
+ export type CreateOutcome =
+-  | { ok: true; version: ProductVersion; variant: Variant; events: PlatformEvent[] }
+-  | { ok: false; reason: 'publisher_not_eligible' };
++  | { ok: true; outcome: 'created' | 'duplicate'; version: ProductVersion; variant: Variant; events: PlatformEvent[] }
++  | { ok: false; reason: 'publisher_not_eligible' | 'idempotency_collision' };
+ 
+ export type DecideOutcome =
+   | { ok: true; version: ProductVersion; events: PlatformEvent[] }
+@@ -54,6 +54,15 @@ export class ProductCatalog {
+   private readonly versions = new Map<string, ProductVersion>();
+   private readonly variants = new Map<string, Variant>();
+   private counter = 0;
++  /**
++   * B0.2 create-door idempotency (Building Plan B0.2: "duplicate idempotent").
++   * Keyed by the minted `command_id` (the queue's per-intent key), recording the
++   * version identity a SUCCESSFUL create produced + a fingerprint of the intent.
++   * A replay with the same key + same fingerprint is a `duplicate` (no-op); the
++   * same key + a different fingerprint is a `collision` (refused) — the offline
++   * queue's vocabulary, at the service door.
++   */
++  private readonly createIntents = new Map<string, { versionId: string; variantId: string; fingerprint: string }>();
+ 
+   /**
+    * canPublish comes from supplier-service (B0.2) — unverified cannot publish.
+@@ -62,6 +71,21 @@ export class ProductCatalog {
+    * `approved_e1_sandbox` stub is gone — a new listing is never born approved).
+    */
+   create(draft: ProductDraft, canPublish: boolean, ctx: CommandContext, at: string): CreateOutcome {
++    // B0.2 idempotency by command_id — BEFORE eligibility, so a replay of an
++    // already-successful create is a stable no-op regardless of the current
++    // canPublish. Fingerprint = JSON.stringify(draft) (the same comparison the
++    // offline queue uses on its payload). Same key + same intent → duplicate
++    // (the SAME version identity, no re-emit); same key + different intent →
++    // collision (refused + surfaced, the first version never overwritten).
++    const fingerprint = JSON.stringify(draft);
++    const priorIntent = this.createIntents.get(ctx.command_id);
++    if (priorIntent !== undefined) {
++      if (priorIntent.fingerprint !== fingerprint) return { ok: false, reason: 'idempotency_collision' };
++      const priorVersion = this.versions.get(priorIntent.versionId);
++      const priorVariant = this.variants.get(priorIntent.variantId);
++      if (priorVersion === undefined || priorVariant === undefined) return { ok: false, reason: 'idempotency_collision' };
++      return { ok: true, outcome: 'duplicate', version: priorVersion, variant: priorVariant, events: [] };
++    }
+     if (!canPublish) return { ok: false, reason: 'publisher_not_eligible' };
+     this.counter += 1;
+     const version = ProductVersionSchema.parse({
+@@ -85,10 +109,11 @@ export class ProductCatalog {
+     });
+     this.versions.set(version.id, version);
+     this.variants.set(variant.id, variant);
++    this.createIntents.set(ctx.command_id, { versionId: version.id, variantId: variant.id, fingerprint });
+     const events = [
+       moderationEvent('catalog.product_submitted.v1', ctx, version.version, { productVersionId: version.id, supplierId: version.supplierId }, at),
+     ];
+-    return { ok: true, version, variant, events };
++    return { ok: true, outcome: 'created', version, variant, events };
+   }
+ 
+   /**
+diff --git a/services/catalog-service/test/create-idempotency.test.ts b/services/catalog-service/test/create-idempotency.test.ts
+new file mode 100644
+index 0000000..a75a897
+--- /dev/null
++++ b/services/catalog-service/test/create-idempotency.test.ts
+@@ -0,0 +1,77 @@
++import { describe, expect, it } from 'vitest';
++import { ProductCatalog, type ProductDraft } from '../src/product.js';
++
++/**
++ * B0.2-DUP — the create-door idempotency, its invariants proven ADVERSARIALLY
++ * and FIRST. Anchor (Boutik-Plus-Building-Plan B0.2): "unverified cannot
++ * publish; DUPLICATE IDEMPOTENT." The minted `command_id` (the queue's
++ * per-intent key — offline/queue.ts persists one per intent) is the idempotency
++ * key at the service door, mirroring offline/queue.ts:108-118's duplicate |
++ * collision vocabulary:
++ *  ① a re-submitted create with the SAME key + SAME payload is a safe no-op —
++ *     ONE version, the SAME identity returned, NO re-emit (never a 2nd listing);
++ *  ② the SAME key with a DIFFERENT payload is a COLLISION — refused + surfaced,
++ *     the first version untouched (never silently overwritten);
++ *  ③ DISTINCT keys make DISTINCT versions (idempotency never collapses two
++ *     genuine intents).
++ */
++
++const AT = '2026-07-13T10:00:00.000Z';
++const draftA: ProductDraft = {
++  supplierId: 'supplier-7',
++  name: 'Savon local',
++  productCode: 'SAV-01',
++  category: 'hygiene',
++  zone: 'Bobo',
++  variantAttributes: { taille: '250g' },
++};
++// SAME command_id will carry this DIFFERENT payload in the collision test.
++const draftB: ProductDraft = { ...draftA, name: 'Savon premium', productCode: 'SAV-02' };
++const ctx = (command_id: string) => ({ command_id, correlation_id: 'corr-1', actor: 'supplier-7' });
++
++describe('B0.2-DUP — the create-door is idempotent by command_id', () => {
++  it('① double-submit (same key + same payload) → ONE version, the SAME identity, no re-emit', () => {
++    const catalog = new ProductCatalog();
++    const first = catalog.create(draftA, true, ctx('cmd-1'), AT);
++    expect(first.ok).toBe(true);
++    if (!first.ok) return;
++    expect(first.outcome).toBe('created');
++    const firstId = first.version.id;
++    expect(first.events.map((e) => e.name)).toEqual(['catalog.product_submitted.v1']); // the ONE submit
++
++    const replay = catalog.create(draftA, true, ctx('cmd-1'), AT);
++    expect(replay.ok).toBe(true);
++    if (!replay.ok) return;
++    expect(replay.outcome).toBe('duplicate');
++    expect(replay.version.id).toBe(firstId); // SAME identity
++    expect(replay.variant.id).toBe(first.variant.id); // SAME variant
++    expect(replay.events).toEqual([]); // NO re-emit — the submit already fired once
++    // exactly ONE version exists — no second listing was minted (a new key would be pv-2)
++    expect(catalog.get('pv-2')).toBeUndefined();
++  });
++
++  it('② same key + DIFFERENT payload → COLLISION, refused + surfaced, the first version untouched', () => {
++    const catalog = new ProductCatalog();
++    const first = catalog.create(draftA, true, ctx('cmd-1'), AT);
++    expect(first.ok).toBe(true);
++    if (!first.ok) return;
++    const firstId = first.version.id;
++
++    const collision = catalog.create(draftB, true, ctx('cmd-1'), AT);
++    expect(collision).toEqual({ ok: false, reason: 'idempotency_collision' }); // surfaced, not silent
++    // the first version is UNTOUCHED — never overwritten by the colliding payload
++    expect(catalog.get(firstId)!.name).toBe('Savon local');
++    expect(catalog.get('pv-2')).toBeUndefined(); // no second version minted
++  });
++
++  it('③ DISTINCT keys → DISTINCT versions (idempotency never collapses two genuine intents)', () => {
++    const catalog = new ProductCatalog();
++    const a = catalog.create(draftA, true, ctx('cmd-1'), AT);
++    const b = catalog.create(draftB, true, ctx('cmd-2'), AT);
++    expect(a.ok && b.ok).toBe(true);
++    if (!a.ok || !b.ok) return;
++    expect(a.outcome).toBe('created');
++    expect(b.outcome).toBe('created');
++    expect(a.version.id).not.toBe(b.version.id);
++  });
++});

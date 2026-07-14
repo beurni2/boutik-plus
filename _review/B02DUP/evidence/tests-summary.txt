@@ -1,0 +1,3 @@
+$ npx vitest run (catalog-service)
+16 tests: moderation 8 · product 3 · health 2 · create-idempotency 3
+(create-idempotency: ① duplicate-one-version ② collision-refused-surfaced ③ distinct-keys-distinct-versions)
