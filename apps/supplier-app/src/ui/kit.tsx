@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import {
-  AccessibilityInfo,
   Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -12,169 +10,103 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import {
-  band,
-  boutikColour,
-  celebration,
-  interaction,
-  money,
-  motion,
-  radius,
-  sharedColour,
-  skeleton as skeletonToken,
-  spacing,
-  touch,
-  type as typeTokens,
-} from '@platform/ui-tokens';
-import { cubicBezierPoints } from './motion';
-import { fontFamilyForWeight } from './fonts';
+import { C, appColour, D, R, SHADOW, ts, MONEY_TEXT, motion } from './fp';
+import { FpIn, FpPop, useReducedMotion, Shimmer, rnEasing } from './anim';
+import { WovenBand, CornerTicks } from './signature';
 import { Icon, type IconName } from './icons';
 
-// The kit is the single design-system entry point: screens import the glyph
-// dispatcher + its name type from here alongside the components.
-export { Icon, type IconName } from './icons';
-
 /**
- * WO-6.0 — LE VISAGE, rebuilt from zero on ui-tokens v0.9.0 (Grand Teint,
- * direction 1b). The look is « craft under constraint »: near-black ink on
- * warm paper, hairline tables (radius 0, NO shadow — elevation theatre is
- * forbidden), money in majesty (tabular, U+202F group space owned by the
- * money tokens the screens format with), and one primary action per screen.
- *
- * Every colour/size/duration/radius resolves to a token — zero hardcode (the
- * scan gate proves it). Motion is consumed AS AUTHORED: `motion.springSoft`
- * is a cubic-bezier string driven through Easing.bezier (src/ui/motion.ts,
- * ruling ②), never invented spring physics; transform + opacity only, native
- * driver, reduced-motion static equivalents. Icons are the canon set as
- * react-native-svg (currentColor) — ZERO emoji (the emoji-scan gate enforces
- * it). The typeface is Archivo (progressive: the metrics-matched system face
- * paints first; native embedding lands in the font slice).
+ * WO-FP-BOUTIK — LE VISAGE, Faso Premium. The same walkable world (journey
+ * spine, back law, every franc from the pinned waterfall — all frozen), now
+ * dressed in the redesign: warm paper, one confident supply-green accent per
+ * screen, the six signature elements, money in Bricolage majesty. Every
+ * colour/dimension/duration resolves to a token or a docketed app-local value
+ * (src/ui/fp.ts) — zero hand-copied hex (the fidelity gate proves it). Motion
+ * is the seven fp* tokens through src/ui/anim.tsx, reduced-motion honoured.
+ * Icons are the canon 26/29 set (react-native-svg, currentColor) — ZERO emoji
+ * in chrome (the no-emoji gate enforces it).
  */
 
-// The Boutik+ palette with EXACT string types (theme.colours indexes the
-// accent keys through a Record<string,string> → string|undefined under
-// noUncheckedIndexedAccess; the source const objects keep the literal types).
-const C = { ...sharedColour, ...boutikColour };
-/** The Boutik+ Grand Teint palette, for screens composing custom surfaces. */
+// Re-exports so screens import the whole design system from one place.
+export { Icon, type IconName } from './icons';
+export { WovenBand, HeroLedgerBand, DuotoneTile, Selectable, CornerTicks, QuoteRule } from './signature';
+export { FpIn, FpPop, Pulse, useCountUp, useReducedMotion } from './anim';
+export { C, ts, D, R } from './fp';
+/** The Boutik+ palette, for screens composing custom surfaces. */
 export const palette = C;
 
-// ── the authored easings, parsed once (token fidelity — no spring physics) ──
-const EASE_SOFT = Easing.bezier(...cubicBezierPoints(motion.springSoft));
-const EASE_POP = Easing.bezier(...cubicBezierPoints(motion.springPop));
-const EASE_FLY = Easing.bezier(...cubicBezierPoints(motion.flyOut));
-
-// ── type: canon scale → RN TextStyle (lh is a unitless multiplier; wght a
-//    numeric axis → RN fontWeight string; caps → uppercase; ls → letterSpacing).
-export type ScaleToken = {
-  size: number;
-  lh: number;
-  wght: number;
-  ls?: number;
-  caps?: boolean;
-  wdth?: number;
-};
-/** The canon type scale → an RN TextStyle. Exported so screens compose the
- * design system's typography instead of re-deriving lineHeight/weight. */
-export function textStyle(s: ScaleToken): TextStyle {
-  return {
-    fontFamily: fontFamilyForWeight(s.wght),
-    fontSize: s.size,
-    lineHeight: s.size * s.lh,
-    fontWeight: String(s.wght) as TextStyle['fontWeight'],
-    color: C.ink,
-    ...(s.ls !== undefined ? { letterSpacing: s.ls } : {}),
-    ...(s.caps === true ? { textTransform: 'uppercase' } : {}),
-  };
-}
-const T = typeTokens.scale;
-
-/** Reduced-motion flag — the doctrine's veto, honoured everywhere motion runs. */
-export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
-      if (mounted) setReduced(v);
-    });
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
-    return () => {
-      mounted = false;
-      sub.remove();
-    };
-  }, []);
-  return reduced;
+function pressable(base: StyleProp<ViewStyle>) {
+  return ({ pressed }: { pressed: boolean }) => [base, pressed && styles.pressed];
 }
 
-/** ThemeBand — the 4 px app-colour strip under the header (the one permanent
- * brand mark; the tri-colour weave is reserved for celebrations). */
-export function ThemeBand() {
-  return <View style={styles.themeBand} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;
-}
-
-/** AppHeader — wordmark caps + one-line context (right), bottom hairline,
- * ThemeBand below. The anchor of stability: no motion. */
+/** AppHeader — the monogram + wordmark (home) OR back + view title, a right
+ * slot (chip), the woven band beneath. The anchor of stability: no motion. */
 export function AppHeader({
   title,
   context,
   backLabel,
   onBack,
+  right,
 }: {
   title: string;
   context?: string | undefined;
   backLabel?: string | undefined;
   onBack?: (() => void) | undefined;
+  right?: React.ReactNode | undefined;
 }) {
   return (
     <View>
       <View style={styles.header}>
-        {onBack !== undefined && (
-          <Pressable
-            style={pressableStyle(styles.backHit)}
-            onPress={onBack}
-            accessibilityRole="button"
-            hitSlop={spacing.sm}
-          >
-            <Text style={styles.backText}>{backLabel}</Text>
+        {onBack !== undefined ? (
+          <Pressable style={pressable(styles.backHit)} onPress={onBack} accessibilityRole="button" hitSlop={8}>
+            <Text style={ts('cta', C.deep)}>{backLabel}</Text>
           </Pressable>
+        ) : (
+          <View style={styles.monogram}>
+            <Text style={ts('view', C.onPrimary)}>B+</Text>
+          </View>
         )}
-        <Text style={styles.headerTitle} numberOfLines={1} accessibilityRole="header">
-          {title}
-        </Text>
-        {context !== undefined && (
-          <Text style={styles.headerContext} numberOfLines={1}>
-            {context}
+        <View style={styles.headerTitleWrap}>
+          <Text style={ts('view', C.ink)} numberOfLines={1} accessibilityRole="header">
+            {title}
           </Text>
-        )}
+          {context !== undefined && (
+            <Text style={ts('rowSub', C.sub)} numberOfLines={1}>
+              {context}
+            </Text>
+          )}
+        </View>
+        {right}
       </View>
-      <ThemeBand />
+      <WovenBand />
     </View>
   );
 }
 
-/** HairlineBox — content in a bordered box (radius 0, no shadow). `ink`
- * variant = 2 px ink border for money/summary surfaces. */
-export function HairlineBox({
+/** Card — the FP surface: white, radius 20, 1px hairline, soft card shadow.
+ * `accent` swaps the border for a 2px accent rule (the emphasis surface). */
+export function Card({
   children,
-  ink,
+  accent,
   style,
 }: {
   children: React.ReactNode;
-  ink?: boolean;
+  accent?: boolean | undefined;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[styles.box, ink === true ? styles.boxInk : styles.boxHairline, style]}>{children}</View>;
+  return <View style={[styles.card, accent === true && styles.cardAccent, style]}>{children}</View>;
 }
 
-/** Overline — the small caps section label (labelXS). */
-export function Overline({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.overline}>{children}</Text>;
+/** Overline — the small-caps section label (README caps role). */
+export function Overline({ children, tone }: { children: React.ReactNode; tone?: string | undefined }) {
+  return <Text style={ts('caps', tone ?? C.sub)}>{children}</Text>;
 }
 
-/** ListRow — FIXED height (getItemLayout law); icon + label + optional right
- * value (tnum) or chevron; bottom hairline. */
-export const LIST_ROW_HEIGHT = 56;
+/** ListRow — art tile (icon or thumb) + title/sub column + right pill/value.
+ * Intrinsic height (title+sub+pill grow the row), press scale .98. */
 export function ListRow({
   icon,
+  art,
   title,
   meta,
   value,
@@ -183,6 +115,7 @@ export function ListRow({
   onPress,
 }: {
   icon?: IconName | undefined;
+  art?: React.ReactNode | undefined;
   title: string;
   meta?: string | undefined;
   value?: string | undefined;
@@ -190,73 +123,75 @@ export function ListRow({
   destructive?: boolean | undefined;
   onPress?: (() => void) | undefined;
 }) {
-  const tint = destructive === true ? C.danger : C.ink;
+  const tint = destructive === true ? C.dangerFg : C.ink;
   const body = (
     <>
-      {icon !== undefined && <Icon name={icon} size={17} color={tint} />}
+      {art ?? (icon !== undefined && (
+        <View style={styles.rowArt}>
+          <Icon name={icon} size={20} color={C.primary} />
+        </View>
+      ))}
       <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, { color: tint }]} numberOfLines={1}>
+        <Text style={ts('row', tint)} numberOfLines={1}>
           {title}
         </Text>
         {meta !== undefined && (
-          <Text style={styles.rowMeta} numberOfLines={1}>
+          <Text style={ts('rowSub', C.sub)} numberOfLines={1}>
             {meta}
           </Text>
         )}
-        {chip !== undefined && <View style={styles.rowChipLine}>{chip}</View>}
       </View>
-      {value !== undefined && <Text style={styles.rowValue}>{value}</Text>}
-      {onPress !== undefined && value === undefined && <Icon name="chevron" size={17} color={C.soft} />}
+      {value !== undefined && <Text style={[ts('priceInline', C.deep), MONEY_TEXT]}>{value}</Text>}
+      {chip}
+      {onPress !== undefined && value === undefined && chip === undefined && (
+        <Icon name="chevron" size={18} color={C.hairlineStrong} />
+      )}
     </>
   );
   if (onPress === undefined) return <View style={styles.row}>{body}</View>;
   return (
-    <Pressable style={pressableStyle(styles.row)} onPress={onPress} accessibilityRole="button">
+    <Pressable style={pressable(styles.row)} onPress={onPress} accessibilityRole="button">
       {body}
     </Pressable>
   );
 }
 
-function pressableStyle(base: StyleProp<ViewStyle>) {
-  return ({ pressed }: { pressed: boolean }) => [base, pressed && styles.pressed];
-}
-
-/** PrimaryButton — full-width block; ink fill (structure) or theme primary
- * (money commitment). Disabled carries an explanatory label (never a dead
- * grey button); loading shows the gtBar pulse, never a spinner. */
+/** PrimaryButton — full-width accent block, onPrimary label, CTA shadow.
+ * Disabled carries an explanatory label (never a dead grey button); the
+ * `money` flag keeps the same confident green (one primary action). */
 export function PrimaryButton({
   label,
   onPress,
-  money: isMoney,
+  money: _money,
   disabled,
   disabledLabel,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   money?: boolean | undefined;
   disabled?: boolean | undefined;
   disabledLabel?: string | undefined;
+  icon?: IconName | undefined;
 }) {
   const isDisabled = disabled === true;
   return (
     <Pressable
-      style={pressableStyle([
-        styles.button,
-        isMoney === true ? styles.buttonPrimary : styles.buttonInk,
-        isDisabled && styles.buttonDisabled,
-      ])}
+      style={pressable([styles.button, styles.buttonPrimary, isDisabled && styles.buttonDisabled])}
       onPress={onPress}
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled }}
     >
-      <Text style={styles.buttonInkText}>{isDisabled && disabledLabel !== undefined ? disabledLabel : label}</Text>
+      {icon !== undefined && !isDisabled && <Icon name={icon} size={18} color={C.onPrimary} />}
+      <Text style={ts('cta', isDisabled ? C.disabledCtaFg : C.onPrimary)}>
+        {isDisabled && disabledLabel !== undefined ? disabledLabel : label}
+      </Text>
     </Pressable>
   );
 }
 
-/** SecondaryButton — hairline box, ink label; `danger` variant for
- * equal-prominence problem paths (bordered, not screaming). */
+/** SecondaryButton — soft-accent fill, deep label; `danger` = danger-tinted. */
 export function SecondaryButton({
   label,
   onPress,
@@ -268,28 +203,46 @@ export function SecondaryButton({
 }) {
   return (
     <Pressable
-      style={pressableStyle([styles.button, styles.buttonSecondary, danger === true && styles.buttonSecondaryDanger])}
+      style={pressable([styles.button, styles.buttonSecondary, danger === true && styles.buttonSecondaryDanger])}
       onPress={onPress}
       accessibilityRole="button"
     >
-      <Text style={[styles.buttonSecondaryText, danger === true && styles.buttonSecondaryDangerText]}>{label}</Text>
+      <Text style={ts('cta', danger === true ? C.dangerFg : C.deep)}>{label}</Text>
     </Pressable>
   );
 }
 
-/** UnderlineLink — the tertiary verb (MODIFIER, REFAIRE, REVENIR…): caps
- * labelXS primaryStrong + underline, hit area padded to touch minimum. */
+/** GhostButton — 1.5px hairline, ink label (the quiet secondary). */
+export function GhostButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable style={pressable([styles.button, styles.buttonGhost])} onPress={onPress} accessibilityRole="button">
+      <Text style={ts('cta', C.ink)}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** DemoButton — the dashed, flagged demo affordance (`showDemoControls`),
+ * to be stripped in production (README § Engineering). */
+export function DemoButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable style={pressable([styles.button, styles.buttonDemo])} onPress={onPress} accessibilityRole="button">
+      <Text style={ts('body', C.sub)}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** UnderlineLink — the tertiary verb: caps deep + underline, padded hit area. */
 export function UnderlineLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable style={pressableStyle(styles.linkHit)} onPress={onPress} accessibilityRole="link" hitSlop={spacing.sm}>
-      <Text style={styles.linkText}>{label}</Text>
+    <Pressable style={pressable(styles.linkHit)} onPress={onPress} accessibilityRole="link" hitSlop={8}>
+      <Text style={[ts('caps', C.deep), styles.linkUnderline]}>{label}</Text>
     </Pressable>
   );
 }
 
-/** AmountHero — « l'argent en majesté »: caps label + the amount as the
- * biggest ink on the screen (tabular), optional honesty note. `pending`
- * mutes the amount + never shows a green success before server truth. */
+/** AmountHero — money in majesty on paper: caps label + the amount as the
+ * biggest ink on the screen (tnum), optional honesty note. `pending` mutes
+ * the amount — never a green success before server truth. */
 export function AmountHero({
   label,
   amount,
@@ -303,19 +256,17 @@ export function AmountHero({
 }) {
   return (
     <View style={styles.amountHeroBlock}>
-      {label !== undefined && <Text style={styles.amountHeroLabel}>{label}</Text>}
-      <Text style={[styles.amountHero, pending === true && styles.amountPending]}>{amount}</Text>
-      {note !== undefined && <Text style={styles.amountNote}>{note}</Text>}
+      {label !== undefined && <Text style={ts('caps', C.sub)}>{label}</Text>}
+      <Text style={[ts('heroMoney', pending === true ? C.sub : C.deep), MONEY_TEXT]}>{amount}</Text>
+      {note !== undefined && <Text style={ts('rowSub', C.sub)}>{note}</Text>}
     </View>
   );
 }
 
-/** MoneyField — the B6 money input (components.md: « Hairline 1.5 box h 56;
- * amount `page` scale `tnum` right-aligned; « F » suffix fixed; numeric
- * keypad »). The field itself stays calm in every state — the below-floor
- * refusal is a SIBLING note the screen owns, never a red field that scolds.
- * `readOnly` renders the value as a settled figure (no keypad) for shares the
- * seller has fixed. */
+/** MoneyField — the base-price input: 16px, 1.5px input border, tnum
+ * right-aligned, fixed « F » suffix, numeric keypad. Calm in every state —
+ * a below-floor refusal is a SIBLING note the screen owns, never a red field.
+ * `readOnly` renders a settled figure (no keypad). */
 export function MoneyField({
   label,
   value,
@@ -336,102 +287,87 @@ export function MoneyField({
       <Overline>{label}</Overline>
       <View style={styles.fieldBox}>
         {readOnly === true ? (
-          <Text style={styles.fieldInput} numberOfLines={1}>
+          <Text style={[styles.fieldInput, ts('cardMoney', C.ink), MONEY_TEXT]} numberOfLines={1}>
             {value}
           </Text>
         ) : (
           <TextInput
-            style={styles.fieldInput}
+            style={[styles.fieldInput, ts('cardMoney', C.ink), MONEY_TEXT]}
             value={value}
             onChangeText={onChangeText}
             keyboardType="number-pad"
             placeholder={placeholder}
-            placeholderTextColor={C.soft}
+            placeholderTextColor={C.sub}
             maxLength={9}
             accessibilityLabel={label}
           />
         )}
-        <Text style={styles.fieldSuffix}>{suffix}</Text>
+        <Text style={[ts('cardMoney', C.sub), MONEY_TEXT]}>{suffix}</Text>
       </View>
     </View>
   );
 }
 
-/** PriceBand — the signature money moment: full-width theme block, tiny
- * caps label + big tabular amount (onPrimary) + right-column honesty note. */
-export function PriceBand({
+/** Stepper — the − / + circle-button value control (README § Stepper). */
+export function Stepper({
   label,
-  amount,
-  note,
-  muted,
+  value,
+  onDec,
+  onInc,
 }: {
   label: string;
-  amount: string;
-  note?: string | undefined;
-  muted?: boolean | undefined;
+  value: string;
+  onDec: () => void;
+  onInc: () => void;
 }) {
   return (
-    <View style={[styles.priceBand, muted === true && styles.priceBandMuted]}>
-      <View style={styles.priceBandMain}>
-        <Text style={styles.priceBandLabel}>{label}</Text>
-        <Text style={styles.priceBandAmount}>{amount}</Text>
+    <View style={styles.fieldBlock}>
+      <Overline>{label}</Overline>
+      <View style={styles.stepperRow}>
+        <Pressable style={pressable(styles.stepperBtn)} onPress={onDec} accessibilityRole="button" accessibilityLabel="moins">
+          <Text style={ts('view', C.ink)}>{'−'}</Text>
+        </Pressable>
+        <Text style={[styles.stepperValue, ts('view', C.ink), MONEY_TEXT]}>{value}</Text>
+        <Pressable style={pressable(styles.stepperBtn)} onPress={onInc} accessibilityRole="button" accessibilityLabel="plus">
+          <Text style={ts('view', C.ink)}>{'+'}</Text>
+        </Pressable>
       </View>
-      {note !== undefined && <Text style={styles.priceBandNote}>{note}</Text>}
     </View>
   );
 }
 
-/** ReconcileLine — « chaque franc a sa place »: the receipt's honesty line
- * under a money box (right-aligned, tabular). */
+/** ReconcileLine — « chaque franc a sa place »: the receipt honesty line
+ * under a money box (right-aligned, tnum, sub tone). */
 export function ReconcileLine({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.reconcileLine}>{children}</Text>;
+  return <Text style={[styles.reconcileLine, ts('rowSub', C.sub), MONEY_TEXT]}>{children}</Text>;
 }
 
-/** StatusChip — square caps chip; tone maps to the state palette. `fact` is
- * an ink fill; success fill only after server truth (never a green lie). */
+/** StatusChip — pill caps chip; tone maps to the status palette. `fact` is the
+ * server-confirmed truth (ok green — the DF-1 gold-chip ruling is superseded by
+ * this system); success/celebrate only after server truth (never a green lie). */
 export type ChipTone = 'fact' | 'neutral' | 'pending' | 'problem' | 'celebrate';
 export function StatusChip({ tone, label, icon }: { tone: ChipTone; label: string; icon?: IconName | undefined }) {
-  const chipStyle = CHIP_STYLE[tone];
+  const s = CHIP_STYLE[tone];
   return (
-    <View style={[styles.chip, chipStyle.box]}>
-      {icon !== undefined && <Icon name={icon} size={12} color={chipStyle.fg} />}
-      <Text style={[styles.chipText, { color: chipStyle.fg }]}>{label}</Text>
+    <View style={[styles.chip, { backgroundColor: s.bg }]}>
+      {icon !== undefined && <Icon name={icon} size={12} color={s.fg} />}
+      <Text style={[ts('pill', s.fg), styles.chipText]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-/** Skeleton — sand block that CLONES the exact box of its content (layout
- * shift forbidden → CLS 0 by construction); opacity pulse, static under
- * reduced motion. `width`/`height` are required so it matches the content. */
+/** Skeleton — a shimmer block CLONING the exact box of its content (README:
+ * "layout matching real dimensions", 750 ms); static under reduced motion. */
 export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
-  const reduced = useReducedMotion();
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (reduced) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: skeletonToken.pulseFloor,
-          duration: skeletonToken.pulseMs / 2,
-          easing: EASE_SOFT,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: skeletonToken.pulseMs / 2,
-          easing: EASE_SOFT,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse, reduced]);
-  return <Animated.View style={[styles.skeleton, { opacity: reduced ? skeletonToken.pulseFloor : pulse }, style]} />;
+  return (
+    <Shimmer baseColour={appColour.skeletonBase} highlightColour={C.onPrimary} style={[styles.skeleton, style]} />
+  );
 }
 
-/** EmptyState — a designed state, never an apology: icon + one sentence + one
- * action (the next act). */
+/** EmptyState — a designed state, never an apology: dashed encart, icon, one
+ * sentence, one action (the next act). */
 export function EmptyState({
   icon,
   title,
@@ -443,39 +379,44 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.emptyState}>
-      <Icon name={icon} size={28} color={C.soft} />
-      <Text style={styles.emptyTitle}>{title}</Text>
+      <Icon name={icon} size={28} color={C.sub} />
+      <Text style={[ts('body', C.body), styles.emptyTitle]}>{title}</Text>
       {action}
     </View>
   );
 }
 
-/** CheckRow — a tappable readiness check (the B7 « produit prêt » gate): a
- * square box that fills ink with a coche when on, + label. Whole row is the
- * ≥44px target; icon+text law. Box sized from spacing tokens (no raw dim). */
+/** CheckRow — a tappable readiness check (B7 gate): a box that fills accent with
+ * a coche when on, + label. Whole row is the ≥44px target; icon+text law. */
 export function CheckRow({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) {
   return (
     <Pressable
-      style={pressableStyle(styles.checkRow)}
+      style={pressable(styles.checkRow)}
       onPress={onToggle}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
     >
-      <View style={[styles.checkBox, checked && styles.checkBoxOn]}>{checked && <Icon name="coche" size={12} color={C.onInk} />}</View>
-      <Text style={styles.checkLabel}>{label}</Text>
+      <View style={[styles.checkBox, checked && styles.checkBoxOn]}>
+        {checked && (
+          <FpPop>
+            <Icon name="coche" size={14} color={C.onPrimary} />
+          </FpPop>
+        )}
+      </View>
+      <Text style={ts('row', C.ink)}>{label}</Text>
     </Pressable>
   );
 }
 
 /** PendingNotice — « C'est noté. En attente du réseau. » Queued = pending,
- * never done: warningTint band, clock icon. */
+ * never done: warn band, clock icon. */
 export function PendingNotice({ lines }: { lines: readonly string[] }) {
   return (
     <View style={styles.pendingNotice}>
-      <Icon name="horloge" size={17} color={C.warning} />
+      <Icon name="horloge" size={18} color={C.warnFgAlt} />
       <View style={styles.pendingBody}>
         {lines.map((line) => (
-          <Text key={line} style={styles.pendingText}>
+          <Text key={line} style={ts('body', C.warnFgAlt)}>
             {line}
           </Text>
         ))}
@@ -484,18 +425,31 @@ export function PendingNotice({ lines }: { lines: readonly string[] }) {
   );
 }
 
-/** OfflineBanner — global ink band under the header when offline. */
-export function OfflineBanner({ label }: { label: string }) {
+/** WarnNote — an inline warn advisory (below-floor, queue error): warn band,
+ * alert icon, calm — never a red scold. */
+export function WarnNote({ text, icon = 'alerte' }: { text: string; icon?: IconName }) {
   return (
-    <View style={styles.offlineBanner}>
-      <Icon name="horsligne" size={14} color={C.onInk} />
-      <Text style={styles.offlineText}>{label}</Text>
+    <View style={styles.pendingNotice}>
+      <Icon name={icon} size={18} color={C.warnFgAlt} />
+      <Text style={[ts('body', C.warnFgAlt), styles.flex1]}>{text}</Text>
     </View>
   );
 }
 
-/** TabBar — ≤ 4 items, icon 20 + word (icon+word law), active = ink + 2 px
- * top indicator. Icon slots are typed `IconName`. */
+/** OfflineBanner — offline is a designed STATE, not an error (warn band under
+ * the header; « jamais perdu »). */
+export function OfflineBanner({ label }: { label: string }) {
+  return (
+    <View style={styles.offlineBanner}>
+      <Icon name="horsligne" size={14} color={C.warnFgAlt} />
+      <Text style={ts('caps', C.warnFgAlt)}>{label}</Text>
+    </View>
+  );
+}
+
+/** TabBar — ≤ 4 items, icon 24 + word (icon+word law); active = soft-accent
+ * pill bg + deep text. The dock is a near-opaque paper dock with a top hairline
+ * (a true backdrop blur needs expo-blur — deferred; approximated, flagged). */
 export interface TabItem {
   key: string;
   icon: IconName;
@@ -509,226 +463,288 @@ export function TabBar({ items }: { items: readonly TabItem[] }) {
       {items.map((item) => (
         <Pressable
           key={item.key}
-          style={styles.tab}
+          style={[styles.tab, item.active && styles.tabActive]}
           onPress={item.onPress}
           accessibilityRole="tab"
           accessibilityState={{ selected: item.active }}
         >
-          {item.active && <View style={styles.tabIndicator} />}
-          <Icon name={item.icon} size={20} color={item.active ? C.ink : C.soft} />
-          <Text style={[styles.tabLabel, item.active && styles.tabLabelActive]}>{item.label}</Text>
+          <Icon name={item.icon} size={24} color={item.active ? C.deep : C.sub} />
+          <Text style={ts('caps', item.active ? C.deep : C.sub)}>{item.label}</Text>
         </Pressable>
       ))}
     </View>
   );
 }
 
-/** ScreenEnter — the screen arrives from the direction of travel: translateY
- * 14 → 0, opacity 0 → 1, 240 ms springSoft (Easing.bezier). Non-blocking
- * (content interactive from frame 1); static under reduced motion. */
+/** ScreenEnter — every screen mounts with fpIn (opacity + 14px rise), static
+ * under reduced motion. */
 export function ScreenEnter({ screenKey, children }: { screenKey: string; children: React.ReactNode }) {
-  const reduced = useReducedMotion();
-  const progress = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (reduced) {
-      progress.setValue(1);
-      return;
-    }
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: motion.standardMs,
-      easing: EASE_SOFT,
-      useNativeDriver: true,
-    }).start();
-  }, [screenKey, reduced, progress]);
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
   return (
-    <Animated.View style={[styles.enterFill, { opacity: progress, transform: [{ translateY }] }]}>
+    <FpIn motionKey={screenKey} style={styles.enterFill}>
       {children}
+    </FpIn>
+  );
+}
+
+/**
+ * CelebrationLayer — the payout / « produit prêt » celebration (HANDOFF §2
+ * Célébration): accent-deep scrim, two gold dash bars, an onPrimary disc with a
+ * green check (fpPop .45s), the amount, the caps line, tap-to-skip, auto-dismiss.
+ * NON-BLOCKING (the state underneath is already true). Reduced motion = no
+ * layer. THE TRIGGER stays under the standing law — real-franc events only (E3);
+ * in a demo context it renders a « démo » marker so it is never mistaken for a
+ * real payout. Transform + opacity only, native driver.
+ */
+export function CelebrationLayer({
+  visible,
+  onDone,
+  amount,
+  label,
+  caption,
+  demo,
+}: {
+  visible: boolean;
+  onDone: () => void;
+  amount?: string | undefined;
+  label?: string | undefined;
+  caption?: string | undefined;
+  demo?: boolean | undefined;
+}) {
+  const reduced = useReducedMotion();
+  const fade = useRef(new Animated.Value(0)).current;
+  const runningRef = useRef(false);
+  if (visible && !runningRef.current) {
+    runningRef.current = true;
+    if (reduced) {
+      onDone();
+    } else {
+      fade.setValue(0);
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 250,
+        easing: rnEasing(motion.fpIn.timingFunction),
+        useNativeDriver: true,
+      }).start();
+      setTimeout(() => {
+        onDone();
+        runningRef.current = false;
+      }, 2200);
+    }
+  }
+  if (!visible) {
+    runningRef.current = false;
+    return null;
+  }
+  if (reduced) return null;
+  return (
+    <Animated.View style={[styles.celebrationWrap, { opacity: fade }]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onDone} accessibilityElementsHidden />
+      <View style={styles.celebrationBars}>
+        <View style={styles.celebrationBar} />
+        <View style={styles.celebrationBar} />
+      </View>
+      <FpPop bound="max" style={styles.celebrationDisc}>
+        <Icon name="coche" size={36} color={C.primary} />
+      </FpPop>
+      {amount !== undefined && <Text style={[ts('heroMoney', C.onPrimary), MONEY_TEXT, styles.celebrationAmount]}>{amount}</Text>}
+      {label !== undefined && <Text style={[ts('caps', C.gold), styles.celebrationLabel]}>{label}</Text>}
+      {demo === true && <Text style={ts('caps', C.gold)}>· démo ·</Text>}
+      {caption !== undefined && <Text style={ts('body', C.soft)}>{caption}</Text>}
     </Animated.View>
   );
 }
 
-/** CelebrationLayer — « Produit prêt » (B7): halo + ring + woven-diamond
- * motifs + badge, ≤ 800 ms, tap-to-skip, NON-BLOCKING (the state underneath
- * is already true). Reduced motion = no layer at all (the confirmed panel is
- * already shown). Transform + opacity only, native driver. */
-export function CelebrationLayer({ visible, onDone }: { visible: boolean; onDone: () => void }) {
-  const reduced = useReducedMotion();
-  const progress = useRef(new Animated.Value(0)).current;
-  const cel = celebration.produitPret;
-  useEffect(() => {
-    if (!visible) return;
-    if (reduced) {
-      onDone();
-      return;
-    }
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: celebration.motifMs,
-      easing: EASE_FLY,
-      useNativeDriver: true,
-    }).start();
-    const ceiling = setTimeout(onDone, motion.celebrateMaxMs);
-    return () => clearTimeout(ceiling);
-  }, [visible, reduced, progress, onDone]);
-  if (!visible || reduced) return null;
-  const haloScale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1.18] });
-  const haloOpacity = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.55, 0] });
-  const ringScale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.32] });
-  const ringOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] });
-  const badgeScale = progress.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.55, 1.07, 1], extrapolate: 'clamp' });
-  return (
-    <Pressable style={styles.celebrationWrap} onPress={onDone} accessibilityElementsHidden>
-      <Animated.View
-        style={[styles.celebrationHalo, { backgroundColor: cel.halo, opacity: haloOpacity, transform: [{ scale: haloScale }] }]}
-      />
-      <Animated.View
-        style={[styles.celebrationRing, { borderColor: cel.ring, opacity: ringOpacity, transform: [{ scale: ringScale }] }]}
-      />
-      <View style={styles.motifRow}>
-        {cel.motifColours.map((colour, i) => (
-          <Animated.View
-            key={i}
-            style={[styles.motifDiamond, { backgroundColor: colour, transform: [{ scale: badgeScale }, { rotate: '45deg' }] }]}
-          />
-        ))}
-      </View>
-      <Animated.View style={[styles.celebrationBadge, { backgroundColor: cel.badgeBg, transform: [{ scale: badgeScale }] }]}>
-        <Text style={[styles.celebrationBadgeText, { color: cel.badgeFg }]}>{cel.label}</Text>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-const H = interaction.hairline;
-
-const CHIP_STYLE: Record<ChipTone, { box: ViewStyle; fg: string }> = {
-  // DF-1 palette pass (founder: « trop de noir »): the confirmed-fact chip comes
-  // OFF ink onto the boutik warm accent (artisanAccent gold), ink text kept for
-  // arm's-length legibility. No invented hex — artisanAccent is an existing
-  // boutik token. Distinct from celebrate (primary green), pending (warm cream)
-  // and problem (danger red).
-  fact: { box: { backgroundColor: C.artisanAccent }, fg: C.ink },
-  neutral: { box: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper }, fg: C.body },
-  pending: { box: { backgroundColor: C.warningTint }, fg: C.warning },
-  problem: { box: { backgroundColor: C.dangerTint }, fg: C.danger },
-  celebrate: { box: { backgroundColor: C.primary }, fg: C.onPrimary },
+// ── chip palette (DF-1 gold-chip ruling superseded: fact = server-truth ok) ──
+const CHIP_STYLE: Record<ChipTone, { bg: string; fg: string }> = {
+  fact: { bg: C.okBg, fg: C.okFg },
+  neutral: { bg: C.mutedBg, fg: C.mutedFg },
+  pending: { bg: C.warnBg, fg: C.warnFgAlt },
+  problem: { bg: C.dangerBg, fg: C.dangerFg },
+  celebrate: { bg: C.soft, fg: C.deep },
 };
 
 const styles = StyleSheet.create({
-  themeBand: { height: band.themeStripPx, backgroundColor: C.themeStrip },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    minHeight: 44,
-    borderBottomWidth: H.thin,
-    borderBottomColor: C.hairline,
+    gap: D.gap,
+    paddingHorizontal: D.pad,
+    minHeight: D.minTouch,
+    paddingVertical: D.gapSm,
     backgroundColor: C.paper,
   },
-  backHit: { minHeight: touch.minTargetPx, justifyContent: 'center' },
-  backText: { ...textStyle(T.label), color: C.ink },
-  headerTitle: { ...textStyle(T.labelLG), flex: 1, color: C.ink },
-  headerContext: { ...textStyle(T.caption), color: C.muted },
-  box: { padding: spacing.lg, gap: spacing.md, backgroundColor: C.paper },
-  boxHairline: { borderWidth: H.medium, borderColor: C.hairlineStrong, borderRadius: radius.box },
-  boxInk: { borderWidth: H.strong, borderColor: C.ink, borderRadius: radius.box },
-  overline: { ...textStyle(T.labelXS), color: C.muted },
-  row: {
-    // DF-1 overlap fix: the row OWNS its height — `minHeight` + vertical padding
-    // so a title + meta + chip stack grows the row instead of overprinting the
-    // next row's title (« PRÊT » over « Sac en cuir de Kaya »). No FlatList pins
-    // getItemLayout, so an intrinsic height is safe.
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: LIST_ROW_HEIGHT,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: H.thin,
-    borderBottomColor: C.hairline,
-    backgroundColor: C.paper,
-  },
-  rowBody: { flex: 1, gap: spacing.xs },
-  rowTitle: { ...textStyle(T.row), color: C.ink },
-  rowMeta: { ...textStyle(T.caption), color: C.muted },
-  rowChipLine: { flexDirection: 'row', marginTop: spacing.xs },
-  rowValue: { ...textStyle({ ...money.amountScale.row }), color: C.ink, fontVariant: ['tabular-nums'] },
-  pressed: { opacity: interaction.pressedOpacity, transform: [{ scale: interaction.pressScale }] },
-  button: {
-    minHeight: 56,
-    borderRadius: radius.button,
+  monogram: {
+    width: 40,
+    height: 40,
+    borderRadius: R.input,
+    backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
-  // DF-1: the primary CTA comes OFF ink onto the boutik warm supply-green
-  // (C.primary) — « moins de noir ». The money variant stays the same green
-  // (the primary action is one confident warm block); both use onPrimary text.
-  buttonInk: { backgroundColor: C.primary },
-  buttonPrimary: { backgroundColor: C.primary },
-  buttonInkText: { ...textStyle(T.label), color: C.onPrimary },
-  buttonDisabled: { opacity: interaction.disabledOpacity },
-  buttonSecondary: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper, minHeight: 50 },
-  buttonSecondaryDanger: { borderColor: C.danger },
-  buttonSecondaryText: { ...textStyle(T.label), color: C.ink },
-  buttonSecondaryDangerText: { color: C.danger },
-  linkHit: { minHeight: touch.minTargetPx, justifyContent: 'center', alignSelf: 'flex-start' },
-  linkText: { ...textStyle(T.labelXS), color: C.primaryStrong, textDecorationLine: 'underline' },
-  fieldBlock: { gap: spacing.xs },
+  headerTitleWrap: { flex: 1, minWidth: 0 },
+  backHit: { minHeight: D.minTouch, justifyContent: 'center' },
+  card: {
+    padding: D.cardPad,
+    gap: D.gapSm,
+    backgroundColor: C.card,
+    borderRadius: R.card,
+    borderWidth: D.hair,
+    borderColor: C.hairline,
+    ...SHADOW.card,
+  },
+  cardAccent: { borderWidth: D.selOn, borderColor: C.primary },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: D.gap,
+    minHeight: 56,
+    padding: D.rowPad,
+    borderRadius: R.tile,
+    backgroundColor: C.card,
+    borderWidth: D.hair,
+    borderColor: C.hairline,
+    marginBottom: D.gapSm,
+  },
+  rowArt: {
+    width: D.artRow,
+    height: D.artRow,
+    borderRadius: R.art,
+    backgroundColor: C.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBody: { flex: 1, minWidth: 0, gap: 2 },
+  pressed: { opacity: 0.96, transform: [{ scale: 0.98 }] },
+  button: {
+    minHeight: D.ctaH,
+    borderRadius: R.button,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: D.gapSm,
+    paddingHorizontal: D.pad,
+  },
+  buttonPrimary: { backgroundColor: C.primary, ...SHADOW.cta },
+  buttonDisabled: { backgroundColor: C.disabledCta, shadowOpacity: 0, elevation: 0 },
+  buttonSecondary: { backgroundColor: C.soft, minHeight: D.secondaryH },
+  buttonSecondaryDanger: { backgroundColor: C.dangerBg },
+  buttonGhost: { borderWidth: D.hairMed, borderColor: C.hairlineStrong, backgroundColor: C.paper, minHeight: D.secondaryH },
+  buttonDemo: { borderWidth: D.hairMed, borderColor: appColour.demoDash, borderStyle: 'dashed', backgroundColor: C.paper, minHeight: 46 },
+  linkHit: { minHeight: D.minTouch, justifyContent: 'center', alignSelf: 'flex-start' },
+  linkUnderline: { textDecorationLine: 'underline' },
+  amountHeroBlock: { gap: 2 },
+  fieldBlock: { gap: D.gapXs },
   fieldBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: D.gapSm,
     minHeight: 56,
-    borderWidth: H.medium,
+    borderWidth: D.hairMed,
     borderColor: C.hairlineStrong,
-    borderRadius: radius.box,
-    paddingHorizontal: spacing.md,
+    borderRadius: R.input,
+    paddingHorizontal: D.cardPad,
+    backgroundColor: C.card,
   },
-  fieldInput: { flex: 1, ...textStyle({ ...money.amountScale.page }), color: C.ink, fontVariant: ['tabular-nums'], textAlign: 'right', padding: 0 },
-  fieldSuffix: { ...textStyle({ ...money.amountScale.page }), color: C.muted, fontVariant: ['tabular-nums'] },
-  amountHeroBlock: { gap: spacing.xs },
-  amountHeroLabel: { ...textStyle(T.labelXS), color: C.muted },
-  amountHero: { ...textStyle({ ...money.amountScale.hero }), color: C.ink, fontVariant: ['tabular-nums'] },
-  amountPending: { color: C.muted },
-  amountNote: { ...textStyle(T.caption), color: C.muted },
-  priceBand: { backgroundColor: C.primary, paddingVertical: band.priceBand.padY, paddingHorizontal: band.priceBand.padX, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  priceBandMuted: { backgroundColor: C.soft },
-  priceBandMain: { flex: 1 },
-  priceBandLabel: { ...textStyle(T.labelXS), color: C.primarySoft },
-  priceBandAmount: { ...textStyle({ ...money.amountScale.page }), color: C.onPrimary, fontVariant: ['tabular-nums'] },
-  priceBandNote: { ...textStyle(T.caption), color: C.primarySoft, width: 118, textAlign: 'right' },
-  reconcileLine: { ...textStyle({ size: money.reconcileLine.size, lh: 1.3, wght: money.reconcileLine.wght, ls: money.reconcileLine.ls }), color: C.muted, textAlign: 'right', fontVariant: ['tabular-nums'] },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.chip, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, alignSelf: 'flex-start' },
-  chipText: { ...textStyle(T.labelXS) },
-  skeleton: { backgroundColor: skeletonToken.bg, borderRadius: radius.box },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: touch.minTargetPx, paddingVertical: spacing.sm },
-  checkBox: { width: spacing.lg, height: spacing.lg, borderWidth: H.medium, borderColor: C.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
-  checkBoxOn: { backgroundColor: C.ink, borderColor: C.ink },
-  checkLabel: { ...textStyle(T.row), color: C.ink, flex: 1 },
-  emptyState: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
-  emptyTitle: { ...textStyle(T.body), color: C.body, textAlign: 'center' },
-  pendingNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
-  pendingBody: { flex: 1, gap: spacing.xs },
-  pendingText: { ...textStyle(T.caption), color: C.warning },
-  offlineBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, height: 30, backgroundColor: C.ink },
-  offlineText: { ...textStyle(T.caption), color: C.onInk },
-  tabBar: { flexDirection: 'row', borderTopWidth: H.thin, borderTopColor: C.hairline, backgroundColor: C.paper },
-  tab: { flex: 1, alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, minHeight: 56, justifyContent: 'center' },
-  tabIndicator: { position: 'absolute', top: 0, left: spacing.lg, right: spacing.lg, height: H.strong, backgroundColor: C.ink },
-  tabLabel: { ...textStyle(T.labelXS), color: C.soft },
-  tabLabelActive: { color: C.ink },
+  fieldInput: { flex: 1, textAlign: 'right', padding: 0 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: D.gap },
+  stepperBtn: {
+    width: D.stepper,
+    height: D.stepper,
+    borderRadius: R.pill,
+    borderWidth: D.hairMed,
+    borderColor: C.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    flex: 1,
+    textAlign: 'center',
+    paddingVertical: D.rowPad,
+    borderRadius: R.button,
+    borderWidth: D.hair,
+    borderColor: C.hairline,
+  },
+  reconcileLine: { textAlign: 'right' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: D.gapXs,
+    borderRadius: R.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+  },
+  chipText: {},
+  skeleton: { borderRadius: R.card },
+  emptyState: {
+    alignItems: 'center',
+    gap: D.gap,
+    paddingVertical: 40,
+    borderWidth: D.hairMed,
+    borderColor: appColour.demoDash,
+    borderStyle: 'dashed',
+    borderRadius: R.card,
+  },
+  emptyTitle: { textAlign: 'center' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: D.gap, minHeight: D.minTouch, paddingVertical: D.gapSm },
+  checkBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: D.hairMed,
+    borderColor: C.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBoxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  pendingNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: D.gapSm,
+    backgroundColor: C.warnBg,
+    padding: D.rowPad,
+    borderRadius: R.input,
+  },
+  pendingBody: { flex: 1, gap: 2 },
+  flex1: { flex: 1 },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: D.gapSm,
+    paddingVertical: D.gapXs,
+    backgroundColor: C.warnBg,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    paddingTop: D.tabPadTop,
+    paddingHorizontal: D.tabPadX,
+    paddingBottom: D.tabPadBottom,
+    backgroundColor: C.paper,
+    borderTopWidth: D.hair,
+    borderTopColor: C.hairlineStrong,
+  },
+  tab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: D.gapXs, borderRadius: R.input, minHeight: 48, justifyContent: 'center' },
+  tabActive: { backgroundColor: C.soft },
   enterFill: { flex: 1 },
-  celebrationWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  celebrationHalo: { position: 'absolute', width: 220, height: 220, borderRadius: radius.pill },
-  celebrationRing: { position: 'absolute', width: 132, height: 132, borderRadius: radius.pill, borderWidth: H.strong },
-  motifRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl },
-  motifDiamond: { width: spacing.md, height: spacing.md },
-  celebrationBadge: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.badge },
-  celebrationBadgeText: { ...textStyle(T.label) },
+  celebrationWrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: appColour.celebrationScrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: D.gap,
+    paddingHorizontal: 32,
+  },
+  celebrationBars: { flexDirection: 'row', gap: D.gap, marginBottom: D.gapSm },
+  celebrationBar: { width: 132, height: 6, borderRadius: R.pill, backgroundColor: C.gold, opacity: 0.9 },
+  celebrationDisc: {
+    width: 78,
+    height: 78,
+    borderRadius: R.pill,
+    backgroundColor: C.onPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrationAmount: { marginTop: D.gap },
+  celebrationLabel: { textAlign: 'center' },
 });

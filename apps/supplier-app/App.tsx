@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { interaction, spacing, touch, type as typeTokens } from '@platform/ui-tokens';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
+import { C, ts, D, R, MONEY_TEXT } from './src/ui/fp';
 import { IS_PREVIEW } from './src/preview';
 import { t } from './src/i18n';
 import { JOURNEY, START, type Screen } from './src/journey';
@@ -28,57 +28,55 @@ import { CAPTURE_CATEGORIES, frameGuideKey, type CaptureCategory, type ShotKind 
 import {
   AmountHero,
   AppHeader,
+  Card,
   CelebrationLayer,
   CheckRow,
+  CornerTicks,
+  DuotoneTile,
   EmptyState,
-  HairlineBox,
+  GhostButton,
+  HeroLedgerBand,
   Icon,
   ListRow,
   MoneyField,
   OfflineBanner,
   Overline,
-  palette,
   PendingNotice,
   PrimaryButton,
+  QuoteRule,
   ReconcileLine,
   ScreenEnter,
   SecondaryButton,
+  Selectable,
   Skeleton,
   StatusChip,
   TabBar,
-  textStyle,
   UnderlineLink,
+  useCountUp,
+  WarnNote,
   type ChipTone,
   type IconName,
 } from './src/ui/kit';
 
 /**
- * WO-6.0 — LE VISAGE, Grand Teint. Same walkable world as WO-4.1 (journey
- * spine, back law, money from the pinned waterfall — all byte-identical), now
- * dressed in the v0.9.0 kit: ink on paper, hairline tables, one primary action
- * per screen, ZERO emoji (icons are the canon set via the `Icon` dispatcher).
- * The navigation SEMANTICS and every franc are untouched.
+ * WO-FP-BOUTIK — LE VISAGE, Faso Premium. The same walkable world as WO-4.1/6.0
+ * (journey spine, back law, money from the pinned waterfall, the durable offline
+ * queue, the real settlement/moderation/trust read models — all byte-identical,
+ * FROZEN), now dressed in the redesign: the woven band, warm paper, one
+ * supply-green accent, money in Bricolage majesty with count-up, the six
+ * signature elements. The navigation SEMANTICS and every franc are untouched;
+ * this slice is render code only. ZERO emoji in chrome (canon icon set).
  */
-
-const C = palette;
-const T = typeTokens.scale;
 
 const E1_B = 10_000;
 const E1_C = 1_000;
 
 // B6 « sous le plancher » — the seller's base price B has a floor. The value is
-// the canon Build Spec's committed MINIMUM (B+4: « category floor >=5,000 FCFA »,
-// authority level 2), already carried by the catalog string `offer.floor_block`
-// (« ... Le minimum est 5 000 F. »). The FINAL per-category floor list is an
-// OPEN Decision (Build Spec register: « Final launch/prohibited category list +
-// floor »): the design bundle shows a clothing floor of 8 000 F (copy.md) and a
-// 4 000 F example (components.md, which sits BELOW the >=5,000 minimum). Canon
-// governs the prototype: the demo holds the Build Spec minimum and does not
-// invent a per-category value. Flagged in JOURNAL.md.
+// the canon Build Spec's committed MINIMUM (B+4: « category floor >=5,000 FCFA »).
 const CATEGORY_FLOOR_FCFA = 5_000;
 
-// The WO-1.4 direct-canon-root proof stays live: the offre screen computes
-// its preview through the pinned waterfall at render time.
+// The WO-1.4 direct-canon-root proof stays live: the offre screen computes its
+// preview through the pinned waterfall at render time.
 function livePreviewNet(priceB: number, commissionC: number): number {
   const money = computeWaterfall({
     sellerBasePrice: priceB,
@@ -98,9 +96,8 @@ const STATUS_KEY: Record<DemoProduct['status'], string> = {
   correction_en_cours: 'statut.correction',
   echeance_depassee: 'statut.echeance',
 };
-// Grand Teint chip tones: an ink `fact` for the confirmed-ready state; a
-// warningTint `pending` for in-flight; a dangerTint `problem` for a refusal —
-// never a green fill before server truth.
+// FP chip tones: `fact` (server-confirmed ready = ok green), `pending` (in-flight
+// warn), `problem` (refusal danger) — never a green fill before server truth.
 const STATUS_TONE: Record<DemoProduct['status'], ChipTone> = {
   pret: 'fact',
   en_attente: 'pending',
@@ -112,10 +109,10 @@ const STATUS_TONE: Record<DemoProduct['status'], ChipTone> = {
 /** The bottom hubs (WO-4.2R): Accueil · Produits · Échéances. */
 const HUBS: readonly Screen[] = ['accueil', 'produits', 'echeances'];
 
-// The tab glyphs. `echeances` → horloge (present at fa2ff24). `accueil` +
-// `produits` glyphs arrive with canon v0.9.1 (WO-5.4, in flight): the forward
-// names are wired here and the TOLERANT Icon renders nothing for them until
-// the re-pin fills the set — NEVER a lookalike. Tombstone: test/tabbar-icons.
+// The tab glyphs. `echeances` → horloge (in the canon set). `accueil` + `produits`
+// glyphs are forward-names awaiting a canon icon-set fill (home/tag are not in the
+// 26-glyph set): the TOLERANT Icon renders nothing for them — never a lookalike —
+// and the icon+word law is met by the word. Tombstone documented in JOURNAL.
 const TAB_ICON: Record<'accueil' | 'produits' | 'echeances', IconName> = {
   accueil: 'accueil' as unknown as IconName,
   produits: 'produits' as unknown as IconName,
@@ -137,11 +134,9 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
   confiance: 'confiance.title',
 };
 
-// B11 (A1) — the REAL moderationState → chip + honest line. Keyed off the
-// moderation state (canon: submitted → changes_requested → approved; B2.2:
-// timeout = pending), NOT the fulfillment lifecycle `status`. A timeout renders
-// « en attente », never a fake « approuvé »; changes_requested lists its
-// specific reasons (never a silent rejection).
+// B11 (A1) — the REAL moderationState → chip + honest line (canon: submitted →
+// changes_requested → approved; B2.2: timeout = pending). A timeout renders « en
+// attente », never a fake « approuvé »; changes_requested lists its reasons.
 const MODERATION: Record<ModerationState, { tone: ChipTone; label: string; line: string }> = {
   approved: { tone: 'fact', label: 'moderation.chip_approuve', line: 'moderation.approuve' },
   submitted: { tone: 'pending', label: 'moderation.chip_soumis', line: 'moderation.en_revue' },
@@ -150,8 +145,7 @@ const MODERATION: Record<ModerationState, { tone: ChipTone; label: string; line:
 };
 
 // B10 (B1) — the REAL settlement state → chip + honest money-register line. The
-// pre-Paid states all read « en attente » (calm, never anxious); Paid appears
-// ONLY with a provider-confirmed ref (B7.1); Held/Failed are honest, not hidden.
+// pre-Paid states read « en attente » (calm); Paid appears ONLY with a provider ref.
 const RECEIVABLE_STATE: Record<DemoReceivable['obligation']['state'], { tone: ChipTone; label: string; line: string }> = {
   Locked: { tone: 'pending', label: 'recettes.chip_attente', line: 'recettes.state_attente' },
   Pending: { tone: 'pending', label: 'recettes.chip_attente', line: 'recettes.state_attente' },
@@ -163,43 +157,33 @@ const RECEIVABLE_STATE: Record<DemoReceivable['obligation']['state'], { tone: Ch
   Failed: { tone: 'problem', label: 'recettes.chip_echec', line: 'recettes.state_echec' },
 };
 
+/** A money hero that counts up over 800 ms (README § Motion) and renders through
+ * the frozen formatter. Re-runs when the amount changes or the tab is entered. */
+function MoneyHero({ label, amount, note, pending }: { label?: string | undefined; amount: number; note?: string | undefined; pending?: boolean | undefined }) {
+  const shown = useCountUp(amount);
+  return <AmountHero label={label} amount={t('money.amount_f').replace('{amount}', formatFcfa(shown))} note={note} pending={pending} />;
+}
+
 export default function App() {
   const [world, setWorld] = useState<DemoWorld>(() => createDemoWorld());
   const [stack, setStack] = useState<Screen[]>([START]);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [celebrating, setCelebrating] = useState(false);
-  // B6 — the seller's base price as text (numeric-only), and whether this offre
-  // is a re-offer (v2: « la v1 reste servie tant que la v2 n'est pas validée »).
   const [priceInput, setPriceInput] = useState(String(E1_B));
-  // DF-1 C: « c'est vous qui décidez » — la part de la revendeuse is now the
-  // seller's to edit (was read-only); the waterfall recomputes live from it.
   const [commissionInput, setCommissionInput] = useState(String(E1_C));
   const [reoffer, setReoffer] = useState(false);
-  // B7 « produit prêt » — the checklist gate + the four honest states. The
-  // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
-  // (offline-first doctrine: queued = pending, never done).
   const [b7Phase, setB7Phase] = useState<'ready' | 'pending' | 'queued' | 'confirmed' | 'queue_error'>('ready');
   const [check1, setCheck1] = useState(false);
   const [check2, setCheck2] = useState(false);
   const [confirmNet, setConfirmNet] = useState(0);
-  // Offline is a GLOBAL, designed state (offline-first doctrine): the banner
-  // rides under the header and actions queue as pending — never lost, never
-  // silently done. A demo toggle makes the honest state reachable.
   const [offline, setOffline] = useState(false);
-  // WO-6.5 · B2.1 — the DURABLE offline queue (survives app-kill + reboot). An
-  // offline confirmation is enqueued to Expo's document store; the surfaced
-  // count is the REAL persisted pending, not an in-memory flag. The queue's
-  // full survival/idempotency/poison contract is proven in test/offline-queue.
   const queueRef = useRef<DurableQueue | null>(null);
   const [queuedCount, setQueuedCount] = useState(0);
-  // WO-4.2C — le Studio: category, the hero→preuve walk, the captured shots.
   const [category, setCategory] = useState<CaptureCategory>('mode');
   const [shot, setShotKind] = useState<ShotKind>('hero');
   const [shots, setShots] = useState<Partial<Record<ShotKind, CaptureResult>>>({});
   const [pending, setPending] = useState<CaptureResult | null>(null);
   const [capturing, setCapturing] = useState(false);
-  // WO-4.2D — the designed failure state carries its CODE; the code line
-  // renders in preview builds only (« détail : <code> »).
   const [failureDetail, setFailureDetail] = useState<CaptureFailureDetail | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -229,16 +213,12 @@ export default function App() {
     setCheck2(false);
     setConfirmNet(0);
   }, []);
-  // B7 — enter the ready (à confirmer) state with a fresh checklist; the net to
-  // be received after validated delivery is captured for the confirmed panel.
   const enterReady = useCallback((net: number) => {
     setConfirmNet(net);
     setB7Phase('ready');
     setCheck1(false);
     setCheck2(false);
   }, []);
-  // Open the durable queue once, restoring anything a previous run left pending
-  // (the reboot path — an action queued before an app-kill is STILL here).
   useEffect(() => {
     let alive = true;
     void DurableQueue.open(expoDocumentStore()).then((q) => {
@@ -250,22 +230,14 @@ export default function App() {
       alive = false;
     };
   }, []);
-  // Both checks passed → confirm. Offline PERSISTS the action to the durable
-  // queue (never done, never celebrates); online hands off to the operator wait.
   const confirmReady = useCallback(() => {
     if (!(check1 && check2)) return;
     if (offline) {
       const q = queueRef.current;
       if (q === null) {
-        setB7Phase('queue_error'); // no durable store yet → never claim « en attente »
+        setB7Phase('queue_error');
         return;
       }
-      // The command_id is minted ONCE here from the OS CSPRNG (canon mintCommandId)
-      // and PERSISTED by the queue — never recomputed, so a reboot cannot make it
-      // collide with itself. If no CSPRNG is available the mint THROWS: we surface
-      // queue_error and never fake « en attente ». « queued » is claimed ONLY after
-      // the store confirms the append; an id-collision (the queue REFUSING a clash)
-      // is surfaced honestly the same way.
       let commandId: string;
       try {
         commandId = mintCommandId();
@@ -285,12 +257,9 @@ export default function App() {
     }
     setB7Phase('pending');
   }, [check1, check2, offline, confirmNet]);
-  // The network returned — flush the durable queue (the demo's send resolves;
-  // the honesty law holds: only a real delivery clears a pending entry).
   const flushQueue = useCallback(() => {
     void queueRef.current?.deliver(async () => {}).then(() => setQueuedCount(queueRef.current?.pending().length ?? 0));
   }, []);
-  // The operator confirmed — NOW it is true: confirmed + the one celebration.
   const finishConfirmation = useCallback(() => {
     setB7Phase('confirmed');
     setCelebrating(true);
@@ -301,15 +270,10 @@ export default function App() {
     setCheck2(false);
     setCelebrating(false);
   }, []);
-  // The honest camera-less path (B4 refusée / « sans photo ») — the demo stays
-  // walkable when the camera is unavailable; capture is simply absent.
   const skipPhoto = useCallback(() => {
     setReoffer(false);
     go('offre');
   }, [go]);
-  // The capture: ONE path (src/studio/capture.ts) — the previewed derivative
-  // IS the stored derivative; EXIF proven stripped on its bytes. A failed
-  // capture is a DESIGNED state, never a silent rejection (verifier NB③).
   const takeShot = useCallback(async () => {
     const camera = cameraRef.current;
     if (camera === null || capturing) return;
@@ -332,11 +296,9 @@ export default function App() {
       return;
     }
     setPendingKey('studio.queue_pending');
-    setReoffer(false); // a fresh capture → a v1 offer
+    setReoffer(false);
     go('offre');
   }, [pending, shot, go]);
-  // Waypoint reset, never an edge: each hub state is already reachable from
-  // START along declared edges; the tab jumps to that exact state.
   const toHub = useCallback((hub: Screen) => {
     setStack(hub === START ? [START] : [START, hub]);
   }, []);
@@ -345,52 +307,33 @@ export default function App() {
   const refused = world.products.find((p) => p.status === 'refuse_correctable');
   const clocks = world.products.filter((p) => p.correctionMinLeft !== undefined);
   const enLigne = world.products.filter((p) => p.status === 'pret').length;
-  // B10 — a receipt per ready (sellable) product: its net, from the waterfall.
   const receivables = world.receivables;
-  // B2 — the trust/consequence view + the server-generated statement figures
-  // (verbatim, never re-summed). Access-based consequences, never money.
   const trust = presentTrustConsequence(world.trust);
   const statementFig = statementFigures(world.statement);
-  // B1 modes are data-driven: an urgent deadline or a refused package changes
-  // what the home screen leads with — shown only when the data warrants it.
   const urgent = world.products.some(
     (p) => p.status === 'echeance_depassee' || (p.correctionMinLeft !== undefined && p.correctionMinLeft <= 60),
   );
   const aCorriger = world.products.filter(
     (p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee',
   ).length;
-  // The §5.4 worked baseline, computed once through the pinned waterfall —
-  // rendering it asserts it reconciled (baselineQuote throws otherwise).
   useMemo(() => baselineQuote(), []);
 
-  // B6 derived money — the seller's own live offer through the pinned waterfall.
-  // Commission (the reseller's seller-funded share) is a fixed chosen value in
-  // this slice; the base price B is the editable input the floor block guards.
   const priceB = Number.parseInt(priceInput, 10) || 0;
-  // DF-1 C: offerC is now the seller's live input (was the E1_C constant).
   const offerC = Number.parseInt(commissionInput, 10) || 0;
-  const priceBelowFloor = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
-  // The live net through the PINNED waterfall (never re-derived). An offer is
-  // publishable only when the price clears the floor AND the seller still
-  // receives something — a part that swallows the net is not a valid offer
-  // (read from the waterfall, never an invented ceiling).
+  const priceBelowFloor = priceB < CATEGORY_FLOOR_FCFA;
   const rawNet = priceBelowFloor ? 0 : livePreviewNet(priceB, offerC);
   const partSwallowsNet = !priceBelowFloor && rawNet <= 0;
-  const belowMin = priceBelowFloor || partSwallowsNet; // muted / CTA-blocked
-  const belowFloor = priceB > 0 && priceBelowFloor; // a real too-low PRICE entry (the floor note)
+  const belowMin = priceBelowFloor || partSwallowsNet;
+  const belowFloor = priceB > 0 && priceBelowFloor;
   const offerNet = belowMin ? 0 : rawNet;
-  // Fee is derived FROM the pinned net (net = B − fee − C), so the reconcile
-  // line is franc-exact by construction — never an independently-computed 5 %.
   const offerFee = belowMin ? 0 : priceB - offerC - offerNet;
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* SDK 54: dark status bar over paper; the surface fill matches the
-          Grand Teint paper token (pre-edge-to-edge Android bar). */}
       <StatusBar style="dark" backgroundColor={C.paper} />
       {IS_PREVIEW && (
         <View style={styles.previewBanner}>
-          <Text style={styles.previewBannerText}>{t('preview.banner')}</Text>
+          <Text style={ts('caps', C.warnFgAlt)}>{t('preview.banner')}</Text>
         </View>
       )}
 
@@ -399,52 +342,64 @@ export default function App() {
         context={screen === 'accueil' ? t('accueil.tagline') : undefined}
         backLabel={`← ${t('nav.retour')}`}
         onBack={stack.length > 1 ? back : undefined}
+        right={
+          screen === 'accueil' ? (
+            <Pressable onPress={() => go('confiance')} accessibilityRole="button">
+              <StatusChip tone="fact" label={t('confiance.title')} icon="scelle" />
+            </Pressable>
+          ) : undefined
+        }
       />
       {offline && <OfflineBanner label={t('shell.offline')} />}
 
       <ScreenEnter screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
-          <View style={styles.stackGap}>
-            {/* B1 « colis refusé » mode — the refusal leads, dignified, and
-                says the order stays protected (never punished). */}
-            {refused !== undefined && (
-              <Pressable style={styles.refuseBanner} onPress={() => go('corrective')} accessibilityRole="button">
-                <StatusChip tone="problem" label={t('statut.refuse')} icon="refus" />
-                <Text style={styles.bannerText}>{t('accueil.refuse_banner')}</Text>
-              </Pressable>
-            )}
-            {/* B1 « échéance urgente » mode — the clock leads. */}
-            {urgent && (
-              <Pressable style={styles.urgentBanner} onPress={() => go('echeances')} accessibilityRole="button">
-                <Icon name="horloge" size={17} color={C.warning} />
-                <Text style={styles.bannerText}>{t('accueil.urgent_banner')}</Text>
-              </Pressable>
-            )}
-            <View style={styles.statGrid}>
-              <HairlineBox style={styles.statCard}>
-                <Overline>{t('accueil.stat_en_ligne')}</Overline>
-                <Text style={styles.statValue}>{enLigne}</Text>
-              </HairlineBox>
-              <HairlineBox style={styles.statCard}>
-                <Overline>{t('accueil.stat_a_corriger')}</Overline>
-                <Text style={styles.statValue}>{aCorriger}</Text>
-              </HairlineBox>
+          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+            <View style={styles.stackGap}>
+              <Text style={ts('screen', C.ink)}>{t('accueil.card_produits')}</Text>
+              {refused !== undefined && (
+                <Pressable style={styles.refuseBanner} onPress={() => go('corrective')} accessibilityRole="button">
+                  <StatusChip tone="problem" label={t('statut.refuse')} icon="refus" />
+                  <Text style={[ts('row', C.ink), styles.flex1]}>{t('accueil.refuse_banner')}</Text>
+                </Pressable>
+              )}
+              {urgent && (
+                <Pressable style={styles.urgentBanner} onPress={() => go('echeances')} accessibilityRole="button">
+                  <Icon name="horloge" size={18} color={C.warnFgAlt} />
+                  <Text style={[ts('row', C.ink), styles.flex1]}>{t('accueil.urgent_banner')}</Text>
+                </Pressable>
+              )}
+              <View style={styles.statGrid}>
+                <Card style={styles.statCard}>
+                  <Overline>{t('accueil.stat_en_ligne')}</Overline>
+                  <Text style={[ts('cardMoney', C.ink), MONEY_TEXT]}>{enLigne}</Text>
+                </Card>
+                <Card style={styles.statCard}>
+                  <Overline>{t('accueil.stat_a_corriger')}</Overline>
+                  <Text style={[ts('cardMoney', aCorriger > 0 ? C.dangerFg : C.ink), MONEY_TEXT]}>{aCorriger}</Text>
+                </Card>
+              </View>
+              <HeroLedgerBand
+                label={t('accueil.stat_en_ligne')}
+                amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
+                sub={t('recettes.state_verse')}
+              />
+              <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} icon="colis" />
+              <SecondaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
+              <View style={styles.accueilLinks}>
+                <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
+                <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
+                <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
+                <UnderlineLink label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
+              </View>
             </View>
-            <PrimaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
-            <SecondaryButton label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
-            <View style={styles.accueilLinks}>
-              <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
-              <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
-              <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
-              <UnderlineLink label={t('confiance.title')} onPress={() => go('confiance')} />
-            </View>
-          </View>
+          </ScrollView>
         )}
 
         {screen === 'onboarding' && (
-          <HairlineBox>
-            <Text style={styles.message}>{t('onboarding.free_listing')}</Text>
+          <Card>
+            <Text style={ts('body', C.ink)}>{t('onboarding.free_listing')}</Text>
             <PrimaryButton
               label={t('onboard.action')}
               onPress={() => {
@@ -452,13 +407,12 @@ export default function App() {
                 go('produits');
               }}
             />
-          </HairlineBox>
+          </Card>
         )}
 
         {screen === 'produits' && (
           <View style={styles.listWrap}>
             {world.products.length === 0 ? (
-              // B2 empty — a designed state that states the next act, never sad.
               <EmptyState
                 icon="colis"
                 title={t('produits.vide')}
@@ -469,25 +423,39 @@ export default function App() {
                 <FlatList
                   data={world.products}
                   keyExtractor={(p) => p.id}
+                  numColumns={2}
+                  columnWrapperStyle={styles.gridRow}
                   initialNumToRender={6}
                   windowSize={5}
                   contentContainerStyle={styles.listContent}
                   renderItem={({ item }) => (
-                    <ListRow
-                      icon="colis"
-                      title={item.name}
-                      meta={`${t('produits.repere')} : ${item.landmark}`}
-                      value={t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
-                      chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
+                    <Pressable
+                      style={styles.tile}
                       onPress={() => {
                         if (item.status === 'refuse_correctable') {
                           go('corrective');
                           return;
                         }
-                        setReoffer(true); // an already-listed product → a v2 re-offer
+                        setReoffer(true);
                         go('offre');
                       }}
-                    />
+                      accessibilityRole="button"
+                    >
+                      <View>
+                        <DuotoneTile label={item.name} />
+                        <View style={styles.tileBadge}>
+                          <StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />
+                        </View>
+                      </View>
+                      <View style={styles.tileBody}>
+                        <Text style={ts('row', C.ink)} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text style={[ts('priceInline', C.deep), MONEY_TEXT]}>
+                          {t('produits.net_ligne').replace('{amount}', formatFcfa(item.money.sellerNet))}
+                        </Text>
+                      </View>
+                    </Pressable>
                   )}
                 />
                 <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />
@@ -497,89 +465,74 @@ export default function App() {
         )}
 
         {screen === 'nouveau' && (
-          <HairlineBox>
-            <Text style={styles.message}>{t('product.title')}</Text>
+          <Card>
+            <Text style={ts('body', C.ink)}>{t('product.title')}</Text>
             <Overline>{t('studio.categorie')}</Overline>
             <View style={styles.chipRow}>
               {CAPTURE_CATEGORIES.map((c) => (
-                <Pressable
+                <Selectable
                   key={c}
-                  style={[styles.categoryChip, category === c && styles.categoryChipOn]}
+                  selected={category === c}
                   onPress={() => setCategory(c)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: category === c }}
+                  accessibilityLabel={t(`categorie.${c}`)}
+                  style={styles.categoryChip}
                 >
-                  <Text style={[styles.categoryChipText, category === c && styles.categoryChipTextOn]}>
-                    {t(`categorie.${c}`)}
-                  </Text>
-                </Pressable>
+                  <Text style={ts('row', category === c ? C.deep : C.ink)}>{t(`categorie.${c}`)}</Text>
+                </Selectable>
               ))}
             </View>
-            <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} />
-          </HairlineBox>
+            <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} icon="camera" />
+          </Card>
         )}
 
         {screen === 'photo' && permission === null && <Skeleton style={styles.cameraFrame} />}
 
-        {/* B4 « permission » — the ask; the camera can still be requested. */}
         {screen === 'photo' && permission !== null && !permission.granted && permission.canAskAgain && (
-          <HairlineBox>
+          <Card>
             <View style={styles.photoFrame}>
-              <Icon name="camera" size={28} color={C.soft} />
-              <Text style={styles.photoHint}>{t('studio.permission')}</Text>
+              <CornerTicks colour={C.hairlineStrong} inset={10} />
+              <Icon name="camera" size={28} color={C.sub} />
+              <Text style={[ts('body', C.sub), styles.center]}>{t('studio.permission')}</Text>
             </View>
             <PrimaryButton label={t('studio.autoriser')} onPress={() => void requestPermission()} />
             <UnderlineLink label={t('studio.sans_photo')} onPress={skipPhoto} />
-          </HairlineBox>
+          </Card>
         )}
 
-        {/* B4 « refusée » — the camera is denied for good; the honest fallback
-            (continue without a photo) leads, warmly, and re-asking whispers.
-            Gallery import (the prototype's action) needs a dep outside WO-6.0. */}
         {screen === 'photo' && permission !== null && !permission.granted && !permission.canAskAgain && (
-          <HairlineBox>
+          <Card>
             <View style={styles.photoFrame}>
-              <Icon name="camera" size={28} color={C.soft} />
-              <Text style={styles.photoHint}>{t('studio.refusee')}</Text>
+              <CornerTicks colour={C.hairlineStrong} inset={10} />
+              <Icon name="camera" size={28} color={C.sub} />
+              <Text style={[ts('body', C.sub), styles.center]}>{t('studio.refusee')}</Text>
             </View>
             <PrimaryButton label={t('studio.sans_photo')} onPress={skipPhoto} />
             <UnderlineLink label={t('studio.autoriser')} onPress={() => void requestPermission()} />
-          </HairlineBox>
+          </Card>
         )}
 
         {screen === 'photo' && permission !== null && permission.granted && pending === null && (
-          /* WO-4.2D — la caméra DEVIENT l'écran: full width, maximal height
-             (flex fills to the tab bar). Guides scale with the view; ONE
-             primary action, overlaid bottom-center in thumb reach. */
           <View style={styles.cameraScreen}>
             <CameraView ref={cameraRef} style={styles.camera} facing="back">
-              <View style={styles.guideCorners} pointerEvents="none">
-                <View style={[styles.guideCorner, styles.guideTL]} />
-                <View style={[styles.guideCorner, styles.guideTR]} />
-                <View style={[styles.guideCorner, styles.guideBL]} />
-                <View style={[styles.guideCorner, styles.guideBR]} />
-              </View>
+              <CornerTicks colour={C.onPrimary} inset={20} />
               <View style={styles.guideBanner} pointerEvents="none">
-                <Text style={styles.guideText}>{t(frameGuideKey(category, shot))}</Text>
-                <Text style={styles.shotRecallText}>
+                <Text style={[ts('bodyStrong', C.onPrimary), styles.center]}>{t(frameGuideKey(category, shot))}</Text>
+                <Text style={[ts('caps', C.soft), styles.center]}>
                   {t(shot === 'hero' ? 'studio.shot_hero' : 'studio.shot_preuve')}
                 </Text>
                 <View style={styles.categoryRecall}>
-                  <Text style={styles.categoryRecallText}>{t(`categorie.${category}`)}</Text>
+                  <Text style={ts('caps', C.deep)}>{t(`categorie.${category}`)}</Text>
                 </View>
               </View>
               <View style={styles.captureOverlay}>
                 {failureDetail !== null && <StatusChip tone="problem" label={t('studio.erreur')} icon="refus" />}
-                {/* WO-4.2D diagnostic surface — PREVIEW BUILDS ONLY. */}
                 {IS_PREVIEW && failureDetail !== null && (
                   <View style={styles.failureDetailPill}>
-                    <Text style={styles.failureDetailText}>
-                      {t('studio.erreur_detail').replace('{code}', failureDetail)}
-                    </Text>
+                    <Text style={ts('caps', C.onPrimary)}>{t('studio.erreur_detail').replace('{code}', failureDetail)}</Text>
                   </View>
                 )}
                 <View style={styles.captureButtonWrap}>
-                  <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} />
+                  <PrimaryButton label={t('studio.capture')} onPress={() => void takeShot()} disabled={capturing} icon="camera" />
                 </View>
               </View>
             </CameraView>
@@ -588,21 +541,21 @@ export default function App() {
 
         {screen === 'photo' && pending !== null && (
           <View style={styles.stackGap}>
-            {/* WYSIWYG — the premium-frame preview renders THE derivative that
-                will be stored: what the seller sees is what the buyer sees. */}
-            <HairlineBox ink style={styles.premiumFrame}>
+            <Card accent>
               <Overline>{t('studio.apercu')}</Overline>
-              <Image
-                source={{ uri: pending.derivative.uri }}
-                style={styles.previewImage}
-                resizeMode="cover"
-                accessibilityIgnoresInvertColors
-              />
-              <Text style={styles.photoHint}>
+              <View style={styles.premiumFrame}>
+                <Image
+                  source={{ uri: pending.derivative.uri }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                  accessibilityIgnoresInvertColors
+                />
+                <CornerTicks colour={C.onPrimary} inset={8} />
+              </View>
+              <Text style={[ts('body', C.sub), styles.center]}>
                 {t(pending.guidance.verdict === 'advice' ? 'studio.conseil.lumiere' : 'studio.conseil.ok')}
               </Text>
-            </HairlineBox>
-            {/* Retake as cheap as confirm — same weight class, side by side. */}
+            </Card>
             <View style={styles.retakeRow}>
               <View style={styles.retakeHalf}>
                 <SecondaryButton label={t('studio.reprendre')} onPress={() => setPending(null)} />
@@ -615,117 +568,90 @@ export default function App() {
         )}
 
         {screen === 'offre' && (
-          // DF-1 C.2 keypad handling (Mon Prix is the one form with inputs):
-          // KeyboardAvoidingView keeps the « Publier » CTA off the keyboard;
-          // ScrollView keyboardShouldPersistTaps="handled" dismisses on an
-          // outside tap and keyboardDismissMode="on-drag" on a scroll drag.
-          // (RN number-pad has no return key on iOS; tap-outside/drag is the
-          // dismiss — the on-device feel is the founder's post-merge re-check.)
           <KeyboardAvoidingView style={styles.offerAvoider} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView
-              contentContainerStyle={styles.offerScroll}
+              contentContainerStyle={styles.scrollFlow}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.stackGap}>
-            {/* B6 « offre v2 » — a re-offer; the v1 stays served until this is
-                validated (honest, never a silent overwrite). */}
-            {reoffer && (
-              <View style={styles.v2Banner}>
-                <Text style={styles.v2Text}>{t('offre.v2')}</Text>
-              </View>
-            )}
-            <HairlineBox>
-              {shots.hero !== undefined && shots.preuve !== undefined && (
-                <StatusChip tone="fact" label={t('studio.photos_pretes')} icon="coche" />
-              )}
-              <MoneyField
-                label={t('offre.champ_prix')}
-                value={priceInput}
-                suffix={t('money.franc')}
-                onChangeText={(txt) => setPriceInput(txt.replace(/[^0-9]/g, ''))}
-              />
-              <MoneyField
-                label={t('offre.champ_commission')}
-                value={commissionInput}
-                suffix={t('money.franc')}
-                onChangeText={(txt) => setCommissionInput(txt.replace(/[^0-9]/g, ''))}
-              />
-              <Text style={styles.fieldAide}>{t('offre.commission_aide')}</Text>
-              {/* B6 « sous le plancher » — a gentle refusal (warningTint, never a
-                  red scold); the CTA is blocked below, with the reason on it. */}
-              {belowFloor && (
-                <View style={styles.floorNote}>
-                  <Icon name="alerte" size={17} color={C.warning} />
-                  <Text style={styles.floorNoteText}>{t('offer.floor_block')}</Text>
-                </View>
-              )}
-              {/* Live net through the pinned waterfall — muted when the offer
-                  isn't yet valid (empty field or below the floor). */}
-              <AmountHero
-                label={t('offer.net_label')}
-                amount={t('money.amount_f').replace('{amount}', formatFcfa(offerNet))}
-                pending={belowMin}
-              />
-              {!belowMin && (
-                <ReconcileLine>
-                  {t('offre.reconcile')
-                    .replace('{net}', formatFcfa(offerNet))
-                    .replace('{prix}', formatFcfa(priceB))
-                    .replace('{part}', formatFcfa(offerC))
-                    .replace('{frais}', formatFcfa(offerFee))}
-                </ReconcileLine>
-              )}
-              <PrimaryButton
-                label={t('offre.publier')}
-                money
-                disabled={belowMin}
-                disabledLabel={partSwallowsNet ? t('offer.part_too_high') : t('offer.floor_block')}
-                onPress={() => {
-                  addDemoProduct(world, priceB, offerC);
-                  setWorld({ ...world });
-                  setPendingKey('ready.pending');
-                  enterReady(offerNet); // → B7 « à confirmer » (no celebration yet)
-                  go('pret');
-                }}
-              />
-            </HairlineBox>
+                {reoffer && (
+                  <View style={styles.v2Banner}>
+                    <Text style={ts('body', C.body)}>{t('offre.v2')}</Text>
+                  </View>
+                )}
+                <Card>
+                  {shots.hero !== undefined && shots.preuve !== undefined && (
+                    <StatusChip tone="fact" label={t('studio.photos_pretes')} icon="coche" />
+                  )}
+                  <MoneyField
+                    label={t('offre.champ_prix')}
+                    value={priceInput}
+                    suffix={t('money.franc')}
+                    onChangeText={(txt) => setPriceInput(txt.replace(/[^0-9]/g, ''))}
+                  />
+                  <MoneyField
+                    label={t('offre.champ_commission')}
+                    value={commissionInput}
+                    suffix={t('money.franc')}
+                    onChangeText={(txt) => setCommissionInput(txt.replace(/[^0-9]/g, ''))}
+                  />
+                  <Text style={ts('rowSub', C.sub)}>{t('offre.commission_aide')}</Text>
+                  {belowFloor && <WarnNote text={t('offer.floor_block')} />}
+                  <MoneyHero label={t('offer.net_label')} amount={offerNet} pending={belowMin} />
+                  {!belowMin && (
+                    <ReconcileLine>
+                      {t('offre.reconcile')
+                        .replace('{net}', formatFcfa(offerNet))
+                        .replace('{prix}', formatFcfa(priceB))
+                        .replace('{part}', formatFcfa(offerC))
+                        .replace('{frais}', formatFcfa(offerFee))}
+                    </ReconcileLine>
+                  )}
+                  <PrimaryButton
+                    label={t('offre.publier')}
+                    money
+                    disabled={belowMin}
+                    disabledLabel={partSwallowsNet ? t('offer.part_too_high') : t('offer.floor_block')}
+                    onPress={() => {
+                      addDemoProduct(world, priceB, offerC);
+                      setWorld({ ...world });
+                      setPendingKey('ready.pending');
+                      enterReady(offerNet);
+                      go('pret');
+                    }}
+                  />
+                </Card>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
         )}
 
         {screen === 'pret' && (
+          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <View style={styles.stackGap}>
-            {/* The paid order that triggers B7 — provider-confirmed upstream;
-                the supplier prepares (never claims payment itself). */}
-            <View style={styles.orderCard}>
-              <View style={styles.orderHead}>
-                <StatusChip tone="fact" label={t('pret.badge_payee')} icon="coche" />
-              </View>
-              <Text style={styles.message}>{t('pret.commande_payee')}</Text>
-            </View>
+            <Card accent>
+              <StatusChip tone="fact" label={t('pret.badge_payee')} icon="coche" />
+              <Text style={ts('body', C.ink)}>{t('pret.commande_payee')}</Text>
+            </Card>
 
-            {/* B7 « à confirmer » — the two-point readiness gate. */}
             {b7Phase === 'ready' && (
               <>
-                <HairlineBox>
+                <Card>
                   <CheckRow label={t('pret.check_photo')} checked={check1} onToggle={() => setCheck1((v) => !v)} />
                   <CheckRow label={t('pret.check_ferme')} checked={check2} onToggle={() => setCheck2((v) => !v)} />
-                </HairlineBox>
+                </Card>
                 <PrimaryButton
                   label={t('pret.confirmer')}
                   disabled={!(check1 && check2)}
                   disabledLabel={t('pret.confirm_gate')}
                   onPress={confirmReady}
                 />
-                <Text style={styles.deadline}>{t('deadline.today')}</Text>
+                <QuoteRule>{t('deadline.today')}</QuoteRule>
               </>
             )}
 
-            {/* B7 « attente réseau » — sent, awaiting the operator (slow net); no
-                success is claimed before the operator confirms. */}
             {b7Phase === 'pending' && (
               <>
                 <PendingNotice lines={[t('ready.pending_slow')]} />
@@ -734,72 +660,58 @@ export default function App() {
               </>
             )}
 
-            {/* B7 « hors ligne (file) » — queued, never done, NEVER celebrated. */}
             {b7Phase === 'queued' && (
               <>
                 <PendingNotice
-                  lines={[
-                    t('ready.queued_offline'),
-                    t('shell.queue_durable').replace('{count}', String(queuedCount)),
-                  ]}
+                  lines={[t('ready.queued_offline'), t('shell.queue_durable').replace('{count}', String(queuedCount))]}
                 />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
               </>
             )}
 
-            {/* B7 — the durable queue REFUSED this confirm (id collision, or no
-                store yet): an honest error state, NEVER a false « en attente ». */}
             {b7Phase === 'queue_error' && (
               <>
-                <View style={styles.floorNote}>
-                  <Icon name="alerte" size={17} color={C.warning} />
-                  <Text style={styles.floorNoteText}>{t('ready.queue_error')}</Text>
-                </View>
+                <WarnNote text={t('ready.queue_error')} />
                 <PrimaryButton label={t('pret.confirmer')} onPress={confirmReady} />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
               </>
             )}
 
-            {/* B7 « confirmé » — now it is true: Séra comes, the net after
-                validated delivery, the deadline. The celebration rides above. */}
             {b7Phase === 'confirmed' && (
               <>
-                <HairlineBox ink style={styles.confirmedPanel}>
+                <Card accent>
                   <StatusChip tone="fact" label={t('statut.pret')} icon="coche" />
-                  <Text style={styles.message}>{t('ready.next')}</Text>
+                  <Text style={ts('body', C.ink)}>{t('ready.next')}</Text>
                   <View style={styles.netRow}>
-                    <Text style={styles.netRowLabel}>{t('pret.net_apres')}</Text>
-                    <Text style={styles.netRowValue}>
+                    <Text style={[ts('body', C.body), styles.flex1]}>{t('pret.net_apres')}</Text>
+                    <Text style={[ts('cardMoney', C.deep), MONEY_TEXT]}>
                       {t('money.amount_f').replace('{amount}', formatFcfa(confirmNet))}
                     </Text>
                   </View>
                   <View style={styles.deadlineRow}>
                     <Icon name="horloge" size={17} color={C.ink} />
-                    <Text style={styles.deadline}>{t('deadline.today')}</Text>
+                    <Text style={ts('bodyStrong', C.ink)}>{t('deadline.today')}</Text>
                   </View>
-                </HairlineBox>
+                </Card>
                 <UnderlineLink label={t('ready.demo_refusal')} onPress={() => go('corrective')} />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
                 <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
               </>
             )}
           </View>
+          </ScrollView>
         )}
 
         {screen === 'corrective' && (
-          <HairlineBox>
+          <Card>
             {refused === undefined ? (
-              // Honest empty state — never a synthetic refusal (verifier NB⑤).
               <EmptyState icon="coche" title={t('corrective.rien')} />
             ) : (
               <>
-                <Text style={styles.message}>
-                  {t('refused.cause').replace(
-                    '{issues}',
-                    refused.refusedChecks!.map((key) => t(key)).join(', '),
-                  )}
-                </Text>
-                <Text style={styles.message}>{t('refused.new_code')}</Text>
+                <QuoteRule>
+                  {t('refused.cause').replace('{issues}', refused.refusedChecks!.map((key) => t(key)).join(', '))}
+                </QuoteRule>
+                <Text style={ts('body', C.ink)}>{t('refused.new_code')}</Text>
                 <StatusChip
                   tone="pending"
                   label={t('echeances.restant').replace('{min}', String(refused.correctionMinLeft ?? 0))}
@@ -811,19 +723,19 @@ export default function App() {
                     markCorrected(world, refused.id);
                     setWorld({ ...world });
                     setPendingKey('refused.fixed_pending');
-                    enterReady(refused.money.sellerNet); // → B7 « à confirmer »
+                    enterReady(refused.money.sellerNet);
                     go('pret');
                   }}
                 />
               </>
             )}
             <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
-          </HairlineBox>
+          </Card>
         )}
 
         {screen === 'echeances' && (
           <View style={styles.listWrap}>
-            <Text style={styles.ruleNote}>{t('echeances.regle')}</Text>
+            <Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>
             <FlatList
               data={clocks}
               keyExtractor={(p) => p.id}
@@ -847,12 +759,20 @@ export default function App() {
           </View>
         )}
 
-        {/* B10 — Mes recettes: the seller's receivable per order from the REAL
-            settlement read model — the LOCKED amount (never recomputed, B+I-05)
-            and its honest state (« en attente » until a provider ref confirms
-            « versé »). « jamais gardé par Boutik+ ». Empty state designed, never sad. */}
         {screen === 'recettes' && (
           <View style={styles.listWrap}>
+            <HeroLedgerBand
+              label={t('recettes.chip_attente')}
+              amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
+              sub={t('recettes.state_verse')}
+            >
+              <View style={styles.ledgerRow}>
+                <Text style={ts('caps', C.soft)}>{t('recettes.chip_verse')}</Text>
+                <Text style={[ts('bodyStrong', C.onPrimary), MONEY_TEXT]}>
+                  {t('money.amount_f').replace('{amount}', formatFcfa(statementFig.paid))}
+                </Text>
+              </View>
+            </HeroLedgerBand>
             {receivables.length === 0 ? (
               <EmptyState icon="gains" title={t('recettes.vide')} />
             ) : (
@@ -865,46 +785,35 @@ export default function App() {
                 renderItem={({ item }) => {
                   const st = RECEIVABLE_STATE[item.obligation.state];
                   return (
-                    <View style={styles.receiptCard}>
+                    <Card style={styles.receiptCard}>
                       <View style={styles.receiptHead}>
-                        {/* DF-1 B: the product photo on every card. Placeholder
-                            thumb — real derivatives ride R2 (B+I-08); journalled. */}
-                        <View style={styles.receiptThumb}>
-                          <Icon name="colis" size={20} color={C.soft} />
-                        </View>
-                        {/* the item name is the card's VISIBLE title (body scale). */}
-                        <Text style={styles.receiptName} numberOfLines={2}>
+                        <DuotoneTile label={item.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
+                        <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={2}>
                           {item.label}
                         </Text>
                         <StatusChip tone={st.tone} label={t(st.label)} />
                       </View>
-                      {/* DF-1 B: the figure ALONE at display scale (money.amount_f =
-                          « {amount} F ») — « Vous recevrez » appears ONCE, as the
-                          small-caps label. The amount is the read model's verbatim
-                          obligation (B+I-05) — presentation only. */}
                       <AmountHero
                         label={t('offer.net_label')}
                         amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
                       />
-                      <Text style={styles.message}>{t(st.line)}</Text>
+                      <Text style={ts('body', C.ink)}>{t(st.line)}</Text>
                       {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
                         <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', item.obligation.payoutRef)}</ReconcileLine>
                       )}
-                    </View>
+                    </Card>
                   );
                 }}
               />
             )}
-            <Text style={styles.ruleNote}>{t('recettes.compte')}</Text>
+            <Text style={ts('rowSub', C.sub)}>{t('recettes.compte')}</Text>
             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </View>
         )}
 
-        {/* B11 — Modération: each product's honest review state + a plain,
-            actionable reason. Never a silent rejection; offline never fakes an approval. */}
         {screen === 'moderation' && (
           <View style={styles.listWrap}>
-            {offline && <Text style={styles.modOffline}>{t('moderation.hors_ligne')}</Text>}
+            {offline && <Text style={ts('rowSub', C.sub)}>{t('moderation.hors_ligne')}</Text>}
             <FlatList
               data={world.products}
               keyExtractor={(p) => p.id}
@@ -914,21 +823,21 @@ export default function App() {
               renderItem={({ item }) => {
                 const mod = MODERATION[item.moderationState];
                 return (
-                  <View style={styles.modCard}>
+                  <Card style={styles.modCard}>
                     <View style={styles.modHead}>
-                      <Text style={styles.modName} numberOfLines={1}>
+                      <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={1}>
                         {item.name}
                       </Text>
                       <StatusChip tone={mod.tone} label={t(mod.label)} />
                     </View>
-                    <Text style={styles.message}>{t(mod.line)}</Text>
+                    <Text style={ts('body', C.ink)}>{t(mod.line)}</Text>
                     {item.moderationState === 'changes_requested' &&
                       item.changeReasons?.map((r) => (
-                        <Text key={r} style={styles.modReason}>
+                        <Text key={r} style={[ts('body', C.ink), styles.reason]}>
                           {`• ${t(`moderation.reason.${r}`)}`}
                         </Text>
                       ))}
-                  </View>
+                  </Card>
                 );
               }}
             />
@@ -936,35 +845,31 @@ export default function App() {
           </View>
         )}
 
-        {/* B2 — Confiance : the server-generated statement (figures shown verbatim)
-            + the trust/consequence view. Every consequence is access-based —
-            a restriction, never money. « Aucun montant n'est retenu. » */}
         {screen === 'confiance' && (
+          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <View style={styles.stackGap}>
-            <View style={styles.receiptCard}>
+            <Card>
               <Overline>{world.statement.periodLabel}</Overline>
-              <AmountHero
-                label={t('confiance.paid_label')}
-                amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(statementFig.paid))}
-              />
-              <Text style={styles.message}>
+              <MoneyHero label={t('confiance.paid_label')} amount={statementFig.paid} />
+              <Text style={ts('body', C.ink)}>
                 {t('confiance.pending_ligne').replace('{amount}', formatFcfa(statementFig.pending))}
               </Text>
               <ReconcileLine>{t('confiance.statement_note')}</ReconcileLine>
-            </View>
-            <View style={styles.modCard}>
+            </Card>
+            <Card accent>
               <View style={styles.modHead}>
                 <Overline>{t('confiance.tier_label')}</Overline>
-                <StatusChip tone="pending" label={t(`confiance.tier_${trust.tier}`)} />
+                <StatusChip tone="celebrate" label={t(`confiance.tier_${trust.tier}`)} icon="scelle" />
               </View>
-              <Text style={styles.message}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
+              <Text style={ts('body', C.ink)}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
               {trust.restrictions.map((r) => (
-                <Text key={r} style={styles.modReason}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
+                <Text key={r} style={[ts('body', C.ink), styles.reason]}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
               ))}
               <ReconcileLine>{t('confiance.protege')}</ReconcileLine>
-            </View>
+            </Card>
             <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </View>
+          </ScrollView>
         )}
 
         {pendingKey !== null && screen !== 'accueil' && screen !== 'pret' && (
@@ -978,17 +883,17 @@ export default function App() {
           style={styles.resetAction}
           onPress={() =>
             setOffline((v) => {
-              if (v) flushQueue(); // going back ONLINE → the durable queue drains
+              if (v) flushQueue();
               return !v;
             })
           }
           accessibilityRole="switch"
           accessibilityState={{ checked: offline }}
         >
-          <Text style={[styles.resetActionText, offline && styles.toggleOn]}>{t('shell.offline_toggle')}</Text>
+          <Text style={ts('caps', offline ? C.deep : C.sub)}>{t('shell.offline_toggle')}</Text>
         </Pressable>
         <Pressable style={styles.resetAction} onPress={reset}>
-          <Text style={styles.resetActionText}>{t('nav.recommencer')}</Text>
+          <Text style={ts('caps', C.sub)}>{t('nav.recommencer')}</Text>
         </Pressable>
       </View>
 
@@ -1002,12 +907,16 @@ export default function App() {
         />
       )}
 
-      {/* « Produit prêt » — the named celebration (≤ 800 ms, non-blocking,
-          reduced-motion respected in the kit). Fires ONLY on the confirmed
-          state — never on a queued (offline) or pending confirmation. */}
+      {/* « Produit prêt » — the designed peak (non-blocking, reduced-motion
+          respected). It fires on the demo confirmation, so it is DEMO-LABELLED
+          (the un-labelled payout celebration is reserved for the E3 real-franc
+          event per the standing law). No « versé » copy — no payment happened. */}
       <CelebrationLayer
         visible={celebrating && screen === 'pret' && b7Phase === 'confirmed'}
         onDone={endCelebration}
+        label={t('statut.pret')}
+        caption={t('ready.next')}
+        demo={IS_PREVIEW}
       />
     </SafeAreaView>
   );
@@ -1015,106 +924,66 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
-  content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
-  stackGap: { gap: spacing.md, paddingTop: spacing.sm },
-  // DF-1 C.2: Mon Prix keypad handling — the avoider flexes; the scroll pad
-  // lets the « Publier » CTA clear the keyboard.
+  content: { flex: 1, paddingHorizontal: D.pad, paddingTop: D.gap, gap: D.gap },
+  scrollFlow: { paddingBottom: D.scrollFlow, gap: D.gap },
+  stackGap: { gap: D.gap, paddingTop: D.gapSm },
   offerAvoider: { flex: 1 },
-  offerScroll: { paddingBottom: spacing.xl },
-  accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, paddingTop: spacing.sm },
-  refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.dangerTint, padding: spacing.md },
-  urgentBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
-  bannerText: { ...textStyle(T.row), color: C.ink, flex: 1 },
-  statGrid: { flexDirection: 'row', gap: spacing.md },
+  accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: D.pad, paddingTop: D.gapSm },
+  refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: D.gap, backgroundColor: C.dangerBg, padding: D.rowPad, borderRadius: R.input },
+  urgentBanner: { flexDirection: 'row', alignItems: 'center', gap: D.gap, backgroundColor: C.warnBg, padding: D.rowPad, borderRadius: R.input },
+  flex1: { flex: 1 },
+  center: { textAlign: 'center' },
+  statGrid: { flexDirection: 'row', gap: D.gap },
   statCard: { flex: 1 },
-  statValue: { ...textStyle(T.display), color: C.ink, fontVariant: ['tabular-nums'] },
-  listWrap: { flex: 1, gap: spacing.md },
-  listContent: { paddingBottom: spacing.sm },
-  receiptCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
-  // DF-1 B: card head — photo thumb + the item name as the visible title + status chip.
-  receiptHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  receiptThumb: { width: touch.minTargetPx, height: touch.minTargetPx, backgroundColor: C.sand, alignItems: 'center', justifyContent: 'center' },
-  receiptName: { ...textStyle(T.row), color: C.ink, flex: 1 },
-  modCard: { borderWidth: interaction.hairline.medium, borderColor: C.hairlineStrong, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
-  modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
-  message: { ...textStyle(T.body), color: C.ink },
-  modReason: { ...textStyle(T.body), color: C.ink, paddingLeft: spacing.sm },
-  modOffline: { ...textStyle(T.caption), color: C.muted, paddingBottom: spacing.sm },
-  ruleNote: { ...textStyle(T.caption), color: C.muted },
-  orderCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm },
-  orderHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  confirmedPanel: { gap: spacing.md },
+  listWrap: { flex: 1, gap: D.gap },
+  listContent: { paddingBottom: D.gapSm },
+  gridRow: { gap: D.gap },
+  tile: { flex: 1, gap: D.gapXs, marginBottom: D.gap },
+  tileBadge: { position: 'absolute', top: 8, left: 8 },
+  tileBody: { gap: 2, paddingHorizontal: 2 },
+  receiptCard: { marginBottom: D.gap },
+  receiptHead: { flexDirection: 'row', alignItems: 'center', gap: D.gap },
+  receiptThumb: { width: D.artRow },
+  modCard: { marginBottom: D.gap },
+  modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: D.gap },
+  reason: { paddingLeft: D.gapSm },
   netRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    borderTopWidth: interaction.hairline.thin,
-    borderTopColor: C.hairline,
-    paddingTop: spacing.sm,
+    gap: D.gap,
+    borderTopWidth: D.hairMed,
+    borderTopColor: C.hairlineStrong,
+    borderStyle: 'dashed',
+    paddingTop: D.gapSm,
   },
-  netRowLabel: { ...textStyle(T.body), color: C.body, flex: 1 },
-  netRowValue: { ...textStyle(T.bodyStrong), color: C.primaryStrong, fontVariant: ['tabular-nums'] },
-  deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  v2Banner: { backgroundColor: C.sand, padding: spacing.md },
-  v2Text: { ...textStyle(T.body), color: C.body },
-  fieldAide: { ...textStyle(T.caption), color: C.muted },
-  floorNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: C.warningTint, padding: spacing.md },
-  floorNoteText: { ...textStyle(T.body), color: C.warning, flex: 1 },
+  ledgerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm },
+  v2Banner: { backgroundColor: C.dim, padding: D.rowPad, borderRadius: R.input },
   photoFrame: {
-    borderWidth: interaction.hairline.medium,
-    borderColor: C.hairlineStrong,
-    backgroundColor: C.sand,
+    backgroundColor: C.soft,
+    borderRadius: R.tile,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.lg,
+    gap: D.gapSm,
+    paddingVertical: 40,
+    paddingHorizontal: D.pad,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  categoryChip: {
-    minHeight: touch.minTargetPx,
-    borderWidth: interaction.hairline.medium,
-    borderColor: C.hairlineStrong,
-    paddingHorizontal: spacing.md,
-    justifyContent: 'center',
-  },
-  categoryChipOn: { borderColor: C.ink, backgroundColor: C.ink },
-  categoryChipText: { ...textStyle(T.label), color: C.ink },
-  categoryChipTextOn: { color: C.onInk },
-  cameraFrame: { flex: 1, backgroundColor: C.sand },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: D.gapSm },
+  categoryChip: { paddingVertical: D.gapSm, paddingHorizontal: D.cardPad },
+  cameraFrame: { flex: 1, borderRadius: R.card },
   camera: { flex: 1 },
-  guideCorners: { ...StyleSheet.absoluteFillObject, margin: spacing.lg },
-  guideCorner: { position: 'absolute', width: spacing.xl, height: spacing.xl, borderColor: C.paper },
-  guideTL: { top: 0, left: 0, borderTopWidth: interaction.cornerTick.strokePx, borderLeftWidth: interaction.cornerTick.strokePx },
-  guideTR: { top: 0, right: 0, borderTopWidth: interaction.cornerTick.strokePx, borderRightWidth: interaction.cornerTick.strokePx },
-  guideBL: { bottom: 0, left: 0, borderBottomWidth: interaction.cornerTick.strokePx, borderLeftWidth: interaction.cornerTick.strokePx },
-  guideBR: { bottom: 0, right: 0, borderBottomWidth: interaction.cornerTick.strokePx, borderRightWidth: interaction.cornerTick.strokePx },
-  cameraScreen: { flex: 1, marginHorizontal: -spacing.lg, backgroundColor: C.ink, overflow: 'hidden' },
-  guideBanner: { position: 'absolute', left: 0, right: 0, top: 0, padding: spacing.md, gap: spacing.xs, backgroundColor: C.ink, alignItems: 'center' },
-  guideText: { ...textStyle(T.bodyStrong), color: C.paper, textAlign: 'center' },
-  shotRecallText: { ...textStyle(T.caption), color: C.sand, textAlign: 'center' },
-  categoryRecall: { backgroundColor: C.paper, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  categoryRecallText: { ...textStyle(T.label), color: C.ink },
-  captureOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
+  cameraScreen: { flex: 1, marginHorizontal: -D.pad, backgroundColor: C.ink, overflow: 'hidden' },
+  guideBanner: { position: 'absolute', left: 0, right: 0, top: 0, padding: D.gap, gap: D.gapXs, backgroundColor: C.ink, alignItems: 'center' },
+  categoryRecall: { backgroundColor: C.paper, paddingHorizontal: D.gap, paddingVertical: 3, borderRadius: R.pill },
+  captureOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: D.pad, paddingBottom: 40, alignItems: 'center', gap: D.gapSm },
   captureButtonWrap: { width: '80%' },
-  failureDetailPill: { backgroundColor: C.ink, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  failureDetailText: { ...textStyle(T.caption), color: C.paper },
-  premiumFrame: { borderColor: C.primary },
-  previewImage: { width: '100%', aspectRatio: 1, backgroundColor: C.sand },
-  retakeRow: { flexDirection: 'row', gap: spacing.md },
+  failureDetailPill: { backgroundColor: C.ink, paddingHorizontal: D.gap, paddingVertical: 3, borderRadius: R.pill },
+  premiumFrame: { borderRadius: R.ledger, overflow: 'hidden' },
+  previewImage: { width: '100%', aspectRatio: 1, backgroundColor: C.soft },
+  retakeRow: { flexDirection: 'row', gap: D.gap },
   retakeHalf: { flex: 1 },
-  photoHint: { ...textStyle(T.body), color: C.muted, textAlign: 'center' },
-  deadline: { ...textStyle(T.bodyStrong), color: C.ink },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: touch.minTargetPx },
-  footerHint: { ...textStyle(T.caption), color: C.soft },
-  resetAction: { minHeight: touch.minTargetPx, justifyContent: 'center', paddingHorizontal: spacing.md },
-  resetActionText: { ...textStyle(T.label), color: C.muted },
-  toggleOn: { color: C.ink },
-  previewBanner: {
-    backgroundColor: C.warningStripe,
-    paddingVertical: spacing.xs,
-    alignItems: 'center',
-  },
-  previewBannerText: { ...textStyle(T.caption), color: C.warning },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: D.pad, minHeight: D.minTouch },
+  resetAction: { minHeight: D.minTouch, justifyContent: 'center', paddingHorizontal: D.gap },
+  previewBanner: { backgroundColor: C.warnBg, paddingVertical: D.gapXs, alignItems: 'center' },
 });
