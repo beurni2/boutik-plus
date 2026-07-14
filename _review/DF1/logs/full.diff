@@ -1,0 +1,341 @@
+diff --git a/apps/supplier-app/App.tsx b/apps/supplier-app/App.tsx
+index d3bc6b4..20eaa3e 100644
+--- a/apps/supplier-app/App.tsx
++++ b/apps/supplier-app/App.tsx
+@@ -1,6 +1,6 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { StatusBar } from 'expo-status-bar';
+-import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
++import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+ import { CameraView, useCameraPermissions } from 'expo-camera';
+ import { interaction, spacing, touch, type as typeTokens } from '@platform/ui-tokens';
+ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
+@@ -171,6 +171,9 @@ export default function App() {
+   // B6 — the seller's base price as text (numeric-only), and whether this offre
+   // is a re-offer (v2: « la v1 reste servie tant que la v2 n'est pas validée »).
+   const [priceInput, setPriceInput] = useState(String(E1_B));
++  // DF-1 C: « c'est vous qui décidez » — la part de la revendeuse is now the
++  // seller's to edit (was read-only); the waterfall recomputes live from it.
++  const [commissionInput, setCommissionInput] = useState(String(E1_C));
+   const [reoffer, setReoffer] = useState(false);
+   // B7 « produit prêt » — the checklist gate + the four honest states. The
+   // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
+@@ -364,10 +367,18 @@ export default function App() {
+   // Commission (the reseller's seller-funded share) is a fixed chosen value in
+   // this slice; the base price B is the editable input the floor block guards.
+   const priceB = Number.parseInt(priceInput, 10) || 0;
+-  const offerC = E1_C;
+-  const belowMin = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
+-  const belowFloor = priceB > 0 && priceB < CATEGORY_FLOOR_FCFA; // a real too-low entry
+-  const offerNet = belowMin ? 0 : livePreviewNet(priceB, offerC);
++  // DF-1 C: offerC is now the seller's live input (was the E1_C constant).
++  const offerC = Number.parseInt(commissionInput, 10) || 0;
++  const priceBelowFloor = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
++  // The live net through the PINNED waterfall (never re-derived). An offer is
++  // publishable only when the price clears the floor AND the seller still
++  // receives something — a part that swallows the net is not a valid offer
++  // (read from the waterfall, never an invented ceiling).
++  const rawNet = priceBelowFloor ? 0 : livePreviewNet(priceB, offerC);
++  const partSwallowsNet = !priceBelowFloor && rawNet <= 0;
++  const belowMin = priceBelowFloor || partSwallowsNet; // muted / CTA-blocked
++  const belowFloor = priceB > 0 && priceBelowFloor; // a real too-low PRICE entry (the floor note)
++  const offerNet = belowMin ? 0 : rawNet;
+   // Fee is derived FROM the pinned net (net = B − fee − C), so the reconcile
+   // line is franc-exact by construction — never an independently-computed 5 %.
+   const offerFee = belowMin ? 0 : priceB - offerC - offerNet;
+@@ -604,7 +615,20 @@ export default function App() {
+         )}
+ 
+         {screen === 'offre' && (
+-          <View style={styles.stackGap}>
++          // DF-1 C.2 keypad handling (Mon Prix is the one form with inputs):
++          // KeyboardAvoidingView keeps the « Publier » CTA off the keyboard;
++          // ScrollView keyboardShouldPersistTaps="handled" dismisses on an
++          // outside tap and keyboardDismissMode="on-drag" on a scroll drag.
++          // (RN number-pad has no return key on iOS; tap-outside/drag is the
++          // dismiss — the on-device feel is the founder's post-merge re-check.)
++          <KeyboardAvoidingView style={styles.offerAvoider} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
++            <ScrollView
++              contentContainerStyle={styles.offerScroll}
++              keyboardShouldPersistTaps="handled"
++              keyboardDismissMode="on-drag"
++              showsVerticalScrollIndicator={false}
++            >
++              <View style={styles.stackGap}>
+             {/* B6 « offre v2 » — a re-offer; the v1 stays served until this is
+                 validated (honest, never a silent overwrite). */}
+             {reoffer && (
+@@ -622,7 +646,12 @@ export default function App() {
+                 suffix={t('money.franc')}
+                 onChangeText={(txt) => setPriceInput(txt.replace(/[^0-9]/g, ''))}
+               />
+-              <MoneyField label={t('offre.champ_commission')} value={formatFcfa(offerC)} suffix={t('money.franc')} readOnly />
++              <MoneyField
++                label={t('offre.champ_commission')}
++                value={commissionInput}
++                suffix={t('money.franc')}
++                onChangeText={(txt) => setCommissionInput(txt.replace(/[^0-9]/g, ''))}
++              />
+               <Text style={styles.fieldAide}>{t('offre.commission_aide')}</Text>
+               {/* B6 « sous le plancher » — a gentle refusal (warningTint, never a
+                   red scold); the CTA is blocked below, with the reason on it. */}
+@@ -652,7 +681,7 @@ export default function App() {
+                 label={t('offre.publier')}
+                 money
+                 disabled={belowMin}
+-                disabledLabel={t('offer.floor_block')}
++                disabledLabel={partSwallowsNet ? t('offer.part_too_high') : t('offer.floor_block')}
+                 onPress={() => {
+                   addDemoProduct(world, priceB, offerC);
+                   setWorld({ ...world });
+@@ -662,7 +691,9 @@ export default function App() {
+                 }}
+               />
+             </HairlineBox>
+-          </View>
++              </View>
++            </ScrollView>
++          </KeyboardAvoidingView>
+         )}
+ 
+         {screen === 'pret' && (
+@@ -835,13 +866,25 @@ export default function App() {
+                   const st = RECEIVABLE_STATE[item.obligation.state];
+                   return (
+                     <View style={styles.receiptCard}>
+-                      <View style={styles.modHead}>
+-                        <Overline>{item.label}</Overline>
++                      <View style={styles.receiptHead}>
++                        {/* DF-1 B: the product photo on every card. Placeholder
++                            thumb — real derivatives ride R2 (B+I-08); journalled. */}
++                        <View style={styles.receiptThumb}>
++                          <Icon name="colis" size={20} color={C.soft} />
++                        </View>
++                        {/* the item name is the card's VISIBLE title (body scale). */}
++                        <Text style={styles.receiptName} numberOfLines={2}>
++                          {item.label}
++                        </Text>
+                         <StatusChip tone={st.tone} label={t(st.label)} />
+                       </View>
++                      {/* DF-1 B: the figure ALONE at display scale (money.amount_f =
++                          « {amount} F ») — « Vous recevrez » appears ONCE, as the
++                          small-caps label. The amount is the read model's verbatim
++                          obligation (B+I-05) — presentation only. */}
+                       <AmountHero
+                         label={t('offer.net_label')}
+-                        amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(item.obligation.amount))}
++                        amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
+                       />
+                       <Text style={styles.message}>{t(st.line)}</Text>
+                       {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
+@@ -974,6 +1017,10 @@ const styles = StyleSheet.create({
+   screen: { flex: 1, backgroundColor: C.paper },
+   content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
+   stackGap: { gap: spacing.md, paddingTop: spacing.sm },
++  // DF-1 C.2: Mon Prix keypad handling — the avoider flexes; the scroll pad
++  // lets the « Publier » CTA clear the keyboard.
++  offerAvoider: { flex: 1 },
++  offerScroll: { paddingBottom: spacing.xl },
+   accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, paddingTop: spacing.sm },
+   refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.dangerTint, padding: spacing.md },
+   urgentBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
+@@ -984,6 +1031,10 @@ const styles = StyleSheet.create({
+   listWrap: { flex: 1, gap: spacing.md },
+   listContent: { paddingBottom: spacing.sm },
+   receiptCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
++  // DF-1 B: card head — photo thumb + the item name as the visible title + status chip.
++  receiptHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
++  receiptThumb: { width: touch.minTargetPx, height: touch.minTargetPx, backgroundColor: C.sand, alignItems: 'center', justifyContent: 'center' },
++  receiptName: { ...textStyle(T.row), color: C.ink, flex: 1 },
+   modCard: { borderWidth: interaction.hairline.medium, borderColor: C.hairlineStrong, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+   modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
+diff --git a/apps/supplier-app/i18n/catalog.json b/apps/supplier-app/i18n/catalog.json
+index 0369a0a..c3c3119 100644
+--- a/apps/supplier-app/i18n/catalog.json
++++ b/apps/supplier-app/i18n/catalog.json
+@@ -65,6 +65,12 @@
+     "register": "money",
+     "screenClass": "status"
+   },
++  {
++    "key": "offer.part_too_high",
++    "fr": "Cette part ne vous laisse rien. Baissez-la un peu.",
++    "register": "money",
++    "screenClass": "status"
++  },
+   {
+     "key": "ready.action",
+     "fr": "Produit prêt",
+diff --git a/apps/supplier-app/src/ui/kit.tsx b/apps/supplier-app/src/ui/kit.tsx
+index 924c5c9..c319933 100644
+--- a/apps/supplier-app/src/ui/kit.tsx
++++ b/apps/supplier-app/src/ui/kit.tsx
+@@ -606,7 +606,12 @@ export function CelebrationLayer({ visible, onDone }: { visible: boolean; onDone
+ const H = interaction.hairline;
+ 
+ const CHIP_STYLE: Record<ChipTone, { box: ViewStyle; fg: string }> = {
+-  fact: { box: { backgroundColor: C.ink }, fg: C.onInk },
++  // DF-1 palette pass (founder: « trop de noir »): the confirmed-fact chip comes
++  // OFF ink onto the boutik warm accent (artisanAccent gold), ink text kept for
++  // arm's-length legibility. No invented hex — artisanAccent is an existing
++  // boutik token. Distinct from celebrate (primary green), pending (warm cream)
++  // and problem (danger red).
++  fact: { box: { backgroundColor: C.artisanAccent }, fg: C.ink },
+   neutral: { box: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper }, fg: C.body },
+   pending: { box: { backgroundColor: C.warningTint }, fg: C.warning },
+   problem: { box: { backgroundColor: C.dangerTint }, fg: C.danger },
+@@ -634,10 +639,15 @@ const styles = StyleSheet.create({
+   boxInk: { borderWidth: H.strong, borderColor: C.ink, borderRadius: radius.box },
+   overline: { ...textStyle(T.labelXS), color: C.muted },
+   row: {
++    // DF-1 overlap fix: the row OWNS its height — `minHeight` + vertical padding
++    // so a title + meta + chip stack grows the row instead of overprinting the
++    // next row's title (« PRÊT » over « Sac en cuir de Kaya »). No FlatList pins
++    // getItemLayout, so an intrinsic height is safe.
+     flexDirection: 'row',
+     alignItems: 'center',
+     gap: spacing.md,
+-    height: LIST_ROW_HEIGHT,
++    minHeight: LIST_ROW_HEIGHT,
++    paddingVertical: spacing.sm,
+     paddingHorizontal: spacing.lg,
+     borderBottomWidth: H.thin,
+     borderBottomColor: C.hairline,
+@@ -656,9 +666,12 @@ const styles = StyleSheet.create({
+     justifyContent: 'center',
+     paddingHorizontal: spacing.lg,
+   },
+-  buttonInk: { backgroundColor: C.ink },
++  // DF-1: the primary CTA comes OFF ink onto the boutik warm supply-green
++  // (C.primary) — « moins de noir ». The money variant stays the same green
++  // (the primary action is one confident warm block); both use onPrimary text.
++  buttonInk: { backgroundColor: C.primary },
+   buttonPrimary: { backgroundColor: C.primary },
+-  buttonInkText: { ...textStyle(T.label), color: C.onInk },
++  buttonInkText: { ...textStyle(T.label), color: C.onPrimary },
+   buttonDisabled: { opacity: interaction.disabledOpacity },
+   buttonSecondary: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper, minHeight: 50 },
+   buttonSecondaryDanger: { borderColor: C.danger },
+diff --git a/apps/supplier-app/test/df1-device-feedback.test.ts b/apps/supplier-app/test/df1-device-feedback.test.ts
+new file mode 100644
+index 0000000..a97b367
+--- /dev/null
++++ b/apps/supplier-app/test/df1-device-feedback.test.ts
+@@ -0,0 +1,98 @@
++import { readFileSync } from 'node:fs';
++import { join } from 'node:path';
++import { describe, expect, it } from 'vitest';
++import { computeWaterfall, assertQuoteReconciles } from '@platform/contracts';
++import { boutikColour } from '@platform/ui-tokens';
++
++/**
++ * DF-1 — device feedback, first batch (founder on-device, 2026-07-14). The kit
++ * + App source are scanned (the WO-6.0 ui-kit.test convention — the RN tree has
++ * no test-render harness); Part C's recompute is proven on the PINNED waterfall.
++ * A — palette off ink + the chip-row owns its height; B — Mes Recettes figure
++ * alone; C — la part de la revendeuse is editable and the keypad is handled.
++ */
++
++const appDir = join(import.meta.dirname, '..');
++const read = (f: string) => readFileSync(join(appDir, f), 'utf8');
++const app = read('App.tsx');
++const kit = read('src/ui/kit.tsx');
++
++describe('DF-1 A — palette pass: chips / status badges / primary CTA come off ink', () => {
++  it('the fact chip is re-derived onto the boutik warm accent (artisanAccent), NOT ink', () => {
++    // the fact tone box is the warm gold accent with ink text (legible at arm's length)
++    expect(kit).toMatch(/fact:\s*\{\s*box:\s*\{\s*backgroundColor:\s*C\.artisanAccent\s*\},\s*fg:\s*C\.ink\s*\}/);
++    // it is NOT the old ink fill
++    expect(kit).not.toMatch(/fact:\s*\{\s*box:\s*\{\s*backgroundColor:\s*C\.ink\s*\}/);
++    // artisanAccent is an EXISTING boutik token (no invented hex)
++    expect(typeof boutikColour.artisanAccent).toBe('string');
++  });
++
++  it('the primary CTA fill comes off ink onto the boutik warm supply-green', () => {
++    expect(kit).toMatch(/buttonInk:\s*\{\s*backgroundColor:\s*C\.primary\s*\}/);
++    expect(kit).not.toMatch(/buttonInk:\s*\{\s*backgroundColor:\s*C\.ink\s*\}/);
++  });
++
++  it('the four status tones stay visually distinct (fact gold · pending cream · problem red · celebrate green)', () => {
++    // no two of the state fills collide after the pass
++    const fills = { fact: 'C.artisanAccent', pending: 'C.warningTint', problem: 'C.dangerTint', celebrate: 'C.primary' };
++    const set = new Set(Object.values(fills));
++    expect(set.size).toBe(Object.keys(fills).length); // all four fills are different
++    for (const fill of Object.values(fills)) expect(kit).toContain(fill);
++  });
++});
++
++describe('DF-1 A.2 — the chip-row collision: rows own their height, nothing overlaps', () => {
++  it('ListRow uses minHeight (grows to fit title + meta + chip) — never a hard fixed height', () => {
++    expect(kit).toMatch(/row:\s*\{[^}]*minHeight:\s*LIST_ROW_HEIGHT/s);
++    expect(kit).not.toMatch(/row:\s*\{[^}]*[^n]height:\s*LIST_ROW_HEIGHT/s); // no bare fixed height
++    expect(kit).toMatch(/row:\s*\{[^}]*paddingVertical:\s*spacing\.sm/s);
++  });
++});
++
++describe('DF-1 B — Mes Recettes: photo + name as title + the figure ALONE', () => {
++  it('the card carries a product photo thumb and the item name as the visible (body-scale) title', () => {
++    expect(app).toMatch(/style=\{styles\.receiptThumb\}/);
++    expect(app).toMatch(/style=\{styles\.receiptName\}[\s\S]*?item\.label/);
++    // the name style is body/row scale, ink — not the tiny caps Overline
++    expect(app).toMatch(/receiptName:\s*\{\s*\.\.\.textStyle\(T\.row\)/);
++  });
++
++  it('the figure renders ALONE at display scale — money.amount_f (« {amount} F ») — the full-sentence duplication is gone', () => {
++    // recettes hero uses the figure-only template + the label ONCE
++    expect(app).toMatch(/label=\{t\('offer\.net_label'\)\}[\s\S]*?amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
++    // the old full-sentence template no longer feeds a recettes AmountHero amount
++    expect(app).not.toMatch(/amount=\{t\('recettes\.net_ligne'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
++  });
++});
++
++describe('DF-1 C.1 — la part de la revendeuse is EDITABLE and the waterfall recomputes live', () => {
++  it('the commission field takes input (not readOnly) and drives offerC', () => {
++    // the commission MoneyField is editable — value is the raw input + an onChangeText
++    expect(app).toMatch(/label=\{t\('offre\.champ_commission'\)\}[\s\S]*?value=\{commissionInput\}[\s\S]*?onChangeText=\{\(txt\) => setCommissionInput/);
++    expect(app).toMatch(/const offerC = Number\.parseInt\(commissionInput, 10\) \|\| 0/);
++  });
++
++  it('the net RECOMPUTES on the commission through the PINNED waterfall (never re-derived)', () => {
++    const B = 10_000;
++    const net = (c: number) => {
++      const m = computeWaterfall({ sellerBasePrice: B, sellerFundedCommission: c, resellerMarkup: 0, deliveryFee: 0, paymentMode: 'FULL_PREPAY' });
++      assertQuoteReconciles(m);
++      return m.sellerNet;
++    };
++    // a different commission → a different net (the field truly recomputes)
++    expect(net(1_000)).not.toBe(net(2_000));
++    // and each still reconciles to the franc (money gate holds)
++    expect(net(1_000)).toBe(8_500); // 10 000 − 5 %·B (500) − C (1 000)
++    expect(net(2_000)).toBe(7_500); // 10 000 − 500 − 2 000
++  });
++});
++
++describe('DF-1 C.2 — the keypad is handled on Mon Prix (props wired; device feel is the founder re-check)', () => {
++  it('the offre screen wires KeyboardAvoidingView + keyboardShouldPersistTaps + keyboardDismissMode', () => {
++    expect(app).toMatch(/screen === 'offre'[\s\S]*?<KeyboardAvoidingView/);
++    expect(app).toMatch(/keyboardShouldPersistTaps="handled"/);
++    expect(app).toMatch(/keyboardDismissMode="on-drag"/);
++    // the CTA sits in a scroll pad so the keyboard never hides it
++    expect(app).toMatch(/offerScroll:\s*\{\s*paddingBottom:\s*spacing\.xl\s*\}/);
++  });
++});
+diff --git a/apps/supplier-app/test/ui-kit.test.ts b/apps/supplier-app/test/ui-kit.test.ts
+index 1b86e9b..4902641 100644
+--- a/apps/supplier-app/test/ui-kit.test.ts
++++ b/apps/supplier-app/test/ui-kit.test.ts
+@@ -42,8 +42,11 @@ describe('WO-6.0 Grand Teint visual layer', () => {
+     const app = read('App.tsx');
+     expect(app).toMatch(/AmountHero\s+label=\{t\('offer\.net_label'\)\}/);
+     expect(app).toMatch(/amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(offerNet\)\)\}/);
+-    // and offerNet is the pinned-waterfall net of the entered price (never invented)
+-    expect(app).toMatch(/const offerNet = belowMin \? 0 : livePreviewNet\(priceB, offerC\)/);
++    // and the net is the pinned-waterfall net of the entered price + the seller's
++    // live commission (DF-1 C: offerC is now editable) — never invented.
++    expect(app).toMatch(/const rawNet = priceBelowFloor \? 0 : livePreviewNet\(priceB, offerC\)/);
++    expect(app).toMatch(/const offerNet = belowMin \? 0 : rawNet/);
++    expect(app).toMatch(/const offerC = Number\.parseInt\(commissionInput, 10\) \|\| 0/);
+     // francs render tabular in the App too (baseline + stats)
+     expect(app).toMatch(/fontVariant: \['tabular-nums'\]/);
+     // the hero is bigger than the stat display (doctrine: the amount is the hero)

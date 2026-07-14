@@ -42,8 +42,11 @@ describe('WO-6.0 Grand Teint visual layer', () => {
     const app = read('App.tsx');
     expect(app).toMatch(/AmountHero\s+label=\{t\('offer\.net_label'\)\}/);
     expect(app).toMatch(/amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(offerNet\)\)\}/);
-    // and offerNet is the pinned-waterfall net of the entered price (never invented)
-    expect(app).toMatch(/const offerNet = belowMin \? 0 : livePreviewNet\(priceB, offerC\)/);
+    // and the net is the pinned-waterfall net of the entered price + the seller's
+    // live commission (DF-1 C: offerC is now editable) — never invented.
+    expect(app).toMatch(/const rawNet = priceBelowFloor \? 0 : livePreviewNet\(priceB, offerC\)/);
+    expect(app).toMatch(/const offerNet = belowMin \? 0 : rawNet/);
+    expect(app).toMatch(/const offerC = Number\.parseInt\(commissionInput, 10\) \|\| 0/);
     // francs render tabular in the App too (baseline + stats)
     expect(app).toMatch(/fontVariant: \['tabular-nums'\]/);
     // the hero is bigger than the stat display (doctrine: the amount is the hero)

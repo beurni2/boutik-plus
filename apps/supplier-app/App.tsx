@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { interaction, spacing, touch, type as typeTokens } from '@platform/ui-tokens';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
@@ -171,6 +171,9 @@ export default function App() {
   // B6 — the seller's base price as text (numeric-only), and whether this offre
   // is a re-offer (v2: « la v1 reste servie tant que la v2 n'est pas validée »).
   const [priceInput, setPriceInput] = useState(String(E1_B));
+  // DF-1 C: « c'est vous qui décidez » — la part de la revendeuse is now the
+  // seller's to edit (was read-only); the waterfall recomputes live from it.
+  const [commissionInput, setCommissionInput] = useState(String(E1_C));
   const [reoffer, setReoffer] = useState(false);
   // B7 « produit prêt » — the checklist gate + the four honest states. The
   // celebration fires ONLY on 'confirmed'; 'queued' (offline) never celebrates
@@ -364,10 +367,18 @@ export default function App() {
   // Commission (the reseller's seller-funded share) is a fixed chosen value in
   // this slice; the base price B is the editable input the floor block guards.
   const priceB = Number.parseInt(priceInput, 10) || 0;
-  const offerC = E1_C;
-  const belowMin = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
-  const belowFloor = priceB > 0 && priceB < CATEGORY_FLOOR_FCFA; // a real too-low entry
-  const offerNet = belowMin ? 0 : livePreviewNet(priceB, offerC);
+  // DF-1 C: offerC is now the seller's live input (was the E1_C constant).
+  const offerC = Number.parseInt(commissionInput, 10) || 0;
+  const priceBelowFloor = priceB < CATEGORY_FLOOR_FCFA; // includes the empty (0) field
+  // The live net through the PINNED waterfall (never re-derived). An offer is
+  // publishable only when the price clears the floor AND the seller still
+  // receives something — a part that swallows the net is not a valid offer
+  // (read from the waterfall, never an invented ceiling).
+  const rawNet = priceBelowFloor ? 0 : livePreviewNet(priceB, offerC);
+  const partSwallowsNet = !priceBelowFloor && rawNet <= 0;
+  const belowMin = priceBelowFloor || partSwallowsNet; // muted / CTA-blocked
+  const belowFloor = priceB > 0 && priceBelowFloor; // a real too-low PRICE entry (the floor note)
+  const offerNet = belowMin ? 0 : rawNet;
   // Fee is derived FROM the pinned net (net = B − fee − C), so the reconcile
   // line is franc-exact by construction — never an independently-computed 5 %.
   const offerFee = belowMin ? 0 : priceB - offerC - offerNet;
@@ -604,7 +615,20 @@ export default function App() {
         )}
 
         {screen === 'offre' && (
-          <View style={styles.stackGap}>
+          // DF-1 C.2 keypad handling (Mon Prix is the one form with inputs):
+          // KeyboardAvoidingView keeps the « Publier » CTA off the keyboard;
+          // ScrollView keyboardShouldPersistTaps="handled" dismisses on an
+          // outside tap and keyboardDismissMode="on-drag" on a scroll drag.
+          // (RN number-pad has no return key on iOS; tap-outside/drag is the
+          // dismiss — the on-device feel is the founder's post-merge re-check.)
+          <KeyboardAvoidingView style={styles.offerAvoider} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView
+              contentContainerStyle={styles.offerScroll}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.stackGap}>
             {/* B6 « offre v2 » — a re-offer; the v1 stays served until this is
                 validated (honest, never a silent overwrite). */}
             {reoffer && (
@@ -622,7 +646,12 @@ export default function App() {
                 suffix={t('money.franc')}
                 onChangeText={(txt) => setPriceInput(txt.replace(/[^0-9]/g, ''))}
               />
-              <MoneyField label={t('offre.champ_commission')} value={formatFcfa(offerC)} suffix={t('money.franc')} readOnly />
+              <MoneyField
+                label={t('offre.champ_commission')}
+                value={commissionInput}
+                suffix={t('money.franc')}
+                onChangeText={(txt) => setCommissionInput(txt.replace(/[^0-9]/g, ''))}
+              />
               <Text style={styles.fieldAide}>{t('offre.commission_aide')}</Text>
               {/* B6 « sous le plancher » — a gentle refusal (warningTint, never a
                   red scold); the CTA is blocked below, with the reason on it. */}
@@ -652,7 +681,7 @@ export default function App() {
                 label={t('offre.publier')}
                 money
                 disabled={belowMin}
-                disabledLabel={t('offer.floor_block')}
+                disabledLabel={partSwallowsNet ? t('offer.part_too_high') : t('offer.floor_block')}
                 onPress={() => {
                   addDemoProduct(world, priceB, offerC);
                   setWorld({ ...world });
@@ -662,7 +691,9 @@ export default function App() {
                 }}
               />
             </HairlineBox>
-          </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         )}
 
         {screen === 'pret' && (
@@ -835,13 +866,25 @@ export default function App() {
                   const st = RECEIVABLE_STATE[item.obligation.state];
                   return (
                     <View style={styles.receiptCard}>
-                      <View style={styles.modHead}>
-                        <Overline>{item.label}</Overline>
+                      <View style={styles.receiptHead}>
+                        {/* DF-1 B: the product photo on every card. Placeholder
+                            thumb — real derivatives ride R2 (B+I-08); journalled. */}
+                        <View style={styles.receiptThumb}>
+                          <Icon name="colis" size={20} color={C.soft} />
+                        </View>
+                        {/* the item name is the card's VISIBLE title (body scale). */}
+                        <Text style={styles.receiptName} numberOfLines={2}>
+                          {item.label}
+                        </Text>
                         <StatusChip tone={st.tone} label={t(st.label)} />
                       </View>
+                      {/* DF-1 B: the figure ALONE at display scale (money.amount_f =
+                          « {amount} F ») — « Vous recevrez » appears ONCE, as the
+                          small-caps label. The amount is the read model's verbatim
+                          obligation (B+I-05) — presentation only. */}
                       <AmountHero
                         label={t('offer.net_label')}
-                        amount={t('recettes.net_ligne').replace('{amount}', formatFcfa(item.obligation.amount))}
+                        amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
                       />
                       <Text style={styles.message}>{t(st.line)}</Text>
                       {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
@@ -974,6 +1017,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
   content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
   stackGap: { gap: spacing.md, paddingTop: spacing.sm },
+  // DF-1 C.2: Mon Prix keypad handling — the avoider flexes; the scroll pad
+  // lets the « Publier » CTA clear the keyboard.
+  offerAvoider: { flex: 1 },
+  offerScroll: { paddingBottom: spacing.xl },
   accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, paddingTop: spacing.sm },
   refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.dangerTint, padding: spacing.md },
   urgentBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: C.warningTint, padding: spacing.md },
@@ -984,6 +1031,10 @@ const styles = StyleSheet.create({
   listWrap: { flex: 1, gap: spacing.md },
   listContent: { paddingBottom: spacing.sm },
   receiptCard: { borderWidth: interaction.hairline.strong, borderColor: C.ink, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+  // DF-1 B: card head — photo thumb + the item name as the visible title + status chip.
+  receiptHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  receiptThumb: { width: touch.minTargetPx, height: touch.minTargetPx, backgroundColor: C.sand, alignItems: 'center', justifyContent: 'center' },
+  receiptName: { ...textStyle(T.row), color: C.ink, flex: 1 },
   modCard: { borderWidth: interaction.hairline.medium, borderColor: C.hairlineStrong, padding: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
   modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   modName: { ...textStyle(T.row), color: C.ink, flex: 1 },
