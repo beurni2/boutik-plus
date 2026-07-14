@@ -1,1 +1,1 @@
-e40c6d4 feat(amber): SW-1 — the supply read-model endpoint (Option B, HTTP pull)
+a0fd9b9 test(amber): SW-1 — lock the identity key-sweep in with a direct regression test

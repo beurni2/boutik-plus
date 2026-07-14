@@ -39,10 +39,10 @@ index 8157fc7..20612ca 100644
 +export * from './supply-endpoint.js';
 diff --git a/services/offer-service/src/supply-endpoint.ts b/services/offer-service/src/supply-endpoint.ts
 new file mode 100644
-index 0000000..ef30981
+index 0000000..5bbdfc1
 --- /dev/null
 +++ b/services/offer-service/src/supply-endpoint.ts
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,200 @@
 +import { CORRELATION_HEADER, correlationIdFrom, makeHealthFetch } from '@boutik/observability';
 +import {
 +  ProductVersionSchema,
@@ -117,12 +117,24 @@ index 0000000..ef30981
 + */
 +export function assertServableValue(value: SupplyProjection): SupplyProjection {
 +  const parsed = SupplyProjectionSchema.parse(value); // strict — throws on any extra key
-+  for (const key of Object.keys(parsed)) {
++  sweepIdentityKeys(parsed);
++  return parsed;
++}
++
++/**
++ * The second line, on its own so its teeth are lockable in a test independent
++ * of the strict schema: throws `SupplyLeakError` on any identity/pickup key
++ * family. Today the strict `SupplyProjectionSchema` refuses any extra key
++ * before this runs, so on a valid projection this never fires — but if the
++ * schema ever loosened, this still refuses a supplier id/phone/pickup on the
++ * wire (B4.2 / SP-I03).
++ */
++export function sweepIdentityKeys(obj: Record<string, unknown>): void {
++  for (const key of Object.keys(obj)) {
 +    if (IDENTITY_LEAK.test(key)) {
 +      throw new SupplyLeakError(`identity material refused on the wire: ${key}`);
 +    }
 +  }
-+  return parsed;
 +}
 +
 +/** In-memory supply registry keyed by productVersionId — the pilot's single-supplier state. */
@@ -233,10 +245,10 @@ index 0000000..ef30981
 +}
 diff --git a/services/offer-service/test/supply-endpoint.test.ts b/services/offer-service/test/supply-endpoint.test.ts
 new file mode 100644
-index 0000000..38edbd5
+index 0000000..0298ac0
 --- /dev/null
 +++ b/services/offer-service/test/supply-endpoint.test.ts
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,224 @@
 +import { describe, expect, it } from 'vitest';
 +import { ProductVersionSchema, SupplierOfferSchema, SupplyProjectionSchema } from '@platform/contracts';
 +import worker, { SERVICE_NAME } from '../src/index.js';
@@ -250,6 +262,7 @@ index 0000000..38edbd5
 +  founderOneSupply,
 +  makeSupplyFetch,
 +  serveProjection,
++  sweepIdentityKeys,
 +  type SupplyEntry,
 +} from '../src/supply-endpoint.js';
 +
@@ -391,6 +404,18 @@ index 0000000..38edbd5
 +    expect(() => assertServableValue(leaking)).toThrow();
 +    // and the sweep itself bites even if the schema were bypassed: a lone pickup key is caught
 +    expect(() => assertServableValue({ ...clean.projection, pickup: 'Marché' } as never)).toThrow();
++  });
++
++  it('the sweep has INDEPENDENT teeth — it refuses identity keys even where the strict schema would not run (locks the second line in)', () => {
++    // Called directly (bypassing the strict-schema front line), the sweep MUST
++    // still refuse supplier identity/contact/pickup. If a future edit deleted
++    // the sweep this test fails — the strict schema alone would not catch it.
++    expect(() => sweepIdentityKeys({ productVersionId: 'pv', offerVersion: '1', supplierPhone: '+226 70' })).toThrow(SupplyLeakError);
++    expect(() => sweepIdentityKeys({ supplierId: 'supplier-9' })).toThrow(SupplyLeakError);
++    expect(() => sweepIdentityKeys({ pickup: 'Marché Rood-Woko' })).toThrow(SupplyLeakError);
++    expect(() => sweepIdentityKeys({ adresse: 'Gounghin' })).toThrow(SupplyLeakError);
++    // the 5 canonical projection fields carry no identity — the sweep passes them
++    expect(() => sweepIdentityKeys({ productVersionId: 'pv', offerVersion: '1', basePrice: 1, resellerCommission: 1, available: 1 })).not.toThrow();
 +  });
 +
 +  it('SupplyLeakError is the named refusal for identity that clears the schema shape', () => {
