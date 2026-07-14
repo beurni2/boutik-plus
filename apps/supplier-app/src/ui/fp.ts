@@ -184,6 +184,8 @@ export const D = {
   scrollFlow: 60, // HANDOFF "bas de scroll ... 60px (vues)"
   scrollTabbed: 150, // HANDOFF "150px (onglets)"
   minTouch: 44, // "Laws carried from Grand Teint" — touch ≥ 44px
+  framePad: 40, // frame/overlay vertical breathing room (camera + empty state)
+  padTiny: 3, // recall-chip / diagnostic-pill vertical pad
 } as const;
 
 /** Durations (README § Motion): skeleton shimmer, count-up. */

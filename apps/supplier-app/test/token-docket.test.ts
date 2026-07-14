@@ -1,70 +1,102 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { APP_COLOUR_DOCKET } from '../src/ui/fp';
 
 /**
- * WO-6.0 — the TOKEN DOCKET (founder's amended token-fidelity gate).
+ * WO-FP-BOUTIK — THE TOKEN-FIDELITY GATE, extended to the Faso Premium groups.
  *
- * Ruling: a dimension STATED in a canon design doc is a DESIGNER VALUE; it
- * becomes a canon token, quoted from the doc's line — never arithmetic that
- * coincidentally equals it. These seven values are stated in components.md /
- * motion.md and become tokens at the v0.9.2 re-pin (the same re-pin that fills
- * the accueil/produits icon slots). Until then they are held raw in the kit,
- * and the zero-hardcode SIZE scan is legitimately RED (it goes green at that
- * pin, not before).
+ * The founder's law (takeover packet): "zero hand-copied hex anywhere; extend
+ * the token gate to the new groups with a planted-hex negative." This gate
+ * enforces exactly that on the render layer:
  *
- * This gate is the amended fidelity model in force NOW: every held raw value
- * must (a) be the ONLY hardcoded dimensions in the layer (App.tsx is fully
- * token-clean; the kit holds exactly these seven), and (b) BYTE-MATCH the
- * canon design-doc line it is quoted from. Nothing is invented; nothing drifts.
- * When v0.9.2 tokenizes them, this docket empties and the size scan turns green.
+ *  1. App.tsx / kit.tsx / signature.tsx / anim.tsx carry ZERO hex/rgba — every
+ *     colour resolves to a canon token or the single app-local module (fp.ts).
+ *  2. fp.ts hardcodes hex ONLY in the APP_COLOUR_DOCKET — the prototype-only
+ *     tones canon leaves in Grand Teint this wave (band/skeleton/ribbon). Any
+ *     canonical value (paper, ink, accent…) is REFERENCED from @platform/ui-tokens,
+ *     never copied: a hand-copied token hex is an undocketed literal and FAILS.
+ *  3. Every docketed value BYTE-MATCHES a cited line in the committed brief
+ *     (design-reference/handoff_redesign/) — derived-from-pixel-source, not invented.
+ *  4. A PLANTED hex (undocketed app-local, or a hand-copied canonical token)
+ *     FAILS the completeness check — the gate is non-vacuous.
+ *
+ * Dimensions are app-local pixel-source (canon: frame/grab/list-pad geometry is
+ * app-local this wave), held as named constants in fp.ts (D/R) derived from the
+ * HANDOFF — so this gate is HEX-focused, per the founder's explicit wording.
  */
 
 const appDir = join(import.meta.dirname, '..');
 const read = (f: string) => readFileSync(join(appDir, f), 'utf8');
-const DOCS = join(appDir, '../..', 'design-reference/grand-teint/docs');
-const readDoc = (f: string) => readFileSync(join(DOCS, f), 'utf8');
+const briefDir = join(appDir, '../..', 'design-reference/handoff_redesign');
+const BRIEF: Record<string, string> = {
+  HANDOFF: readFileSync(join(briefDir, 'Boutik Plus - HANDOFF.md'), 'utf8'),
+  Redesign: readFileSync(join(briefDir, 'Boutik Plus - Redesign.dc.html'), 'utf8'),
+};
 
-const SIZE_PROP =
-  /(?:fontSize|lineHeight|borderRadius|padding(?:Horizontal|Vertical|Top|Bottom|Left|Right)?|margin[A-Za-z]*|minHeight|minWidth|maxWidth|height|width|gap|letterSpacing|top|bottom|left|right):\s*(\d+(?:\.\d+)?)\b/g;
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-const hardcodedDims = (src: string): number[] =>
-  [...src.matchAll(SIZE_PROP)].map((m) => Number(m[1])).filter((n) => n !== 0);
+const HEX = /#[0-9A-Fa-f]{3,8}\b/g;
+const RGBA = /rgba?\([^)]*\)/g;
+const colourLiterals = (src: string): Set<string> => {
+  const code = stripComments(src);
+  return new Set([...code.matchAll(HEX)].map((m) => m[0]).concat([...code.matchAll(RGBA)].map((m) => m[0])));
+};
 
-/**
- * The docket: each held raw value, the canon doc it is quoted from, and the
- * exact byte-substring that must be present in that doc (the quote-verification).
- */
-const DOCKET: { value: number; doc: string; quote: string; where: string }[] = [
-  { value: 56, doc: 'components.md', quote: 'h 56', where: 'PrimaryButton/TabBar height' },
-  { value: 50, doc: 'components.md', quote: 'h 50', where: 'SecondaryButton height' },
-  { value: 44, doc: 'components.md', quote: 'h 44', where: 'AppHeader / hit-area padded to 44' },
-  { value: 30, doc: 'components.md', quote: 'h 30', where: 'OfflineBanner height' },
-  { value: 118, doc: 'components.md', quote: 'w 118', where: 'PriceBand honesty-note width' },
-  { value: 220, doc: 'motion.md', quote: '220px', where: 'celebration halo diameter' },
-  { value: 132, doc: 'motion.md', quote: '132px', where: 'celebration ring diameter' },
-];
+const RENDER_FILES = ['App.tsx', 'src/ui/kit.tsx', 'src/ui/signature.tsx', 'src/ui/anim.tsx'];
 
-describe('WO-6.0 token docket — the a-class held values, pending v0.9.2 tokenization', () => {
-  it('App.tsx is fully token-clean: ZERO hardcoded dimensions', () => {
-    expect(hardcodedDims(read('App.tsx'))).toEqual([]);
-  });
-
-  it('the kit holds EXACTLY the seven docketed designer values — no invented hardcode', () => {
-    const held = new Set(hardcodedDims(read('src/ui/kit.tsx')));
-    const docketed = new Set(DOCKET.map((d) => d.value));
-    // every held value is docketed (nothing invented) …
-    for (const v of held) expect(docketed.has(v), `undocketed hardcode ${v} in the kit`).toBe(true);
-    // … and every docketed value is actually still held (the docket is not stale)
-    for (const v of docketed) expect(held.has(v), `docketed ${v} no longer in the kit`).toBe(true);
-  });
-
-  it('every docketed value BYTE-MATCHES the canon design-doc line it is quoted from', () => {
-    for (const { value, doc, quote, where } of DOCKET) {
-      const src = readDoc(doc);
-      expect(src.includes(quote), `${value} (${where}): canon ${doc} must contain "${quote}"`).toBe(true);
-      // the quote carries the value's own digits — the byte-match is the value
-      expect(quote).toContain(String(value));
+describe('WO-FP-BOUTIK token-fidelity gate — Faso Premium groups', () => {
+  it('the render layer carries ZERO hand-copied hex/rgba (fp.ts is the only home)', () => {
+    for (const f of RENDER_FILES) {
+      const lits = colourLiterals(read(f));
+      expect([...lits], `${f} carries hand-copied colour literals`).toEqual([]);
     }
+  });
+
+  it('fp.ts hardcodes EXACTLY the docketed app-local tones — nothing else, nothing stale', () => {
+    const literals = colourLiterals(read('src/ui/fp.ts'));
+    const docket = new Set<string>(APP_COLOUR_DOCKET.map((d) => d.value));
+    // every literal in fp.ts is docketed (no undocketed hex, incl. a copied token)…
+    for (const lit of literals) expect(docket.has(lit), `undocketed hex literal ${lit} in fp.ts`).toBe(true);
+    // …and every docketed value is actually still a literal in fp.ts (docket not stale)
+    for (const v of docket) expect(literals.has(v), `docketed ${v} no longer in fp.ts`).toBe(true);
+  });
+
+  it('every docketed app-local tone BYTE-MATCHES a cited line in the committed brief', () => {
+    for (const { value, file, where } of APP_COLOUR_DOCKET) {
+      const src = BRIEF[file];
+      expect(src, `docket file ${file} present`).toBeTruthy();
+      expect(src!.includes(value), `${value} (${where}): committed brief ${file} must contain "${value}"`).toBe(true);
+    }
+  });
+
+  it('PLANTED-HEX NEGATIVE: an undocketed app-local hex, AND a hand-copied canonical token hex, both FAIL', () => {
+    const fpSrc = read('src/ui/fp.ts');
+    const docket = new Set<string>(APP_COLOUR_DOCKET.map((d) => d.value));
+    const passesCompleteness = (src: string): boolean => {
+      const lits = colourLiterals(src);
+      for (const lit of lits) if (!docket.has(lit)) return false;
+      return true;
+    };
+    // the real fp.ts passes
+    expect(passesCompleteness(fpSrc)).toBe(true);
+    // plant an undocketed app-local hex → FAIL
+    const planted = fpSrc.replace('export const R = {', "const _plantedArt = '#ABCDEF';\nexport const R = {");
+    expect(planted).not.toBe(fpSrc);
+    expect(passesCompleteness(planted), 'an undocketed #ABCDEF must fail the gate').toBe(false);
+    // plant a HAND-COPIED CANONICAL TOKEN hex (boutik accent) → FAIL (THE TOKEN WINS)
+    const leaked = fpSrc.replace('export const R = {', "const _leakAccent = '#0B5B47';\nexport const R = {");
+    expect(passesCompleteness(leaked), 'a hand-copied canonical token hex must fail the gate (reference it, never copy)').toBe(false);
+  });
+
+  it('fp.ts REFERENCES the canonical groups from @platform/ui-tokens (never re-declares them)', () => {
+    const fp = read('src/ui/fp.ts');
+    expect(fp).toMatch(/import \{[\s\S]*?\} from '@platform\/ui-tokens'/);
+    for (const grp of ['sharedColour', 'boutikColour', 'radius', 'geometry', 'motion']) {
+      expect(fp, `fp.ts imports ${grp} from canon`).toMatch(new RegExp(`\\b${grp}\\b`));
+    }
+    // the canonical accent is referenced, and its hex is NOT hand-copied
+    expect(colourLiterals(fp).has('#0B5B47'), 'boutik accent hex must not be hand-copied in fp.ts').toBe(false);
   });
 });

@@ -177,8 +177,8 @@ describe('WO-4.2D Part B — la caméra devient l\'écran (layout pins, dimensio
   const app = read('App.tsx');
 
   it('the camera fills the screen: flex height, full-bleed width by the SAME token the content pads with', () => {
-    expect(app).toMatch(/cameraScreen: \{\s*flex: 1,\s*marginHorizontal: -spacing\.lg,/);
-    expect(app).toMatch(/content: \{\s*flex: 1,\s*paddingHorizontal: spacing\.lg,/);
+    expect(app).toMatch(/cameraScreen: \{\s*flex: 1,\s*marginHorizontal: -D\.pad,/);
+    expect(app).toMatch(/content: \{\s*flex: 1,\s*paddingHorizontal: D\.pad,/);
   });
 
   it('the guidance banner overlays the TOP and the category recall chip rides inside it', () => {
@@ -197,10 +197,14 @@ describe('WO-4.2D Part B — la caméra devient l\'écran (layout pins, dimensio
     expect(block).toContain("t('studio.capture')");
   });
 
-  it('the frame guides scale with the view — corners are edge-anchored, never fixed-frame-sized', () => {
-    expect(app).toMatch(/guideCorners: \{ \.\.\.StyleSheet\.absoluteFillObject/);
-    expect(app).toMatch(/guideTL: \{ top: 0, left: 0/);
-    expect(app).toMatch(/guideBR: \{ bottom: 0, right: 0/);
+  it('the frame guides scale with the view — the CornerTicks signature is edge-anchored, never fixed-frame-sized', () => {
+    // WO-FP-BOUTIK: the four corner guides are now the shared CornerTicks
+    // signature element (README § 5) — it fills the frame (absoluteFill) and
+    // insets by prop, so it scales with the view instead of a fixed frame size.
+    expect(app).toMatch(/<CornerTicks colour=\{C\.onPrimary\} inset=\{20\} \/>/);
+    const sig = read('src/ui/signature.tsx');
+    expect(sig).toMatch(/export function CornerTicks/);
+    expect(sig).toMatch(/StyleSheet\.absoluteFill/);
   });
 
   it('zero hardcoded dimensions in the new layout styles — every number is a token expression or a percent', () => {
