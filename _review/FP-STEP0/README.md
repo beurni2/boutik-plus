@@ -36,8 +36,8 @@ distinct-identity table (readSfntIdentity over real bytes) · 6-distinct-familie
 
 ## Evidence
 - `logs/run-gates.txt` — full **warm** run-gates: **ALL GATES GREEN, exit 0** (every money/moderation/settlement/neutral-packaging/no-emoji gate unchanged).
-- `logs/coldgates.log` — cold-gates proof (fresh HOME, HTTPS→proxy not ssh, empty store, frozen lockfile, fresh clone, cold HEAD `93a3b67`): **[COLD RESULT — see log]**.
-- `logs/verifier-report.md` — fresh-context verifier on the final bytes: **[VERDICT — see report]**.
+- `logs/coldgates.log` — cold-gates proof (fresh HOME, HTTPS→proxy not ssh, empty store, `--frozen-lockfile` exit 0, fresh clone, cold HEAD `93a3b67`): **cold guards 19 passed** (fp 9 + Archivo 10) · **cold run-gates exit 0 · ALL GATES GREEN** · the committed FP font sha256s **match BUILD.md** exactly.
+- `logs/verifier-report.md` — fresh-context verifier (ran on `93a3b67`): **VERDICT PASS · BLOCKERS 0**. By its own fontTools reads + independent `formatFcfa` execution + mutation tests: scope contained (10 protected files 0-diff), 6 distinct static families/weights, U+00A0 in all six + the U+202F split independently confirmed, guard bites (weight 700→701 flips identity; U+202F false→true flips the split), Archivo 10/10 + typecheck 11/11 + run-gates ALL GREEN, tree left clean.
 - `build_fp_fonts.py` — the deterministic generator.
 
 ## Test counts

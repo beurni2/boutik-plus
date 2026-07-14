@@ -1,11 +1,19 @@
- .../assets/fonts/faso-premium/BUILD.md             |  41 ++++++++
+ JOURNAL.md                                         |  14 +
+ _review/FP-STEP0/README.md                         |  47 ++
+ _review/FP-STEP0/build_fp_fonts.py                 |  63 ++
+ _review/FP-STEP0/logs/branch-log.txt               |   1 +
+ _review/FP-STEP0/logs/coldgates.log                |  22 +
+ _review/FP-STEP0/logs/diffstat.txt                 |  11 +
+ _review/FP-STEP0/logs/head-sha.txt                 |   1 +
+ _review/FP-STEP0/logs/run-gates.txt                | 739 +++++++++++++++++++++
+ .../assets/fonts/faso-premium/BUILD.md             |  41 ++
  .../fonts/faso-premium/BricolageGrotesque-Bold.ttf | Bin 0 -> 53832 bytes
  .../faso-premium/BricolageGrotesque-ExtraBold.ttf  | Bin 0 -> 53844 bytes
  .../fonts/faso-premium/InstrumentSans-Bold.ttf     | Bin 0 -> 48060 bytes
  .../fonts/faso-premium/InstrumentSans-Medium.ttf   | Bin 0 -> 48064 bytes
  .../fonts/faso-premium/InstrumentSans-Regular.ttf  | Bin 0 -> 48028 bytes
  .../fonts/faso-premium/InstrumentSans-SemiBold.ttf | Bin 0 -> 48076 bytes
- .../fonts/faso-premium/OFL-BricolageGrotesque.txt  |  93 ++++++++++++++++++
- .../fonts/faso-premium/OFL-InstrumentSans.txt      |  93 ++++++++++++++++++
- apps/supplier-app/test/fp-font-pipeline.test.ts    | 109 +++++++++++++++++++++
- 10 files changed, 336 insertions(+)
+ .../fonts/faso-premium/OFL-BricolageGrotesque.txt  |  93 +++
+ .../fonts/faso-premium/OFL-InstrumentSans.txt      |  93 +++
+ apps/supplier-app/test/fp-font-pipeline.test.ts    | 109 +++
+ 18 files changed, 1234 insertions(+)
