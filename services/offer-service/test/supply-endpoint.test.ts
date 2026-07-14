@@ -11,6 +11,7 @@ import {
   founderOneSupply,
   makeSupplyFetch,
   serveProjection,
+  sweepIdentityKeys,
   type SupplyEntry,
 } from '../src/supply-endpoint.js';
 
@@ -152,6 +153,18 @@ describe('SW-1 · identity + pickup are UN-EMITTABLE on the wire', () => {
     expect(() => assertServableValue(leaking)).toThrow();
     // and the sweep itself bites even if the schema were bypassed: a lone pickup key is caught
     expect(() => assertServableValue({ ...clean.projection, pickup: 'Marché' } as never)).toThrow();
+  });
+
+  it('the sweep has INDEPENDENT teeth — it refuses identity keys even where the strict schema would not run (locks the second line in)', () => {
+    // Called directly (bypassing the strict-schema front line), the sweep MUST
+    // still refuse supplier identity/contact/pickup. If a future edit deleted
+    // the sweep this test fails — the strict schema alone would not catch it.
+    expect(() => sweepIdentityKeys({ productVersionId: 'pv', offerVersion: '1', supplierPhone: '+226 70' })).toThrow(SupplyLeakError);
+    expect(() => sweepIdentityKeys({ supplierId: 'supplier-9' })).toThrow(SupplyLeakError);
+    expect(() => sweepIdentityKeys({ pickup: 'Marché Rood-Woko' })).toThrow(SupplyLeakError);
+    expect(() => sweepIdentityKeys({ adresse: 'Gounghin' })).toThrow(SupplyLeakError);
+    // the 5 canonical projection fields carry no identity — the sweep passes them
+    expect(() => sweepIdentityKeys({ productVersionId: 'pv', offerVersion: '1', basePrice: 1, resellerCommission: 1, available: 1 })).not.toThrow();
   });
 
   it('SupplyLeakError is the named refusal for identity that clears the schema shape', () => {

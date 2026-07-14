@@ -72,12 +72,24 @@ export type ServeOutcome =
  */
 export function assertServableValue(value: SupplyProjection): SupplyProjection {
   const parsed = SupplyProjectionSchema.parse(value); // strict — throws on any extra key
-  for (const key of Object.keys(parsed)) {
+  sweepIdentityKeys(parsed);
+  return parsed;
+}
+
+/**
+ * The second line, on its own so its teeth are lockable in a test independent
+ * of the strict schema: throws `SupplyLeakError` on any identity/pickup key
+ * family. Today the strict `SupplyProjectionSchema` refuses any extra key
+ * before this runs, so on a valid projection this never fires — but if the
+ * schema ever loosened, this still refuses a supplier id/phone/pickup on the
+ * wire (B4.2 / SP-I03).
+ */
+export function sweepIdentityKeys(obj: Record<string, unknown>): void {
+  for (const key of Object.keys(obj)) {
     if (IDENTITY_LEAK.test(key)) {
       throw new SupplyLeakError(`identity material refused on the wire: ${key}`);
     }
   }
-  return parsed;
 }
 
 /** In-memory supply registry keyed by productVersionId — the pilot's single-supplier state. */
