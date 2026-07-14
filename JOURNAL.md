@@ -523,6 +523,13 @@ Format per entry:
 - **VERIFIER OBSERVATION (recorded, not a defect):** the create fingerprint is `JSON.stringify(draft)` only (vs the offline queue's `name`+`JSON.stringify(payload)`) — correct here because the `command_id` already scopes the intent to a single "create" command; noted as a design fact.
 - **🟠 AMBER — DO NOT MERGE. Awaiting founder review** (packet `/_review/B02DUP/`, `logs/branch-log.txt` by name).
 
+## 2026-07-15 · WO-FP-BOUTIK — DELIVERY: FP branch published to the Expo `preview` channel
+- **Delivery gap closed (not a defect):** the founder's device showed main's old publish because the FP branch was never pushed to the preview channel. The `expo-preview.yml` workflow was ALREADY present (matches sera byte-for-byte bar `working-directory: apps/supplier-app`), triggers on `push:main` + `workflow_dispatch`, skips gracefully without `EXPO_TOKEN`.
+- **Dispatched `expo-preview.yml` on `claude/faso-premium-adoption-xxzgke`** (run `29374935191`, **conclusion success**). `EXPO_TOKEN` is ARMED — the publish step ran (not skipped). EAS `update --channel preview` published the FP bytes (iOS 840 / Android 838 modules, runtime `exposdk:54.0.0`) at commit `a82d01a`.
+  - **Update group ID `792a94b8-84eb-459b-b51e-f64b6d41ca3e`** · dashboard `https://expo.dev/accounts/beurniboss/projects/boutik-plus-supplier/updates/792a94b8-84eb-459b-b51e-f64b6d41ca3e`. The `eas init`/`update:configure` app.json/updates.url edits are CI-workspace-only (ephemeral, never committed).
+- **The two guards noted in the drop (sera convention):** ① the `preview` channel is SHARED — the next `main` publish OVERWRITES this FP preview and the device reverts to main (temporary review window; re-dispatch to refresh). ② an EAS update only reaches an Expo Go / dev build on the SAME channel + runtime (`preview` · `exposdk:54.0.0`) — a mismatched SDK build won't receive it.
+- Founder sent the link + the 11 « Boutik Plus - Ecrans » frame names to hold each view against. Lane still HOLDS on the device review; nothing merged.
+
 ## 2026-07-15 · WO-FP-BOUTIK — CTO RULING: ENGINEERING PASS · MERGE HELD FOR FOUNDER DEVICE REVIEW
 - **The CTO ratified the engineering pass; merge is HELD for the founder's on-device aesthetic review (the aesthetic review IS the review — his notes/tap arrive via the founder). Six sign-offs, recorded:**
   - **① The `services/*/package.json` pin bumps = the AUTHORIZED STEP-1 re-pin** (`f23407c`; no service source moved). Ruling: the frozen law protects LOGIC, not version pins — a same-contract-version SHA re-pin the whole slice consumes is lawful. The verifier's flagged deviation is CLOSED (authorized).
