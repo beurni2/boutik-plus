@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Animated,
   Pressable,
@@ -10,7 +10,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { C, appColour, D, R, SHADOW, ts, MONEY_TEXT, motion } from './fp';
+import { C, appColour, D, R, SHADOW, ts, MONEY_TEXT, motion, DUR } from './fp';
 import { FpIn, FpPop, useReducedMotion, Shimmer, rnEasing } from './anim';
 import { WovenBand, CornerTicks } from './signature';
 import { Icon, type IconName } from './icons';
@@ -512,30 +512,27 @@ export function CelebrationLayer({
 }) {
   const reduced = useReducedMotion();
   const fade = useRef(new Animated.Value(0)).current;
-  const runningRef = useRef(false);
-  if (visible && !runningRef.current) {
-    runningRef.current = true;
+  // The animation + the auto-dismiss timer run in an effect (never in render):
+  // onDone() flips the parent's celebrating flag, so calling it during render
+  // would be an illegal cross-component update. Reduced motion = no layer, done
+  // immediately (the confirmed panel underneath is already true).
+  useEffect(() => {
+    if (!visible) return;
     if (reduced) {
       onDone();
-    } else {
-      fade.setValue(0);
-      Animated.timing(fade, {
-        toValue: 1,
-        duration: 250,
-        easing: rnEasing(motion.fpIn.timingFunction),
-        useNativeDriver: true,
-      }).start();
-      setTimeout(() => {
-        onDone();
-        runningRef.current = false;
-      }, 2200);
+      return;
     }
-  }
-  if (!visible) {
-    runningRef.current = false;
-    return null;
-  }
-  if (reduced) return null;
+    fade.setValue(0);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 250,
+      easing: rnEasing(motion.fpIn.timingFunction),
+      useNativeDriver: true,
+    }).start();
+    const timer = setTimeout(onDone, DUR.celebrationMs);
+    return () => clearTimeout(timer);
+  }, [visible, reduced, onDone, fade]);
+  if (!visible || reduced) return null;
   return (
     <Animated.View style={[styles.celebrationWrap, { opacity: fade }]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onDone} accessibilityElementsHidden />

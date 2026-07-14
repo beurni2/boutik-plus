@@ -53,8 +53,10 @@ describe('WO-FP-BOUTIK Faso Premium visual layer', () => {
     expect(read('src/ui/anim.tsx')).not.toMatch(/damping|stiffness|Animated\.spring/);
     // tap anywhere = skip; reduced motion = no layer
     expect(kit).toMatch(/onPress=\{onDone\}/);
-    expect(kit).toMatch(/if \(reduced\) return null/);
+    expect(kit).toMatch(/if \(!visible \|\| reduced\) return null/);
     expect(kit).toMatch(/useReducedMotion/);
+    // the auto-dismiss + animation run in an effect, never in render body
+    expect(kit).toMatch(/useEffect\(\(\) => \{\s*if \(!visible\) return;/);
     // the demo trigger renders a « démo » marker (the un-labelled payout is E3-only)
     expect(kit).toMatch(/demo === true &&/);
     // the App fires it exactly on the CONFIRMED B7 state — never queued/pending
