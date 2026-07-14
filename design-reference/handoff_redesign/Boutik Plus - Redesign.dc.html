@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#EDE6D8;}
+a{color:#0B5B47;text-decoration:none;}a:hover{color:#073B2E;text-decoration:underline;}
+@keyframes fpIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fpUp{from{opacity:.4;transform:translateY(44px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fpFade{from{opacity:0;}to{opacity:1;}}
+@keyframes fpToast{from{opacity:0;transform:translateY(-14px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes fpShimmer{0%{background-position:-320px 0;}100%{background-position:320px 0;}}
+@keyframes fpPulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+@keyframes fpPop{0%{transform:scale(.6);opacity:0;}60%{transform:scale(1.06);}100%{transform:scale(1);opacity:1;}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+.fpapp *{scrollbar-width:none;}
+.fpapp *::-webkit-scrollbar{width:0;height:0;display:none;}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:34px;background:radial-gradient(120% 90% at 50% 0%, #F2ECDF 0%, #E7DFCE 100%);">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+<div class="fpapp" data-screen-label="Boutik+" style="height:100%;position:relative;display:flex;flex-direction:column;background:#F4EFE6;color:#1C1710;font-family:'Instrument Sans',system-ui,sans-serif;overflow:hidden;">
+  <div style="height:54px;flex:none;"></div>
+  <div style="height:6px;flex:none;background:repeating-linear-gradient(90deg,#0B5B47 0 18px,#F4EFE6 18px 24px,#C89A3F 24px 32px,#F4EFE6 32px 38px);"></div>
+
+  <!-- ══ SKELETON ══ -->
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:1;padding:18px 20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="height:18px;width:150px;border-radius:9px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div>
+      <div style="height:34px;width:230px;border-radius:12px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div>
+      <div style="height:86px;border-radius:20px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div>
+      <div style="height:86px;border-radius:20px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div>
+      <div style="display:flex;gap:12px;"><div style="flex:1;height:104px;border-radius:20px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div><div style="flex:1;height:104px;border-radius:20px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div></div>
+      <div style="height:54px;border-radius:16px;background:linear-gradient(90deg,#ECE4D4 25%,#F6F1E7 50%,#ECE4D4 75%);background-size:640px 100%;animation:fpShimmer 1.2s linear infinite;"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;position:relative;overflow:hidden;">
+
+    <!-- ══ ACCUEIL ══ -->
+    <sc-if value="{{ vHome }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Accueil" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 150px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:14px;background:#0B5B47;color:#F6F1E7;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:15px;letter-spacing:.02em;flex:none;">BW</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;">Boutik+</div>
+            <div style="font-size:12.5px;color:#6F6355;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ shopName }} · Rood Woko</div>
+          </div>
+          <button onClick="{{ openTrust }}" style="display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;color:#0B5B47;font:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 1px 2px rgba(28,22,15,.05);transition:transform .15s;" style-active="transform:scale(.96);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Vérifié
+          </button>
+        </div>
+        <div style="margin-top:20px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;line-height:1.1;letter-spacing:-.02em;">Nd&rsquo;waoga, {{ ownerName }}</div>
+        <div style="margin-top:8px;font-size:14px;line-height:1.5;color:#6F6355;">Boutique ouverte · {{ productCount }} produits en ligne · aucun dépôt exigé, jamais.</div>
+
+        <sc-if value="{{ hasTodo }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:22px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">À faire maintenant</div>
+            <div style="font-size:11px;font-weight:700;color:#8C1D18;background:#F8E1DE;border-radius:99px;padding:3px 9px;">{{ todoCount }}</div>
+          </div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ todoList }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.open }}" style="display:flex;align-items:center;gap:12px;width:100%;padding:13px;border-radius:18px;border:1px solid #EDE4D3;background:#FFFFFF;font:inherit;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(28,22,15,.04),0 10px 30px -16px rgba(28,22,15,.14);transition:transform .15s;" style-active="transform:scale(.98);">
+                <div style="width:52px;height:52px;border-radius:14px;flex:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ t.bg }};"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 8px,transparent 8px 20px);"></div><span style="font-size:24px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25));position:relative;">{{ t.glyph }}</span></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:700;font-size:14.5px;letter-spacing:-.01em;">{{ t.code }} · {{ t.name }}</div>
+                  <div style="margin-top:2px;font-size:12.5px;line-height:1.4;color:#6F6355;">{{ t.sub }}</div>
+                </div>
+                <span style="flex:none;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;background:{{ t.pillBg }};color:{{ t.pillFg }};">{{ t.pill }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="padding:16px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04),0 10px 30px -16px rgba(28,22,15,.14);">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">En attente</div>
+            <div style="margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;letter-spacing:-.01em;font-feature-settings:'tnum';white-space:nowrap;">{{ pendingF }}</div>
+            <div style="margin-top:3px;font-size:12px;line-height:1.4;color:#6F6355;">Payé après livraison validée</div>
+          </div>
+          <div style="padding:16px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04),0 10px 30px -16px rgba(28,22,15,.14);">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Versé</div>
+            <div style="margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;letter-spacing:-.01em;font-feature-settings:'tnum';color:#0B5B47;white-space:nowrap;">{{ paidF }}</div>
+            <div style="margin-top:3px;font-size:12px;line-height:1.4;color:#6F6355;">Sous 24 h après acceptation</div>
+          </div>
+        </div>
+
+        <button onClick="{{ openAdd }}" style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s,box-shadow .2s;" style-active="transform:scale(.98);box-shadow:0 6px 14px -8px rgba(11,91,71,.5);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Ajouter un produit
+        </button>
+
+        <div style="margin-top:14px;padding:15px 16px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px;white-space:nowrap;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7A5104" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4L21 19.5H3L12 4z"></path><path d="M12 10v4"></path><circle cx="12" cy="16.8" r="1.2" fill="#7A5104" stroke="none"></circle></svg>Alerte stock</div>
+            <span style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;background:#F6E9C8;color:#7A5104;">{{ lowStockPill }}</span>
+          </div>
+          <div style="margin-top:7px;font-size:13px;line-height:1.5;color:#6F6355;">{{ lowStockText }} — pensez à reconfirmer vos quantités.</div>
+        </div>
+
+        <sc-if value="{{ hasEch }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;padding:16px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Échéances du jour</div>
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ echItems }}" as="e" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="flex:none;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:12.5px;font-feature-settings:'tnum';color:#073B2E;background:#E4EFE9;border-radius:10px;padding:5px 9px;white-space:nowrap;">{{ e.time }}</span>
+                  <span style="font-size:13px;line-height:1.4;color:#4A3F33;">{{ e.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <div style="margin-top:14px;padding:14px 16px;border-radius:18px;background:#E4EFE9;color:#073B2E;font-size:12.5px;line-height:1.55;">Inscription et publication gratuites. Boutik+ ne gagne que lorsque votre produit est vendu (5&nbsp;% du prix de base).<button onClick="{{ openOnboard }}" style="display:block;margin-top:9px;padding:0;border:none;background:transparent;color:#073B2E;font:inherit;font-size:12.5px;font-weight:700;text-decoration:underline;cursor:pointer;">Voir le parcours d&rsquo;inscription vendeur</button></div>
+      </div>
+    </sc-if>
+
+    <!-- ══ PRODUITS ══ -->
+    <sc-if value="{{ vProduits }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Produits" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 150px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;">Produits</div>
+        <div style="margin-top:4px;font-size:13px;color:#6F6355;">{{ productCount }} en ligne · photos sans prix incrusté</div>
+        <button onClick="{{ openAdd }}" style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:50px;border-radius:16px;border:none;background:#E4EFE9;color:#073B2E;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.98);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Lister un produit — gratuit
+        </button>
+        <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <sc-for list="{{ productGrid }}" as="p" hint-placeholder-count="4">
+            <button onClick="{{ p.open }}" style="border:1px solid #EDE4D3;border-radius:18px;overflow:hidden;background:#FFFFFF;text-align:left;cursor:pointer;padding:0;font:inherit;color:inherit;box-shadow:0 1px 2px rgba(28,22,15,.04),0 10px 30px -16px rgba(28,22,15,.14);transition:transform .15s;" style-active="transform:scale(.97);">
+              <div style="height:108px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ p.bg }};"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 10px,transparent 10px 26px);"></div><span style="font-size:44px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));position:relative;">{{ p.glyph }}</span>
+                <sc-if value="{{ p.paused }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;padding:4px 8px;border-radius:99px;background:rgba(28,23,16,.72);color:#F6F1E7;">EN PAUSE</span></sc-if>
+                <sc-if value="{{ p.mod }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;padding:4px 8px;border-radius:99px;background:#F6E9C8;color:#5F4403;white-space:nowrap;">EN MODÉRATION</span></sc-if>
+              </div>
+              <div style="padding:11px 12px 12px;">
+                <div style="font-weight:700;font-size:13.5px;letter-spacing:-.01em;line-height:1.25;">{{ p.name }}</div>
+                <div style="margin-top:5px;display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
+                  <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:14px;font-feature-settings:'tnum';color:#073B2E;">{{ p.priceF }}</span>
+                  <span style="font-size:11.5px;font-feature-settings:'tnum';color:{{ p.stockColor }};font-weight:600;white-space:nowrap;flex:none;">{{ p.stockTxt }}</span>
+                </div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ COMMANDES ══ -->
+    <sc-if value="{{ vCommandes }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Commandes" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 150px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;">Commandes</div>
+        <div style="margin-top:14px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+          <sc-for list="{{ segChips }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.pick }}" style="flex:none;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:99px;white-space:nowrap;border:1.5px solid {{ c.bd }};background:{{ c.bgc }};color:{{ c.fg }};font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.96);">{{ c.label }}<span style="font-size:11px;font-weight:700;font-feature-settings:'tnum';opacity:.75;">{{ c.count }}</span></button>
+          </sc-for>
+        </div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ orderRows }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.open }}" style="display:flex;align-items:center;gap:12px;width:100%;padding:13px;border-radius:18px;border:1px solid #EDE4D3;background:#FFFFFF;font:inherit;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(28,22,15,.04);transition:transform .15s;" style-active="transform:scale(.98);">
+              <div style="width:48px;height:48px;border-radius:13px;flex:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ o.bg }};"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 8px,transparent 8px 20px);"></div><span style="font-size:22px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25));position:relative;">{{ o.glyph }}</span></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:14.5px;font-feature-settings:'tnum';">{{ o.code }}</div>
+                <div style="margin-top:2px;font-size:12.5px;color:#6F6355;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ o.sub }}</div>
+              </div>
+              <span style="flex:none;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;background:{{ o.pillBg }};color:{{ o.pillFg }};">{{ o.pill }}</span>
+            </button>
+          </sc-for>
+          <sc-if value="{{ segEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:22px 16px;border-radius:18px;border:1px dashed #DDD2BC;color:#6F6355;font-size:13.5px;text-align:center;">Rien ici pour l&rsquo;instant.</div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ARGENT ══ -->
+    <sc-if value="{{ vArgent }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Argent" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 150px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;">Argent</div>
+        <div style="margin-top:4px;font-size:13px;line-height:1.45;color:#6F6355;">Pas de compte interne — tout arrive sur votre Mobile Money.</div>
+        <div style="margin-top:16px;padding:20px;border-radius:22px;background:#0B5B47;color:#F6F1E7;box-shadow:0 16px 36px -14px rgba(11,91,71,.55);position:relative;overflow:hidden;">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 12px,transparent 12px 30px);"></div>
+          <div style="position:relative;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.75;">En attente</div>
+          <div style="position:relative;margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:38px;letter-spacing:-.02em;font-feature-settings:'tnum';">{{ pendingF }}</div>
+          <div style="position:relative;margin-top:10px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(246,241,231,.22);padding-top:12px;">
+            <span style="font-size:12.5px;opacity:.85;">Versé ces 7 jours</span>
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:17px;font-feature-settings:'tnum';">{{ paidF }}</span>
+          </div>
+        </div>
+        <div style="margin-top:18px;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Détail par commande</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ moneyRows }}" as="m" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 15px;border-radius:18px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:14.5px;font-feature-settings:'tnum';">{{ m.code }}</div>
+                <div style="margin-top:2px;font-size:12.5px;color:#6F6355;">{{ m.name }}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:15.5px;font-feature-settings:'tnum';">{{ m.netF }}</div>
+                <span style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:99px;white-space:nowrap;background:{{ m.pillBg }};color:{{ m.pillFg }};">{{ m.pill }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:18px;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Relevés hebdomadaires</div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ releves }}" as="r" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:16px;border:1px solid #EDE4D3;background:#FFFFFF;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:13.5px;">{{ r.week }}</div>
+                <div style="margin-top:1px;font-size:12px;color:#6F6355;">{{ r.sub }}</div>
+              </div>
+              <b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:15px;font-feature-settings:'tnum';white-space:nowrap;">{{ r.totalF }}</b>
+            </div>
+          </sc-for>
+        </div>
+        <button onClick="{{ downloadReleve }}" style="margin-top:10px;width:100%;height:46px;border-radius:14px;border:1.5px solid #E5DCC9;background:transparent;color:#1C1710;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.98);">Télécharger le relevé (PDF — démo)</button>
+        <div style="margin-top:14px;padding:14px 16px;border-radius:18px;background:#E4EFE9;color:#073B2E;font-size:12.5px;line-height:1.55;">En cas de faute de votre part (mauvais article…), la cliente est remboursée immédiatement par le <b>fonds de protection</b> — rien n&rsquo;est prélevé sur vous&nbsp;; vos privilèges peuvent être réduits.</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ FICHE PRODUIT ══ -->
+    <sc-if value="{{ vProduct }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Fiche produit" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 60px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ back }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+          <div style="flex:1;min-width:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ prodName }}</div>
+          <span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:99px;white-space:nowrap;background:{{ prodStatusBg }};color:{{ prodStatusFg }};">{{ prodStatus }}</span>
+        </div>
+        <div style="margin-top:14px;height:180px;border-radius:22px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ prodBg }};box-shadow:0 16px 36px -16px rgba(28,22,15,.35);"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 10px,transparent 10px 26px);"></div><span style="font-size:68px;filter:drop-shadow(0 6px 12px rgba(0,0,0,.3));position:relative;">{{ prodGlyph }}</span></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:99px;white-space:nowrap;background:#E4EFE9;color:#073B2E;">3 revendeuses le proposent</span>
+          <span style="font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:99px;white-space:nowrap;background:#EFE8DA;color:#6F6355;">{{ prodCat }}</span>
+        </div>
+        <div style="margin-top:14px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Vos gains sur ce produit</div>
+          <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:14px;padding:6px 0;"><span>Prix de base</span><b style="font-feature-settings:'tnum';">{{ prodBF }}</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Commission revendeuse</span><b style="font-feature-settings:'tnum';">−{{ prodCF }}</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Frais Boutik+ (5&nbsp;%)</span><b style="font-feature-settings:'tnum';">−{{ prodFeeF }}</b></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1.5px dashed #E5DCC9;margin-top:5px;padding-top:12px;"><span style="font-weight:700;font-size:15px;">Vous recevez</span><b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;font-feature-settings:'tnum';color:#073B2E;">{{ prodNetF }}</b></div>
+          <div style="margin-top:8px;font-size:12px;line-height:1.5;color:#6F6355;">Montant verrouillé à la commande — payé sous 24&nbsp;h après livraison validée.</div>
+        </div>
+        <div style="margin-top:12px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-weight:700;font-size:15px;">Stock</div>
+            <span style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;background:{{ prodStockBg }};color:{{ prodStockFg }};font-feature-settings:'tnum';">{{ prodStock }} dispo.</span>
+          </div>
+          <sc-if value="{{ prodHasSizes }}" hint-placeholder-val="{{ false }}"><div style="margin-top:7px;font-size:13px;color:#6F6355;">Variantes : {{ prodSizes }}</div></sc-if>
+          <button onClick="{{ openStock }}" style="margin-top:12px;width:100%;height:46px;border-radius:14px;border:1.5px solid #E5DCC9;background:transparent;color:#1C1710;font:inherit;font-weight:600;font-size:14px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.98);">Ajuster le stock</button>
+        </div>
+        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onClick="{{ editProduct }}" style="height:48px;border-radius:14px;border:none;background:#E4EFE9;color:#073B2E;font:inherit;font-weight:700;font-size:14px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.97);">Modifier</button>
+          <button onClick="{{ togglePause }}" style="height:48px;border-radius:14px;border:1.5px solid #E5DCC9;background:transparent;color:#1C1710;font:inherit;font-weight:600;font-size:14px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.97);">{{ pauseLabel }}</button>
+        </div>
+        <div style="margin-top:12px;padding:16px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Activité</div>
+          <div style="margin-top:8px;font-size:13px;line-height:1.7;color:#6F6355;">• Photo canonique approuvée (cadre premium)<br>• Version 2 activée — prix inchangé pour les commandes passées<br>• Ajout au catalogue · vérifié par la modération</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ DÉTAIL COMMANDE ══ -->
+    <sc-if value="{{ vOrder }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Détail commande" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 60px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ back }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+          <div style="flex:1;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.01em;font-feature-settings:'tnum';">{{ ordCode }}</div>
+          <span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:99px;white-space:nowrap;background:{{ ordPillBg }};color:{{ ordPillFg }};">{{ ordPill }}</span>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:12px;padding:13px;border-radius:18px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+          <div style="width:52px;height:52px;border-radius:14px;flex:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ ordBg }};"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 8px,transparent 8px 20px);"></div><span style="font-size:24px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25));position:relative;">{{ ordGlyph }}</span></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14.5px;">{{ ordProdLine }}</div>
+            <div style="margin-top:2px;font-size:12.5px;color:#6F6355;">Qté 1 · zone {{ ordZone }} · {{ ordModeLine }}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Votre gain — verrouillé</div>
+          <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:14px;padding:6px 0;"><span>Prix de base</span><b style="font-feature-settings:'tnum';">{{ ordBF }}</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Commission revendeuse</span><b style="font-feature-settings:'tnum';">−{{ ordCF }}</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Frais Boutik+ (5&nbsp;%)</span><b style="font-feature-settings:'tnum';">−{{ ordFeeF }}</b></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1.5px dashed #E5DCC9;margin-top:5px;padding-top:12px;"><span style="font-weight:700;font-size:15px;">Vous recevez</span><b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;font-feature-settings:'tnum';color:#073B2E;">{{ ordNetF }}</b></div>
+          <div style="margin-top:8px;font-size:12px;line-height:1.5;color:#6F6355;">{{ ordPayNote }}</div>
+        </div>
+        <sc-if value="{{ ordFunded }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#F6E9C8;color:#5F4403;font-size:12.5px;line-height:1.55;">Préparez avant <b>11&nbsp;h&nbsp;30</b>. Emballage <b>ouvrable</b> (le livreur vérifie avant de sceller) · emballage neutre, sans coordonnées.</div>
+          <button onClick="{{ openReady }}" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Produit prêt</button>
+        </sc-if>
+        <sc-if value="{{ ordFailed }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#F8E1DE;color:#7E1A15;font-size:12.5px;line-height:1.55;">Photo de préparation refusée : <b>trop sombre</b>. Rapprochez-vous d&rsquo;une fenêtre et reprenez — le code doit rester lisible.</div>
+          <button onClick="{{ openReady }}" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4V8z"></path><circle cx="12" cy="13" r="3.2"></circle></svg>Reprendre la photo</button>
+        </sc-if>
+        <sc-if value="{{ ordPickupRef }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#F8E1DE;color:#7E1A15;font-size:12.5px;line-height:1.55;">Refusé à l&rsquo;enlèvement : <b>{{ ordFixReason }}</b>. La cliente est remboursée par le fonds de protection — corrigez, puis re-proposez le colis.</div>
+          <button onClick="{{ openReady }}" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a8 8 0 1 1 2 5.3"></path><path d="M4 5.5V10h4.5"></path></svg>Corriger et re-proposer</button>
+        </sc-if>
+        <sc-if value="{{ ordDone }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#DFEEE3;color:#14603A;font-size:12.5px;line-height:1.55;">Livraison validée. {{ ordDoneNote }}</div>
+        </sc-if>
+        <div style="margin-top:12px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Suivi</div>
+          <div style="margin-top:12px;">
+            <sc-for list="{{ ordSteps }}" as="s" hint-placeholder-count="4">
+              <div style="display:flex;gap:12px;">
+                <div style="display:flex;flex-direction:column;align-items:center;width:18px;flex:none;">
+                  <div style="width:14px;height:14px;border-radius:99px;flex:none;margin-top:2px;border:2.5px solid {{ s.dotBd }};background:{{ s.dotBg }};animation:{{ s.anim }};"></div>
+                  <sc-if value="{{ s.bar }}" hint-placeholder-val="{{ true }}"><div style="width:2.5px;flex:1;min-height:16px;background:{{ s.barBg }};"></div></sc-if>
+                </div>
+                <div style="padding-bottom:16px;flex:1;font-size:13.5px;line-height:1.45;font-weight:{{ s.w }};color:{{ s.fg }};">{{ s.label }}</div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ ordInterrupted }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:13px 15px;border-radius:16px;background:#F8E1DE;color:#7E1A15;font-size:12.5px;line-height:1.55;">Commande interrompue : {{ ordPill }}. {{ ordFailNote }}</div>
+            </sc-if>
+          </div>
+        </div>
+        <sc-if value="{{ ordCanSim }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ simulate }}" style="margin-top:12px;width:100%;height:46px;border-radius:14px;border:1.5px dashed #C9BDA3;background:transparent;color:#6F6355;font:inherit;font-weight:600;font-size:13px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.98);">▶ Simuler l&rsquo;étape suivante — {{ ordNextLabel }} (démo)</button>
+        </sc-if>
+        <div style="margin-top:12px;padding:16px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Historique</div>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+            <sc-for list="{{ ordHistory }}" as="h" hint-placeholder-count="2">
+              <div style="display:flex;gap:8px;font-size:12.5px;line-height:1.5;color:#6F6355;"><span style="font-feature-settings:'tnum';font-weight:600;flex:none;">{{ h.ts }}</span><span>{{ h.l }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ ASSISTANT NOUVEAU PRODUIT ══ -->
+    <sc-if value="{{ vAdd }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Nouveau produit" style="position:absolute;inset:0;display:flex;flex-direction:column;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="flex:none;padding:16px 20px 0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onClick="{{ wizBack }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+            <div style="flex:1;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;">Nouveau produit <span style="color:#6F6355;font-feature-settings:'tnum';">{{ wizStepLabel }}</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:6px;">
+            <sc-for list="{{ wizDots }}" as="d" hint-placeholder-count="5"><div style="flex:1;height:4px;border-radius:99px;white-space:nowrap;background:{{ d.bg }};transition:background .3s;"></div></sc-for>
+          </div>
+        </div>
+        <div style="flex:1;overflow:auto;padding:18px 20px 120px;">
+          <sc-if value="{{ wiz0 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Catégorie</div>
+            <div style="margin-top:16px;display:flex;gap:9px;flex-wrap:wrap;">
+              <sc-for list="{{ wizCats }}" as="c" hint-placeholder-count="6">
+                <button onClick="{{ c.pick }}" style="display:inline-flex;align-items:center;height:42px;padding:0 16px;border-radius:99px;white-space:nowrap;border:1.5px solid {{ c.bd }};background:{{ c.bgc }};color:{{ c.fg }};font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:transform .15s,background .2s;" style-active="transform:scale(.95);">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ wiz1 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Détails &amp; stock</div>
+            <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Nom du produit</div>
+            <input value="{{ wizName }}" onChange="{{ wizNameSet }}" placeholder="Ex. Robe brodée bogolan" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Variantes (tailles…)</div>
+            <input value="{{ wizSizes }}" onChange="{{ wizSizesSet }}" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Stock disponible</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+              <button onClick="{{ wizStockDn }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">−</button>
+              <div style="flex:1;text-align:center;padding:13px;border-radius:16px;border:1px solid #EDE4D3;background:#FFFFFF;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;font-feature-settings:'tnum';">{{ wizStock }} unités</div>
+              <button onClick="{{ wizStockUp }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">＋</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ wiz2 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Prix &amp; commission</div>
+            <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Prix de base (ce que vaut le produit)</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+              <button onClick="{{ wizBDn }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">−</button>
+              <div style="flex:1;text-align:center;padding:13px;border-radius:16px;border:1px solid #EDE4D3;background:#FFFFFF;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;font-feature-settings:'tnum';">{{ wizBF }}</div>
+              <button onClick="{{ wizBUp }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">＋</button>
+            </div>
+            <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Commission revendeuse (vous la financez)</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+              <button onClick="{{ wizCDn }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">−</button>
+              <div style="flex:1;text-align:center;padding:13px;border-radius:16px;border:1px solid #EDE4D3;background:#FFFFFF;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;font-feature-settings:'tnum';">{{ wizCF }}</div>
+              <button onClick="{{ wizCUp }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">＋</button>
+            </div>
+            <div style="margin-top:16px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;"><span>Prix de base</span><b style="font-feature-settings:'tnum';">{{ wizBF }}</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Commission revendeuse</span><b style="font-feature-settings:'tnum';">−{{ wizCF }}</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:#6F6355;"><span>Frais Boutik+ (5&nbsp;%)</span><b style="font-feature-settings:'tnum';">−{{ wizFeeF }}</b></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1.5px dashed #E5DCC9;margin-top:5px;padding-top:12px;"><span style="font-weight:700;font-size:15px;">Vous recevez</span><b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;font-feature-settings:'tnum';color:#073B2E;">{{ wizNetF }}</b></div>
+            </div>
+            <div style="margin-top:10px;font-size:12.5px;line-height:1.55;color:#6F6355;">La cliente paie : prix de base + marge de la revendeuse. Votre commission n&rsquo;est <b>jamais</b> ajoutée une deuxième fois au prix client.</div>
+          </sc-if>
+          <sc-if value="{{ wiz3 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Photos — Studio</div>
+            <div style="margin-top:10px;font-size:14px;line-height:1.55;color:#4A3F33;">Le Studio vous guide pour des photos nettes, honnêtes et sans prix incrusté.</div>
+            <sc-if value="{{ wizHasPhotos }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;padding:14px 16px;border-radius:18px;background:#DFEEE3;color:#14603A;font-size:13px;line-height:1.55;display:flex;gap:9px;align-items:flex-start;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><span>3 photos capturées et validées (héro · preuve · détail) — cadre premium appliqué.</span></div>
+            </sc-if>
+            <sc-if value="{{ wizNoPhotos }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ openStudio }}" style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4V8z"></path><circle cx="12" cy="13" r="3.2"></circle></svg>Ouvrir Boutik+ Studio</button>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ wiz4 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Vérifiez, puis publiez</div>
+            <div style="margin-top:16px;padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+              <div style="font-weight:700;font-size:16px;">{{ wizRecapName }}</div>
+              <div style="margin-top:3px;font-size:13px;color:#6F6355;">{{ wizCat }} · variantes {{ wizSizes }} · stock {{ wizStock }}</div>
+              <div style="height:1px;background:#EDE4D3;margin:13px 0;"></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;"><span>Vous recevez / vente</span><b style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px;font-feature-settings:'tnum';color:#073B2E;">{{ wizNetF }}</b></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;color:#6F6355;"><span>Commission revendeuse</span><b style="font-feature-settings:'tnum';">{{ wizCF }}</b></div>
+            </div>
+            <div style="margin-top:12px;padding:16px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+              <div style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Aperçu — ce que verront les revendeuses</div>
+              <div style="margin-top:11px;display:flex;align-items:center;gap:12px;">
+                <div style="width:56px;height:56px;border-radius:14px;flex:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#0B5B47,#073B2E);"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 8px,transparent 8px 20px);"></div><span style="font-size:25px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25));position:relative;">🧥</span></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:700;font-size:14px;">{{ wizRecapName }}</div>
+                  <div style="margin-top:2px;font-size:12px;color:#6F6355;">{{ wizCat }} · photo premium, sans prix incrusté</div>
+                  <div style="margin-top:3px;font-size:12.5px;font-weight:700;color:#073B2E;font-feature-settings:'tnum';">Commission revendeuse {{ wizCF }}</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;font-size:12.5px;line-height:1.55;color:#6F6355;">La modération vérifie catégorie, allégations et photos avant mise en ligne (quelques instants dans la démo).</div>
+          </sc-if>
+        </div>
+        <div style="flex:none;position:absolute;left:0;right:0;bottom:0;padding:14px 20px 40px;background:linear-gradient(transparent,#F4EFE6 32%);">
+          <button onClick="{{ wizNext }}" disabled="{{ wizNextDisabled }}" style="width:100%;height:54px;border-radius:16px;border:none;background:{{ wizNextBg }};color:{{ wizNextFg }};font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:{{ wizNextShadow }};transition:transform .15s;" style-active="transform:scale(.98);">{{ wizNextLabel }}</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ STUDIO ══ -->
+    <sc-if value="{{ vStudio }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Boutik+ Studio" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 60px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ back }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;">Boutik+ Studio</div>
+            <div style="font-size:12px;color:#6F6355;">De vraies photos — aucune image inventée par IA</div>
+          </div>
+        </div>
+        <sc-if value="{{ stShooting }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:16px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;">{{ stTitle }}</div>
+          <div style="margin-top:6px;font-size:13.5px;line-height:1.5;color:#6F6355;">{{ stSub }}</div>
+          <div style="margin-top:13px;height:230px;border-radius:22px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:{{ stViewBg }};box-shadow:0 16px 36px -16px rgba(28,22,15,.4);transition:background .4s;">
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 10px,transparent 10px 26px);"></div>
+            <div style="position:absolute;inset:20px;border:2.5px dashed rgba(255,255,255,.75);border-radius:16px;"></div>
+            <span style="font-size:72px;filter:drop-shadow(0 6px 12px rgba(0,0,0,.3));position:relative;opacity:{{ stGlyphOp }};transition:opacity .4s;">{{ stGlyph }}</span>
+            <span style="position:absolute;bottom:30px;left:30px;right:30px;text-align:center;color:#FFF6E8;font-size:12px;font-weight:700;letter-spacing:.02em;text-shadow:0 1px 4px rgba(0,0,0,.4);">Placez l&rsquo;article dans le cadre</span>
+          </div>
+          <div style="margin-top:13px;padding:8px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+            <sc-for list="{{ stMeters }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F3EDDE;">
+                <span style="font-size:13.5px;color:#6F6355;">{{ m.label }}</span>
+                <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap;background:{{ m.bg }};color:{{ m.fg }};">{{ m.val }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ stLow }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:11px;padding:12px 15px;border-radius:16px;background:#F6E9C8;color:#5F4403;font-size:12.5px;line-height:1.5;">Trop sombre — rapprochez-vous d&rsquo;une fenêtre ou d&rsquo;une lampe.</div>
+          </sc-if>
+          <button onClick="{{ stToggleLow }}" style="margin-top:12px;display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 15px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;color:#1C1710;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.96);">{{ stLowLabel }}</button>
+          <button onClick="{{ stCapture }}" disabled="{{ stLow }}" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:{{ stCapBg }};color:{{ stCapFg }};font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:{{ stCapShadow }};transition:transform .15s;" style-active="transform:scale(.98);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4V8z"></path><circle cx="12" cy="13" r="3.2"></circle></svg>Capturer</button>
+        </sc-if>
+        <sc-if value="{{ stProcessing }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;">Traitement (sur votre téléphone)</div>
+          <div style="margin-top:13px;padding:8px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);">
+            <sc-for list="{{ stProcRows }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F3EDDE;">
+                <span style="font-size:14px;color:{{ r.fg }};font-weight:{{ r.w }};">{{ r.label }}</span>
+                <span style="font-size:13px;animation:{{ r.anim }};">{{ r.mark }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ stProcDone }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;padding:13px 15px;border-radius:16px;background:#F6E9C8;color:#5F4403;font-size:12.5px;line-height:1.55;animation:fpIn .3s;">Fond complexe détecté → <b>cadre premium appliqué</b> (votre vraie photo, joliment encadrée). Aucun détourage risqué, aucune retouche du produit.</div>
+            <div style="margin-top:12px;padding:16px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;animation:fpIn .3s;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Avant / Après</span>
+                <button onClick="{{ stToggleOrig }}" style="display:inline-flex;align-items:center;height:34px;padding:0 12px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;color:#1C1710;font:inherit;font-size:12px;font-weight:600;cursor:pointer;">{{ stOrigLabel }}</button>
+              </div>
+              <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                <div>
+                  <div style="height:106px;border-radius:14px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#8A5A3A,#5A3A22);"><span style="font-size:38px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));">👗</span></div>
+                  <div style="margin-top:7px;font-size:11.5px;color:#6F6355;text-align:center;">Originale (conservée en privé)</div>
+                </div>
+                <div>
+                  <div style="border:5px solid #F4EFE6;border-radius:16px;box-shadow:0 6px 16px rgba(28,22,15,.18);overflow:hidden;"><div style="height:96px;position:relative;display:flex;align-items:center;justify-content:center;background:{{ stAfterBg }};transition:background .3s;"><span style="font-size:38px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));">👗</span></div></div>
+                  <div style="margin-top:7px;font-size:11.5px;color:#6F6355;text-align:center;">Publique · sans prix</div>
+                </div>
+              </div>
+            </div>
+            <button onClick="{{ stApprove }}" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;animation:fpIn .3s;" style-active="transform:scale(.98);">J&rsquo;approuve ces photos</button>
+          </sc-if>
+        </sc-if>
+        <div style="margin-top:14px;font-size:12.5px;line-height:1.55;color:#6F6355;">Cette photo prouve l&rsquo;accès au produit — pas la quantité ni l&rsquo;authenticité. L&rsquo;originale est conservée, jamais écrasée.</div>
+      </div>
+    </sc-if>
+
+    <!-- ══ INSCRIPTION VENDEUR ══ -->
+    <sc-if value="{{ vOnboard }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Inscription vendeur" style="position:absolute;inset:0;display:flex;flex-direction:column;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="flex:none;padding:16px 20px 0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onClick="{{ obBack }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+            <div style="flex:1;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;">Inscription <span style="color:#6F6355;font-feature-settings:'tnum';">{{ obStepLabel }}</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:6px;">
+            <sc-for list="{{ obDots }}" as="d" hint-placeholder-count="5"><div style="flex:1;height:4px;border-radius:99px;background:{{ d.bg }};transition:background .3s;"></div></sc-for>
+          </div>
+        </div>
+        <div style="flex:1;overflow:auto;padding:18px 20px 120px;">
+          <sc-if value="{{ ob0 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Bienvenue sur Boutik+</div>
+            <div style="margin-top:12px;font-size:14.5px;line-height:1.55;color:#4A3F33;">Proposez vos produits aux revendeuses de Ma Boutique. Séra livre, vous encaissez.</div>
+            <div style="margin-top:14px;padding:15px 16px;border-radius:18px;background:#E4EFE9;color:#073B2E;font-size:13px;line-height:1.65;">Inscription gratuite · aucun dépôt · aucune caution · aucun abonnement.<br>Vous payez seulement <b>5&nbsp;%</b> quand un produit est <b>vendu avec succès</b>.</div>
+          </sc-if>
+          <sc-if value="{{ ob1 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Votre numéro</div>
+            <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Téléphone</div>
+            <input inputMode="tel" defaultValue="70 12 34 56" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#E4EFE9;color:#073B2E;font-size:12.5px;line-height:1.55;">Un code de vérification arrive par WhatsApp (simulé ici).</div>
+          </sc-if>
+          <sc-if value="{{ ob2 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Votre boutique</div>
+            <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Nom de la boutique</div>
+            <input defaultValue="Ma nouvelle boutique" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Quartier</div>
+            <input defaultValue="Rood Woko" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Repère — pas d&rsquo;adresse exigée</div>
+            <input defaultValue="Allée 4, face au grand portail est" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+          </sc-if>
+          <sc-if value="{{ ob3 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Compte de versement</div>
+            <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">Mobile Money (Orange / Moov)</div>
+            <input inputMode="tel" defaultValue="70 12 34 56" style="margin-top:8px;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:14px 15px;border-radius:14px;border:1.5px solid #E5DCC9;background:#FFFFFF;color:#1C1710;outline:none;" style-focus="border-color:#0B5B47;box-shadow:0 0 0 3px rgba(11,91,71,.12);">
+            <div style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#E4EFE9;color:#073B2E;font-size:12.5px;line-height:1.55;">Vos gains y sont versés <b>sous 24&nbsp;h</b> après chaque livraison validée. Aucun rechargement demandé.</div>
+          </sc-if>
+          <sc-if value="{{ ob4 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Statut provisoire</div>
+            <div style="margin-top:12px;font-size:14.5px;line-height:1.55;color:#4A3F33;">Pour commencer, votre compte est <b>provisoire</b> :</div>
+            <div style="margin-top:12px;padding:16px 17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;box-shadow:0 1px 2px rgba(28,22,15,.04);font-size:14px;line-height:1.8;">• Une commande à la fois pour commencer<br>• Seulement les catégories autorisées<br>• La cliente paie tout à la commande<br>• Une photo « produit prêt » est demandée<br>• Le livreur vérifie chaque enlèvement</div>
+            <div style="margin-top:12px;font-size:13px;line-height:1.55;color:#6F6355;">Après quelques livraisons propres, vous devenez <b style="color:#073B2E;">Vérifié</b> : plus de commandes, paiement à la livraison débloqué.</div>
+          </sc-if>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 20px 40px;background:linear-gradient(transparent,#F4EFE6 32%);">
+          <button onClick="{{ obNext }}" style="width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);">{{ obNextLabel }}</button>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ vObDone }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Compte créé" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 34px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="width:84px;height:84px;border-radius:99px;background:#0B5B47;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -12px rgba(11,91,71,.55);animation:fpPop .45s cubic-bezier(.2,.8,.2,1);"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F6F1E7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+        <div style="margin-top:20px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">Compte provisoire créé</div>
+        <div style="margin-top:10px;font-size:14px;line-height:1.6;color:#6F6355;">« Listez gratuitement. Vous payez seulement lorsqu&rsquo;un produit est vendu avec succès. »</div>
+        <button onClick="{{ obFinish }}" style="margin-top:24px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);">Explorer avec Boutique Wendkuni (démo)</button>
+      </div>
+    </sc-if>
+
+    <!-- ══ NIVEAU DE CONFIANCE ══ -->
+    <sc-if value="{{ vTrust }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Niveau de confiance" style="position:absolute;inset:0;overflow:auto;padding:16px 20px 60px;animation:fpIn .32s cubic-bezier(.2,.8,.2,1);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ back }}" aria-label="Retour" style="width:40px;height:40px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.92);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1C1710" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"></path></svg></button>
+          <div style="flex:1;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;">Niveau de confiance</div>
+        </div>
+        <div style="margin-top:12px;font-size:13.5px;line-height:1.5;color:#6F6355;">Votre niveau progresse par des livraisons propres — jamais par un dépôt d&rsquo;argent.</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:11px;">
+          <div style="padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+            <div style="font-weight:700;font-size:15px;">Provisoire</div>
+            <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#6F6355;">1 commande à la fois · paiement complet uniquement · vérification à chaque enlèvement · catégories approuvées.</div>
+          </div>
+          <div style="padding:17px;border-radius:20px;border:2px solid #0B5B47;background:#FFFFFF;box-shadow:0 12px 30px -14px rgba(11,91,71,.35);">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-weight:700;font-size:15px;">Vérifié</div>
+              <span style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;background:#DFEEE3;color:#14603A;">Votre niveau</span>
+            </div>
+            <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#6F6355;">12 livraisons · 0 faute — <b style="color:#073B2E;">paiement à la livraison débloqué</b> · plusieurs commandes en parallèle · meilleure visibilité.</div>
+          </div>
+          <div style="padding:17px;border-radius:20px;border:1px solid #EDE4D3;background:#FFFFFF;">
+            <div style="font-weight:700;font-size:15px;">De confiance</div>
+            <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#6F6355;">Après un solide historique : plus de commandes simultanées, contrôles allégés quand c&rsquo;est sûr, campagnes prioritaires.</div>
+          </div>
+        </div>
+        <div style="margin-top:13px;padding:14px 16px;border-radius:18px;background:#F6E9C8;color:#5F4403;font-size:12.5px;line-height:1.55;">Une faute répétée réduit l&rsquo;accès (retour au prépaiement, suspension) — c&rsquo;est l&rsquo;accès au marché qui compte, pas une caution.</div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- ══ TAB BAR ══ -->
+  <sc-if value="{{ tabsVisible }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;padding:8px 10px 28px;background:rgba(252,249,242,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid #EBE2D0;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 6px;border-radius:14px;border:none;background:{{ t.bg }};font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.01em;color:{{ t.fg }};cursor:pointer;transition:background .2s,color .2s,transform .15s;" style-active="transform:scale(.94);">
+          <span style="display:block;width:24px;height:24px;"><span dangerouslySetInnerHTML="{{ t.icon }}"></span></span>{{ t.label }}
+        </button>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ══ SHEET : PRODUIT PRÊT ══ -->
+  <sc-if value="{{ shReady }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:60;background:rgba(24,18,11,.45);display:flex;align-items:flex-end;animation:fpFade .2s ease;">
+      <div onClick="{{ stopProp }}" style="background:#FCF9F2;width:100%;border-radius:30px 30px 0 0;padding:10px 22px 44px;max-height:86%;overflow-y:auto;animation:fpUp .34s cubic-bezier(.32,.72,.25,1);box-shadow:0 -18px 50px rgba(24,18,11,.25);">
+        <div style="width:40px;height:5px;border-radius:99px;white-space:nowrap;background:#DDD2BC;margin:6px auto 16px;"></div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;">Confirmer « Produit prêt »</div>
+        <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">1 · Code de préparation (valable 15 min)</div>
+        <div style="margin-top:9px;padding:19px;border-radius:18px;border:1.5px solid #0B5B47;background:#FFFFFF;text-align:center;">
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:34px;letter-spacing:.14em;color:#073B2E;font-feature-settings:'tnum';">{{ ordChallenge }}</div>
+          <div style="margin-top:6px;font-size:12.5px;color:#6F6355;">Écrivez ce code sur un papier posé à côté du produit.</div>
+        </div>
+        <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">2 · Photo de préparation</div>
+        <sc-if value="{{ readyShot }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:9px;padding:13px 15px;border-radius:16px;background:#DFEEE3;color:#14603A;font-size:13px;display:flex;gap:9px;align-items:center;animation:fpPop .3s;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Photo nette — produit + code visibles.</div>
+        </sc-if>
+        <sc-if value="{{ readyNoShot }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ takeShot }}" style="margin-top:9px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:50px;border-radius:14px;border:none;background:#E4EFE9;color:#073B2E;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:transform .15s;" style-active="transform:scale(.98);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4V8z"></path><circle cx="12" cy="13" r="3.2"></circle></svg>Prendre la photo (caméra intégrée)</button>
+        </sc-if>
+        <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6F6355;">3 · Disponibilité</div>
+        <div style="margin-top:8px;font-size:13px;line-height:1.5;color:#6F6355;">Je confirme être présent à la boutique pour l&rsquo;enlèvement (créneau 11 h – 13 h).</div>
+        <button onClick="{{ confirmReady }}" disabled="{{ readyNoShot }}" style="margin-top:16px;width:100%;height:54px;border-radius:16px;border:none;background:{{ readyCtaBg }};color:{{ readyCtaFg }};font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:{{ readyCtaShadow }};transition:transform .15s;" style-active="transform:scale(.98);">Confirmer — envoyer à Séra</button>
+        <div style="margin-top:9px;font-size:12px;color:#6F6355;text-align:center;">Le code client de livraison ne vous est jamais montré.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ══ SHEET : STOCK ══ -->
+  <sc-if value="{{ shStock }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:60;background:rgba(24,18,11,.45);display:flex;align-items:flex-end;animation:fpFade .2s ease;">
+      <div onClick="{{ stopProp }}" style="background:#FCF9F2;width:100%;border-radius:30px 30px 0 0;padding:10px 22px 44px;animation:fpUp .34s cubic-bezier(.32,.72,.25,1);box-shadow:0 -18px 50px rgba(24,18,11,.25);">
+        <div style="width:40px;height:5px;border-radius:99px;white-space:nowrap;background:#DDD2BC;margin:6px auto 16px;"></div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;">Ajuster le stock</div>
+        <div style="margin-top:16px;display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ stkDn }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">−</button>
+          <div style="flex:1;text-align:center;padding:13px;border-radius:16px;border:1px solid #EDE4D3;background:#FFFFFF;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;font-feature-settings:'tnum';">{{ stkVal }} unités</div>
+          <button onClick="{{ stkUp }}" style="width:52px;height:52px;border-radius:99px;white-space:nowrap;border:1px solid #E5DCC9;background:#FFFFFF;font-size:20px;font-weight:600;color:#1C1710;cursor:pointer;flex:none;transition:transform .15s;" style-active="transform:scale(.9);">＋</button>
+        </div>
+        <div style="margin-top:11px;font-size:12.5px;line-height:1.5;color:#6F6355;">Chaque ajustement est daté et motivé. Le stock affiché aux revendeuses est calculé côté serveur.</div>
+        <button onClick="{{ saveStock }}" style="margin-top:16px;width:100%;height:54px;border-radius:16px;border:none;background:#0B5B47;color:#F6F1E7;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(11,91,71,.5);transition:transform .15s;" style-active="transform:scale(.98);">Enregistrer</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ══ CÉLÉBRATION VERSEMENT ══ -->
+  <sc-if value="{{ cbShow }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cbDismiss }}" style="position:absolute;inset:0;z-index:90;background:rgba(7,59,46,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 32px;animation:fpFade .25s ease;cursor:pointer;">
+      <div style="height:6px;width:132px;background:repeating-linear-gradient(90deg,#C89A3F 0 12px,transparent 12px 20px);"></div>
+      <div style="margin-top:24px;width:78px;height:78px;border-radius:99px;background:#F6F1E7;display:flex;align-items:center;justify-content:center;animation:fpPop .5s cubic-bezier(.2,.8,.2,1);"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0B5B47" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+      <div style="margin-top:20px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.02em;font-feature-settings:'tnum';color:#F6F1E7;">{{ cbAmountF }}</div>
+      <div style="margin-top:8px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#C89A3F;">Versé sur votre Mobile Money</div>
+      <div style="margin-top:14px;font-size:12px;color:rgba(246,241,231,.65);">Toucher pour continuer</div>
+      <div style="margin-top:24px;height:6px;width:132px;background:repeating-linear-gradient(90deg,#C89A3F 0 12px,transparent 12px 20px);"></div>
+    </div>
+  </sc-if>
+
+  <!-- ══ TOASTS ══ -->
+  <div style="position:absolute;top:66px;left:0;right:0;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+      <div style="background:#1C1710;color:#F6F0E4;font-size:13px;font-weight:600;padding:12px 17px;border-radius:99px;max-width:86%;box-shadow:0 12px 30px rgba(0,0,0,.35);animation:fpToast .25s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;gap:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8FD4B4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{ t.m }}</div>
+    </sc-for>
+  </div>
+
+  </sc-if>
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 470, &quot;height&quot;: 950}, &quot;shopName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Boutique Wendkuni&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contenu&quot;}, &quot;ownerName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Rasmané&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contenu&quot;}, &quot;startTab&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;home&quot;, &quot;produits&quot;, &quot;commandes&quot;, &quot;argent&quot;], &quot;default&quot;: &quot;home&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Démo&quot;}, &quot;startView&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;home&quot;, &quot;produits&quot;, &quot;commandes&quot;, &quot;argent&quot;, &quot;product&quot;, &quot;order&quot;, &quot;incident&quot;, &quot;add&quot;, &quot;studio&quot;, &quot;trust&quot;, &quot;onboard&quot;], &quot;default&quot;: &quot;home&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Démo&quot;}, &quot;showDemoControls&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Démo&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const P = {
+      p1: { id: "p1", name: "Robe brodée bogolan", cat: "Mode femme", B: 10000, C: 1000, stock: 7, sizes: "S · M · L", glyph: "👗", bg: "linear-gradient(140deg,#B65C2E,#7A3014)", paused: false },
+      p3: { id: "p3", name: "Sac cuir artisanal", cat: "Sacs", B: 15000, C: 1500, stock: 4, sizes: null, glyph: "👜", bg: "linear-gradient(140deg,#8A4F1D,#5C3210)", paused: false },
+      p7: { id: "p7", name: "Foulard Faso Dan Fani", cat: "Accessoires", B: 5500, C: 550, stock: 14, sizes: null, glyph: "🧣", bg: "linear-gradient(140deg,#A31D4E,#5E0F2C)", paused: false },
+      p8: { id: "p8", name: "Chemise Faso Dan Fani", cat: "Mode homme", B: 12000, C: 1200, stock: 5, sizes: "M · L", glyph: "👔", bg: "linear-gradient(140deg,#3E4B8C,#232B54)", paused: false }
+    };
+    const O = {
+      o1: { id: "o1", code: "CMD-2417", pid: "p1", mode: "B", variant: "M", status: "FUNDED", challenge: "WK-472", buyer: { name: "Awa Kaboré", zone: "Ouaga 2000" }, history: [{ ts: "09:12", l: "Frais de livraison payés : 1 000 F, gardés en sécurité chez le partenaire" }, { ts: "09:12", l: "Stock réservé · vendeur notifié" }] },
+      o3: { id: "o3", code: "CMD-2411", pid: "p8", mode: "A", variant: "L", status: "READY_FAILED", challenge: "WK-981", buyer: { name: "Salif Nikiéma", zone: "Tampouy" }, history: [{ ts: "08:40", l: "Payé en entier — en sécurité" }, { ts: "08:58", l: "Photo de préparation refusée : trop sombre" }] },
+      o7: { id: "o7", code: "CMD-2409", pid: "p3", mode: "A", variant: null, status: "PAID", challenge: "WK-118", buyer: { name: "Moussa Traoré", zone: "Cissin" }, history: [{ ts: "hier", l: "Payé en entier — en sécurité" }, { ts: "hier", l: "Livré — code client confirmé" }, { ts: "hier", l: "Versements effectués" }] },
+      o5: { id: "o5", code: "CMD-2398", pid: "p7", mode: "B", variant: null, status: "BUYER_REFUSED", challenge: "WK-204", buyer: { name: "Moussa Traoré", zone: "Cissin" }, history: [{ ts: "lun.", l: "Refusé à la porte : la cliente a changé d’avis" }, { ts: "lun.", l: "Frais de livraison gardés — retour scellé RET-1104" }] },
+      o9: { id: "o9", code: "CMD-2402", pid: "p8", mode: "A", variant: "M", status: "PICKUP_REFUSED", challenge: "WK-655", reason: "variante M au lieu de L à l’enlèvement", buyer: { name: "Fatou Ilboudo", zone: "Tampouy" }, history: [{ ts: "09:20", l: "Payé en entier — en sécurité" }, { ts: "10:02", l: "Refusé à l’enlèvement par Issa (Séra) : variante incorrecte — la cliente est remboursée par le fonds de protection" }] }
+    };
+    this.state = {
+      loading: true, tab: this.props.startTab ?? "home", view: null, seg: "traiter",
+      sheet: null, readyShot: false, stkDelta: 0, toasts: [], counters: {},
+      products: P, orders: O, pseq: 1,
+      wiz: { step: 0, cat: "Mode femme", name: "", B: 10000, C: 1000, sizes: "S, M, L", stock: 5, photos: false },
+      studio: { step: 0, low: false, proc: 0, orig: false }
+    };
+    const sv = this.props.startView;
+    const V = { product: { s: "product", id: "p1" }, order: { s: "order", id: "o1" }, incident: { s: "order", id: "o9" }, add: { s: "add" }, studio: { s: "studio" }, trust: { s: "trust" }, onboard: { s: "onboard" } };
+    if (sv && V[sv]) { this.state.view = V[sv]; if (sv === "onboard") this.state.ob = { step: 0 }; }
+    else if (sv && sv !== "home") this.state.tab = sv;
+  }
+  componentDidMount() { setTimeout(() => { this.setState({ loading: false }); this.syncMoney(); }, 750); }
+  F(n) { return (n ?? 0).toLocaleString("fr-FR") + " F"; }
+  calc(B, C) { const fee = Math.round(B * 0.05); return { fee, net: B - C - fee }; }
+  now() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
+  flow(mode) { return mode === "B" ? ["FUNDED", "READY", "TRANSIT", "ARRIVED", "INSPECT", "AWAIT_PAY", "PAY_OK", "HANDOFF", "DELIVERED", "PAID"] : ["FUNDED", "READY", "TRANSIT", "ARRIVED", "INSPECT", "HANDOFF", "DELIVERED", "PAID"]; }
+  flowLabel(o) { return { FUNDED: o.mode === "B" ? "Frais de livraison payés — en sécurité" : "Paiement complet — en sécurité", READY: "Produit prêt chez le vendeur", TRANSIT: "Vérifié, scellé, pris en charge par Séra", ARRIVED: "Livreur arrivé", INSPECT: "La cliente inspecte avant la remise", AWAIT_PAY: "Le produit se paie à la porte", PAY_OK: "Paiement confirmé par le partenaire", HANDOFF: "Remise autorisée — code de la cliente", DELIVERED: "Livré", PAID: "Vendeur et revendeuse payés" }; }
+  stMeta(s) {
+    const M = { FUNDED: ["À préparer", "#F6E9C8", "#7A5104"], READY: ["Prêt — enlèvement", "#E4EFE9", "#073B2E"], TRANSIT: ["En route", "#E4EFE9", "#073B2E"], ARRIVED: ["Livreur arrivé", "#E4EFE9", "#073B2E"], INSPECT: ["Inspection", "#E4EFE9", "#073B2E"], AWAIT_PAY: ["Paiement à la porte", "#F6E9C8", "#7A5104"], PAY_OK: ["Paiement confirmé", "#DFEEE3", "#14603A"], HANDOFF: ["Remise — code cliente", "#E4EFE9", "#073B2E"], DELIVERED: ["Livré", "#DFEEE3", "#14603A"], PAID: ["Versé", "#DFEEE3", "#14603A"], READY_FAILED: ["Photo à reprendre", "#F8E1DE", "#8C1D18"], BUYER_REFUSED: ["Refusé par la cliente", "#F8E1DE", "#8C1D18"], PICKUP_REFUSED: ["Refusé à l’enlèvement", "#F8E1DE", "#8C1D18"], RETURNED: ["Retourné", "#EFE8DA", "#6F6355"] };
+    return M[s] || [s, "#EFE8DA", "#6F6355"];
+  }
+  toast(m) {
+    const id = Date.now() + Math.random();
+    this.setState(s => ({ toasts: [...s.toasts, { id, m }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 2800);
+  }
+  tw(key, to) {
+    const from = this.state.counters[key] ?? 0;
+    if (from === to) return;
+    const t0 = performance.now(), dur = 800;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      this.setState(s => ({ counters: { ...s.counters, [key]: Math.round(from + (to - from) * e) } }));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  totals() {
+    const os = Object.values(this.state.orders);
+    let pending = 0, paid = 0;
+    os.forEach(o => {
+      const p = this.state.products[o.pid], c = this.calc(p.B, p.C);
+      if (o.status === "PAID") paid += c.net;
+      else if (!["BUYER_REFUSED", "PICKUP_REFUSED", "RETURNED"].includes(o.status)) pending += c.net;
+    });
+    return { pending, paid };
+  }
+  syncMoney() { const t = this.totals(); this.tw("pending", t.pending); this.tw("paid", t.paid); }
+  nav(view) { this.setState({ view }); }
+  hist(id, l) { this.setState(s => { const o = s.orders[id]; return { orders: { ...s.orders, [id]: { ...o, history: [...o.history, { ts: this.now(), l }] } } }; }); }
+  setStatus(id, st) { this.setState(s => ({ orders: { ...s.orders, [id]: { ...s.orders[id], status: st } } }), () => this.syncMoney()); }
+  icon(name, active) {
+    const c = active ? "#073B2E" : "#8A7D6B";
+    const I = {
+      home: '<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/>',
+      tag: '<path d="M4 4h6.8l9.2 9.2-6.8 6.8L4 10.8V4z"/><circle cx="8.6" cy="8.6" r="1.5"/>',
+      box: '<path d="M12 3l7.5 4.2v9.6L12 21l-7.5-4.2V7.2L12 3z"/><path d="M4.5 7.2L12 11.5l7.5-4.3"/><path d="M12 11.5V21"/>',
+      franc: '<circle cx="12" cy="12" r="8.5"/><path d="M10 16V8.5h4.5"/><path d="M10 12.2h3.5"/>'
+    };
+    return { __html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + I[name] + "</svg>" };
+  }
+  renderVals() {
+    const S = this.state, F = this.F.bind(this);
+    const view = S.view, tab = S.tab;
+    const prods = Object.values(S.products);
+    const orders = Object.values(S.orders);
+    const withMeta = (o) => { const p = S.products[o.pid]; const [pill, pillBg, pillFg] = this.stMeta(o.status); return { o, p, pill, pillBg, pillFg }; };
+    const t = this.totals();
+    const vals = {
+      loading: S.loading, ready: !S.loading,
+      shopName: this.props.shopName ?? "Boutique Wendkuni",
+      ownerName: this.props.ownerName ?? "Rasmané",
+      vHome: !view && tab === "home", vProduits: !view && tab === "produits", vCommandes: !view && tab === "commandes", vArgent: !view && tab === "argent",
+      vProduct: view?.s === "product", vOrder: view?.s === "order", vAdd: view?.s === "add", vStudio: view?.s === "studio", vTrust: view?.s === "trust",
+      tabsVisible: !view,
+      back: () => this.nav(null),
+      stopProp: (e) => e.stopPropagation(),
+      closeSheet: () => this.setState({ sheet: null }),
+      openTrust: () => this.nav({ s: "trust" }),
+      openAdd: () => this.setState({ wiz: { step: 0, cat: "Mode femme", name: "", B: 10000, C: 1000, sizes: "S, M, L", stock: 5, photos: false }, view: { s: "add" } }),
+      productCount: prods.length,
+      pendingF: F(S.counters.pending ?? t.pending), paidF: F(S.counters.paid ?? t.paid),
+      toasts: S.toasts,
+      tabs: [
+        { label: "Accueil", key: "home", ic: "home" }, { label: "Produits", key: "produits", ic: "tag" },
+        { label: "Commandes", key: "commandes", ic: "box" }, { label: "Argent", key: "argent", ic: "franc" }
+      ].map(x => ({ label: x.label, icon: this.icon(x.ic, tab === x.key), bg: tab === x.key ? "#E4EFE9" : "transparent", fg: tab === x.key ? "#073B2E" : "#8A7D6B", go: () => { this.setState({ tab: x.key, view: null }); if (x.key === "argent" || x.key === "home") this.syncMoney(); } }))
+    };
+    // — Accueil
+    const todo = orders.filter(o => ["FUNDED", "READY_FAILED"].includes(o.status));
+    vals.hasTodo = todo.length > 0; vals.todoCount = todo.length;
+    vals.todoList = todo.map(o => { const m = withMeta(o); return { code: o.code, name: m.p.name + (o.variant ? " · " + o.variant : ""), sub: o.status === "FUNDED" ? "Commande payée — confirmez « Produit prêt »" : "Photo refusée — reprenez la photo du produit prêt", glyph: m.p.glyph, bg: m.p.bg, pill: m.pill, pillBg: m.pillBg, pillFg: m.pillFg, open: () => this.nav({ s: "order", id: o.id }) }; });
+    const low = prods.filter(p => p.stock <= 4);
+    const lowN = low.length || 2;
+    vals.lowStockPill = lowN + (lowN > 1 ? " produits" : " produit");
+    vals.lowStockText = low.length ? low.map(p => p.name + " (" + p.stock + ")").join(" · ") : "Sac cuir artisanal (4) · Chemise Faso Dan Fani (5)";
+    // — Produits
+    vals.productGrid = prods.map(p => ({ name: p.name, priceF: F(p.B), stockTxt: "stock " + p.stock, stockColor: p.stock <= 4 ? "#7A5104" : "#6F6355", glyph: p.glyph, bg: p.bg, paused: p.paused, mod: !!p.mod, open: () => this.nav({ s: "product", id: p.id }) }));
+    // — Commandes
+    const SEGS = [
+      { key: "traiter", label: "À traiter", f: o => ["FUNDED", "READY_FAILED"].includes(o.status) },
+      { key: "cours", label: "En cours", f: o => ["READY", "TRANSIT", "ARRIVED", "INSPECT", "AWAIT_PAY", "PAY_OK", "HANDOFF"].includes(o.status) },
+      { key: "fini", label: "Terminées", f: o => ["DELIVERED", "PAID"].includes(o.status) },
+      { key: "incidents", label: "Incidents", f: o => ["BUYER_REFUSED", "PICKUP_REFUSED", "RETURNED"].includes(o.status) }
+    ];
+    vals.segChips = SEGS.map(sg => { const on = S.seg === sg.key; return { label: sg.label, count: orders.filter(sg.f).length, bd: on ? "#0B5B47" : "#E5DCC9", bgc: on ? "#E4EFE9" : "#FFFFFF", fg: on ? "#073B2E" : "#6F6355", pick: () => this.setState({ seg: sg.key }) }; });
+    const segRows = orders.filter(SEGS.find(x => x.key === S.seg).f);
+    vals.segEmpty = segRows.length === 0;
+    vals.orderRows = segRows.map(o => { const m = withMeta(o); return { code: o.code, sub: m.p.name + (o.variant ? " · " + o.variant : "") + " · " + (o.mode === "B" ? "produit payé à la porte" : "payé en entier"), glyph: m.p.glyph, bg: m.p.bg, pill: m.pill, pillBg: m.pillBg, pillFg: m.pillFg, open: () => this.nav({ s: "order", id: o.id }) }; });
+    // — Argent
+    vals.moneyRows = orders.map(o => { const m = withMeta(o); const c = this.calc(m.p.B, m.p.C); return { code: o.code, name: m.p.name, netF: F(c.net), pill: m.pill, pillBg: m.pillBg, pillFg: m.pillFg }; });
+    // — Fiche produit
+    if (view?.s === "product") {
+      const p = S.products[view.id]; const c = this.calc(p.B, p.C);
+      Object.assign(vals, {
+        prodName: p.name, prodCat: p.cat, prodGlyph: p.glyph, prodBg: p.bg,
+        prodStatus: p.mod ? "En modération" : p.paused ? "En pause" : "En ligne", prodStatusBg: p.mod ? "#F6E9C8" : p.paused ? "#EFE8DA" : "#DFEEE3", prodStatusFg: p.mod ? "#5F4403" : p.paused ? "#6F6355" : "#14603A",
+        prodBF: F(p.B), prodCF: F(p.C), prodFeeF: F(c.fee), prodNetF: F(c.net),
+        prodStock: p.stock, prodStockBg: p.stock <= 4 ? "#F6E9C8" : "#DFEEE3", prodStockFg: p.stock <= 4 ? "#7A5104" : "#14603A",
+        prodHasSizes: !!p.sizes, prodSizes: p.sizes || "",
+        pauseLabel: p.paused ? "Réactiver" : "Mettre en pause",
+        editProduct: () => this.toast("Modification (démo) — nouvelle version, les commandes passées ne changent pas"),
+        togglePause: () => { this.setState(s => ({ products: { ...s.products, [p.id]: { ...p, paused: !p.paused } } })); this.toast(p.paused ? "Produit remis en ligne" : "Produit en pause — masqué chez les revendeuses"); },
+        openStock: () => this.setState({ sheet: "stock", stkDelta: 0 }),
+        stkVal: p.stock + S.stkDelta,
+        stkUp: () => this.setState(s => ({ stkDelta: s.stkDelta + 1 })),
+        stkDn: () => this.setState(s => ({ stkDelta: Math.max(-p.stock, s.stkDelta - 1) })),
+        saveStock: () => { const nv = p.stock + S.stkDelta; this.setState(s => ({ products: { ...s.products, [p.id]: { ...p, stock: nv } }, sheet: null })); this.toast("Stock mis à jour : " + nv + " unités"); }
+      });
+    }
+    vals.shStock = S.sheet === "stock"; vals.shReady = S.sheet === "ready";
+    // — Détail commande
+    if (view?.s === "order") {
+      const o = S.orders[view.id]; const p = S.products[o.pid]; const c = this.calc(p.B, p.C);
+      const [pill, pillBg, pillFg] = this.stMeta(o.status);
+      const f = this.flow(o.mode), labels = this.flowLabel(o), cur = f.indexOf(o.status), failed = cur === -1;
+      Object.assign(vals, {
+        ordCode: o.code, ordPill: pill, ordPillBg: pillBg, ordPillFg: pillFg,
+        ordGlyph: p.glyph, ordBg: p.bg, ordProdLine: p.name + (o.variant ? " · taille " + o.variant : ""), ordZone: o.buyer.zone,
+        ordModeLine: o.mode === "B" ? "produit payé à la porte" : "payé en entier",
+        ordBF: F(p.B), ordCF: F(p.C), ordFeeF: F(c.fee), ordNetF: F(c.net),
+        ordPayNote: o.mode === "B" ? "Produit payé à la porte : vous êtes payé une fois le paiement confirmé et le colis remis." : "Déjà payé, gardé en sécurité chez le partenaire de paiement.",
+        ordFunded: o.status === "FUNDED", ordFailed: o.status === "READY_FAILED",
+        ordPickupRef: o.status === "PICKUP_REFUSED", ordFixReason: o.reason || "défaut constaté à l’enlèvement",
+        ordDone: ["DELIVERED", "PAID"].includes(o.status),
+        ordDoneNote: o.status === "PAID" ? "Argent versé sur votre Mobile Money." : "Versement en cours (sous 24 h).",
+        ordInterrupted: failed,
+        ordFailNote: o.status === "BUYER_REFUSED" ? "Frais de livraison gardés — le produit repart chez le vendeur." : "Voir le détail ci-dessous.",
+        ordChallenge: o.challenge,
+        ordSteps: f.map((k, i) => { const done = !failed && i < cur, curr = !failed && i === cur; return { label: labels[k], dotBd: done || curr ? "#0B5B47" : "#E0D6C2", dotBg: done ? "#0B5B47" : "#FFFFFF", anim: curr ? "fpPulse 1.2s ease infinite" : "none", bar: i < f.length - 1, barBg: done ? "#0B5B47" : "#E8DFCC", w: done || curr ? 700 : 500, fg: done || curr ? "#1C1710" : "#8A7D6B" }; }),
+        ordHistory: o.history.slice().reverse(),
+        ordCanSim: (this.props.showDemoControls ?? true) && !failed && cur >= 1 && cur < f.length - 1,
+        ordNextLabel: !failed && cur >= 0 && cur < f.length - 1 ? this.stMeta(f[cur + 1])[0] : "",
+        simulate: () => { const nx = f[cur + 1]; this.setStatus(o.id, nx); this.hist(o.id, labels[nx] + (nx === "PAID" ? " — versement Mobile Money effectué" : "")); if (nx === "PAID") { this.setState({ celebr: F(c.net) }); setTimeout(() => this.setState(s => (s.celebr === F(c.net) ? { celebr: null } : null)), 2200); } },
+        openReady: () => this.setState({ sheet: "ready", readyShot: false }),
+        takeShot: () => this.setState({ readyShot: true }),
+        confirmReady: () => { this.setStatus(o.id, "READY"); this.hist(o.id, "Produit prêt confirmé (code " + o.challenge + ") — Séra assigne un livreur"); this.setState({ sheet: null }); this.toast("Prêt — Issa (Séra) est notifié"); }
+      });
+    }
+    vals.readyShot = S.readyShot; vals.readyNoShot = !S.readyShot;
+    vals.readyCtaBg = S.readyShot ? "#0B5B47" : "#DDD5C3"; vals.readyCtaFg = S.readyShot ? "#F6F1E7" : "#8A7D6B";
+    vals.readyCtaShadow = S.readyShot ? "0 12px 26px -10px rgba(11,91,71,.5)" : "none";
+    // — Wizard
+    const W = S.wiz, wc = this.calc(W.B, W.C);
+    const wizOk = [true, true, true, W.photos, true][W.step];
+    Object.assign(vals, {
+      wizStepLabel: (W.step + 1) + "/5",
+      wizDots: [0, 1, 2, 3, 4].map(i => ({ bg: i <= W.step ? "#0B5B47" : "#E5DCC9" })),
+      wiz0: W.step === 0, wiz1: W.step === 1, wiz2: W.step === 2, wiz3: W.step === 3, wiz4: W.step === 4,
+      wizCats: ["Mode femme", "Mode homme", "Chaussures", "Sacs", "Tissus", "Beauté scellée", "Maison", "Enfant"].map(c => { const on = W.cat === c; return { label: c, bd: on ? "#0B5B47" : "#E5DCC9", bgc: on ? "#E4EFE9" : "#FFFFFF", fg: on ? "#073B2E" : "#1C1710", pick: () => this.setState(s => ({ wiz: { ...s.wiz, cat: c } })) }; }),
+      wizName: W.name, wizNameSet: (e) => this.setState(s => ({ wiz: { ...s.wiz, name: e.target.value } })),
+      wizSizes: W.sizes, wizSizesSet: (e) => this.setState(s => ({ wiz: { ...s.wiz, sizes: e.target.value } })),
+      wizStock: W.stock,
+      wizStockUp: () => this.setState(s => ({ wiz: { ...s.wiz, stock: s.wiz.stock + 1 } })),
+      wizStockDn: () => this.setState(s => ({ wiz: { ...s.wiz, stock: Math.max(1, s.wiz.stock - 1) } })),
+      wizBF: F(W.B), wizCF: F(W.C), wizFeeF: F(wc.fee), wizNetF: F(wc.net),
+      wizBUp: () => this.setState(s => ({ wiz: { ...s.wiz, B: s.wiz.B + 500 } })),
+      wizBDn: () => this.setState(s => ({ wiz: { ...s.wiz, B: Math.max(500, s.wiz.B - 500) } })),
+      wizCUp: () => this.setState(s => ({ wiz: { ...s.wiz, C: s.wiz.C + 100 } })),
+      wizCDn: () => this.setState(s => ({ wiz: { ...s.wiz, C: Math.max(0, s.wiz.C - 100) } })),
+      wizHasPhotos: W.photos, wizNoPhotos: !W.photos,
+      wizRecapName: W.name || "Robe brodée bogolan", wizCat: W.cat,
+      wizNextDisabled: !wizOk,
+      wizNextLabel: W.step === 4 ? "Publier — c’est gratuit" : W.step === 3 && !W.photos ? "Photos requises" : "Continuer",
+      wizNextBg: wizOk ? "#0B5B47" : "#DDD5C3", wizNextFg: wizOk ? "#F6F1E7" : "#8A7D6B",
+      wizNextShadow: wizOk ? "0 12px 26px -10px rgba(11,91,71,.5)" : "none",
+      wizBack: () => { if (W.step === 0) this.nav(null); else this.setState(s => ({ wiz: { ...s.wiz, step: s.wiz.step - 1 } })); },
+      wizNext: () => {
+        if (W.step < 4) { this.setState(s => ({ wiz: { ...s.wiz, step: s.wiz.step + 1 } })); return; }
+        const id = "np" + S.pseq;
+        this.setState(s => ({ pseq: s.pseq + 1, products: { ...s.products, [id]: { id, name: W.name || "Robe brodée bogolan", cat: W.cat, B: W.B, C: W.C, stock: W.stock, sizes: W.sizes ? W.sizes.split(",").map(x => x.trim()).join(" · ") : null, glyph: "🧥", bg: "linear-gradient(140deg,#0B5B47,#073B2E)", paused: false, mod: true } }, view: null, tab: "produits" }));
+        this.toast("Envoyé en modération — catégorie, allégations, photos");
+        setTimeout(() => { this.setState(s => (s.products[id] ? { products: { ...s.products, [id]: { ...s.products[id], mod: false } } } : null)); this.toast("Modération : approuvé — en ligne chez les revendeuses"); }, 6000);
+      },
+      openStudio: () => this.setState({ studio: { step: 0, low: false, proc: 0, orig: false }, view: { s: "studio" } })
+    });
+    // — Studio
+    const ST = S.studio;
+    const shots = [
+      { title: "1 · Photo héro", sub: "Sur une surface simple. Elle recevra la mise en forme premium.", glyph: "👗" },
+      { title: "2 · Photo preuve", sub: "L’article en main, dans votre boutique. Une photo réelle qui inspire confiance (le désordre est permis).", glyph: "🤳" },
+      { title: "3 · Détail catégorie", sub: "Mode : étiquette de taille bien lisible.", glyph: "🏷️" }
+    ];
+    const cs = shots[Math.min(ST.step, 2)];
+    Object.assign(vals, {
+      stShooting: ST.step < 3, stProcessing: ST.step === 3, stProcDone: ST.proc >= 4,
+      stTitle: cs.title, stSub: cs.sub, stGlyph: cs.glyph,
+      stViewBg: ST.low ? "linear-gradient(140deg,#3A3128,#241E17)" : "linear-gradient(140deg,#B65C2E,#7A3014)",
+      stGlyphOp: ST.low ? 0.5 : 1, stLow: ST.low,
+      stLowLabel: ST.low ? "Simuler : bonne lumière" : "Simuler : faible lumière",
+      stCapBg: ST.low ? "#DDD5C3" : "#0B5B47", stCapFg: ST.low ? "#8A7D6B" : "#F6F1E7",
+      stCapShadow: ST.low ? "none" : "0 12px 26px -10px rgba(11,91,71,.5)",
+      stMeters: [{ label: "Luminosité", ok: !ST.low }, { label: "Netteté", ok: !ST.low }, { label: "Stabilité", ok: true }, { label: "Fond", ok: !ST.low }].map(m => ({ label: m.label, val: m.ok ? "OK" : "À corriger", bg: m.ok ? "#DFEEE3" : "#F6E9C8", fg: m.ok ? "#14603A" : "#7A5104" })),
+      stToggleLow: () => this.setState(s => ({ studio: { ...s.studio, low: !s.studio.low } })),
+      stCapture: () => {
+        const nx = ST.step + 1;
+        this.setState(s => ({ studio: { ...s.studio, step: nx, proc: 0 } }));
+        if (nx === 3) { let i = 0; const tick = () => { i++; this.setState(s => (s.view?.s === "studio" ? { studio: { ...s.studio, proc: i } } : null)); if (i < 4) setTimeout(tick, 620); }; setTimeout(tick, 620); }
+      },
+      stProcRows: ["Rotation corrigée", "Lumière équilibrée — sans exagérer", "Recadrage sûr depuis le cadre", "Analyse du fond"].map((l, i) => ({ label: l, fg: ST.proc > i ? "#1C1710" : "#8A7D6B", w: ST.proc > i ? 600 : 500, mark: ST.proc > i ? "✓" : ST.proc === i ? "…" : "·", anim: ST.proc === i ? "fpPulse 1s ease infinite" : "none" })),
+      stOrigLabel: ST.orig ? "Voir la version traitée" : "Couleurs d’origine",
+      stAfterBg: ST.orig ? "linear-gradient(140deg,#8A5A3A,#5A3A22)" : "linear-gradient(140deg,#B65C2E,#7A3014)",
+      stToggleOrig: () => this.setState(s => ({ studio: { ...s.studio, orig: !s.studio.orig } })),
+      stApprove: () => { this.setState(s => ({ wiz: { ...s.wiz, photos: true }, view: { s: "add" } })); this.toast("Photos canoniques prêtes — sans prix, sans contact"); }
+    });
+    // — Échéances / relevés / célébration
+    const ech = [];
+    orders.forEach(o => {
+      if (o.status === "FUNDED") ech.push({ time: "11 h 30", label: o.code + " — préparer + photo « produit prêt »" });
+      if (o.status === "READY_FAILED") ech.push({ time: "11 h 00", label: o.code + " — reprendre la photo (code lisible)" });
+      if (o.status === "READY") ech.push({ time: "11–13 h", label: o.code + " — enlèvement Séra, soyez présent" });
+    });
+    vals.hasEch = ech.length > 0; vals.echItems = ech;
+    vals.releves = [
+      { week: "Sem. 28 — 6 au 12 juil.", sub: "1 versement Mobile Money", totalF: F(12750) },
+      { week: "Sem. 27 — 29 juin au 5 juil.", sub: "2 versements Mobile Money", totalF: F(21400) },
+      { week: "Sem. 26 — 22 au 28 juin", sub: "1 versement Mobile Money", totalF: F(9200) }
+    ];
+    vals.downloadReleve = () => this.toast("Relevé PDF généré — chaque franc a sa place (démo)");
+    vals.cbShow = !!S.celebr; vals.cbAmountF = S.celebr || "";
+    vals.cbDismiss = () => this.setState({ celebr: null });
+    // — Inscription vendeur
+    const OB = S.ob || { step: 0 };
+    Object.assign(vals, {
+      vOnboard: view?.s === "onboard" && OB.step < 5,
+      vObDone: view?.s === "onboard" && OB.step >= 5,
+      obStepLabel: Math.min(OB.step + 1, 5) + "/5",
+      obDots: [0, 1, 2, 3, 4].map(i => ({ bg: i <= OB.step ? "#0B5B47" : "#E5DCC9" })),
+      ob0: OB.step === 0, ob1: OB.step === 1, ob2: OB.step === 2, ob3: OB.step === 3, ob4: OB.step === 4,
+      obNextLabel: OB.step === 4 ? "Créer mon compte gratuit" : "Continuer",
+      openOnboard: () => this.setState({ ob: { step: 0 }, view: { s: "onboard" } }),
+      obBack: () => { if (OB.step === 0) this.nav(null); else this.setState({ ob: { step: OB.step - 1 } }); },
+      obNext: () => this.setState({ ob: { step: OB.step + 1 } }),
+      obFinish: () => { this.nav(null); this.toast("Compte provisoire créé — démo avec Boutique Wendkuni"); }
+    });
+    return vals;
+  }
+}
+</script>
+</body>
+</html>
