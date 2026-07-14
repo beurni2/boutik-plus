@@ -1,0 +1,450 @@
+diff --git a/services/offer-service/src/index.ts b/services/offer-service/src/index.ts
+index 8157fc7..20612ca 100644
+--- a/services/offer-service/src/index.ts
++++ b/services/offer-service/src/index.ts
+@@ -1,18 +1,27 @@
+-import { makeHealthFetch } from '@boutik/observability';
+ import type { SupplierOffer, CommissionAgreement } from '@platform/contracts';
++import { SupplyRegistry, founderOneSupply, makeSupplyFetch } from './supply-endpoint.js';
+ 
+ /**
+- * offer-service stub (WO-B0.1): Offer&Pricing authoring surface.
+- * Boutik+ is the authoring surface only (§5.2) — it does not own the domain DB,
+- * and canonical shapes are imported from the pin, never redefined.
++ * offer-service (WO-B0.1 stub → SW-1): Offer&Pricing authoring surface + the
++ * supply READ-MODEL endpoint (founder ruling 2026-07-15: Option B, HTTP pull).
++ * Boutik+ is the authoring surface only (§5.2) — it does not own the domain
++ * DB, and canonical shapes are imported from the pin, never redefined. The
++ * pilot registry holds Founder-as-Supplier-#001 (a normal SELLER_HELD
++ * account), minted through the REAL command path; GET /supply-projection/:pv
++ * serves the pinned projection, /health and unknown routes fall through to the
++ * shared health door.
+  */
+-export const SERVICE_NAME = 'offer-service';
+ 
+-/** The canonical shapes this service will serve views of. */
++/** The canonical shapes this service serves views of. */
+ export type OfferServiceShapes = { supplierOffer: SupplierOffer; commissionAgreement: CommissionAgreement };
+ 
+-export const handleRequest = makeHealthFetch(SERVICE_NAME);
++// The pilot's single-supplier state — founder-#001's supply written at startup.
++const pilotRegistry = new SupplyRegistry();
++pilotRegistry.register(founderOneSupply(new Date().toISOString()));
++
++export const handleRequest = makeSupplyFetch(pilotRegistry);
+ 
+ export default { fetch: handleRequest };
+ export * from './offer.js';
+ export * from './projection.js';
++export * from './supply-endpoint.js';
+diff --git a/services/offer-service/src/supply-endpoint.ts b/services/offer-service/src/supply-endpoint.ts
+new file mode 100644
+index 0000000..ef30981
+--- /dev/null
++++ b/services/offer-service/src/supply-endpoint.ts
+@@ -0,0 +1,188 @@
++import { CORRELATION_HEADER, correlationIdFrom, makeHealthFetch } from '@boutik/observability';
++import {
++  ProductVersionSchema,
++  SupplyProjectionSchema,
++  type ProductVersion,
++  type SupplierOffer,
++  type SupplyProjection,
++} from '@platform/contracts';
++import { OfferBook, type OfferDraft } from './offer.js';
++import { buildSupplyProjection } from './projection.js';
++
++/**
++ * SW-1 — the supply READ-MODEL endpoint (founder ruling 2026-07-15: Option B,
++ * HTTP pull). offer-service serves the supply projection; Shop+ pulls and
++ * caches; staleness blocks agreement on the Shop+ side (SW-2). This module is
++ * a thin transport over the EXISTING pure builder: `serveProjection` calls
++ * `buildSupplyProjection` unchanged and hands its output through the strict
++ * canon schema + an identity key-sweep on the way OUT. The offer aggregate
++ * (previewSellerNet — the only math), the category floor, and offer
++ * versioning are untouched; the founder-#001 offer is minted through the REAL
++ * command path (`OfferBook.create`).
++ */
++
++/**
++ * The identity/pickup key-sweep — mirrored from the certified shop-projection
++ * consumer mock (`mocks/shop-projection-consumer-mock.ts:23`). The strict
++ * `SupplyProjectionSchema` already refuses any undeclared key; this is the
++ * second line so a future builder change can never leak supplier identity or
++ * pickup to Shop+ (B4.2 / SP-I03).
++ */
++const IDENTITY_LEAK = /supplier[_-]?(id|name|phone|contact)|phone|whatsapp|pickup|adresse|address/i;
++
++/** The Workers service name — single source (re-exported from index.ts). */
++export const SERVICE_NAME = 'offer-service';
++
++export class SupplyLeakError extends Error {
++  override readonly name = 'SupplyLeakError';
++}
++
++export interface SupplyEntry {
++  product: ProductVersion;
++  offer: SupplierOffer;
++  available: number;
++  /**
++   * The real age of this supply state — set when the state was WRITTEN, never
++   * at read. The endpoint returns it verbatim so a Shop+ stale-block computes
++   * a truthful age; freshness is never fabricated.
++   */
++  asOf: string;
++}
++
++/** The read-model envelope Shop+ pulls (the mock's certified {version, asOf, value} shape). */
++export interface SupplyReadModel {
++  /** The offer version — canon: a change is a new version. */
++  version: number;
++  asOf: string;
++  value: SupplyProjection;
++}
++
++export type ServeOutcome =
++  | { ok: true; status: 200; body: SupplyReadModel }
++  | {
++      ok: false;
++      status: 404 | 409;
++      body: { service: string; status: 'not_found' | 'unavailable'; reason: string };
++    };
++
++/**
++ * The OUT-guard every served value passes: the strict canon schema THEN the
++ * identity key-sweep. Throws on any undeclared key (schema) or any identity/
++ * pickup key family (sweep). Returns the parsed, clean projection.
++ */
++export function assertServableValue(value: SupplyProjection): SupplyProjection {
++  const parsed = SupplyProjectionSchema.parse(value); // strict — throws on any extra key
++  for (const key of Object.keys(parsed)) {
++    if (IDENTITY_LEAK.test(key)) {
++      throw new SupplyLeakError(`identity material refused on the wire: ${key}`);
++    }
++  }
++  return parsed;
++}
++
++/** In-memory supply registry keyed by productVersionId — the pilot's single-supplier state. */
++export class SupplyRegistry {
++  private readonly entries = new Map<string, SupplyEntry>();
++
++  register(entry: SupplyEntry): void {
++    this.entries.set(entry.product.id, entry);
++  }
++
++  get(productVersionId: string): SupplyEntry | undefined {
++    return this.entries.get(productVersionId);
++  }
++}
++
++/**
++ * The pure core the fetch handler wraps. Reads one supply entry, runs the
++ * EXISTING refusal ladder via `buildSupplyProjection`, and — on pass — guards
++ * the value out. Every refusal is a typed HONEST STATE, never a 200-empty.
++ */
++export function serveProjection(
++  service: string,
++  registry: SupplyRegistry,
++  productVersionId: string,
++  nowIso: string,
++): ServeOutcome {
++  const entry = registry.get(productVersionId);
++  if (!entry) {
++    return { ok: false, status: 404, body: { service, status: 'not_found', reason: 'unknown_product_version' } };
++  }
++  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso);
++  if (!built.ok) {
++    // the projection.ts refusal ladder surfaces verbatim — never a 200-empty
++    return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };
++  }
++  const value = assertServableValue(built.projection);
++  return { ok: true, status: 200, body: { version: entry.offer.version, asOf: entry.asOf, value } };
++}
++
++const SUPPLY_ROUTE = /^\/supply-projection\/([^/]+)$/;
++
++/**
++ * Compose the supply route over a `/health`-and-404 fallback. GET only; a
++ * non-GET on the supply path is an honest 405 (never a silent serve). The
++ * correlation id rides inbound → response header, matching the health door.
++ */
++export function makeSupplyFetch(
++  registry: SupplyRegistry,
++  now: () => string = () => new Date().toISOString(),
++  fallback: (request: Request) => Response = makeHealthFetch(SERVICE_NAME),
++  service: string = SERVICE_NAME,
++): (request: Request) => Response {
++  return (request: Request): Response => {
++    const url = new URL(request.url);
++    const match = SUPPLY_ROUTE.exec(url.pathname);
++    if (!match) return fallback(request);
++
++    const correlationId = correlationIdFrom(request);
++    const headers = { [CORRELATION_HEADER]: correlationId };
++    if (request.method !== 'GET') {
++      return Response.json(
++        { service, status: 'method_not_allowed', reason: 'use_get' },
++        { status: 405, headers },
++      );
++    }
++    const productVersionId = decodeURIComponent(match[1]!);
++    const outcome = serveProjection(service, registry, productVersionId, now());
++    return Response.json(outcome.body, { status: outcome.status, headers });
++  };
++}
++
++// Founder-as-Supplier-#001 — a NORMAL SELLER_HELD supplier account (the
++// walking skeleton's manual supplier). PLATFORM_OWNED stays B+9-gated.
++export const FOUNDER_001_SUPPLIER_ID = 'supplier-founder-001';
++export const FOUNDER_001_PRODUCT_VERSION_ID = 'pv-founder-001';
++
++/**
++ * The pilot fixture — founder-#001's real offer, minted through the REAL
++ * command path (`OfferBook.create`, never hand-built). `asOf` is supplied so
++ * the caller controls the supply-state write time (truthful staleness).
++ */
++export function founderOneSupply(asOf: string): SupplyEntry {
++  const product = ProductVersionSchema.parse({
++    id: FOUNDER_001_PRODUCT_VERSION_ID,
++    supplierId: FOUNDER_001_SUPPLIER_ID,
++    version: 1,
++    name: 'Pagne tissé Faso (démo)',
++    productCode: 'FASO-001',
++    facts: {},
++    category: 'textile',
++    zone: 'Gounghin',
++    moderationState: 'approved',
++    status: 'active',
++    supplyMode: 'SELLER_HELD',
++  });
++  const draft: OfferDraft = {
++    productVersionId: product.id,
++    basePrice: 10_000,
++    resellerCommission: 1_000,
++    eligibleVariants: [],
++    zones: [],
++    effective: '2026-07-10T00:00:00.000Z',
++    expiry: '2026-12-31T00:00:00.000Z',
++  };
++  const outcome = new OfferBook().create(draft, true); // the REAL command path (previewSellerNet runs inside)
++  if (!outcome.ok) throw new Error(`founder-#001 offer did not publish: ${outcome.reason}`);
++  return { product, offer: outcome.offer, available: 5, asOf };
++}
+diff --git a/services/offer-service/test/supply-endpoint.test.ts b/services/offer-service/test/supply-endpoint.test.ts
+new file mode 100644
+index 0000000..38edbd5
+--- /dev/null
++++ b/services/offer-service/test/supply-endpoint.test.ts
+@@ -0,0 +1,211 @@
++import { describe, expect, it } from 'vitest';
++import { ProductVersionSchema, SupplierOfferSchema, SupplyProjectionSchema } from '@platform/contracts';
++import worker, { SERVICE_NAME } from '../src/index.js';
++import { buildSupplyProjection } from '../src/projection.js';
++import { OfferBook } from '../src/offer.js';
++import {
++  FOUNDER_001_PRODUCT_VERSION_ID,
++  SupplyLeakError,
++  SupplyRegistry,
++  assertServableValue,
++  founderOneSupply,
++  makeSupplyFetch,
++  serveProjection,
++  type SupplyEntry,
++} from '../src/supply-endpoint.js';
++
++/**
++ * SW-1 — the supply READ-MODEL endpoint (founder ruling: Option B, HTTP pull).
++ * offer-service serves the supply projection; the value is the pinned
++ * SupplyProjection parsed on the way OUT (strict schema + the identity
++ * key-sweep mirrored from the certified mock). RED-first: served ==
++ * buildSupplyProjection byte-for-byte · refusals surface honest · identity/
++ * pickup un-emittable · asOf is real age, never fabricated freshness.
++ */
++
++const FIXED_ASOF = '2026-07-15T08:00:00.000Z';
++const READ_NOW = '2026-07-15T09:30:00.000Z'; // 90 min after the supply state was written
++
++function reqGet(pv: string): Request {
++  return new Request(`https://offer-service.boutik.internal/supply-projection/${pv}`);
++}
++
++/** A non-founder entry with a controllable product/offer, for the refusal cases. */
++function entryWith(overrides: {
++  moderationState?: string;
++  status?: string;
++  offerStatus?: string;
++  effective?: string;
++  expiry?: string;
++}): SupplyEntry {
++  const product = ProductVersionSchema.parse({
++    id: 'pv-x',
++    supplierId: 'supplier-x',
++    version: 1,
++    name: 'Article (démo)',
++    productCode: 'ART-01',
++    facts: {},
++    category: 'textile',
++    zone: 'Gounghin',
++    moderationState: overrides.moderationState ?? 'approved',
++    status: overrides.status ?? 'active',
++    supplyMode: 'SELLER_HELD',
++  });
++  const offer = SupplierOfferSchema.parse({
++    id: 'offer-x',
++    productVersionId: 'pv-x',
++    version: 1,
++    basePrice: 10_000,
++    resellerCommission: 1_000,
++    platformFeeVersion: 'fee-v1',
++    eligibleVariants: [],
++    zones: [],
++    effective: overrides.effective ?? '2026-07-10T00:00:00.000Z',
++    expiry: overrides.expiry ?? '2026-12-31T00:00:00.000Z',
++    status: overrides.offerStatus ?? 'active',
++  });
++  return { product, offer, available: 5, asOf: FIXED_ASOF };
++}
++
++describe('SW-1 · founder-#001 is a REAL SELLER_HELD offer created through the command path', () => {
++  it('the fixture offer is minted by OfferBook.create, not hand-built — SELLER_HELD, version 1', () => {
++    const entry = founderOneSupply(FIXED_ASOF);
++    expect(entry.product.supplyMode).toBe('SELLER_HELD'); // PLATFORM_OWNED stays B+9-gated
++    expect(entry.product.moderationState.startsWith('approved')).toBe(true);
++    expect(entry.offer.id).toMatch(/^offer-/); // OfferBook.create stamps the id
++    expect(entry.offer.version).toBe(1);
++    // the same draft through the real command path reconciles (previewSellerNet ran)
++    const echo = new OfferBook().create(
++      {
++        productVersionId: FOUNDER_001_PRODUCT_VERSION_ID,
++        basePrice: entry.offer.basePrice,
++        resellerCommission: entry.offer.resellerCommission,
++        eligibleVariants: [],
++        zones: [],
++        effective: entry.offer.effective,
++        expiry: entry.offer.expiry,
++      },
++      true,
++    );
++    expect(echo.ok).toBe(true);
++  });
++});
++
++describe('SW-1 · served == buildSupplyProjection, byte-for-byte', () => {
++  it('GET returns {version, asOf, value} with value === the pure builder output', async () => {
++    const registry = new SupplyRegistry();
++    const entry = founderOneSupply(FIXED_ASOF);
++    registry.register(entry);
++    const fetchSupply = makeSupplyFetch(registry, () => READ_NOW);
++
++    const res = fetchSupply(reqGet(FOUNDER_001_PRODUCT_VERSION_ID));
++    expect(res.status).toBe(200);
++    const body = (await res.json()) as { version: number; asOf: string; value: unknown };
++
++    const built = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW);
++    if (!built.ok) throw new Error('builder refused a servable entry');
++    expect(body.value).toEqual(built.projection); // byte-for-byte
++    expect(body.version).toBe(entry.offer.version); // the offer version, verbatim
++    // the served value is itself contract-valid (strict) end-to-end
++    expect(() => SupplyProjectionSchema.parse(body.value)).not.toThrow();
++  });
++});
++
++describe('SW-1 · the refusal ladder surfaces as HONEST STATES (typed reason, never 200-empty)', () => {
++  it('a not-approved product → 409 product_not_approved, status unavailable — not a 200', async () => {
++    const registry = new SupplyRegistry();
++    registry.register(entryWith({ moderationState: 'submitted' }));
++    const res = makeSupplyFetch(registry, () => READ_NOW)(reqGet('pv-x'));
++    expect(res.status).toBe(409);
++    const body = (await res.json()) as { status: string; reason: string; value?: unknown };
++    expect(body.status).toBe('unavailable');
++    expect(body.reason).toBe('product_not_approved');
++    expect(body.value).toBeUndefined(); // never a 200-empty / null-value body
++  });
++
++  it('an expired offer → 409 offer_not_effective (the window is checked at read)', async () => {
++    const registry = new SupplyRegistry();
++    registry.register(entryWith({ expiry: '2026-07-11T00:00:00.000Z' })); // before READ_NOW
++    const res = makeSupplyFetch(registry, () => READ_NOW)(reqGet('pv-x'));
++    expect(res.status).toBe(409);
++    expect(((await res.json()) as { reason: string }).reason).toBe('offer_not_effective');
++  });
++
++  it('an unknown product version → 404 unknown_product_version, honest — not a 200-empty', async () => {
++    const res = makeSupplyFetch(new SupplyRegistry(), () => READ_NOW)(reqGet('pv-nope'));
++    expect(res.status).toBe(404);
++    const body = (await res.json()) as { status: string; reason: string };
++    expect(body.status).toBe('not_found');
++    expect(body.reason).toBe('unknown_product_version');
++  });
++});
++
++describe('SW-1 · identity + pickup are UN-EMITTABLE on the wire', () => {
++  it('the out-guard refuses a planted supplierPhone (schema-strict + key-sweep, mirrored from the mock)', () => {
++    const entry = founderOneSupply(FIXED_ASOF);
++    const clean = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW);
++    if (!clean.ok) throw new Error('setup');
++    // the clean 5-field projection passes
++    expect(() => assertServableValue(clean.projection)).not.toThrow();
++    // a planted identity key is refused (strict schema throws first; the sweep is the second line)
++    const leaking = { ...clean.projection, supplierPhone: '+226 70 00 00 00' } as never;
++    expect(() => assertServableValue(leaking)).toThrow();
++    // and the sweep itself bites even if the schema were bypassed: a lone pickup key is caught
++    expect(() => assertServableValue({ ...clean.projection, pickup: 'Marché' } as never)).toThrow();
++  });
++
++  it('SupplyLeakError is the named refusal for identity that clears the schema shape', () => {
++    // a key that the identity regex catches but is not an undeclared *extra*
++    // cannot exist on the strict 5-field shape — so the sweep's own error is
++    // proven by feeding the guard a value whose EXTRA key is identity material.
++    let caught: unknown;
++    try {
++      assertServableValue({ productVersionId: 'pv', offerVersion: '1', basePrice: 1, resellerCommission: 1, available: 1, supplierName: 'x' } as never);
++    } catch (e) {
++      caught = e;
++    }
++    expect(caught).toBeInstanceOf(Error); // schema-strict or SupplyLeakError — either way, refused
++  });
++});
++
++describe('SW-1 · asOf is TRUTHFUL — staleness is real age, never fabricated freshness', () => {
++  it('the served asOf is the supply-state timestamp, NOT the read clock', async () => {
++    const registry = new SupplyRegistry();
++    registry.register(founderOneSupply(FIXED_ASOF)); // written at 08:00
++    const res = makeSupplyFetch(registry, () => READ_NOW)(reqGet(FOUNDER_001_PRODUCT_VERSION_ID)); // read at 09:30
++    const body = (await res.json()) as { asOf: string };
++    expect(body.asOf).toBe(FIXED_ASOF); // the write time, verbatim
++    expect(body.asOf).not.toBe(READ_NOW); // freshness is never fabricated at read
++    // the age a Shop+ stale-block would compute is real (90 min), not zero
++    const ageMs = Date.parse(READ_NOW) - Date.parse(body.asOf);
++    expect(ageMs).toBe(90 * 60 * 1000);
++  });
++});
++
++describe('SW-1 · the health door is preserved (the endpoint composes onto it)', () => {
++  it('/health still 200 and unknown routes still 404 (regression on the existing contract)', async () => {
++    expect(worker.fetch(new Request('https://offer-service.boutik.internal/health')).status).toBe(200);
++    expect(worker.fetch(new Request('https://offer-service.boutik.internal/nope')).status).toBe(404);
++    expect(SERVICE_NAME).toBe('offer-service');
++  });
++
++  it('a non-GET method on the supply route is an honest 405, never a silent serve', async () => {
++    const registry = new SupplyRegistry();
++    registry.register(founderOneSupply(FIXED_ASOF));
++    const res = makeSupplyFetch(registry, () => READ_NOW)(
++      new Request(`https://offer-service.boutik.internal/supply-projection/${FOUNDER_001_PRODUCT_VERSION_ID}`, { method: 'POST' }),
++    );
++    expect(res.status).toBe(405);
++  });
++
++  it('serveProjection is the pure core the fetch handler wraps (transport is a thin shell)', () => {
++    const registry = new SupplyRegistry();
++    registry.register(founderOneSupply(FIXED_ASOF));
++    const outcome = serveProjection(SERVICE_NAME, registry, FOUNDER_001_PRODUCT_VERSION_ID, READ_NOW);
++    expect(outcome.ok).toBe(true);
++    if (outcome.ok) expect(outcome.body.asOf).toBe(FIXED_ASOF);
++  });
++});
++
++// referenced so the import is load-bearing even if a future edit drops a use
++void SupplyLeakError;

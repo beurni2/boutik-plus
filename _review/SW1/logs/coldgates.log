@@ -1,0 +1,19 @@
+############ SW-1 COLD-GATES PROOF ############
+ISOLATION: fresh HOME=/tmp/sw1-h.EibeVx  fresh empty STORE=/tmp/sw1-s.8gUVgZ  fresh CLONE=/tmp/sw1-c.3pRGpA (pushed branch, not the working tree)
+AUTH LINE (only thing in fresh HOME gitconfig):
+  url.http://local_proxy@127.0.0.1:41729/git/.insteadof https://github.com/
+  -> HTTPS->proxy, NOT ssh.
+cold HEAD: e40c6d43a5a4ebc1ac376967433e55762df2b6b9  (expect e40c6d4...)
+--- frozen install (empty store) ---
+frozen install exit: 0
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 1m 20.1s using pnpm v10.33.0
+cold @platform/contracts:
+0.9.6
+--- cold run-gates.sh ---
+cold run-gates exit: 0
+--- cold offer-service supply-endpoint suite ---
+      Tests  13 passed (13)
+   Duration  652ms (transform 167ms, setup 0ms, collect 438ms, tests 80ms, environment 0ms, prepare 175ms)
+ALL GATES GREEN (positives passed; every negative fixture failed as required)
+############ END ############

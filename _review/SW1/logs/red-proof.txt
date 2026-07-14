@@ -1,0 +1,25 @@
+
+ FAIL  test/supply-endpoint.test.ts [ test/supply-endpoint.test.ts ]
+Error: Cannot find module '../src/supply-endpoint.js' imported from '/home/user/boutik-plus/services/offer-service/test/supply-endpoint.test.ts'
+ ❯ test/supply-endpoint.test.ts:6:1
+      4| import { buildSupplyProjection } from '../src/projection.js';
+      5| import { OfferBook } from '../src/offer.js';
+      6| import {
+       | ^
+      7|   FOUNDER_001_PRODUCT_VERSION_ID,
+      8|   SupplyLeakError,
+
+Caused by: Error: Failed to load url ../src/supply-endpoint.js (resolved id: ../src/supply-endpoint.js) in /home/user/boutik-plus/services/offer-service/test/supply-endpoint.test.ts. Does the file exist?
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@7.3.6_@types+node@22.20.1_lightningcss@1.32.0_terser@5.49.0_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  07:00:58
+   Duration  7.80s (transform 2.16s, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 148ms)
+
+undefined
+/home/user/boutik-plus/services/offer-service:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run test/supply-endpoint.test.ts

@@ -1,0 +1,4 @@
+ services/offer-service/src/index.ts                |  23 ++-
+ services/offer-service/src/supply-endpoint.ts      | 188 ++++++++++++++++++
+ .../offer-service/test/supply-endpoint.test.ts     | 211 +++++++++++++++++++++
+ 3 files changed, 415 insertions(+), 7 deletions(-)
