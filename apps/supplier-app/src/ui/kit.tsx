@@ -606,7 +606,12 @@ export function CelebrationLayer({ visible, onDone }: { visible: boolean; onDone
 const H = interaction.hairline;
 
 const CHIP_STYLE: Record<ChipTone, { box: ViewStyle; fg: string }> = {
-  fact: { box: { backgroundColor: C.ink }, fg: C.onInk },
+  // DF-1 palette pass (founder: « trop de noir »): the confirmed-fact chip comes
+  // OFF ink onto the boutik warm accent (artisanAccent gold), ink text kept for
+  // arm's-length legibility. No invented hex — artisanAccent is an existing
+  // boutik token. Distinct from celebrate (primary green), pending (warm cream)
+  // and problem (danger red).
+  fact: { box: { backgroundColor: C.artisanAccent }, fg: C.ink },
   neutral: { box: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper }, fg: C.body },
   pending: { box: { backgroundColor: C.warningTint }, fg: C.warning },
   problem: { box: { backgroundColor: C.dangerTint }, fg: C.danger },
@@ -634,10 +639,15 @@ const styles = StyleSheet.create({
   boxInk: { borderWidth: H.strong, borderColor: C.ink, borderRadius: radius.box },
   overline: { ...textStyle(T.labelXS), color: C.muted },
   row: {
+    // DF-1 overlap fix: the row OWNS its height — `minHeight` + vertical padding
+    // so a title + meta + chip stack grows the row instead of overprinting the
+    // next row's title (« PRÊT » over « Sac en cuir de Kaya »). No FlatList pins
+    // getItemLayout, so an intrinsic height is safe.
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    height: LIST_ROW_HEIGHT,
+    minHeight: LIST_ROW_HEIGHT,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: H.thin,
     borderBottomColor: C.hairline,
@@ -656,9 +666,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
-  buttonInk: { backgroundColor: C.ink },
+  // DF-1: the primary CTA comes OFF ink onto the boutik warm supply-green
+  // (C.primary) — « moins de noir ». The money variant stays the same green
+  // (the primary action is one confident warm block); both use onPrimary text.
+  buttonInk: { backgroundColor: C.primary },
   buttonPrimary: { backgroundColor: C.primary },
-  buttonInkText: { ...textStyle(T.label), color: C.onInk },
+  buttonInkText: { ...textStyle(T.label), color: C.onPrimary },
   buttonDisabled: { opacity: interaction.disabledOpacity },
   buttonSecondary: { borderWidth: H.medium, borderColor: C.hairlineStrong, backgroundColor: C.paper, minHeight: 50 },
   buttonSecondaryDanger: { borderColor: C.danger },

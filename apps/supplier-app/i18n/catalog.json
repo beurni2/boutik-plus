@@ -66,6 +66,12 @@
     "screenClass": "status"
   },
   {
+    "key": "offer.part_too_high",
+    "fr": "Cette part ne vous laisse rien. Baissez-la un peu.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "ready.action",
     "fr": "Produit prêt",
     "register": "neutral",
