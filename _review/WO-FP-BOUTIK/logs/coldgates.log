@@ -1,7 +1,7 @@
 
 === typecheck (all workspace packages, incl. the Expo app shell) ===
 
-> boutik-plus@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo
+> boutik-plus@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo
 > turbo run typecheck
 
 
@@ -18,69 +18,69 @@ https://turborepo.dev/docs/telemetry
    • Remote caching disabled
 
 @boutik/flags-client:typecheck: cache miss, executing 7c365c0697ebe5f0
-@boutik/observability:typecheck: cache miss, executing 5ec25dce7c5655d3
 @boutik/commerce-core:typecheck: cache miss, executing b39c1201d55692ff
+@boutik/observability:typecheck: cache miss, executing 5ec25dce7c5655d3
+@boutik/supplier-app:typecheck: cache miss, executing c5c8307111684996
 @boutik/observability:build: cache miss, executing 083598f82b5717fc
-@boutik/supplier-app:typecheck: cache miss, executing 981a58b25d0d5476
-@boutik/commerce-core:typecheck: 
-@boutik/commerce-core:typecheck: > @boutik/commerce-core@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/commerce-core
-@boutik/commerce-core:typecheck: > tsc -p tsconfig.json --noEmit
-@boutik/commerce-core:typecheck: 
-@boutik/observability:build: 
-@boutik/observability:build: > @boutik/observability@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/observability
-@boutik/observability:build: > tsc -p tsconfig.json
-@boutik/observability:build: 
-@boutik/supplier-app:typecheck: 
-@boutik/supplier-app:typecheck: > @boutik/supplier-app@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/apps/supplier-app
-@boutik/supplier-app:typecheck: > tsc -p tsconfig.json --noEmit
-@boutik/supplier-app:typecheck: 
 @boutik/observability:typecheck: 
-@boutik/observability:typecheck: > @boutik/observability@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/observability
+@boutik/observability:typecheck: > @boutik/observability@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/observability
 @boutik/observability:typecheck: > tsc -p tsconfig.json --noEmit
 @boutik/observability:typecheck: 
+@boutik/commerce-core:typecheck: 
+@boutik/commerce-core:typecheck: > @boutik/commerce-core@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/commerce-core
+@boutik/commerce-core:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/commerce-core:typecheck: 
 @boutik/flags-client:typecheck: 
-@boutik/flags-client:typecheck: > @boutik/flags-client@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/flags-client
+@boutik/flags-client:typecheck: > @boutik/flags-client@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/flags-client
 @boutik/flags-client:typecheck: > tsc -p tsconfig.json --noEmit
 @boutik/flags-client:typecheck: 
-@boutik/offer-service:typecheck: cache miss, executing eb085cce1a9fb45c
+@boutik/supplier-app:typecheck: 
+@boutik/supplier-app:typecheck: > @boutik/supplier-app@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/apps/supplier-app
+@boutik/supplier-app:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-app:typecheck: 
+@boutik/observability:build: 
+@boutik/observability:build: > @boutik/observability@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/observability
+@boutik/observability:build: > tsc -p tsconfig.json
+@boutik/observability:build: 
 @boutik/fulfillment-service:typecheck: cache miss, executing e8b70ab0e177c3f7
-@boutik/inventory-service:typecheck: cache miss, executing b9dcf1eb2a30e76f
-@boutik/media-service:typecheck: cache miss, executing 67d9fd19387b379f
 @boutik/catalog-service:typecheck: cache miss, executing f3e9131dfec89e71
+@boutik/inventory-service:typecheck: cache miss, executing b9dcf1eb2a30e76f
+@boutik/offer-service:typecheck: cache miss, executing eb085cce1a9fb45c
+@boutik/media-service:typecheck: cache miss, executing 67d9fd19387b379f
 @boutik/supplier-service:typecheck: cache miss, executing 33940b070d7f3618
-@boutik/supplier-service:typecheck: 
-@boutik/supplier-service:typecheck: > @boutik/supplier-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/supplier-service
-@boutik/supplier-service:typecheck: > tsc -p tsconfig.json --noEmit
-@boutik/supplier-service:typecheck: 
-@boutik/catalog-service:typecheck: 
-@boutik/catalog-service:typecheck: > @boutik/catalog-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/catalog-service
-@boutik/catalog-service:typecheck: > tsc -p tsconfig.typecheck.json
-@boutik/catalog-service:typecheck: 
-@boutik/inventory-service:typecheck: 
-@boutik/inventory-service:typecheck: > @boutik/inventory-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:typecheck: > tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json
-@boutik/inventory-service:typecheck: 
-@boutik/media-service:typecheck: 
-@boutik/media-service:typecheck: > @boutik/media-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/media-service
-@boutik/media-service:typecheck: > tsc -p tsconfig.json --noEmit
-@boutik/media-service:typecheck: 
-@boutik/fulfillment-service:typecheck: 
-@boutik/fulfillment-service:typecheck: > @boutik/fulfillment-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
-@boutik/fulfillment-service:typecheck: > tsc -p tsconfig.json --noEmit
-@boutik/fulfillment-service:typecheck: 
 @boutik/offer-service:typecheck: 
-@boutik/offer-service:typecheck: > @boutik/offer-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/offer-service
+@boutik/offer-service:typecheck: > @boutik/offer-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/offer-service
 @boutik/offer-service:typecheck: > tsc -p tsconfig.json --noEmit
 @boutik/offer-service:typecheck: 
+@boutik/fulfillment-service:typecheck: 
+@boutik/fulfillment-service:typecheck: > @boutik/fulfillment-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
+@boutik/fulfillment-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/fulfillment-service:typecheck: 
+@boutik/inventory-service:typecheck: 
+@boutik/inventory-service:typecheck: > @boutik/inventory-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:typecheck: > tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json
+@boutik/inventory-service:typecheck: 
+@boutik/catalog-service:typecheck: 
+@boutik/catalog-service:typecheck: > @boutik/catalog-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/catalog-service
+@boutik/catalog-service:typecheck: > tsc -p tsconfig.typecheck.json
+@boutik/catalog-service:typecheck: 
+@boutik/supplier-service:typecheck: 
+@boutik/supplier-service:typecheck: > @boutik/supplier-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/supplier-service
+@boutik/supplier-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-service:typecheck: 
+@boutik/media-service:typecheck: 
+@boutik/media-service:typecheck: > @boutik/media-service@0.0.1 typecheck /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/media-service
+@boutik/media-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/media-service:typecheck: 
 
  Tasks:    11 successful, 11 total
 Cached:    0 cached, 11 total
-  Time:    7.849s 
+  Time:    8.159s 
 (exit code: 0)
 
 === tests (money gate, correlation hello-world, flags, service health, app catalog) ===
 
-> boutik-plus@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo
+> boutik-plus@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo
 > turbo run test
 
 • turbo 2.10.4
@@ -91,325 +91,325 @@ Cached:    0 cached, 11 total
 
 @boutik/observability:build: cache hit, replaying logs 083598f82b5717fc
 @boutik/observability:build: 
-@boutik/observability:build: > @boutik/observability@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/observability
+@boutik/observability:build: > @boutik/observability@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/observability
 @boutik/observability:build: > tsc -p tsconfig.json
 @boutik/observability:build: 
-@boutik/flags-client:build: cache miss, executing 2cf3fc78c9b0d991
 @boutik/commerce-core:build: cache miss, executing 410cd8e271427798
-@boutik/inventory-service:build: cache miss, executing cef0d241e71a8e09
-@boutik/observability:test: cache miss, executing 6e617be8b2288cee
-@boutik/offer-service:build: cache miss, executing 1e368904cd44560a
+@boutik/flags-client:build: cache miss, executing 2cf3fc78c9b0d991
 @boutik/fulfillment-service:build: cache miss, executing 49c2b37d0c52444c
-@boutik/supplier-service:build: cache miss, executing 7224dd99d58bfc79
-@boutik/media-service:build: cache miss, executing e865597d31bd2b2f
+@boutik/offer-service:build: cache miss, executing 1e368904cd44560a
 @boutik/catalog-service:build: cache miss, executing c0bd8ddf63ca1a91
-@boutik/supplier-app:test: cache miss, executing b62208bca91d272c
-@boutik/fulfillment-service:build: 
-@boutik/fulfillment-service:build: > @boutik/fulfillment-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
-@boutik/fulfillment-service:build: > tsc -p tsconfig.json
-@boutik/fulfillment-service:build: 
-@boutik/offer-service:build: 
-@boutik/offer-service:build: > @boutik/offer-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/offer-service
-@boutik/offer-service:build: > tsc -p tsconfig.json
-@boutik/offer-service:build: 
-@boutik/observability:test: 
-@boutik/observability:test: > @boutik/observability@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/observability
-@boutik/observability:test: > vitest run
-@boutik/observability:test: 
-@boutik/inventory-service:build: 
-@boutik/inventory-service:build: > @boutik/inventory-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:build: > tsc -p tsconfig.json
-@boutik/inventory-service:build: 
-@boutik/commerce-core:build: 
-@boutik/commerce-core:build: > @boutik/commerce-core@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/commerce-core
-@boutik/commerce-core:build: > tsc -p tsconfig.json
-@boutik/commerce-core:build: 
-@boutik/supplier-service:build: 
-@boutik/supplier-service:build: > @boutik/supplier-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/supplier-service
-@boutik/supplier-service:build: > tsc -p tsconfig.json
-@boutik/supplier-service:build: 
-@boutik/catalog-service:build: 
-@boutik/catalog-service:build: > @boutik/catalog-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/catalog-service
-@boutik/catalog-service:build: > tsc -p tsconfig.json
-@boutik/catalog-service:build: 
-@boutik/flags-client:build: 
-@boutik/flags-client:build: > @boutik/flags-client@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/flags-client
-@boutik/flags-client:build: > tsc -p tsconfig.json
-@boutik/flags-client:build: 
-@boutik/supplier-app:test: 
-@boutik/supplier-app:test: > @boutik/supplier-app@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/apps/supplier-app
-@boutik/supplier-app:test: > vitest run
-@boutik/supplier-app:test: 
+@boutik/supplier-service:build: cache miss, executing 7224dd99d58bfc79
+@boutik/inventory-service:build: cache miss, executing cef0d241e71a8e09
+@boutik/media-service:build: cache miss, executing e865597d31bd2b2f
+@boutik/observability:test: cache miss, executing 6e617be8b2288cee
+@boutik/supplier-app:test: cache miss, executing 70de7d9c6c62b241
 @boutik/media-service:build: 
-@boutik/media-service:build: > @boutik/media-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/media-service
+@boutik/media-service:build: > @boutik/media-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/media-service
 @boutik/media-service:build: > tsc -p tsconfig.json
 @boutik/media-service:build: 
+@boutik/flags-client:build: 
+@boutik/flags-client:build: > @boutik/flags-client@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/flags-client
+@boutik/flags-client:build: > tsc -p tsconfig.json
+@boutik/flags-client:build: 
+@boutik/observability:test: 
+@boutik/observability:test: > @boutik/observability@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/observability
+@boutik/observability:test: > vitest run
+@boutik/observability:test: 
+@boutik/fulfillment-service:build: 
+@boutik/fulfillment-service:build: > @boutik/fulfillment-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
+@boutik/fulfillment-service:build: > tsc -p tsconfig.json
+@boutik/fulfillment-service:build: 
+@boutik/commerce-core:build: 
+@boutik/commerce-core:build: > @boutik/commerce-core@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/commerce-core
+@boutik/commerce-core:build: > tsc -p tsconfig.json
+@boutik/commerce-core:build: 
 @boutik/supplier-app:test: 
-@boutik/supplier-app:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/apps/supplier-app
+@boutik/supplier-app:test: > @boutik/supplier-app@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/apps/supplier-app
+@boutik/supplier-app:test: > vitest run
+@boutik/supplier-app:test: 
+@boutik/supplier-service:build: 
+@boutik/supplier-service:build: > @boutik/supplier-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/supplier-service
+@boutik/supplier-service:build: > tsc -p tsconfig.json
+@boutik/supplier-service:build: 
+@boutik/offer-service:build: 
+@boutik/offer-service:build: > @boutik/offer-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/offer-service
+@boutik/offer-service:build: > tsc -p tsconfig.json
+@boutik/offer-service:build: 
+@boutik/catalog-service:build: 
+@boutik/catalog-service:build: > @boutik/catalog-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/catalog-service
+@boutik/catalog-service:build: > tsc -p tsconfig.json
+@boutik/catalog-service:build: 
+@boutik/inventory-service:build: 
+@boutik/inventory-service:build: > @boutik/inventory-service@0.0.1 build /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:build: > tsc -p tsconfig.json
+@boutik/inventory-service:build: 
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/apps/supplier-app
 @boutik/supplier-app:test: 
 @boutik/observability:test: 
-@boutik/observability:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/observability
+@boutik/observability:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/observability
 @boutik/observability:test: 
-@boutik/supplier-app:test:  ✓ test/hostile-corpus.test.ts (16 tests) 41ms
-@boutik/observability:test:  ✓ test/correlation.test.ts (3 tests) 47ms
-@boutik/supplier-app:test:  ✓ test/offline-queue.test.ts (8 tests) 123ms
+@boutik/flags-client:test: cache miss, executing 75e810f529b9cbf1
+@boutik/observability:test:  ✓ test/correlation.test.ts (3 tests) 38ms
 @boutik/observability:test: 
 @boutik/observability:test:  Test Files  1 passed (1)
 @boutik/observability:test:       Tests  3 passed (3)
-@boutik/observability:test:    Start at  20:50:14
-@boutik/observability:test:    Duration  2.17s (transform 248ms, setup 0ms, collect 243ms, tests 47ms, environment 0ms, prepare 495ms)
+@boutik/observability:test:    Start at  21:05:55
+@boutik/observability:test:    Duration  1.83s (transform 371ms, setup 0ms, collect 294ms, tests 38ms, environment 5ms, prepare 498ms)
 @boutik/observability:test: 
-@boutik/supplier-app:test:  ✓ test/capture-incident.test.ts (15 tests) 152ms
-@boutik/commerce-core:test: cache miss, executing 860d7dc810fffea1
-@boutik/flags-client:test: cache miss, executing 75e810f529b9cbf1
-@boutik/supplier-app:test:  ✓ test/ui-studio.test.ts (18 tests) 66ms
-@boutik/supplier-service:test: cache miss, executing 54fbeed77e34d34f
-@boutik/supplier-app:test:  ✓ test/ui-kit.test.ts (11 tests) 51ms
-@boutik/supplier-app:test:  ✓ test/exif-strip.test.ts (8 tests) 56ms
-@boutik/inventory-service:test: cache miss, executing 66836a6c588a2ba3
+@boutik/supplier-app:test:  ✓ test/hostile-corpus.test.ts (16 tests) 66ms
+@boutik/supplier-app:test:  ✓ test/offline-queue.test.ts (8 tests) 62ms
+@boutik/supplier-app:test:  ✓ test/capture-incident.test.ts (15 tests) 105ms
 @boutik/media-service:test: cache miss, executing bc3e4db0803c019a
-@boutik/commerce-core:test: 
-@boutik/commerce-core:test: > @boutik/commerce-core@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/commerce-core
-@boutik/commerce-core:test: > vitest run
-@boutik/commerce-core:test: 
-@boutik/offer-service:test: cache miss, executing 1118d4312f5da5a9
-@boutik/catalog-service:test: cache miss, executing a9cf483516d146de
-@boutik/fulfillment-service:test: cache miss, executing 4f47868f99ff6fe3
-@boutik/supplier-service:test: 
-@boutik/supplier-service:test: > @boutik/supplier-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/supplier-service
-@boutik/supplier-service:test: > vitest run
-@boutik/supplier-service:test: 
+@boutik/commerce-core:test: cache miss, executing 860d7dc810fffea1
 @boutik/flags-client:test: 
-@boutik/flags-client:test: > @boutik/flags-client@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/flags-client
+@boutik/flags-client:test: > @boutik/flags-client@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/flags-client
 @boutik/flags-client:test: > vitest run
 @boutik/flags-client:test: 
-@boutik/supplier-app:test:  ✓ test/fp-font-pipeline.test.ts (9 tests) 74ms
-@boutik/supplier-app:test:  ✓ test/font-embedding.test.ts (6 tests) 22ms
-@boutik/supplier-app:test:  ✓ test/money-render.test.ts (5 tests) 44ms
+@boutik/supplier-app:test:  ✓ test/ui-studio.test.ts (18 tests) 43ms
+@boutik/supplier-app:test:  ✓ test/ui-kit.test.ts (12 tests) 50ms
+@boutik/supplier-app:test:  ✓ test/exif-strip.test.ts (8 tests) 70ms
+@boutik/offer-service:test: cache miss, executing 1118d4312f5da5a9
 @boutik/media-service:test: 
-@boutik/media-service:test: > @boutik/media-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/media-service
+@boutik/media-service:test: > @boutik/media-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/media-service
 @boutik/media-service:test: > vitest run
 @boutik/media-service:test: 
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 pretest /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:test: > pnpm bundle:worker
-@boutik/inventory-service:test: 
+@boutik/fulfillment-service:test: cache miss, executing 4f47868f99ff6fe3
+@boutik/flags-client:test: 
+@boutik/flags-client:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/flags-client
+@boutik/flags-client:test: 
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test: > @boutik/commerce-core@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/commerce-core
+@boutik/commerce-core:test: > vitest run
+@boutik/commerce-core:test: 
+@boutik/supplier-service:test: cache miss, executing 54fbeed77e34d34f
+@boutik/inventory-service:test: cache miss, executing 66836a6c588a2ba3
+@boutik/supplier-app:test:  ✓ test/font-embedding.test.ts (6 tests) 38ms
+@boutik/catalog-service:test: cache miss, executing a9cf483516d146de
 @boutik/offer-service:test: 
-@boutik/offer-service:test: > @boutik/offer-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/offer-service
+@boutik/offer-service:test: > @boutik/offer-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/offer-service
 @boutik/offer-service:test: > vitest run
 @boutik/offer-service:test: 
-@boutik/supplier-app:test:  ✓ test/token-docket.test.ts (5 tests) 21ms
+@boutik/supplier-app:test:  ✓ test/money-render.test.ts (5 tests) 75ms
+@boutik/supplier-app:test:  ✓ test/fp-font-pipeline.test.ts (9 tests) 175ms
 @boutik/media-service:test: 
-@boutik/media-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/media-service
+@boutik/media-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/media-service
 @boutik/media-service:test: 
-@boutik/commerce-core:test: 
-@boutik/commerce-core:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/commerce-core
-@boutik/commerce-core:test: 
-@boutik/catalog-service:test: 
-@boutik/catalog-service:test: > @boutik/catalog-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/catalog-service
-@boutik/catalog-service:test: > vitest run
-@boutik/catalog-service:test: 
 @boutik/supplier-service:test: 
-@boutik/supplier-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/supplier-service
+@boutik/supplier-service:test: > @boutik/supplier-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/supplier-service
+@boutik/supplier-service:test: > vitest run
 @boutik/supplier-service:test: 
-@boutik/fulfillment-service:test: 
-@boutik/fulfillment-service:test: > @boutik/fulfillment-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
-@boutik/fulfillment-service:test: > vitest run
-@boutik/fulfillment-service:test: 
-@boutik/flags-client:test: 
-@boutik/flags-client:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/packages/flags-client
-@boutik/flags-client:test: 
-@boutik/supplier-app:test:  ✓ test/settlement-read-model.test.ts (7 tests) 23ms
-@boutik/supplier-app:test:  ✓ test/df1-device-feedback.test.ts (9 tests) 50ms
-@boutik/supplier-app:test:  ✓ test/grand-teint.test.ts (7 tests) 53ms
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 bundle:worker /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:test: > esbuild worker/stock-reservation-do.ts --bundle --format=esm --outfile=dist-worker/stock-worker.mjs --platform=neutral --conditions=import
-@boutik/inventory-service:test: 
-@boutik/offer-service:test: 
-@boutik/offer-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/offer-service
-@boutik/offer-service:test: 
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test:   dist-worker/stock-worker.mjs  3.7kb
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test: ⚡ Done in 6ms
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:test: > vitest run
-@boutik/inventory-service:test: 
-@boutik/media-service:test:  ✓ test/premium-frame.test.ts (4 tests) 15ms
-@boutik/flags-client:test:  ✓ test/flags.test.ts (3 tests) 19ms
-@boutik/media-service:test: stdout | test/health.test.ts > media-service > serves /health and names itself
-@boutik/media-service:test: {"ts":"2026-07-14T20:50:21.713Z","level":"info","correlation_id":"20ca7638-1e29-4de3-88bb-91c932087f30","service":"media-service","msg":"health check","path":"/health"}
-@boutik/media-service:test: 
-@boutik/media-service:test: stdout | test/health.test.ts > media-service > unknown routes are 404 — no features at this slice
-@boutik/media-service:test: {"ts":"2026-07-14T20:50:21.738Z","level":"warn","correlation_id":"b461024f-6d45-4711-a150-c56bd2ddb2c5","service":"media-service","msg":"route not found","path":"/anything"}
-@boutik/media-service:test: 
-@boutik/supplier-service:test:  ✓ test/onboarding.test.ts (4 tests) 66ms
-@boutik/supplier-app:test:  ✓ test/motion-easing.test.ts (6 tests) 18ms
-@boutik/media-service:test:  ✓ test/health.test.ts (2 tests) 59ms
+@boutik/flags-client:test:  ✓ test/flags.test.ts (3 tests) 24ms
 @boutik/flags-client:test: 
 @boutik/flags-client:test:  Test Files  1 passed (1)
 @boutik/flags-client:test:       Tests  3 passed (3)
-@boutik/flags-client:test:    Start at  20:50:20
-@boutik/flags-client:test:    Duration  1.71s (transform 171ms, setup 0ms, collect 146ms, tests 19ms, environment 0ms, prepare 377ms)
+@boutik/flags-client:test:    Start at  21:05:59
+@boutik/flags-client:test:    Duration  1.30s (transform 197ms, setup 0ms, collect 199ms, tests 24ms, environment 7ms, prepare 254ms)
 @boutik/flags-client:test: 
-@boutik/commerce-core:test:  ✓ test/money-gate.test.ts (6 tests) 22ms
+@boutik/supplier-app:test:  ✓ test/token-docket.test.ts (5 tests) 30ms
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test: > @boutik/fulfillment-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
+@boutik/fulfillment-service:test: > vitest run
+@boutik/fulfillment-service:test: 
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: > @boutik/catalog-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/catalog-service
+@boutik/catalog-service:test: > vitest run
+@boutik/catalog-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 pretest /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:test: > pnpm bundle:worker
+@boutik/inventory-service:test: 
+@boutik/supplier-app:test:  ✓ test/settlement-read-model.test.ts (7 tests) 36ms
+@boutik/commerce-core:test: 
+@boutik/commerce-core:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/packages/commerce-core
+@boutik/commerce-core:test: 
+@boutik/offer-service:test: 
+@boutik/offer-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/offer-service
+@boutik/offer-service:test: 
+@boutik/supplier-app:test:  ✓ test/df1-device-feedback.test.ts (9 tests) 38ms
+@boutik/media-service:test:  ✓ test/premium-frame.test.ts (4 tests) 25ms
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/supplier-service
+@boutik/supplier-service:test: 
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > serves /health and names itself
+@boutik/media-service:test: {"ts":"2026-07-14T21:06:02.031Z","level":"info","correlation_id":"edc1fa28-c874-4e25-924d-c2844a693d69","service":"media-service","msg":"health check","path":"/health"}
+@boutik/media-service:test: 
+@boutik/media-service:test: stdout | test/health.test.ts > media-service > unknown routes are 404 — no features at this slice
+@boutik/media-service:test: {"ts":"2026-07-14T21:06:02.054Z","level":"warn","correlation_id":"7e65048f-cb3c-46ff-a75e-51a86e2e58fa","service":"media-service","msg":"route not found","path":"/anything"}
+@boutik/media-service:test: 
+@boutik/media-service:test:  ✓ test/health.test.ts (2 tests) 66ms
+@boutik/supplier-app:test:  ✓ test/grand-teint.test.ts (7 tests) 29ms
 @boutik/media-service:test: 
 @boutik/media-service:test:  Test Files  2 passed (2)
 @boutik/media-service:test:       Tests  6 passed (6)
-@boutik/media-service:test:    Start at  20:50:19
-@boutik/media-service:test:    Duration  2.10s (transform 328ms, setup 0ms, collect 1.18s, tests 73ms, environment 0ms, prepare 756ms)
+@boutik/media-service:test:    Start at  21:06:00
+@boutik/media-service:test:    Duration  1.82s (transform 239ms, setup 0ms, collect 1.07s, tests 91ms, environment 0ms, prepare 482ms)
 @boutik/media-service:test: 
-@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > serves /health and names itself
-@boutik/supplier-service:test: {"ts":"2026-07-14T20:50:21.904Z","level":"info","correlation_id":"75f7524d-5377-4b29-82bb-3660477fe2df","service":"supplier-service","msg":"health check","path":"/health"}
-@boutik/supplier-service:test: 
-@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > unknown routes are 404 — no features at this slice
-@boutik/supplier-service:test: {"ts":"2026-07-14T20:50:21.952Z","level":"warn","correlation_id":"e99fe8f5-dcd5-470c-8be6-8e7ffeadc57c","service":"supplier-service","msg":"route not found","path":"/anything"}
-@boutik/supplier-service:test: 
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/catalog-service
+@boutik/catalog-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 bundle:worker /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:test: > esbuild worker/stock-reservation-do.ts --bundle --format=esm --outfile=dist-worker/stock-worker.mjs --platform=neutral --conditions=import
+@boutik/inventory-service:test: 
+@boutik/fulfillment-service:test: 
+@boutik/fulfillment-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
+@boutik/fulfillment-service:test: 
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:   dist-worker/stock-worker.mjs  3.7kb
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: ⚡ Done in 3ms
+@boutik/supplier-app:test:  ✓ test/motion-easing.test.ts (6 tests) 36ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: > @boutik/inventory-service@0.0.1 test /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:test: > vitest run
+@boutik/inventory-service:test: 
+@boutik/supplier-app:test:  ✓ test/trust-statement.test.ts (4 tests) 22ms
+@boutik/offer-service:test:  ✓ test/offer.test.ts (4 tests) 44ms
+@boutik/commerce-core:test:  ✓ test/money-gate.test.ts (6 tests) 21ms
 @boutik/commerce-core:test: 
 @boutik/commerce-core:test:  Test Files  1 passed (1)
 @boutik/commerce-core:test:       Tests  6 passed (6)
-@boutik/commerce-core:test:    Start at  20:50:19
-@boutik/commerce-core:test:    Duration  2.12s (transform 237ms, setup 0ms, collect 585ms, tests 22ms, environment 0ms, prepare 409ms)
+@boutik/commerce-core:test:    Start at  21:06:01
+@boutik/commerce-core:test:    Duration  2.10s (transform 284ms, setup 0ms, collect 595ms, tests 21ms, environment 0ms, prepare 411ms)
 @boutik/commerce-core:test: 
-@boutik/catalog-service:test: 
-@boutik/catalog-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/catalog-service
-@boutik/catalog-service:test: 
-@boutik/supplier-service:test:  ✓ test/health.test.ts (2 tests) 80ms
-@boutik/supplier-service:test: 
-@boutik/supplier-service:test:  Test Files  2 passed (2)
-@boutik/supplier-service:test:       Tests  6 passed (6)
-@boutik/supplier-service:test:    Start at  20:50:19
-@boutik/supplier-service:test:    Duration  2.05s (transform 267ms, setup 0ms, collect 1.19s, tests 147ms, environment 0ms, prepare 535ms)
-@boutik/supplier-service:test: 
-@boutik/supplier-app:test:  ✓ test/trust-statement.test.ts (4 tests) 17ms
-@boutik/fulfillment-service:test: 
-@boutik/fulfillment-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
-@boutik/fulfillment-service:test: 
-@boutik/supplier-app:test:  ✓ test/demo-store.test.ts (6 tests) 53ms
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/inventory-service
-@boutik/inventory-service:test: 
 @boutik/offer-service:test: stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
 @boutik/offer-service:test: CERTIFIED — supply-projection — 8/8 §3 behaviors
 @boutik/offer-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
 @boutik/offer-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
-@boutik/offer-service:test:   ✓ delays_events: requested 40ms, observed 52ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/offer-service:test:   ✓ delays_events: requested 40ms, observed 56ms before first delivery (tolerance 2ms for clock quantization)
 @boutik/offer-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
 @boutik/offer-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
 @boutik/offer-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
 @boutik/offer-service:test:   ✓ rejects_invalid_state_transitions: expired -> active: accepted=false (an expired offer version never reactivates — a change is a new version (B+I-04))
 @boutik/offer-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
 @boutik/offer-service:test: 
-@boutik/offer-service:test:  ✓ test/shop-mock-certification.test.ts (2 tests) 142ms
-@boutik/offer-service:test:  ✓ test/offer.test.ts (4 tests) 32ms
+@boutik/offer-service:test:  ✓ test/shop-mock-certification.test.ts (2 tests) 123ms
 @boutik/offer-service:test: stdout | test/supply-endpoint.test.ts > SW-1 · the health door is preserved (the endpoint composes onto it) > /health still 200 and unknown routes still 404 (regression on the existing contract)
-@boutik/offer-service:test: {"ts":"2026-07-14T20:50:23.310Z","level":"info","correlation_id":"2f10320e-6f60-4d4e-b2f8-4b31da0271ac","service":"offer-service","msg":"health check","path":"/health"}
-@boutik/offer-service:test: {"ts":"2026-07-14T20:50:23.315Z","level":"warn","correlation_id":"0b6e4e20-d437-44db-a5e1-d28627868d51","service":"offer-service","msg":"route not found","path":"/nope"}
+@boutik/offer-service:test: {"ts":"2026-07-14T21:06:03.719Z","level":"info","correlation_id":"35cab0ec-0b3d-4209-9ae5-ec1db4988957","service":"offer-service","msg":"health check","path":"/health"}
+@boutik/offer-service:test: {"ts":"2026-07-14T21:06:03.720Z","level":"warn","correlation_id":"030ab5b5-ab71-4263-9f7b-ddeadeed8d3a","service":"offer-service","msg":"route not found","path":"/nope"}
 @boutik/offer-service:test: 
-@boutik/offer-service:test:  ✓ test/supply-endpoint.test.ts (12 tests) 82ms
-@boutik/supplier-app:test:  ✓ test/reencode-order.test.ts (4 tests) 20ms
-@boutik/supplier-app:test:  ✓ test/no-self-moderation.test.ts (2 tests) 23ms
-@boutik/catalog-service:test:  ✓ test/product.test.ts (3 tests) 27ms
-@boutik/catalog-service:test:  ✓ test/moderation.test.ts (8 tests) 54ms
-@boutik/catalog-service:test:  ✓ test/create-idempotency.test.ts (3 tests) 51ms
-@boutik/supplier-app:test:  ✓ test/journey-spine.test.ts (4 tests) 21ms
-@boutik/fulfillment-service:test:  ✓ test/fulfillment.test.ts (6 tests) 95ms
+@boutik/offer-service:test:  ✓ test/supply-endpoint.test.ts (12 tests) 134ms
+@boutik/supplier-service:test:  ✓ test/onboarding.test.ts (4 tests) 48ms
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > serves /health and names itself
+@boutik/supplier-service:test: {"ts":"2026-07-14T21:06:03.988Z","level":"info","correlation_id":"c96fbf11-eb0c-4740-a365-0370144c84ff","service":"supplier-service","msg":"health check","path":"/health"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test: stdout | test/health.test.ts > supplier-service > unknown routes are 404 — no features at this slice
+@boutik/supplier-service:test: {"ts":"2026-07-14T21:06:04.035Z","level":"warn","correlation_id":"18dfa558-d62d-41cd-b35a-7bdb839b9fca","service":"supplier-service","msg":"route not found","path":"/anything"}
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  ✓ test/health.test.ts (2 tests) 76ms
+@boutik/supplier-service:test: 
+@boutik/supplier-service:test:  Test Files  2 passed (2)
+@boutik/supplier-service:test:       Tests  6 passed (6)
+@boutik/supplier-service:test:    Start at  21:06:01
+@boutik/supplier-service:test:    Duration  2.29s (transform 366ms, setup 0ms, collect 1.09s, tests 124ms, environment 0ms, prepare 832ms)
+@boutik/supplier-service:test: 
+@boutik/supplier-app:test:  ✓ test/demo-store.test.ts (6 tests) 31ms
+@boutik/catalog-service:test:  ✓ test/moderation.test.ts (8 tests) 45ms
+@boutik/supplier-app:test:  ✓ test/reencode-order.test.ts (4 tests) 4ms
+@boutik/catalog-service:test:  ✓ test/product.test.ts (3 tests) 54ms
+@boutik/supplier-app:test:  ✓ test/no-self-moderation.test.ts (2 tests) 39ms
+@boutik/catalog-service:test:  ✓ test/create-idempotency.test.ts (3 tests) 46ms
 @boutik/fulfillment-service:test: stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
 @boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
 @boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
 @boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
-@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 46ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 45ms before first delivery (tolerance 2ms for clock quantization)
 @boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
 @boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
 @boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
 @boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
 @boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
 @boutik/fulfillment-service:test: 
-@boutik/fulfillment-service:test:  ✓ test/sera-mock-certification.test.ts (2 tests) 91ms
+@boutik/fulfillment-service:test:  ✓ test/sera-mock-certification.test.ts (2 tests) 74ms
+@boutik/fulfillment-service:test:  ✓ test/fulfillment.test.ts (6 tests) 77ms
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/inventory-service
+@boutik/inventory-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/fulfillment-failures.test.ts (24 tests) 118ms
+@boutik/offer-service:test:  ✓ test/projection.test.ts (3 tests) 33ms
 @boutik/offer-service:test: stdout | test/health.test.ts > offer-service > serves /health and names itself
-@boutik/offer-service:test: {"ts":"2026-07-14T20:50:24.529Z","level":"info","correlation_id":"477df4d6-b9de-47cd-97e6-487f45980f05","service":"offer-service","msg":"health check","path":"/health"}
+@boutik/offer-service:test: {"ts":"2026-07-14T21:06:05.221Z","level":"info","correlation_id":"b59f9ceb-2d95-4cd9-87f0-325f3f29d240","service":"offer-service","msg":"health check","path":"/health"}
 @boutik/offer-service:test: 
 @boutik/offer-service:test: stdout | test/health.test.ts > offer-service > unknown routes are 404 — no features at this slice
-@boutik/offer-service:test: {"ts":"2026-07-14T20:50:24.534Z","level":"warn","correlation_id":"fd36d2be-5c5c-4368-8231-72c620e9b34a","service":"offer-service","msg":"route not found","path":"/anything"}
+@boutik/offer-service:test: {"ts":"2026-07-14T21:06:05.249Z","level":"warn","correlation_id":"7c8f83d3-630d-4a28-a8bc-8f976a1141cf","service":"offer-service","msg":"route not found","path":"/anything"}
 @boutik/offer-service:test: 
-@boutik/offer-service:test:  ✓ test/health.test.ts (2 tests) 10ms
-@boutik/fulfillment-service:test:  ✓ test/fulfillment-failures.test.ts (24 tests) 111ms
-@boutik/inventory-service:test:  ✓ test/stock-core.test.ts (3 tests) 24ms
-@boutik/supplier-app:test:  ✓ test/catalog.test.ts (4 tests) 37ms
-@boutik/offer-service:test:  ✓ test/projection.test.ts (3 tests) 15ms
+@boutik/offer-service:test:  ✓ test/health.test.ts (2 tests) 42ms
 @boutik/offer-service:test: 
 @boutik/offer-service:test:  Test Files  5 passed (5)
 @boutik/offer-service:test:       Tests  23 passed (23)
-@boutik/offer-service:test:    Start at  20:50:21
-@boutik/offer-service:test:    Duration  3.73s (transform 550ms, setup 0ms, collect 3.20s, tests 281ms, environment 1ms, prepare 1.68s)
+@boutik/offer-service:test:    Start at  21:06:01
+@boutik/offer-service:test:    Duration  3.99s (transform 773ms, setup 0ms, collect 3.31s, tests 375ms, environment 1ms, prepare 1.60s)
 @boutik/offer-service:test: 
-@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > serves /health and names itself
-@boutik/inventory-service:test: {"ts":"2026-07-14T20:50:24.992Z","level":"info","correlation_id":"f7a73107-c408-4ca5-ab4a-1e824960d323","service":"inventory-service","msg":"health check","path":"/health"}
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > unknown routes are 404 — no features at this slice
-@boutik/inventory-service:test: {"ts":"2026-07-14T20:50:25.023Z","level":"warn","correlation_id":"a799e7e2-089e-4a46-a2d8-9dcb5623bf48","service":"inventory-service","msg":"route not found","path":"/anything"}
-@boutik/inventory-service:test: 
-@boutik/inventory-service:test:  ✓ test/health.test.ts (2 tests) 60ms
-@boutik/supplier-app:test:  ✓ test/preview-banner.test.ts (2 tests) 3ms
-@boutik/supplier-app:test:  ✓ test/runtime-imports.test.ts (2 tests) 14ms
-@boutik/supplier-app:test: 
-@boutik/supplier-app:test:  Test Files  22 passed (22)
-@boutik/supplier-app:test:       Tests  158 passed (158)
-@boutik/supplier-app:test:    Start at  20:50:14
-@boutik/supplier-app:test:    Duration  11.10s (transform 1.31s, setup 0ms, collect 4.95s, tests 982ms, environment 4ms, prepare 6.87s)
-@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  ✓ test/journey-spine.test.ts (4 tests) 22ms
+@boutik/supplier-app:test:  ✓ test/catalog.test.ts (4 tests) 84ms
+@boutik/supplier-app:test:  ✓ test/preview-banner.test.ts (2 tests) 7ms
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > serves /health and names itself
+@boutik/catalog-service:test: {"ts":"2026-07-14T21:06:05.792Z","level":"info","correlation_id":"f0f692f8-6cae-43cf-8214-a395729a6fc3","service":"catalog-service","msg":"health check","path":"/health"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > unknown routes are 404 — no features at this slice
+@boutik/catalog-service:test: {"ts":"2026-07-14T21:06:05.798Z","level":"warn","correlation_id":"6a2a3834-0623-4aed-89c2-4b4477a1784c","service":"catalog-service","msg":"route not found","path":"/anything"}
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  ✓ test/health.test.ts (2 tests) 11ms
+@boutik/catalog-service:test: 
+@boutik/catalog-service:test:  Test Files  4 passed (4)
+@boutik/catalog-service:test:       Tests  16 passed (16)
+@boutik/catalog-service:test:    Start at  21:06:02
+@boutik/catalog-service:test:    Duration  3.53s (transform 431ms, setup 0ms, collect 2.45s, tests 156ms, environment 1ms, prepare 1.33s)
+@boutik/catalog-service:test: 
 @boutik/fulfillment-service:test: stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
 @boutik/fulfillment-service:test: CERTIFIED — readiness — 8/8 §3 behaviors
 @boutik/fulfillment-service:test:   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
 @boutik/fulfillment-service:test:   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
-@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+@boutik/fulfillment-service:test:   ✓ delays_events: requested 40ms, observed 55ms before first delivery (tolerance 2ms for clock quantization)
 @boutik/fulfillment-service:test:   ✓ returns_stale_projections: fresh version 2, stale version 1
 @boutik/fulfillment-service:test:   ✓ simulates_timeouts: MockTimeoutError raised
 @boutik/fulfillment-service:test:   ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
 @boutik/fulfillment-service:test:   ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
 @boutik/fulfillment-service:test:   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
 @boutik/fulfillment-service:test: 
-@boutik/fulfillment-service:test:  ✓ test/refusal-mock-certification.test.ts (2 tests) 59ms
-@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > serves /health and names itself
-@boutik/catalog-service:test: {"ts":"2026-07-14T20:50:25.630Z","level":"info","correlation_id":"ec998ad3-93f3-4400-b2cc-e7700205aaba","service":"catalog-service","msg":"health check","path":"/health"}
-@boutik/catalog-service:test: 
-@boutik/catalog-service:test: stdout | test/health.test.ts > catalog-service > unknown routes are 404 — no features at this slice
-@boutik/catalog-service:test: {"ts":"2026-07-14T20:50:25.646Z","level":"warn","correlation_id":"2a2b6ddc-3468-4773-8c9b-e909fa834629","service":"catalog-service","msg":"route not found","path":"/anything"}
-@boutik/catalog-service:test: 
-@boutik/catalog-service:test:  ✓ test/health.test.ts (2 tests) 19ms
-@boutik/catalog-service:test: 
-@boutik/catalog-service:test:  Test Files  4 passed (4)
-@boutik/catalog-service:test:       Tests  16 passed (16)
-@boutik/catalog-service:test:    Start at  20:50:21
-@boutik/catalog-service:test:    Duration  3.72s (transform 583ms, setup 0ms, collect 2.38s, tests 151ms, environment 1ms, prepare 1.45s)
-@boutik/catalog-service:test: 
+@boutik/fulfillment-service:test:  ✓ test/refusal-mock-certification.test.ts (2 tests) 103ms
 @boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > serves /health and names itself
-@boutik/fulfillment-service:test: {"ts":"2026-07-14T20:50:25.741Z","level":"info","correlation_id":"52e2c21d-a5d9-424e-8569-eca6633caefd","service":"fulfillment-service","msg":"health check","path":"/health"}
+@boutik/fulfillment-service:test: {"ts":"2026-07-14T21:06:06.310Z","level":"info","correlation_id":"44427d42-a44b-4238-a2c0-8dee66823fc2","service":"fulfillment-service","msg":"health check","path":"/health"}
 @boutik/fulfillment-service:test: 
 @boutik/fulfillment-service:test: stdout | test/health.test.ts > fulfillment-service > unknown routes are 404 — no features at this slice
-@boutik/fulfillment-service:test: {"ts":"2026-07-14T20:50:25.755Z","level":"warn","correlation_id":"fbcc946f-8d19-4d07-a767-28ccc9d9462a","service":"fulfillment-service","msg":"route not found","path":"/anything"}
+@boutik/fulfillment-service:test: {"ts":"2026-07-14T21:06:06.319Z","level":"warn","correlation_id":"c6f18ad8-bc46-4796-a855-5a4a7670e258","service":"fulfillment-service","msg":"route not found","path":"/anything"}
 @boutik/fulfillment-service:test: 
-@boutik/fulfillment-service:test:  ✓ test/health.test.ts (2 tests) 20ms
+@boutik/fulfillment-service:test:  ✓ test/health.test.ts (2 tests) 21ms
+@boutik/inventory-service:test:  ✓ test/stock-core.test.ts (3 tests) 7ms
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > serves /health and names itself
+@boutik/inventory-service:test: {"ts":"2026-07-14T21:06:06.339Z","level":"info","correlation_id":"fd33954b-9cc3-464c-b097-dac3f7cfd455","service":"inventory-service","msg":"health check","path":"/health"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test: stdout | test/health.test.ts > inventory-service > unknown routes are 404 — no features at this slice
+@boutik/inventory-service:test: {"ts":"2026-07-14T21:06:06.346Z","level":"warn","correlation_id":"ed18aa03-979a-477c-89bf-4db589cbebba","service":"inventory-service","msg":"route not found","path":"/anything"}
+@boutik/inventory-service:test: 
+@boutik/inventory-service:test:  ✓ test/health.test.ts (2 tests) 14ms
+@boutik/supplier-app:test:  ✓ test/runtime-imports.test.ts (2 tests) 6ms
 @boutik/fulfillment-service:test: 
 @boutik/fulfillment-service:test:  Test Files  5 passed (5)
 @boutik/fulfillment-service:test:       Tests  36 passed (36)
-@boutik/fulfillment-service:test:    Start at  20:50:22
-@boutik/fulfillment-service:test:    Duration  3.63s (transform 702ms, setup 0ms, collect 2.88s, tests 376ms, environment 25ms, prepare 1.52s)
+@boutik/fulfillment-service:test:    Start at  21:06:02
+@boutik/fulfillment-service:test:    Duration  3.71s (transform 566ms, setup 0ms, collect 2.76s, tests 393ms, environment 1ms, prepare 1.89s)
 @boutik/fulfillment-service:test: 
-@boutik/inventory-service:test:  ✓ test/stock-do.e2e.test.ts (3 tests) 920ms
-@boutik/inventory-service:test:    ✓ StockReservationDO on workerd > TWENTY CONCURRENT RESERVES on stock 1 → EXACTLY ONE winner, nineteen insufficient_stock, stock 0, never negative  822ms
+@boutik/supplier-app:test: 
+@boutik/supplier-app:test:  Test Files  22 passed (22)
+@boutik/supplier-app:test:       Tests  159 passed (159)
+@boutik/supplier-app:test:    Start at  21:05:54
+@boutik/supplier-app:test:    Duration  11.36s (transform 1.08s, setup 0ms, collect 5.09s, tests 1.07s, environment 4ms, prepare 7.22s)
+@boutik/supplier-app:test: 
+@boutik/inventory-service:test:  ✓ test/stock-do.e2e.test.ts (3 tests) 1226ms
+@boutik/inventory-service:test:    ✓ StockReservationDO on workerd > TWENTY CONCURRENT RESERVES on stock 1 → EXACTLY ONE winner, nineteen insufficient_stock, stock 0, never negative  1142ms
 @boutik/inventory-service:test: 
 @boutik/inventory-service:test:  Test Files  3 passed (3)
 @boutik/inventory-service:test:       Tests  8 passed (8)
-@boutik/inventory-service:test:    Start at  20:50:22
-@boutik/inventory-service:test:    Duration  3.81s (transform 735ms, setup 0ms, collect 2.60s, tests 1.00s, environment 8ms, prepare 1.15s)
+@boutik/inventory-service:test:    Start at  21:06:04
+@boutik/inventory-service:test:    Duration  3.06s (transform 465ms, setup 0ms, collect 1.33s, tests 1.25s, environment 1ms, prepare 706ms)
 @boutik/inventory-service:test: 
 
  Tasks:    19 successful, 19 total
 Cached:    1 cached, 19 total
-  Time:    15.141s 
+  Time:    15.492s 
 (exit code: 0)
 
 === consumption baseline — pinned computeWaterfall reproduces the §5.4 worked baseline ===
@@ -482,7 +482,7 @@ VIOLATION (caught, refused closed): scenario 'expired_challenge' → challenge_e
 === mock certification — all three in-repo mocks 8/8 via the pinned @platform/certification suite (must pass) ===
 
 === Séra pickup-consumer mock (readiness domain) ===
- RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
+ RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
 stdout | test/sera-mock-certification.test.ts > Séra pickup-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (first real consumer of the shared suite)
 CERTIFIED — readiness — 8/8 §3 behaviors
   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
@@ -493,19 +493,19 @@ CERTIFIED — readiness — 8/8 §3 behaviors
   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: sera-pickup-consumer: mid-sequence failure
   ✓ rejects_invalid_state_transitions: picked_up -> ready: accepted=false (a picked-up package never returns to ready — custody governs from pickup (SE-I05))
   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/3
- ✓ test/sera-mock-certification.test.ts (2 tests) 51ms
+ ✓ test/sera-mock-certification.test.ts (2 tests) 52ms
  Test Files  1 passed (1)
       Tests  2 passed (2)
-   Start at  20:50:29
-   Duration  482ms (transform 56ms, setup 0ms, collect 127ms, tests 51ms, environment 0ms, prepare 67ms)
+   Start at  21:06:10
+   Duration  437ms (transform 51ms, setup 0ms, collect 118ms, tests 52ms, environment 0ms, prepare 60ms)
 
 === Shop+ projection-consumer mock (supply-projection domain) ===
- RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/offer-service
+ RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/offer-service
 stdout | test/shop-mock-certification.test.ts > Shop+ projection-consumer mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED
 CERTIFIED — supply-projection — 8/8 §3 behaviors
   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
   ✓ delivers_out_of_order: clean delivery ordered: true; controlled delivery out of order: true
-  ✓ delays_events: requested 40ms, observed 40ms before first delivery (tolerance 2ms for clock quantization)
+  ✓ delays_events: requested 40ms, observed 41ms before first delivery (tolerance 2ms for clock quantization)
   ✓ returns_stale_projections: fresh version 2, stale version 1
   ✓ simulates_timeouts: MockTimeoutError raised
   ✓ simulates_partial_failures: clean sequence 3 events; partial delivered 1 then failed: shop-projection-consumer: mid-sequence failure
@@ -514,11 +514,11 @@ CERTIFIED — supply-projection — 8/8 §3 behaviors
  ✓ test/shop-mock-certification.test.ts (2 tests) 53ms
  Test Files  1 passed (1)
       Tests  2 passed (2)
-   Start at  20:50:30
-   Duration  475ms (transform 62ms, setup 0ms, collect 137ms, tests 53ms, environment 0ms, prepare 62ms)
+   Start at  21:06:12
+   Duration  459ms (transform 58ms, setup 0ms, collect 125ms, tests 53ms, environment 0ms, prepare 59ms)
 
 === Séra pickup-refusal emitter mock (readiness domain, WO-2.6) ===
- RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp/repo/services/fulfillment-service
+ RUN  v3.2.7 /tmp/claude-0/-home-user/e2c7ea67-ffe0-593b-ae59-d401337a0bb5/scratchpad/cold-fp2/repo/services/fulfillment-service
 stdout | test/refusal-mock-certification.test.ts > Séra pickup-refusal emitter mock — certified by the pinned §3 suite > scores 8/8 — CERTIFIED (the seller-fault signal counterparty for WO-2.6)
 CERTIFIED — readiness — 8/8 §3 behaviors
   ✓ emits_duplicates: duplicated command_ids under control: 1; without control: 0
@@ -529,11 +529,11 @@ CERTIFIED — readiness — 8/8 §3 behaviors
   ✓ simulates_partial_failures: clean sequence 2 events; partial delivered 1 then failed: sera-refusal-emitter: mid-sequence failure
   ✓ rejects_invalid_state_transitions: verification_refused -> in_custody: accepted=false (a refused verification never begins custody — seal-after-verification only (SE-I05))
   ✓ generated_from_producer_contract_schema: producerSchema identical to domain registry: true; envelopes conformant: true; payload parse failures: 0/2
- ✓ test/refusal-mock-certification.test.ts (2 tests) 53ms
+ ✓ test/refusal-mock-certification.test.ts (2 tests) 51ms
  Test Files  1 passed (1)
       Tests  2 passed (2)
-   Start at  20:50:32
-   Duration  455ms (transform 50ms, setup 0ms, collect 122ms, tests 53ms, environment 0ms, prepare 64ms)
+   Start at  21:06:13
+   Duration  455ms (transform 52ms, setup 0ms, collect 123ms, tests 51ms, environment 1ms, prepare 67ms)
 (exit code: 0)
 
 === gate: no-seller-deposit — repo source (must pass) ===
@@ -581,7 +581,7 @@ no-seller-debit FAILED (B+I-12 seller consequences access-based — never money)
 (exit code: 1)
 
 === gate: no-expo-token-leak — repo source + workflows + lockfile (must pass) ===
-no-expo-token-leak OK — no banned pattern in .github/workflows/ci.yml, .github/workflows/expo-preview.yml, AGENTS.md, CLAUDE.md, JOURNAL.md, PREVIEW.md, SDK-REPORT-v3-CANDIDATES.md, WORK-ORDERS/WO-B0.1.md, _review/A1/README.md, _review/A1/logs/verifier-report.md, _review/B02DUP/README.md, _review/B02DUP/logs/verifier-report.md, _review/B1/README.md, _review/B1/logs/verifier-report.md, _review/B2/README.md, _review/B2/logs/verifier-report.md, _review/DF1/README.md, _review/DF1/logs/verifier-report.md, _review/FP-STEP0/README.md, _review/FP-STEP0/logs/verifier-report.md, _review/GP-BOUTIK/REPORT.md, _review/GP-SUPPLY/REPORT.md, _review/GROUNDING-boutik-depth/REPORT.md, _review/MENUM/README.md, _review/MENUM/logs/verifier-report.md, _review/SW1/README.md, _review/SW1/logs/verifier-report.md, _review/WO-6.10/README.md, _review/WO-6.10/logs/verifier-report.md, _review/wo-6.5-evidence/logs/journal-boutik.md, _review/wo-6.5-evidence/logs/verifier-report-round2.md, adr/ADR-001-commerce-core-scope.md, apps/supplier-app/App.tsx, apps/supplier-app/WALKTHROUGH.md, apps/supplier-app/app.json, apps/supplier-app/assets/fonts/BUILD.md, apps/supplier-app/assets/fonts/COLD-START.md, apps/supplier-app/assets/fonts/EMBEDDING.md, apps/supplier-app/assets/fonts/faso-premium/BUILD.md, apps/supplier-app/babel.config.js, apps/supplier-app/i18n/catalog.json, apps/supplier-app/index.ts, apps/supplier-app/package.json, apps/supplier-app/run-preview.bat, apps/supplier-app/run-preview.sh, apps/supplier-app/src/demo/store.ts, apps/supplier-app/src/i18n.ts, apps/supplier-app/src/journey.ts, apps/supplier-app/src/offline/commandId.ts, apps/supplier-app/src/offline/expoStore.ts, apps/supplier-app/src/offline/queue.ts, apps/supplier-app/src/preview.ts, apps/supplier-app/src/settlement/readModel.ts, apps/supplier-app/src/studio/capture.ts, apps/supplier-app/src/studio/guidance.ts, apps/supplier-app/src/studio/normalization.ts, apps/supplier-app/src/trust/statement.ts, apps/supplier-app/src/ui/anim.tsx, apps/supplier-app/src/ui/fonts.ts, apps/supplier-app/src/ui/fp.ts, apps/supplier-app/src/ui/icons.tsx, apps/supplier-app/src/ui/kit.tsx, apps/supplier-app/src/ui/motion.ts, apps/supplier-app/src/ui/sfnt.ts, apps/supplier-app/src/ui/signature.tsx, apps/supplier-app/test/capture-incident.test.ts, apps/supplier-app/test/catalog.test.ts, apps/supplier-app/test/demo-store.test.ts, apps/supplier-app/test/df1-device-feedback.test.ts, apps/supplier-app/test/exif-strip.test.ts, apps/supplier-app/test/font-embedding.test.ts, apps/supplier-app/test/fp-font-pipeline.test.ts, apps/supplier-app/test/grand-teint.test.ts, apps/supplier-app/test/hostile-corpus.test.ts, apps/supplier-app/test/journey-spine.test.ts, apps/supplier-app/test/money-render.test.ts, apps/supplier-app/test/motion-easing.test.ts, apps/supplier-app/test/no-self-moderation.test.ts, apps/supplier-app/test/offline-queue.test.ts, apps/supplier-app/test/preview-banner.test.ts, apps/supplier-app/test/reencode-order.test.ts, apps/supplier-app/test/runtime-imports.test.ts, apps/supplier-app/test/settlement-read-model.test.ts, apps/supplier-app/test/token-docket.test.ts, apps/supplier-app/test/trust-statement.test.ts, apps/supplier-app/test/ui-kit.test.ts, apps/supplier-app/test/ui-studio.test.ts, apps/supplier-app/tsconfig.json, design-reference/README.md, design-reference/faso-commerce-prototype.jsx, design-reference/grand-teint/README.md, design-reference/grand-teint/docs/budget.md, design-reference/grand-teint/docs/components.md, design-reference/grand-teint/docs/copy.md, design-reference/grand-teint/docs/design-system.md, design-reference/grand-teint/docs/flows.md, design-reference/grand-teint/docs/motion.md, design-reference/grand-teint/docs/proposals.md, design-reference/grand-teint/docs/tokens.json, design-reference/grand-teint/icons/README.md, design-reference/grand-teint/share-cards/README.md, design-reference/grand-teint/support.js, design-reference/handoff_redesign/Boutik Plus - HANDOFF.md, design-reference/handoff_redesign/README.md, design-reference/handoff_redesign/REFERENCE-ONLY.md, design-reference/handoff_redesign/ios-frame.jsx, design-reference/handoff_redesign/support.js, docs/Boutik-Plus-Build-Spec.md, docs/Boutik-Plus-Building-Plan.md, docs/DESIGN-LANGUAGE.md, docs/ECOSYSTEM-MASTER-REFERENCE.md, docs/Ecosystem-Engineering-Execution-Contract.md, docs/GRAND-TEINT.md, docs/PERF-BUDGETS.md, docs/Sera-Build-Spec.md, docs/Sera-Building-Plan.md, docs/Shop-Plus-Build-Spec.md, docs/Shop-Plus-Building-Plan.md, package.json, packages/commerce-core/package.json, packages/commerce-core/src/fixtures.ts, packages/commerce-core/src/index.ts, packages/commerce-core/test/money-gate.test.ts, packages/commerce-core/tsconfig.json, packages/flags-client/package.json, packages/flags-client/src/index.ts, packages/flags-client/test/flags.test.ts, packages/flags-client/tsconfig.json, packages/observability/package.json, packages/observability/src/health.ts, packages/observability/src/index.ts, packages/observability/src/logger.ts, packages/observability/test/correlation.test.ts, packages/observability/tsconfig.json, pnpm-lock.yaml, pnpm-workspace.yaml, scripts/baseline-check.mjs, scripts/certify-mocks.mjs, scripts/gates/check-mint-path-entropy.mjs, scripts/gates/imaging-architecture.mjs, scripts/gates/money-reconciliation.mjs, scripts/gates/neutral-packaging.mjs, scripts/gates/no-consumer-storefront.mjs, scripts/gates/no-emoji.mjs, scripts/gates/no-expo-token-leak.mjs, scripts/gates/no-seller-debit.mjs, scripts/gates/no-seller-deposit.mjs, scripts/gates/no-ssh-lockfile.mjs, scripts/gates/no-wallet-no-funds.mjs, scripts/gates/phone-alias.mjs, scripts/gates/premium-frame-assets.mjs, scripts/gates/projection-identity-free.mjs, scripts/gates/readiness-gate.mjs, scripts/gates/scan.mjs, scripts/gates/show-mint-path-entropy-negative.sh, scripts/gates/single-level.mjs, scripts/gates/unverified-cannot-publish.mjs, scripts/run-gates.sh, services/catalog-service/package.json, services/catalog-service/src/index.ts, services/catalog-service/src/moderation.ts, services/catalog-service/src/product.ts, services/catalog-service/test/create-idempotency.test.ts, services/catalog-service/test/health.test.ts, services/catalog-service/test/moderation.test.ts, services/catalog-service/test/product.test.ts, services/catalog-service/tsconfig.json, services/catalog-service/tsconfig.typecheck.json, services/fulfillment-service/mocks/sera-pickup-consumer-mock.ts, services/fulfillment-service/mocks/sera-refusal-emitter-mock.ts, services/fulfillment-service/package.json, services/fulfillment-service/src/fulfillment.ts, services/fulfillment-service/src/index.ts, services/fulfillment-service/src/protection.ts, services/fulfillment-service/test/fulfillment-failures.test.ts, services/fulfillment-service/test/fulfillment.test.ts, services/fulfillment-service/test/health.test.ts, services/fulfillment-service/test/refusal-mock-certification.test.ts, services/fulfillment-service/test/sera-mock-certification.test.ts, services/fulfillment-service/tsconfig.json, services/inventory-service/dist-worker/stock-worker.mjs, services/inventory-service/package.json, services/inventory-service/src/index.ts, services/inventory-service/src/stock-reservation.ts, services/inventory-service/test/health.test.ts, services/inventory-service/test/stock-core.test.ts, services/inventory-service/test/stock-do.e2e.test.ts, services/inventory-service/tsconfig.json, services/inventory-service/worker/stock-reservation-do.ts, services/inventory-service/worker/tsconfig.json, services/media-service/package.json, services/media-service/src/index.ts, services/media-service/src/premium-frame.ts, services/media-service/test/health.test.ts, services/media-service/test/premium-frame.test.ts, services/media-service/tsconfig.json, services/offer-service/mocks/shop-projection-consumer-mock.ts, services/offer-service/package.json, services/offer-service/src/index.ts, services/offer-service/src/offer.ts, services/offer-service/src/projection.ts, services/offer-service/src/supply-endpoint.ts, services/offer-service/test/health.test.ts, services/offer-service/test/offer.test.ts, services/offer-service/test/projection.test.ts, services/offer-service/test/shop-mock-certification.test.ts, services/offer-service/test/supply-endpoint.test.ts, services/offer-service/tsconfig.json, services/supplier-service/package.json, services/supplier-service/src/index.ts, services/supplier-service/src/onboarding.ts, services/supplier-service/test/health.test.ts, services/supplier-service/test/onboarding.test.ts, services/supplier-service/tsconfig.json, tsconfig.base.json, turbo.json (WO-4.0 credentials never committed)
+no-expo-token-leak OK — no banned pattern in .github/workflows/ci.yml, .github/workflows/expo-preview.yml, AGENTS.md, CLAUDE.md, JOURNAL.md, PREVIEW.md, SDK-REPORT-v3-CANDIDATES.md, WORK-ORDERS/WO-B0.1.md, _review/A1/README.md, _review/A1/logs/verifier-report.md, _review/B02DUP/README.md, _review/B02DUP/logs/verifier-report.md, _review/B1/README.md, _review/B1/logs/verifier-report.md, _review/B2/README.md, _review/B2/logs/verifier-report.md, _review/DF1/README.md, _review/DF1/logs/verifier-report.md, _review/FP-STEP0/README.md, _review/FP-STEP0/logs/verifier-report.md, _review/GP-BOUTIK/REPORT.md, _review/GP-SUPPLY/REPORT.md, _review/GROUNDING-boutik-depth/REPORT.md, _review/MENUM/README.md, _review/MENUM/logs/verifier-report.md, _review/SW1/README.md, _review/SW1/logs/verifier-report.md, _review/WO-6.10/README.md, _review/WO-6.10/logs/verifier-report.md, _review/WO-FP-BOUTIK/EVIDENCE.md, _review/WO-FP-BOUTIK/README.md, _review/WO-FP-BOUTIK/STATES-LAW.md, _review/WO-FP-BOUTIK/logs/verifier-report.md, _review/wo-6.5-evidence/logs/journal-boutik.md, _review/wo-6.5-evidence/logs/verifier-report-round2.md, adr/ADR-001-commerce-core-scope.md, apps/supplier-app/App.tsx, apps/supplier-app/WALKTHROUGH.md, apps/supplier-app/app.json, apps/supplier-app/assets/fonts/BUILD.md, apps/supplier-app/assets/fonts/COLD-START.md, apps/supplier-app/assets/fonts/EMBEDDING.md, apps/supplier-app/assets/fonts/faso-premium/BUILD.md, apps/supplier-app/babel.config.js, apps/supplier-app/i18n/catalog.json, apps/supplier-app/index.ts, apps/supplier-app/package.json, apps/supplier-app/run-preview.bat, apps/supplier-app/run-preview.sh, apps/supplier-app/src/demo/store.ts, apps/supplier-app/src/i18n.ts, apps/supplier-app/src/journey.ts, apps/supplier-app/src/offline/commandId.ts, apps/supplier-app/src/offline/expoStore.ts, apps/supplier-app/src/offline/queue.ts, apps/supplier-app/src/preview.ts, apps/supplier-app/src/settlement/readModel.ts, apps/supplier-app/src/studio/capture.ts, apps/supplier-app/src/studio/guidance.ts, apps/supplier-app/src/studio/normalization.ts, apps/supplier-app/src/trust/statement.ts, apps/supplier-app/src/ui/anim.tsx, apps/supplier-app/src/ui/fonts.ts, apps/supplier-app/src/ui/fp.ts, apps/supplier-app/src/ui/icons.tsx, apps/supplier-app/src/ui/kit.tsx, apps/supplier-app/src/ui/motion.ts, apps/supplier-app/src/ui/sfnt.ts, apps/supplier-app/src/ui/signature.tsx, apps/supplier-app/test/capture-incident.test.ts, apps/supplier-app/test/catalog.test.ts, apps/supplier-app/test/demo-store.test.ts, apps/supplier-app/test/df1-device-feedback.test.ts, apps/supplier-app/test/exif-strip.test.ts, apps/supplier-app/test/font-embedding.test.ts, apps/supplier-app/test/fp-font-pipeline.test.ts, apps/supplier-app/test/grand-teint.test.ts, apps/supplier-app/test/hostile-corpus.test.ts, apps/supplier-app/test/journey-spine.test.ts, apps/supplier-app/test/money-render.test.ts, apps/supplier-app/test/motion-easing.test.ts, apps/supplier-app/test/no-self-moderation.test.ts, apps/supplier-app/test/offline-queue.test.ts, apps/supplier-app/test/preview-banner.test.ts, apps/supplier-app/test/reencode-order.test.ts, apps/supplier-app/test/runtime-imports.test.ts, apps/supplier-app/test/settlement-read-model.test.ts, apps/supplier-app/test/token-docket.test.ts, apps/supplier-app/test/trust-statement.test.ts, apps/supplier-app/test/ui-kit.test.ts, apps/supplier-app/test/ui-studio.test.ts, apps/supplier-app/tsconfig.json, design-reference/README.md, design-reference/faso-commerce-prototype.jsx, design-reference/grand-teint/README.md, design-reference/grand-teint/docs/budget.md, design-reference/grand-teint/docs/components.md, design-reference/grand-teint/docs/copy.md, design-reference/grand-teint/docs/design-system.md, design-reference/grand-teint/docs/flows.md, design-reference/grand-teint/docs/motion.md, design-reference/grand-teint/docs/proposals.md, design-reference/grand-teint/docs/tokens.json, design-reference/grand-teint/icons/README.md, design-reference/grand-teint/share-cards/README.md, design-reference/grand-teint/support.js, design-reference/handoff_redesign/Boutik Plus - HANDOFF.md, design-reference/handoff_redesign/README.md, design-reference/handoff_redesign/REFERENCE-ONLY.md, design-reference/handoff_redesign/ios-frame.jsx, design-reference/handoff_redesign/support.js, docs/Boutik-Plus-Build-Spec.md, docs/Boutik-Plus-Building-Plan.md, docs/DESIGN-LANGUAGE.md, docs/ECOSYSTEM-MASTER-REFERENCE.md, docs/Ecosystem-Engineering-Execution-Contract.md, docs/GRAND-TEINT.md, docs/PERF-BUDGETS.md, docs/Sera-Build-Spec.md, docs/Sera-Building-Plan.md, docs/Shop-Plus-Build-Spec.md, docs/Shop-Plus-Building-Plan.md, package.json, packages/commerce-core/package.json, packages/commerce-core/src/fixtures.ts, packages/commerce-core/src/index.ts, packages/commerce-core/test/money-gate.test.ts, packages/commerce-core/tsconfig.json, packages/flags-client/package.json, packages/flags-client/src/index.ts, packages/flags-client/test/flags.test.ts, packages/flags-client/tsconfig.json, packages/observability/package.json, packages/observability/src/health.ts, packages/observability/src/index.ts, packages/observability/src/logger.ts, packages/observability/test/correlation.test.ts, packages/observability/tsconfig.json, pnpm-lock.yaml, pnpm-workspace.yaml, scripts/baseline-check.mjs, scripts/certify-mocks.mjs, scripts/gates/check-mint-path-entropy.mjs, scripts/gates/imaging-architecture.mjs, scripts/gates/money-reconciliation.mjs, scripts/gates/neutral-packaging.mjs, scripts/gates/no-consumer-storefront.mjs, scripts/gates/no-emoji.mjs, scripts/gates/no-expo-token-leak.mjs, scripts/gates/no-seller-debit.mjs, scripts/gates/no-seller-deposit.mjs, scripts/gates/no-ssh-lockfile.mjs, scripts/gates/no-wallet-no-funds.mjs, scripts/gates/phone-alias.mjs, scripts/gates/premium-frame-assets.mjs, scripts/gates/projection-identity-free.mjs, scripts/gates/readiness-gate.mjs, scripts/gates/scan.mjs, scripts/gates/show-mint-path-entropy-negative.sh, scripts/gates/single-level.mjs, scripts/gates/unverified-cannot-publish.mjs, scripts/run-gates.sh, services/catalog-service/package.json, services/catalog-service/src/index.ts, services/catalog-service/src/moderation.ts, services/catalog-service/src/product.ts, services/catalog-service/test/create-idempotency.test.ts, services/catalog-service/test/health.test.ts, services/catalog-service/test/moderation.test.ts, services/catalog-service/test/product.test.ts, services/catalog-service/tsconfig.json, services/catalog-service/tsconfig.typecheck.json, services/fulfillment-service/mocks/sera-pickup-consumer-mock.ts, services/fulfillment-service/mocks/sera-refusal-emitter-mock.ts, services/fulfillment-service/package.json, services/fulfillment-service/src/fulfillment.ts, services/fulfillment-service/src/index.ts, services/fulfillment-service/src/protection.ts, services/fulfillment-service/test/fulfillment-failures.test.ts, services/fulfillment-service/test/fulfillment.test.ts, services/fulfillment-service/test/health.test.ts, services/fulfillment-service/test/refusal-mock-certification.test.ts, services/fulfillment-service/test/sera-mock-certification.test.ts, services/fulfillment-service/tsconfig.json, services/inventory-service/dist-worker/stock-worker.mjs, services/inventory-service/package.json, services/inventory-service/src/index.ts, services/inventory-service/src/stock-reservation.ts, services/inventory-service/test/health.test.ts, services/inventory-service/test/stock-core.test.ts, services/inventory-service/test/stock-do.e2e.test.ts, services/inventory-service/tsconfig.json, services/inventory-service/worker/stock-reservation-do.ts, services/inventory-service/worker/tsconfig.json, services/media-service/package.json, services/media-service/src/index.ts, services/media-service/src/premium-frame.ts, services/media-service/test/health.test.ts, services/media-service/test/premium-frame.test.ts, services/media-service/tsconfig.json, services/offer-service/mocks/shop-projection-consumer-mock.ts, services/offer-service/package.json, services/offer-service/src/index.ts, services/offer-service/src/offer.ts, services/offer-service/src/projection.ts, services/offer-service/src/supply-endpoint.ts, services/offer-service/test/health.test.ts, services/offer-service/test/offer.test.ts, services/offer-service/test/projection.test.ts, services/offer-service/test/shop-mock-certification.test.ts, services/offer-service/test/supply-endpoint.test.ts, services/offer-service/tsconfig.json, services/supplier-service/package.json, services/supplier-service/src/index.ts, services/supplier-service/src/onboarding.ts, services/supplier-service/test/health.test.ts, services/supplier-service/test/onboarding.test.ts, services/supplier-service/tsconfig.json, tsconfig.base.json, turbo.json (WO-4.0 credentials never committed)
 (exit code: 0)
 
 === gate: no-expo-token-leak — NEGATIVE FIXTURE (committed token literal, must fail) ===
