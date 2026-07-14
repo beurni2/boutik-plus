@@ -1,0 +1,5 @@
+bfe9fcf feat(amber): B0.2-DUP — create-door idempotency by command_id (duplicate | collision)
+d15b977 merge(green): GP-BOUTIK grounding pass — R2 + moderation-at-scale + studio seam inventory (no product code)
+a33b977 docs(green): GP-BOUTIK grounding pass — R2/media + moderation-at-scale + studio seam inventory
+ccd0b0b merge(green): typecheck catalog-service test/ — @ts-expect-error gate gap closed (non-vacuity proven, TS2578)
+76d52f2 chore(green): typecheck catalog-service test/ — close the @ts-expect-error gate gap

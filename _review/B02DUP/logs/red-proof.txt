@@ -1,0 +1,13 @@
+ ❯ test/create-idempotency.test.ts (3 tests | 3 failed) 32ms
+   × B0.2-DUP — the create-door is idempotent by command_id > ① double-submit (same key + same payload) → ONE version, the SAME identity, no re-emit 18ms
+     → expected undefined to be 'created' // Object.is equality
+   × B0.2-DUP — the create-door is idempotent by command_id > ② same key + DIFFERENT payload → COLLISION, refused + surfaced, the first version untouched 10ms
+     → expected { ok: true, …(3) } to deeply equal { ok: false, …(1) }
+   × B0.2-DUP — the create-door is idempotent by command_id > ③ DISTINCT keys → DISTINCT versions (idempotency never collapses two genuine intents) 2ms
+     → expected undefined to be 'created' // Object.is equality
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected undefined to be 'created' // Object.is equality
+AssertionError: expected { ok: true, …(3) } to deeply equal { ok: false, …(1) }
+AssertionError: expected undefined to be 'created' // Object.is equality
+ Test Files  1 failed (1)
+      Tests  3 failed (3)

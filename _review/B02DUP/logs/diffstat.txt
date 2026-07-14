@@ -1,0 +1,3 @@
+ services/catalog-service/src/product.ts            | 31 ++++++++-
+ .../test/create-idempotency.test.ts                | 77 ++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 3 deletions(-)

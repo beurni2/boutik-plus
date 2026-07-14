@@ -1,0 +1,8 @@
+moderation.ts diff vs main (must be empty):
+(empty above = UNTOUCHED)
+
+product.ts changed hunks (create/CreateOutcome/intents only):
+@@ -30,8 +30,8 @@ export interface ProductDraft {
+@@ -54,6 +54,15 @@ export class ProductCatalog {
+@@ -62,6 +71,21 @@ export class ProductCatalog {
+@@ -85,10 +109,11 @@ export class ProductCatalog {
