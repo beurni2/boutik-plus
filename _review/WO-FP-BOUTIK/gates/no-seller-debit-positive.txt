@@ -1,0 +1,3 @@
+$ node scripts/gates/no-seller-debit.mjs
+no-seller-debit OK — no banned pattern in apps, services, packages (B+I-12 seller consequences access-based — never money)
+(exit code: 0)

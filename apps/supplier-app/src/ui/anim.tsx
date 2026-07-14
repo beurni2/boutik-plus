@@ -10,7 +10,7 @@
  * driver where the value is not read in JS.
  */
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { motion } from '@platform/ui-tokens';
 import { easingSpec, fpDurationMs, type FpDuration } from './motion';
 
@@ -128,6 +128,48 @@ export function Pulse({ children, style }: { children: React.ReactNode; style?: 
     return () => loop.stop();
   }, [p, reduced]);
   return <Animated.View style={[style, { opacity: reduced ? 1 : p }]}>{children}</Animated.View>;
+}
+
+/**
+ * FpBar — the server-wait bar (`fpBar` 1.3s ease-in-out): a filled segment
+ * sweeps across a track while the app waits on the operator/network. Static
+ * (empty track) under reduced motion. Colours passed in (tokens).
+ */
+export function FpBar({
+  trackColour,
+  fillColour,
+  style,
+}: {
+  trackColour: string;
+  fillColour: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const reduced = useReducedMotion();
+  const x = useRef(new Animated.Value(0)).current;
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (reduced || w === 0) return;
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: motion.fpBar.durationMs, easing: rnEasing(motion.fpBar.timingFunction), useNativeDriver: true }),
+    );
+    x.setValue(0);
+    loop.start();
+    return () => loop.stop();
+  }, [x, reduced, w]);
+  const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-w * 0.4, w] });
+  return (
+    <View
+      style={[{ height: 4, borderRadius: 99, backgroundColor: trackColour, overflow: 'hidden' }, style]}
+      onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      accessibilityElementsHidden
+    >
+      {!reduced && w > 0 && (
+        <Animated.View
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: w * 0.4, borderRadius: 99, backgroundColor: fillColour, transform: [{ translateX }] }}
+        />
+      )}
+    </View>
+  );
 }
 
 /**

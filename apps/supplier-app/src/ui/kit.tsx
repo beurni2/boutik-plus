@@ -11,7 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { C, appColour, D, R, SHADOW, ts, MONEY_TEXT, motion, DUR } from './fp';
-import { FpIn, FpPop, useReducedMotion, Shimmer, rnEasing } from './anim';
+import { FpIn, FpPop, Pulse, FpBar, useReducedMotion, Shimmer, rnEasing } from './anim';
 import { WovenBand, CornerTicks } from './signature';
 import { Icon, type IconName } from './icons';
 
@@ -30,7 +30,7 @@ import { Icon, type IconName } from './icons';
 // Re-exports so screens import the whole design system from one place.
 export { Icon, type IconName } from './icons';
 export { WovenBand, HeroLedgerBand, DuotoneTile, Selectable, CornerTicks, QuoteRule } from './signature';
-export { FpIn, FpPop, Pulse, useCountUp, useReducedMotion } from './anim';
+export { FpIn, FpPop, Pulse, FpBar, useCountUp, useReducedMotion } from './anim';
 export { C, ts, D, R } from './fp';
 /** The Boutik+ palette, for screens composing custom surfaces. */
 export const palette = C;
@@ -409,18 +409,25 @@ export function CheckRow({ label, checked, onToggle }: { label: string; checked:
 }
 
 /** PendingNotice — « C'est noté. En attente du réseau. » Queued = pending,
- * never done: warn band, clock icon. */
-export function PendingNotice({ lines }: { lines: readonly string[] }) {
+ * never done: warn band, clock icon. `serverWait` marks an ACTIVE server/operator
+ * wait (B7 pending): the clock pulses (fpPulse) and an indeterminate bar sweeps
+ * (fpBar) — the two motions the redesign spec'd for live steps + server waits.
+ * A queued (offline) notice is NOT a server wait — it stays calm, no bar. */
+export function PendingNotice({ lines, serverWait }: { lines: readonly string[]; serverWait?: boolean | undefined }) {
+  const clock = <Icon name="horloge" size={18} color={C.warnFgAlt} />;
   return (
     <View style={styles.pendingNotice}>
-      <Icon name="horloge" size={18} color={C.warnFgAlt} />
-      <View style={styles.pendingBody}>
-        {lines.map((line) => (
-          <Text key={line} style={ts('body', C.warnFgAlt)}>
-            {line}
-          </Text>
-        ))}
+      <View style={styles.pendingRow}>
+        {serverWait === true ? <Pulse>{clock}</Pulse> : clock}
+        <View style={styles.pendingBody}>
+          {lines.map((line) => (
+            <Text key={line} style={ts('body', C.warnFgAlt)}>
+              {line}
+            </Text>
+          ))}
+        </View>
       </View>
+      {serverWait === true && <FpBar trackColour={C.hairlineInput} fillColour={C.warnFgAlt} style={styles.pendingBar} />}
     </View>
   );
 }
@@ -695,13 +702,13 @@ const styles = StyleSheet.create({
   },
   checkBoxOn: { backgroundColor: C.primary, borderColor: C.primary },
   pendingNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: D.gapSm,
     backgroundColor: C.warnBg,
     padding: D.rowPad,
     borderRadius: R.input,
   },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm },
+  pendingBar: { marginTop: 2 },
   pendingBody: { flex: 1, gap: 2 },
   flex1: { flex: 1 },
   offlineBanner: {

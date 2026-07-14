@@ -1,0 +1,3 @@
+$ node scripts/gates/neutral-packaging.mjs
+neutral-packaging OK — no banned pattern in apps, services, packages (B+3 neutral/platform packaging — no supplier branding/contact on the exterior)
+(exit code: 0)

@@ -1,0 +1,3 @@
+$ node scripts/gates/no-seller-deposit.mjs
+no-seller-deposit OK — no banned pattern in apps, services, packages (B+I-12 zero seller deposit/reserve/bond, ever)
+(exit code: 0)

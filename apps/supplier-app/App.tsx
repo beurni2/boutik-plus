@@ -654,7 +654,7 @@ export default function App() {
 
             {b7Phase === 'pending' && (
               <>
-                <PendingNotice lines={[t('ready.pending_slow')]} />
+                <PendingNotice serverWait lines={[t('ready.pending_slow')]} />
                 <UnderlineLink label={t('pret.simuler_confirmation')} onPress={finishConfirmation} />
                 <UnderlineLink label={t('pret.revenir')} onPress={resetB7} />
               </>

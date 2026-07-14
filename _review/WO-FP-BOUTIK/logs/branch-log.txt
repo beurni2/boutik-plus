@@ -1,0 +1,9 @@
+04b56c1 feat(amber): WO-FP-BOUTIK — wire fpBar + fpPulse at the B7 server-wait; review packet
+a28430e fix(amber): WO-FP-BOUTIK — CelebrationLayer animation/timer in useEffect, not render
+7dc003f test(amber): WO-FP-BOUTIK — rebaseline appearance tests to Faso Premium, keep semantic invariants
+6af466d feat(amber): WO-FP-BOUTIK — Faso Premium render layer (signature module + kit + 11-view rewire)
+51f46ad docs(amber): WO-FP-BOUTIK — persist Faso Premium design brief (Boutik lane, reference-only)
+6af9d41 chore(amber): WO-FP-BOUTIK STEP 1 — re-pin canon v1.0.0 (f23407c, Faso Premium)
+e013daf docs(amber): FP-STEP0 packet finalized — verifier PASS·0, cold GREEN
+31659f5 docs(amber): WO-FP-BOUTIK STEP 0 packet + journal (font pipeline, in review)
+93a3b67 feat(amber): WO-FP-BOUTIK STEP 0 — the Faso Premium font pipeline (staged + guarded)

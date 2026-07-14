@@ -136,4 +136,22 @@ describe('WO-FP-BOUTIK Faso Premium visual layer', () => {
   it('the fp motion token surface is the seven fp* (no orphan reference to retired curves)', () => {
     expect(Object.keys(motion).sort()).toEqual(['fpBar', 'fpIn', 'fpPop', 'fpPulse', 'fpShake', 'fpShimmer', 'fpUp']);
   });
+
+  it('fpBar + fpPulse are wired at the B7 server-wait site (PendingNotice serverWait)', () => {
+    const anim = read('src/ui/anim.tsx');
+    // FpBar consumes the fpBar token (server waits); Pulse consumes fpPulse (live)
+    expect(anim).toMatch(/export function FpBar/);
+    expect(anim).toMatch(/duration: motion\.fpBar\.durationMs/);
+    expect(anim).toMatch(/export function Pulse/);
+    expect(anim).toMatch(/duration: motion\.fpPulse\.durationMs/);
+    // the kit wires both into a serverWait PendingNotice, and the App uses it at
+    // the B7 'pending' (an actual server/operator wait) — never on offline queued.
+    const kit = read('src/ui/kit.tsx');
+    expect(kit).toMatch(/serverWait === true \? <Pulse>/);
+    expect(kit).toMatch(/<FpBar trackColour=/);
+    const app = read('App.tsx');
+    expect(app).toMatch(/b7Phase === 'pending'[\s\S]*?<PendingNotice serverWait/);
+    // fpShimmer/fpIn/fpPop/count-up wired elsewhere; fpUp (sheets) + fpShake
+    // (wrong-code entry) have no site in this supplier surface — flagged, not faked.
+  });
 });

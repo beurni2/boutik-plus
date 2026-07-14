@@ -1,0 +1,24 @@
+$ node scripts/gates/no-seller-debit.mjs gates/fixtures/negative/no-seller-debit
+no-seller-debit FAILED (B+I-12 seller consequences access-based — never money) — 21 hit(s):
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:2 [debit] // no-seller-debit gate MUST fail on this file. Never import this.
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:5 [debit] debitFcfa: number; // banned: B+I-12 — consequences are access-based, never money
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:7 [deduct] export function deductFromSellerPayout(consequence: SellerFaultConsequence): number {
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:8 [withhold/withheld] // banned: withholding the seller's money over a fault
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:9 [debit] const retenue = consequence.debitFcfa; // banned: retenue sur ventes
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:9 [retenue (fr)] const retenue = consequence.debitFcfa; // banned: retenue sur ventes
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:10 [retenue (fr)] return retenue;
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:13 [penalty/pénalité] export const penaltyFcfa = 500; // banned: penalty
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:14 [amende (fr)] export const amendeFcfa = 500; // banned: amende
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:15 [clawback] export const clawbackFcfa = 500; // banned: clawback
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:16 [sanction] export const payoutSanction = 'suspend'; // banned: sanction
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:17 [withhold/withheld] export const withheldFcfa = 500; // banned: withheld (past tense escaped /withh?old/)
+  gates/fixtures/negative/no-seller-debit/seller-debit-flow.ts:18 [fine (money)] export const fineFcfa = 500; // banned: fine
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:2 [debit] // trust surface — the no-seller-debit gate MUST fail on this file. Never import it.
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:4 [debit] // money; the Protection Fund absorbs the loss. A statement that debits the seller
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:5 [retenue (fr)] // for a fault, or a « retenue »/« pénalité » on their proceeds, is forbidden.
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:5 [penalty/pénalité] // for a fault, or a « retenue »/« pénalité » on their proceeds, is forbidden.
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:8 [debit] faultDebitFcfa: number; // banned: a fault debits the seller
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:11 [debit] const penalite = line.faultDebitFcfa; // banned: pénalité + débit on a fault
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:11 [penalty/pénalité] const penalite = line.faultDebitFcfa; // banned: pénalité + débit on a fault
+  gates/fixtures/negative/no-seller-debit/statement-fault-debit.ts:12 [penalty/pénalité] return penalite;
+(exit code: 1)
