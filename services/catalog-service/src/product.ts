@@ -30,8 +30,8 @@ export interface ProductDraft {
 }
 
 export type CreateOutcome =
-  | { ok: true; version: ProductVersion; variant: Variant; events: PlatformEvent[] }
-  | { ok: false; reason: 'publisher_not_eligible' };
+  | { ok: true; outcome: 'created' | 'duplicate'; version: ProductVersion; variant: Variant; events: PlatformEvent[] }
+  | { ok: false; reason: 'publisher_not_eligible' | 'idempotency_collision' };
 
 export type DecideOutcome =
   | { ok: true; version: ProductVersion; events: PlatformEvent[] }
@@ -54,6 +54,15 @@ export class ProductCatalog {
   private readonly versions = new Map<string, ProductVersion>();
   private readonly variants = new Map<string, Variant>();
   private counter = 0;
+  /**
+   * B0.2 create-door idempotency (Building Plan B0.2: "duplicate idempotent").
+   * Keyed by the minted `command_id` (the queue's per-intent key), recording the
+   * version identity a SUCCESSFUL create produced + a fingerprint of the intent.
+   * A replay with the same key + same fingerprint is a `duplicate` (no-op); the
+   * same key + a different fingerprint is a `collision` (refused) — the offline
+   * queue's vocabulary, at the service door.
+   */
+  private readonly createIntents = new Map<string, { versionId: string; variantId: string; fingerprint: string }>();
 
   /**
    * canPublish comes from supplier-service (B0.2) — unverified cannot publish.
@@ -62,6 +71,21 @@ export class ProductCatalog {
    * `approved_e1_sandbox` stub is gone — a new listing is never born approved).
    */
   create(draft: ProductDraft, canPublish: boolean, ctx: CommandContext, at: string): CreateOutcome {
+    // B0.2 idempotency by command_id — BEFORE eligibility, so a replay of an
+    // already-successful create is a stable no-op regardless of the current
+    // canPublish. Fingerprint = JSON.stringify(draft) (the same comparison the
+    // offline queue uses on its payload). Same key + same intent → duplicate
+    // (the SAME version identity, no re-emit); same key + different intent →
+    // collision (refused + surfaced, the first version never overwritten).
+    const fingerprint = JSON.stringify(draft);
+    const priorIntent = this.createIntents.get(ctx.command_id);
+    if (priorIntent !== undefined) {
+      if (priorIntent.fingerprint !== fingerprint) return { ok: false, reason: 'idempotency_collision' };
+      const priorVersion = this.versions.get(priorIntent.versionId);
+      const priorVariant = this.variants.get(priorIntent.variantId);
+      if (priorVersion === undefined || priorVariant === undefined) return { ok: false, reason: 'idempotency_collision' };
+      return { ok: true, outcome: 'duplicate', version: priorVersion, variant: priorVariant, events: [] };
+    }
     if (!canPublish) return { ok: false, reason: 'publisher_not_eligible' };
     this.counter += 1;
     const version = ProductVersionSchema.parse({
@@ -85,10 +109,11 @@ export class ProductCatalog {
     });
     this.versions.set(version.id, version);
     this.variants.set(variant.id, variant);
+    this.createIntents.set(ctx.command_id, { versionId: version.id, variantId: variant.id, fingerprint });
     const events = [
       moderationEvent('catalog.product_submitted.v1', ctx, version.version, { productVersionId: version.id, supplierId: version.supplierId }, at),
     ];
-    return { ok: true, version, variant, events };
+    return { ok: true, outcome: 'created', version, variant, events };
   }
 
   /**
