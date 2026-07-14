@@ -26,7 +26,11 @@ The 3 fixtures were written and run FIRST — all **3 failed** before the code e
 - `logs/coldgates.log` — **cold-gates proof (isolated)**: fresh HOME (auth line = HTTPS→proxy, NOT ssh) + fresh EMPTY store + `--frozen-lockfile` + fresh clone of `bfe9fcf` → `run-gates.sh` **exit 0, ALL GATES GREEN from nothing** (cold HEAD `bfe9fcf`; cold contracts 0.9.6; every negative fixture fired).
 - `logs/red-proof.txt` — the 3 fixtures failing BEFORE implementation.
 - `logs/head-sha.txt` · `logs/branch-log.txt` · `logs/full.diff` · `logs/diffstat.txt` · `evidence/`.
-- `logs/verifier-report.md` — fresh-context verifier on the final bytes: **[VERDICT — see report]**.
+- `logs/verifier-report.md` — fresh-context verifier on the final bytes: **VERDICT PASS · 0 BLOCKERS**
+  (5 scratch tests incl. idempotency-before-eligibility both directions; mutation-tested the collision
+  AND duplicate guards — both flipped the shipped fixtures, then reverted; FORBIDDEN re-confirmed;
+  catalog 16, run-gates exit 0). One recorded design note: the fingerprint is `JSON.stringify(draft)`
+  only (the command_id already scopes to one create command) — not a defect.
 
 ## Test counts
 catalog-service **16/16** (create-idempotency 3 + moderation 8 + product 3 + health 2) · full suite 19/19 · typecheck 11/11 (catalog now type-checks `test/` — the new fixture is gate-typechecked).
