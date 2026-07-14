@@ -1,0 +1,5 @@
+2acd224 feat(amber): DF-1 device feedback — palette off ink, chip-row overlap fix, Mes Recettes card, editable revendeuse part, keypad handling
+dc8763f docs(journal): B0.2-DUP done — merged 99a0857 (create-door idempotency, review PASS)
+99a0857 merge(amber): B0.2-DUP — the create-door idempotency (duplicate | collision, before eligibility) — founder review passed
+1651b00 docs(evidence): B0.2-DUP verifier PASS (0 blockers) on bfe9fcf + journal/README finalize + packet zip
+42b5c62 docs(evidence): B0.2-DUP packet — RED proof, warm+cold gates GREEN, forbidden proof, journal (verifier report to follow)

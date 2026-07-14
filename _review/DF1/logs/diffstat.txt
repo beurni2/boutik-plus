@@ -1,0 +1,6 @@
+ apps/supplier-app/App.tsx                          | 75 ++++++++++++++---
+ apps/supplier-app/i18n/catalog.json                |  6 ++
+ apps/supplier-app/src/ui/kit.tsx                   | 21 ++++-
+ apps/supplier-app/test/df1-device-feedback.test.ts | 98 ++++++++++++++++++++++
+ apps/supplier-app/test/ui-kit.test.ts              |  7 +-
+ 5 files changed, 189 insertions(+), 18 deletions(-)

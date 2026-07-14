@@ -1,0 +1,108 @@
+<h1>DF-1 — before / after (token-faithful preview)</h1>
+<p class="disclaimer"><strong>Honest label:</strong> this is a design preview rendered from the <em>real</em> Grand Teint hex tokens + type scale — <strong>not a device screenshot</strong>. The RN app has no in-sandbox capture harness; the on-device look is the founder's re-check. Every colour below is the exact token the code now uses.</p>
+
+<style>
+  :root{
+    --ink:#1B140D; --paper:#FFFDF7; --onInk:#FFF8F1; --body:#4A3F33; --muted:#6E6154;
+    --soft:#8D7C64; --sand:#F3EBDB; --gold:#D9A441; --green:#1F4D36; --onGreen:#F2F7F1;
+    --warnTint:#F7EED7; --warn:#6B4E0C; --dangerTint:#F9E9E6; --danger:#B3382C;
+    --hair:rgba(27,20,13,0.14); --hairStrong:rgba(27,20,13,0.35);
+  }
+  body{font-family:'Archivo',system-ui,sans-serif;background:#EBE6DC;color:var(--ink);margin:0;padding:24px;line-height:1.4;}
+  h1{font-size:22px;font-weight:900;}
+  .disclaimer{background:var(--warnTint);border-left:4px solid var(--warn);padding:12px 14px;font-size:13px;color:var(--warn);max-width:820px;}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:1.5px;margin-top:34px;color:var(--muted);}
+  .pair{display:flex;gap:20px;flex-wrap:wrap;}
+  .col{flex:1;min-width:300px;}
+  .tag{font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;}
+  .tag.before{color:var(--danger);} .tag.after{color:var(--green);}
+  .phone{background:var(--paper);border:1px solid var(--hairStrong);border-radius:2px;padding:0;overflow:hidden;max-width:360px;}
+  .hd{padding:10px 16px;border-bottom:1px solid var(--hair);font-weight:800;font-size:13px;}
+  .band{height:4px;background:var(--green);}
+  /* chip */
+  .chip{display:inline-flex;align-items:center;padding:3px 8px;font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;}
+  .chip.ink{background:var(--ink);color:var(--onInk);}
+  .chip.gold{background:var(--gold);color:var(--ink);}
+  .chip.cream{background:var(--warnTint);color:var(--warn);}
+  .chip.red{background:var(--dangerTint);color:var(--danger);}
+  /* list rows */
+  .row{display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--hair);}
+  .row.fixed{height:56px;overflow:hidden;} /* BEFORE: fixed 56 → chip clips into next */
+  .row.grow{min-height:56px;padding-top:8px;padding-bottom:8px;}
+  .rowbody{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .rowtitle{font-size:15px;font-weight:700;}
+  .rowmeta{font-size:12px;color:var(--muted);}
+  .rowval{font-size:15px;font-variant-numeric:tabular-nums;}
+  .chipline{margin-top:2px;}
+  /* recettes card */
+  .card{border:2px solid var(--ink);margin:14px 16px;padding:16px;}
+  .cardhead{display:flex;align-items:center;gap:12px;}
+  .thumb{width:44px;height:44px;background:var(--sand);display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:18px;flex:0 0 auto;}
+  .overline{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .cardname{flex:1;font-size:15px;font-weight:700;}
+  .heroLabel{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:12px;}
+  .hero{font-size:34px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .heroSentence{font-size:34px;font-weight:900;} /* BEFORE: whole sentence at hero scale */
+  .msg{font-size:14px;margin-top:6px;}
+  /* CTA */
+  .cta{display:block;text-align:center;padding:16px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin:14px 16px;}
+  .cta.ink{background:var(--ink);color:var(--onInk);}
+  .cta.green{background:var(--green);color:var(--onGreen);}
+</style>
+
+<h2>A · Mes Produits — the chip-row collision + ink chips</h2>
+<div class="pair">
+  <div class="col">
+    <div class="tag before">Before — « PRÊT » (ink) clips into « Sac en cuir de Kaya »</div>
+    <div class="phone">
+      <div class="hd">Mes produits</div><div class="band"></div>
+      <div class="row fixed"><div class="rowbody"><div class="rowtitle">Pagne tissé main (démo)</div><div class="rowmeta">Repère : Marché Rood-Woko</div><div class="chipline"><span class="chip ink">Prêt</span></div></div><div class="rowval">Vous recevrez 8 500 F</div></div>
+      <div class="row fixed"><div class="rowbody"><div class="rowtitle">Sac en cuir de Kaya (démo)</div><div class="rowmeta">Repère : Gare de l'Est</div><div class="chipline"><span class="chip ink">Prêt</span></div></div><div class="rowval">Vous recevrez 13 175 F</div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tag after">After — gold chip, the row owns its height</div>
+    <div class="phone">
+      <div class="hd">Mes produits</div><div class="band"></div>
+      <div class="row grow"><div class="rowbody"><div class="rowtitle">Pagne tissé main (démo)</div><div class="rowmeta">Repère : Marché Rood-Woko</div><div class="chipline"><span class="chip gold">Prêt</span></div></div><div class="rowval">Vous recevrez 8 500 F</div></div>
+      <div class="row grow"><div class="rowbody"><div class="rowtitle">Sac en cuir de Kaya (démo)</div><div class="rowmeta">Repère : Gare de l'Est</div><div class="chipline"><span class="chip gold">Prêt</span></div></div><div class="rowval">Vous recevrez 13 175 F</div></div>
+    </div>
+  </div>
+</div>
+
+<h2>B · Mes Recettes — the card redesign</h2>
+<div class="pair">
+  <div class="col">
+    <div class="tag before">Before — tiny caps name; « Vous recevrez 2 975 F » as the hero (duplicated)</div>
+    <div class="phone">
+      <div class="hd">Mes recettes</div><div class="band"></div>
+      <div class="card">
+        <div class="cardhead"><span class="overline" style="flex:1">Beurre de karité 500 g (démo)</span><span class="chip cream">En attente</span></div>
+        <div class="heroLabel">Vous recevrez</div>
+        <div class="heroSentence">Vous recevrez 2 975 F</div>
+        <div class="msg">En attente du versement.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tag after">After — photo + name as title + the figure alone</div>
+    <div class="phone">
+      <div class="hd">Mes recettes</div><div class="band"></div>
+      <div class="card">
+        <div class="cardhead"><span class="thumb">▣</span><span class="cardname">Beurre de karité 500 g (démo)</span><span class="chip cream">En attente</span></div>
+        <div class="heroLabel">Vous recevrez</div>
+        <div class="hero">2 975 F</div>
+        <div class="msg">En attente du versement.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Primary CTA — off ink</h2>
+<div class="pair">
+  <div class="col"><div class="tag before">Before — ink fill</div><div class="phone" style="padding:8px 0"><span class="cta ink">Publier l'offre</span></div></div>
+  <div class="col"><div class="tag after">After — supply-green</div><div class="phone" style="padding:8px 0"><span class="cta green">Publier l'offre</span></div></div>
+</div>
+
+<h2>Kept on ink (structural — listed for the founder's call)</h2>
+<p style="font-size:13px;color:var(--body);max-width:820px">Body text · AppHeader wordmark + hairlines · the money-majesty <code>boxInk</code> 2 px border · the OfflineBanner gravity band · the TabBar active indicator. Body text stays ink for readability (WO constraint). <strong>Flag:</strong> « à corriger » and « délai passé » both map to the <code>problem</code> red tone today (pre-existing, unchanged) — distinct-ing them needs a tone/token decision, not invented here.</p>
