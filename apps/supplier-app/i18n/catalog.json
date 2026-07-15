@@ -630,6 +630,18 @@
     "screenClass": "general"
   },
   {
+    "key": "recette.title",
+    "fr": "Détail du versement",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recette.timeline",
+    "fr": "Étapes du versement",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
     "key": "recettes.vide",
     "fr": "Pas encore de recette. Votre première vente s'affiche ici.",
     "register": "neutral",

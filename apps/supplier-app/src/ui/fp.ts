@@ -59,6 +59,7 @@ export const APP_COLOUR_DOCKET = [
   { key: 'pauseScrim', value: 'rgba(28,23,16,.72)', file: 'HANDOFF', where: 'EN PAUSE tile badge (§2 Tuile)' },
   { key: 'celebrationScrim', value: 'rgba(7,59,46,.95)', file: 'HANDOFF', where: 'payout celebration scrim (§2 Célébration)' },
   { key: 'artWeave', value: 'rgba(255,255,255,.07)', file: 'HANDOFF', where: 'product-art weave overlay (§2 Art produit)' },
+  { key: 'ledgerWeave', value: 'rgba(255,255,255,.05)', file: 'Redesign', where: 'hero ledger band weave — 5% white, a TEXTURE not a background (Argent hero)' },
 ] as const;
 
 type DocketKey = (typeof APP_COLOUR_DOCKET)[number]['key'];

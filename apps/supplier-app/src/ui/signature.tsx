@@ -93,7 +93,9 @@ export function HeroLedgerBand({
 }) {
   return (
     <View style={[styles.ledger, style]}>
-      <WeaveOverlay colour={C.onPrimary} style={styles.ledgerWeave} />
+      {/* The weave is a 5%-white TEXTURE on the solid accent (planche « héros
+          vert »), never the money's background — the figure reads on solid. */}
+      <WeaveOverlay colour={appColour.ledgerWeave} style={styles.ledgerWeave} />
       <Text style={ts('caps', C.soft)}>{label}</Text>
       <Text style={[ts('heroMoney', C.onPrimary), MONEY_TEXT]} numberOfLines={1}>
         {amount}

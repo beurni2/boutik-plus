@@ -84,6 +84,6 @@ describe('DF-1 C.2 — the keypad is handled on Mon Prix (props wired; device fe
     expect(app).toMatch(/keyboardShouldPersistTaps="handled"/);
     expect(app).toMatch(/keyboardDismissMode="on-drag"/);
     // the CTA sits in a scroll pad (scrollFlow bottom pad) so the keyboard never hides it
-    expect(app).toMatch(/scrollFlow:\s*\{\s*paddingBottom:\s*D\.scrollFlow/);
+    expect(app).toMatch(/scrollFlow:\s*\{[^}]*paddingBottom:\s*D\.scrollFlow/);
   });
 });

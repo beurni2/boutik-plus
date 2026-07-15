@@ -113,10 +113,14 @@ const HUBS: readonly Screen[] = ['accueil', 'produits', 'echeances'];
 // glyphs are forward-names awaiting a canon icon-set fill (home/tag are not in the
 // 26-glyph set): the TOLERANT Icon renders nothing for them — never a lookalike —
 // and the icon+word law is met by the word. Tombstone documented in JOURNAL.
+// WO-FP-BOUTIK (device review #4, founder ruling): the horloge is REMOVED from
+// the échéances tab. Like accueil/produits, it renders as a forward-name the
+// tolerant Icon draws nothing for — the tab is word-only (icon+word law met by
+// the word) until canon fills a non-clock échéances glyph.
 const TAB_ICON: Record<'accueil' | 'produits' | 'echeances', IconName> = {
   accueil: 'accueil' as unknown as IconName,
   produits: 'produits' as unknown as IconName,
-  echeances: 'horloge',
+  echeances: 'echeances' as unknown as IconName,
 };
 
 const SCREEN_TITLE_KEY: Record<Screen, string> = {
@@ -132,6 +136,7 @@ const SCREEN_TITLE_KEY: Record<Screen, string> = {
   recettes: 'recettes.title',
   moderation: 'moderation.title',
   confiance: 'confiance.title',
+  recette: 'recette.title',
 };
 
 // B11 (A1) — the REAL moderationState → chip + honest line (canon: submitted →
@@ -157,6 +162,13 @@ const RECEIVABLE_STATE: Record<DemoReceivable['obligation']['state'], { tone: Ch
   Failed: { tone: 'problem', label: 'recettes.chip_echec', line: 'recettes.state_echec' },
 };
 
+// WO-FP-BOUTIK #6 — the settlement happy-path order, for the detail timeline.
+// Presentation only: it renders the read model's OWN state, never computes one.
+// Held/Failed are OFF-path terminals — the detail shows the path reached plus
+// the honest terminal node (never a silent all-pending lie).
+type SettlementState = DemoReceivable['obligation']['state'];
+const SETTLEMENT_ORDER: readonly SettlementState[] = ['Locked', 'Pending', 'Eligible', 'Payable', 'Processing', 'Paid'];
+
 /** A money hero that counts up over 800 ms (README § Motion) and renders through
  * the frozen formatter. Re-runs when the amount changes or the tab is entered. */
 function MoneyHero({ label, amount, note, pending }: { label?: string | undefined; amount: number; note?: string | undefined; pending?: boolean | undefined }) {
@@ -179,6 +191,9 @@ export default function App() {
   const [offline, setOffline] = useState(false);
   const queueRef = useRef<DurableQueue | null>(null);
   const [queuedCount, setQueuedCount] = useState(0);
+  // WO-FP-BOUTIK #6 — the Mes-recettes card the seller opened, for the detail
+  // view. Render-only: it carries the EXISTING read-model obligation verbatim.
+  const [selectedReceivable, setSelectedReceivable] = useState<DemoReceivable | null>(null);
   const [category, setCategory] = useState<CaptureCategory>('mode');
   const [shot, setShotKind] = useState<ShotKind>('hero');
   const [shots, setShots] = useState<Partial<Record<ShotKind, CaptureResult>>>({});
@@ -212,6 +227,7 @@ export default function App() {
     setCheck1(false);
     setCheck2(false);
     setConfirmNet(0);
+    setSelectedReceivable(null);
   }, []);
   const enterReady = useCallback((net: number) => {
     setConfirmNet(net);
@@ -355,7 +371,7 @@ export default function App() {
       <ScreenEnter screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
-          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
             <View style={styles.stackGap}>
               <Text style={ts('screen', C.ink)}>{t('accueil.card_produits')}</Text>
               {refused !== undefined && (
@@ -365,8 +381,9 @@ export default function App() {
                 </Pressable>
               )}
               {urgent && (
+                // WO-FP-BOUTIK #4: horloge REMOVED (founder ruling) — the warn
+                // band + copy carry the urgency; no clock glyph on this entry.
                 <Pressable style={styles.urgentBanner} onPress={() => go('echeances')} accessibilityRole="button">
-                  <Icon name="horloge" size={18} color={C.warnFgAlt} />
                   <Text style={[ts('row', C.ink), styles.flex1]}>{t('accueil.urgent_banner')}</Text>
                 </Pressable>
               )}
@@ -398,6 +415,7 @@ export default function App() {
         )}
 
         {screen === 'onboarding' && (
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <Card>
             <Text style={ts('body', C.ink)}>{t('onboarding.free_listing')}</Text>
             <PrimaryButton
@@ -408,27 +426,30 @@ export default function App() {
               }}
             />
           </Card>
+          </ScrollView>
         )}
 
         {screen === 'produits' && (
-          <View style={styles.listWrap}>
-            {world.products.length === 0 ? (
+          <FlatList
+            style={styles.fill}
+            data={world.products}
+            keyExtractor={(p) => p.id}
+            numColumns={2}
+            columnWrapperStyle={world.products.length > 0 ? styles.gridRow : undefined}
+            initialNumToRender={6}
+            windowSize={5}
+            contentContainerStyle={styles.scrollFlow}
+            ListEmptyComponent={
               <EmptyState
                 icon="colis"
                 title={t('produits.vide')}
                 action={<PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />}
               />
-            ) : (
-              <>
-                <FlatList
-                  data={world.products}
-                  keyExtractor={(p) => p.id}
-                  numColumns={2}
-                  columnWrapperStyle={styles.gridRow}
-                  initialNumToRender={6}
-                  windowSize={5}
-                  contentContainerStyle={styles.listContent}
-                  renderItem={({ item }) => (
+            }
+            ListFooterComponent={
+              world.products.length > 0 ? <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} /> : null
+            }
+            renderItem={({ item }) => (
                     <Pressable
                       style={styles.tile}
                       onPress={() => {
@@ -457,14 +478,11 @@ export default function App() {
                       </View>
                     </Pressable>
                   )}
-                />
-                <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />
-              </>
-            )}
-          </View>
+          />
         )}
 
         {screen === 'nouveau' && (
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <Card>
             <Text style={ts('body', C.ink)}>{t('product.title')}</Text>
             <Overline>{t('studio.categorie')}</Overline>
@@ -483,6 +501,7 @@ export default function App() {
             </View>
             <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} icon="camera" />
           </Card>
+          </ScrollView>
         )}
 
         {screen === 'photo' && permission === null && <Skeleton style={styles.cameraFrame} />}
@@ -629,7 +648,7 @@ export default function App() {
         )}
 
         {screen === 'pret' && (
-          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <View style={styles.stackGap}>
             <Card accent>
               <StatusChip tone="fact" label={t('pret.badge_payee')} icon="coche" />
@@ -703,6 +722,7 @@ export default function App() {
         )}
 
         {screen === 'corrective' && (
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <Card>
             {refused === undefined ? (
               <EmptyState icon="coche" title={t('corrective.rien')} />
@@ -731,122 +751,199 @@ export default function App() {
             )}
             <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
           </Card>
+          </ScrollView>
         )}
 
         {screen === 'echeances' && (
-          <View style={styles.listWrap}>
-            <Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>
-            <FlatList
-              data={clocks}
-              keyExtractor={(p) => p.id}
-              initialNumToRender={6}
-              windowSize={5}
-              contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => (
-                <ListRow
-                  icon="horloge"
-                  title={item.name}
-                  meta={
-                    item.status !== 'echeance_depassee'
-                      ? t('echeances.restant').replace('{min}', String(item.correctionMinLeft ?? 0))
-                      : undefined
-                  }
-                  chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
-                />
-              )}
-            />
-            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
-          </View>
+          // WO-FP-BOUTIK #5: ONE full-height scroll surface — the rule note and
+          // the button ride ListHeader/Footer so nothing is a bounded middle
+          // window. #3: each row wires to the correction flow (a door, never a
+          // dead end). #4: the row-tile horloge stays (listed for the founder).
+          <FlatList
+            style={styles.fill}
+            data={clocks}
+            keyExtractor={(p) => p.id}
+            initialNumToRender={6}
+            windowSize={5}
+            contentContainerStyle={styles.scrollFlow}
+            ListHeaderComponent={<Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>}
+            ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
+            renderItem={({ item }) => (
+              <ListRow
+                icon="horloge"
+                title={item.name}
+                meta={
+                  item.status !== 'echeance_depassee'
+                    ? t('echeances.restant').replace('{min}', String(item.correctionMinLeft ?? 0))
+                    : undefined
+                }
+                chip={<StatusChip tone={STATUS_TONE[item.status]} label={t(STATUS_KEY[item.status])} />}
+                onPress={() => go('corrective')}
+              />
+            )}
+          />
         )}
 
         {screen === 'recettes' && (
-          <View style={styles.listWrap}>
-            <HeroLedgerBand
-              label={t('recettes.chip_attente')}
-              amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
-              sub={t('recettes.state_verse')}
-            >
-              <View style={styles.ledgerRow}>
-                <Text style={ts('caps', C.soft)}>{t('recettes.chip_verse')}</Text>
-                <Text style={[ts('bodyStrong', C.onPrimary), MONEY_TEXT]}>
-                  {t('money.amount_f').replace('{amount}', formatFcfa(statementFig.paid))}
-                </Text>
-              </View>
-            </HeroLedgerBand>
-            {receivables.length === 0 ? (
-              <EmptyState icon="gains" title={t('recettes.vide')} />
+          // WO-FP-BOUTIK #5: ONE full-height scroll — the hero ledger rides
+          // ListHeader, the note + button ride ListFooter (no bounded window).
+          <FlatList
+            style={styles.fill}
+            data={receivables}
+            keyExtractor={(r) => r.obligation.orderId}
+            initialNumToRender={6}
+            windowSize={5}
+            contentContainerStyle={styles.scrollFlow}
+            ListHeaderComponent={
+              <HeroLedgerBand
+                label={t('recettes.chip_attente')}
+                amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
+                sub={t('recettes.state_verse')}
+              >
+                <View style={styles.ledgerRow}>
+                  <Text style={ts('caps', C.soft)}>{t('recettes.chip_verse')}</Text>
+                  <Text style={[ts('bodyStrong', C.onPrimary), MONEY_TEXT]}>
+                    {t('money.amount_f').replace('{amount}', formatFcfa(statementFig.paid))}
+                  </Text>
+                </View>
+              </HeroLedgerBand>
+            }
+            ListEmptyComponent={<EmptyState icon="gains" title={t('recettes.vide')} />}
+            ListFooterComponent={
+              <>
+                <Text style={ts('rowSub', C.sub)}>{t('recettes.compte')}</Text>
+                <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+              </>
+            }
+            renderItem={({ item }) => {
+              const st = RECEIVABLE_STATE[item.obligation.state];
+              // WO-FP-BOUTIK #6: the card opens the obligation detail.
+              return (
+                <Pressable
+                  onPress={() => {
+                    setSelectedReceivable(item);
+                    go('recette');
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Card style={styles.receiptCard}>
+                    <View style={styles.receiptHead}>
+                      <DuotoneTile label={item.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
+                      <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={2}>
+                        {item.label}
+                      </Text>
+                      <StatusChip tone={st.tone} label={t(st.label)} />
+                    </View>
+                    <AmountHero
+                      label={t('offer.net_label')}
+                      amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
+                    />
+                    <Text style={ts('body', C.ink)}>{t(st.line)}</Text>
+                    {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
+                      <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', item.obligation.payoutRef)}</ReconcileLine>
+                    )}
+                  </Card>
+                </Pressable>
+              );
+            }}
+          />
+        )}
+
+        {/* WO-FP-BOUTIK #6 — the Mes-recettes obligation DETAIL: a render view
+            over the EXISTING settlement read model. The figure is the read
+            model's LOCKED obligation, formatted by the frozen formatter, NEVER
+            recomputed (B+I-05). Faso grammar + the signature module; states law
+            (loading — a stale tap; empty — no selection). No new data path. */}
+        {screen === 'recette' && (
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+            {selectedReceivable === null ? (
+              <EmptyState icon="gains" title={t('recettes.vide')} action={<SecondaryButton label={t('recettes.title')} onPress={() => go('recettes')} />} />
             ) : (
-              <FlatList
-                data={receivables}
-                keyExtractor={(r) => r.obligation.orderId}
-                initialNumToRender={6}
-                windowSize={5}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => {
-                  const st = RECEIVABLE_STATE[item.obligation.state];
-                  return (
-                    <Card style={styles.receiptCard}>
-                      <View style={styles.receiptHead}>
-                        <DuotoneTile label={item.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
-                        <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={2}>
-                          {item.label}
-                        </Text>
-                        <StatusChip tone={st.tone} label={t(st.label)} />
-                      </View>
+              (() => {
+                const r = selectedReceivable;
+                const st = RECEIVABLE_STATE[r.obligation.state];
+                const reachedIdx = SETTLEMENT_ORDER.indexOf(r.obligation.state);
+                const offPath = reachedIdx === -1; // Held / Failed — off the happy path
+                const pathReached = offPath ? SETTLEMENT_ORDER.indexOf('Processing') : reachedIdx;
+                const timeline: { state: SettlementState; done: boolean; current: boolean }[] = SETTLEMENT_ORDER.map(
+                  (s, i) => ({ state: s, done: i <= pathReached, current: !offPath && i === reachedIdx }),
+                );
+                if (offPath) timeline.push({ state: r.obligation.state, done: true, current: true });
+                return (
+                  <View style={styles.stackGap}>
+                    <View style={styles.receiptHead}>
+                      <DuotoneTile label={r.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
+                      <Text style={[ts('view', C.ink), styles.flex1]} numberOfLines={2}>
+                        {r.label}
+                      </Text>
+                      <StatusChip tone={st.tone} label={t(st.label)} />
+                    </View>
+                    <Card>
                       <AmountHero
                         label={t('offer.net_label')}
-                        amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
+                        amount={t('money.amount_f').replace('{amount}', formatFcfa(r.obligation.amount))}
                       />
                       <Text style={ts('body', C.ink)}>{t(st.line)}</Text>
-                      {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
-                        <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', item.obligation.payoutRef)}</ReconcileLine>
+                      {r.obligation.state === 'Paid' && r.obligation.payoutRef !== undefined && (
+                        <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', r.obligation.payoutRef)}</ReconcileLine>
                       )}
                     </Card>
-                  );
-                }}
-              />
+                    {/* The settlement lifecycle as a timeline, the current state
+                        highlighted — presentation over the read model's own state. */}
+                    <Card>
+                      <Overline>{t('recette.timeline')}</Overline>
+                      {timeline.map((n, i) => (
+                        <View key={`${n.state}-${i}`} style={styles.timelineRow}>
+                          <View style={[styles.timelineDot, n.done && styles.timelineDotDone, n.current && styles.timelineDotCurrent]} />
+                          <Text style={ts(n.current ? 'row' : 'body', n.done ? C.ink : C.sub)}>
+                            {t(RECEIVABLE_STATE[n.state].label)}
+                          </Text>
+                        </View>
+                      ))}
+                    </Card>
+                    <SecondaryButton label={t('recettes.title')} onPress={() => go('recettes')} />
+                  </View>
+                );
+              })()
             )}
-            <Text style={ts('rowSub', C.sub)}>{t('recettes.compte')}</Text>
-            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
-          </View>
+          </ScrollView>
         )}
 
         {screen === 'moderation' && (
-          <View style={styles.listWrap}>
-            {offline && <Text style={ts('rowSub', C.sub)}>{t('moderation.hors_ligne')}</Text>}
-            <FlatList
-              data={world.products}
-              keyExtractor={(p) => p.id}
-              initialNumToRender={6}
-              windowSize={5}
-              contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => {
-                const mod = MODERATION[item.moderationState];
-                return (
-                  <Card style={styles.modCard}>
-                    <View style={styles.modHead}>
-                      <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={1}>
-                        {item.name}
+          <FlatList
+            style={styles.fill}
+            data={world.products}
+            keyExtractor={(p) => p.id}
+            initialNumToRender={6}
+            windowSize={5}
+            contentContainerStyle={styles.scrollFlow}
+            ListHeaderComponent={offline ? <Text style={ts('rowSub', C.sub)}>{t('moderation.hors_ligne')}</Text> : null}
+            ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
+            renderItem={({ item }) => {
+              const mod = MODERATION[item.moderationState];
+              return (
+                <Card style={styles.modCard}>
+                  <View style={styles.modHead}>
+                    <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <StatusChip tone={mod.tone} label={t(mod.label)} />
+                  </View>
+                  <Text style={ts('body', C.ink)}>{t(mod.line)}</Text>
+                  {item.moderationState === 'changes_requested' &&
+                    item.changeReasons?.map((r) => (
+                      <Text key={r} style={[ts('body', C.ink), styles.reason]}>
+                        {`• ${t(`moderation.reason.${r}`)}`}
                       </Text>
-                      <StatusChip tone={mod.tone} label={t(mod.label)} />
-                    </View>
-                    <Text style={ts('body', C.ink)}>{t(mod.line)}</Text>
-                    {item.moderationState === 'changes_requested' &&
-                      item.changeReasons?.map((r) => (
-                        <Text key={r} style={[ts('body', C.ink), styles.reason]}>
-                          {`• ${t(`moderation.reason.${r}`)}`}
-                        </Text>
-                      ))}
-                  </Card>
-                );
-              }}
-            />
-            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
-          </View>
+                    ))}
+                </Card>
+              );
+            }}
+          />
         )}
 
         {screen === 'confiance' && (
-          <ScrollView contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <View style={styles.stackGap}>
             <Card>
               <Overline>{world.statement.periodLabel}</Overline>
@@ -924,9 +1021,17 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
-  content: { flex: 1, paddingHorizontal: D.pad, paddingTop: D.gap, gap: D.gap },
-  scrollFlow: { paddingBottom: D.scrollFlow, gap: D.gap },
+  // WO-FP-BOUTIK #5: content is a plain full-height frame; each screen owns ONE
+  // scroll surface (fill) whose contentContainerStyle (scrollFlow) carries the
+  // padding — no bounded middle window, no nested scroll, no clipped chrome.
+  content: { flex: 1, paddingHorizontal: D.pad, gap: D.gapSm },
+  fill: { flex: 1 },
+  scrollFlow: { paddingTop: D.gap, paddingBottom: D.scrollFlow, gap: D.gap },
   stackGap: { gap: D.gap, paddingTop: D.gapSm },
+  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm, paddingVertical: D.gapXs },
+  timelineDot: { width: D.timelineDot, height: D.timelineDot, borderRadius: R.pill, borderWidth: D.timelineStroke, borderColor: C.hairlineStrong, backgroundColor: C.paper },
+  timelineDotDone: { borderColor: C.primary, backgroundColor: C.primary },
+  timelineDotCurrent: { borderColor: C.primary, backgroundColor: C.soft },
   offerAvoider: { flex: 1 },
   accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: D.pad, paddingTop: D.gapSm },
   refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: D.gap, backgroundColor: C.dangerBg, padding: D.rowPad, borderRadius: R.input },
