@@ -834,6 +834,42 @@
     "screenClass": "general"
   },
   {
+    "key": "confiance.subtitle",
+    "fr": "Votre niveau monte avec des livraisons réussies — jamais avec de l’argent avancé.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_current",
+    "fr": "Votre niveau",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confiance.desc_provisional",
+    "fr": "Une commande à la fois · paiement complet à la commande · un contrôle à chaque enlèvement · catégories choisies.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.desc_verified",
+    "fr": "Paiement à la livraison débloqué · plusieurs commandes en même temps · meilleure visibilité.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.desc_trusted",
+    "fr": "Avec un bon historique : plus de commandes en même temps, contrôles allégés quand c’est sûr, campagnes en avant.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.warning",
+    "fr": "Une faute répétée réduit l’accès (retour au prépaiement, suspension) — c’est l’accès au marché qui compte, jamais une somme bloquée.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "confiance.paid_label",
     "fr": "Versé ce mois",
     "register": "money",

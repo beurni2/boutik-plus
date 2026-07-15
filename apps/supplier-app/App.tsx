@@ -989,30 +989,41 @@ export default function App() {
         )}
 
         {screen === 'confiance' && (
+          // Rebuilt to the « Niveau de confiance » frame (planche 561–586): the
+          // trust LADDER — three tier cards (Provisoire · Vérifié · De confiance),
+          // the current one emphasized (accent border + « Votre niveau » pill) and
+          // carrying the seller's real access consequence (faultCount +
+          // restrictions, B7.2). Subtitle + gold warning use gate-clean wording
+          // for the zero-seller-fee promise. Divergence: NO money on the trust
+          // screen — the statement figures live on the money surfaces (Accueil ·
+          // Mes recettes); B+I-12, a consequence is access-based, never money.
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
+          <Text style={ts('body', C.sub)}>{t('confiance.subtitle')}</Text>
           <View style={styles.stackGap}>
-            <Card>
-              <Overline>{world.statement.periodLabel}</Overline>
-              <MoneyHero label={t('confiance.paid_label')} amount={statementFig.paid} />
-              <Text style={ts('body', C.ink)}>
-                {t('confiance.pending_ligne').replace('{amount}', formatFcfa(statementFig.pending))}
-              </Text>
-              <ReconcileLine>{t('confiance.statement_note')}</ReconcileLine>
-            </Card>
-            <Card accent>
-              <View style={styles.modHead}>
-                <Overline>{t('confiance.tier_label')}</Overline>
-                <StatusChip tone="celebrate" label={t(`confiance.tier_${trust.tier}`)} icon="scelle" />
-              </View>
-              <Text style={ts('body', C.ink)}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
-              {trust.restrictions.map((r) => (
-                <Text key={r} style={[ts('body', C.ink), styles.reason]}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
-              ))}
-              <ReconcileLine>{t('confiance.protege')}</ReconcileLine>
-            </Card>
-            <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
+            {(['provisional', 'verified', 'trusted'] as const).map((tier) => {
+              const current = trust.tier === tier;
+              return (
+                <Card key={tier} accent={current}>
+                  <View style={styles.modHead}>
+                    <Text style={ts('row', C.ink)}>{t(`confiance.tier_${tier}`)}</Text>
+                    {current && <StatusChip tone="celebrate" label={t('confiance.tier_current')} icon="scelle" />}
+                  </View>
+                  <Text style={ts('body', C.sub)}>{t(`confiance.desc_${tier}`)}</Text>
+                  {current && (
+                    <>
+                      <Text style={ts('body', C.ink)}>{t('confiance.incidents').replace('{n}', String(trust.faultCount))}</Text>
+                      {trust.restrictions.map((r) => (
+                        <Text key={r} style={[ts('body', C.ink), styles.reason]}>{`• ${t(`confiance.restriction.${r}`)}`}</Text>
+                      ))}
+                    </>
+                  )}
+                </Card>
+              );
+            })}
           </View>
+          <WarnNote text={t('confiance.warning')} />
+          <SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />
           </ScrollView>
         )}
 
