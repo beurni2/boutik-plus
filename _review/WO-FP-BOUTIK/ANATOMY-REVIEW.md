@@ -9,6 +9,13 @@ Redesign.dc.html` (composition · hierarchy · Bricolage display scale · signat
 carries an **anatomy derivation**: frame elements grepped **verbatim from its own frame** (sibling
 frames never imported) → the implementation → **lawful divergences only, listed**.
 
+**Ecrans cross-check (visual fidelity gate, per view):** `ECRANS-CROSSCHECK.md` holds each view against
+its numbered frame in `Boutik Plus - Ecrans_standalone.html` (the flat board that dc-imports every
+Redesign frame side by side). Verdict: **11/11 numbered frames match in composition**; frame 03
+(échéances) was **re-cut** this pass to the signature duotone-tile row; frames 05 (Fiche produit) and
+modération are lawful E1 absences. The Ecrans gate runs BEFORE the byte-cited derivations and the
+device pass.
+
 ## The 13 derivations (`anatomy/`)
 
 | view | frame | notes |

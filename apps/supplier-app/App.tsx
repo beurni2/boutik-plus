@@ -859,8 +859,12 @@ export default function App() {
             ListHeaderComponent={<HubTitle title={t('echeances.title')} subtitle={t('echeances.regle')} />}
             ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
             renderItem={({ item }) => (
+              // Ecrans cross-check (frame 03 « Commandes »): the row art is the
+              // SIGNATURE duotone tile (as the frame composes its list rows), not a
+              // horloge glyph — re-cut per the Ecrans composition gate. This also
+              // clears the last clock glyph (#4). Deadline stays the row sub.
               <ListRow
-                icon="horloge"
+                art={<DuotoneTile label={item.name} height={D.artRow} radius={R.art} style={styles.receiptThumb} />}
                 title={item.name}
                 meta={
                   item.status !== 'echeance_depassee'
