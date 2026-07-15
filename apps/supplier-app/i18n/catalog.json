@@ -702,6 +702,12 @@
     "screenClass": "general"
   },
   {
+    "key": "recettes.detail_label",
+    "fr": "Détail par commande",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "recette.title",
     "fr": "Détail du versement",
     "register": "money",

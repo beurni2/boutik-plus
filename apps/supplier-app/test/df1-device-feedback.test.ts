@@ -53,9 +53,15 @@ describe('DF-1 B — Mes Recettes: product art + name as title + the figure ALON
     expect(app).toMatch(/ts\('row', C\.ink\)[\s\S]*?item\.label/);
   });
 
-  it('the figure renders ALONE at display scale — money.amount_f (« {amount} F ») — no full-sentence duplication', () => {
-    expect(app).toMatch(/label=\{t\('offer\.net_label'\)\}[\s\S]*?amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
-    expect(app).not.toMatch(/amount=\{t\('recettes\.net_ligne'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
+  it('the figure renders ALONE — money.amount_f (« {amount} F ») over the LOCKED obligation, MONEY_TEXT, no sentence (FP « Argent » frame supersedes the round-1 AmountHero form; the invariant survives)', () => {
+    // The FP « Argent » détail-par-commande frame (planche 197–208) makes the money
+    // hero SINGULAR at the top band and the per-order rows COMPACT — the figure is a
+    // display MONEY_TEXT amount ALONE, over the verbatim read-model obligation through
+    // the frozen formatter (never recomputed). The DF-1 durable invariant (« figure
+    // alone, no buried sentence ») survives the composition change.
+    expect(app).toMatch(/ts\('priceInline', C\.ink\), MONEY_TEXT\][\s\S]*?t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)/);
+    // NEVER the buried full-sentence form (« Vous recevrez … F ») — the round-1 fix holds
+    expect(app).not.toMatch(/recettes\.net_ligne'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)/);
   });
 });
 

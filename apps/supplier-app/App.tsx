@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
-import { C, ts, D, R, MONEY_TEXT } from './src/ui/fp';
+import { C, ts, D, R, MONEY_TEXT, SHADOW } from './src/ui/fp';
 import { IS_PREVIEW } from './src/preview';
 import { t } from './src/i18n';
 import { JOURNEY, START, type Screen } from './src/journey';
@@ -846,6 +846,7 @@ export default function App() {
                   </Text>
                 </View>
               </HeroLedgerBand>
+              {receivables.length > 0 && <SectionLabel>{t('recettes.detail_label')}</SectionLabel>}
               </>
             }
             ListEmptyComponent={<EmptyState icon="gains" title={t('recettes.vide')} />}
@@ -857,7 +858,11 @@ export default function App() {
             }
             renderItem={({ item }) => {
               const st = RECEIVABLE_STATE[item.obligation.state];
-              // WO-FP-BOUTIK #6: the card opens the obligation detail.
+              // Rebuilt to the « Argent » frame « Détail par commande » rows
+              // (planche 197–208): the money hero stays SINGULAR at the top band;
+              // each order is a COMPACT row — name + state line left, the locked
+              // net (verbatim read-model obligation, frozen formatter, never
+              // recomputed) + status pill right. The row opens the detail (#6).
               return (
                 <Pressable
                   onPress={() => {
@@ -866,23 +871,23 @@ export default function App() {
                   }}
                   accessibilityRole="button"
                 >
-                  <Card style={styles.receiptCard}>
-                    <View style={styles.receiptHead}>
-                      <DuotoneTile label={item.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
-                      <Text style={[ts('row', C.ink), styles.flex1]} numberOfLines={2}>
+                  <View style={styles.moneyRow}>
+                    <DuotoneTile label={item.label} height={D.artRow} radius={R.art} style={styles.receiptThumb} />
+                    <View style={styles.flex1}>
+                      <Text style={ts('row', C.ink)} numberOfLines={1}>
                         {item.label}
+                      </Text>
+                      <Text style={ts('rowSub', C.sub)} numberOfLines={1}>
+                        {t(st.line)}
+                      </Text>
+                    </View>
+                    <View style={styles.moneyRowRight}>
+                      <Text style={[ts('priceInline', C.ink), MONEY_TEXT]}>
+                        {t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
                       </Text>
                       <StatusChip tone={st.tone} label={t(st.label)} />
                     </View>
-                    <AmountHero
-                      label={t('offer.net_label')}
-                      amount={t('money.amount_f').replace('{amount}', formatFcfa(item.obligation.amount))}
-                    />
-                    <Text style={ts('body', C.ink)}>{t(st.line)}</Text>
-                    {item.obligation.state === 'Paid' && item.obligation.payoutRef !== undefined && (
-                      <ReconcileLine>{t('recettes.ref_ligne').replace('{ref}', item.obligation.payoutRef)}</ReconcileLine>
-                    )}
-                  </Card>
+                  </View>
                 </Pressable>
               );
             }}
@@ -1111,6 +1116,18 @@ const styles = StyleSheet.create({
     paddingTop: D.gapSm,
   },
   ledgerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  moneyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: D.gap,
+    padding: D.cardPad,
+    backgroundColor: C.card,
+    borderRadius: R.tile,
+    borderWidth: D.hair,
+    borderColor: C.hairline,
+    ...SHADOW.card,
+  },
+  moneyRowRight: { alignItems: 'flex-end', gap: D.gapXs },
   deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm },
   v2Banner: { backgroundColor: C.dim, padding: D.rowPad, borderRadius: R.input },
   photoFrame: {
