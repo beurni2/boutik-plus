@@ -688,9 +688,22 @@ export default function App() {
             </Card>
 
             {b7Phase === 'ready' && (
+              // Rebuilt to the « Produit prêt » sheet frame (planche 601–625): the
+              // readiness confirmation as NUMBERED steps + the confirm CTA + the
+              // custody honesty line « Le code client de livraison ne vous est
+              // jamais montré. » (frame 622 — reinforces B+I-06 / the four-secrets
+              // law: the buyer's private delivery secret is never shown to the
+              // supplier, and never in readiness evidence). The readiness
+              // EVIDENCE is the app's real photo + package checks; the state
+              // machine (pending/queued/queue_error/confirmed) is untouched.
+              // Custody divergence (FLAGGED): the frame's step-1 readiness CODE
+              // (sellerReadinessChallenge, server-issued, short-TTL) is NOT modeled
+              // at E1 — it is a server-issued secret and is NEVER fabricated here.
               <>
                 <Card>
+                  <Overline>{t('pret.step_photo')}</Overline>
                   <CheckRow label={t('pret.check_photo')} checked={check1} onToggle={() => setCheck1((v) => !v)} />
+                  <Overline>{t('pret.step_emballage')}</Overline>
                   <CheckRow label={t('pret.check_ferme')} checked={check2} onToggle={() => setCheck2((v) => !v)} />
                 </Card>
                 <PrimaryButton
@@ -699,6 +712,9 @@ export default function App() {
                   disabledLabel={t('pret.confirm_gate')}
                   onPress={confirmReady}
                 />
+                <NoteCard>
+                  <Text style={ts('body', C.deep)}>{t('pret.honnete_code_client')}</Text>
+                </NoteCard>
                 <QuoteRule>{t('deadline.today')}</QuoteRule>
               </>
             )}

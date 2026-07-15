@@ -1122,8 +1122,20 @@
     "screenClass": "label"
   },
   {
+    "key": "pret.step_photo",
+    "fr": "1 · Photo de préparation",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "pret.check_photo",
     "fr": "Le colis correspond à la photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.step_emballage",
+    "fr": "2 · Emballage du colis",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -1132,6 +1144,12 @@
     "fr": "Fermé, prêt à partir",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "pret.honnete_code_client",
+    "fr": "Le code client de livraison ne vous est jamais montré.",
+    "register": "neutral",
+    "screenClass": "general"
   },
   {
     "key": "pret.confirmer",
