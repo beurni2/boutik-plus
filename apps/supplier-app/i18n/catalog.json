@@ -576,6 +576,18 @@
     "screenClass": "label"
   },
   {
+    "key": "studio.honnete_ia",
+    "fr": "De vraies photos — aucune image inventée par une IA.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.honnete_original",
+    "fr": "Cette photo prouve l'accès au produit, pas l'authenticité. Votre photo d'origine est gardée, jamais remplacée.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "studio.permission",
     "fr": "Le Studio a besoin de la caméra pour vos photos.",
     "register": "neutral",

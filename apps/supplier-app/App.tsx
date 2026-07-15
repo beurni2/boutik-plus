@@ -611,6 +611,14 @@ export default function App() {
                 {t(pending.guidance.verdict === 'advice' ? 'studio.conseil.lumiere' : 'studio.conseil.ok')}
               </Text>
             </Card>
+            {/* Boutik+ Studio imaging-honesty (frame 438 + 495): the photo is real
+                (Law 5 — no generative/AI image) and the original is retained, never
+                overwritten (B+I imaging). Stated at the moment the premium-frame
+                derivative is shown. Copy only — no camera/EXIF/imaging-logic change. */}
+            <NoteCard>
+              <Text style={ts('body', C.deep)}>{t('studio.honnete_ia')}</Text>
+              <Text style={ts('rowSub', C.sub)}>{t('studio.honnete_original')}</Text>
+            </NoteCard>
             <View style={styles.retakeRow}>
               <View style={styles.retakeHalf}>
                 <SecondaryButton label={t('studio.reprendre')} onPress={() => setPending(null)} />
