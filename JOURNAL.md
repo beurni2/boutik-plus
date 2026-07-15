@@ -756,3 +756,16 @@ Format per entry:
 - **Font check (shop finding #1): boutik CLEAN, byte-verified + guarded** — see FONT-RENDER-CHECK.md. Preview run **54** (head `5ea39b3`) published to `preview` (EAS step success) — font device-check + the first 3 frame views live.
 - **Green throughout:** typecheck ✓ · 175 tests ✓ · all gates green (copy-lint 199, 0 violations). **DO NOT MERGE.**
 - **REMAINING (task #17):** nouveau · offre · **pret (CUSTODY — max deliberation, four secrets / buyerDropCode-never-shown; do NOT rush on thin context)** · corrective · moderation · onboarding · photo(studio); then the ONE final preview.
+
+### 2026-07-15 (cont.) · WO-FP-BOUTIK — frame-fidelity rebuild COMPLETE (all views) + custody + anatomy packet
+- **ORDER RATIFIED (founder): PRET first → offre → corrective → moderation → onboarding → STUDIO last.** All done, one committed slice each, green throughout.
+- **PRET (custody, full deliberation):** rebuilt to the « Produit prêt » sheet frame (numbered steps + confirm CTA + the frame's honesty line « Le code client de livraison ne vous est jamais montré. »). **STRUCTURAL proof buyerDropCode is never on the supplier surface** — grep of the whole app = 0 hits; new `test/custody-buyer-code-absent.test.ts` (scans every supplier .ts/.tsx, non-vacuous, honesty-prose-not-a-false-positive). Four-secrets law quoted verbatim in the derivation. The step-1 readiness CODE (sellerReadinessChallenge, server-issued) is NOT modeled at E1 and NEVER fabricated — FLAGGED as a post-E1 slice.
+- **offre:** wiz2 structured breakdown (base − commission − frais, live waterfall) then the net hero; MoneyFields stay editable (DF-1 C override of the frame steppers).
+- **corrective:** « Détail commande » refusal frame — danger banner (WarnNote gained tone=danger) + Protection-Fund reassurance (buyer refunded immediately, never gated on the seller, B+I-12).
+- **moderation:** no dedicated planche frame (only the EN MODÉRATION badge, 139) — composed from the shared vocabulary; derivation only, no code change.
+- **onboarding:** « Inscription vendeur » ob0 welcome (big title + soft promise card); welcome step only (E1), no legacy « Ma Boutique », « dépôt »/« caution » gate-reworded.
+- **STUDIO:** the app is the REAL camera (CameraView + on-device premium-frame + EXIF strip), not the prototype MOCK (§2.5). Added the imaging HONESTY the frame states — « aucune image inventée par une IA » (Law 5) + « photo d'origine gardée, jamais remplacée ». A fuller live-overlay restyle is FLAGGED as the « Studio, its own care » follow-up.
+- **NEW derivation rule honored:** every anatomy row grep-evidenced from its OWN frame (sibling frames never imported; the two cases where a grep first hit a sibling — Photo de préparation@295, breakdown labels@242 — were re-pinned inside the correct frame).
+- **ANATOMY PACKET (13 views):** `_review/WO-FP-BOUTIK/anatomy/{accueil,produits,recettes,echeances,confiance,recette,nouveau,pret,offre,corrective,moderation,onboarding,studio}.md` + `FONT-RENDER-CHECK.md`.
+- **Green throughout:** typecheck ✓ · 179 tests ✓ · all gates green (copy-lint 207, 0 violations). **DO NOT MERGE** (held for founder device pass).
+- **REMAINING for the founder:** device pass (ratify the Mes-recettes DF-1 reconciliation + the PRET readiness-code flag + the Studio follow-up scope); then the merge gate.
