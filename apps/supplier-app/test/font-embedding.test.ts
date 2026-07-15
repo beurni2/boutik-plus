@@ -65,6 +65,21 @@ describe('the Faso Premium typeface is embedded natively, at first frame', () =>
     expect(new Set(ids).size).toBe(6);
   });
 
+  it('the render layer sets fontFamily ONLY through the resolver — no raw family string can bypass it (shop finding #1 class, made impossible)', () => {
+    // Shop's finding #1: a fontFamily KEY that ≠ the loaded face's internal
+    // name-table family → RN silently paints the system font. Boutik's keys ==
+    // the embedded names (proven above), and this guard keeps it that way: the
+    // ONLY fontFamily assignment is fp.ts's ts(), through the fontFamily(kind,
+    // wght) resolver — a raw `fontFamily: '…'` literal (e.g. the space-form
+    // 'Bricolage Grotesque', which NO embedded face carries) can never sneak in.
+    for (const f of ['App.tsx', 'src/ui/kit.tsx', 'src/ui/signature.tsx', 'src/ui/anim.tsx']) {
+      expect(read(f), `${f} assigns a fontFamily outside the ts() resolver`).not.toMatch(/fontFamily\s*:/);
+    }
+    const fp = read('src/ui/fp.ts');
+    expect(fp, 'ts() resolves fontFamily via the resolver').toMatch(/fontFamily:\s*fontFamily\(r\.kind, r\.wght\)/);
+    expect(fp, 'fp.ts sets a raw fontFamily string literal').not.toMatch(/fontFamily:\s*['"]/);
+  });
+
   it('the sfnt reader is NON-VACUOUS: a PLANTED name-table collision is DETECTED', () => {
     const makeSfnt = (family: string, weight: number): Uint8Array => {
       const fam = new Uint8Array(family.length * 2);
