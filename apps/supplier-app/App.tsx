@@ -649,16 +649,35 @@ export default function App() {
                   />
                   <Text style={ts('rowSub', C.sub)}>{t('offre.commission_aide')}</Text>
                   {belowFloor && <WarnNote text={t('offer.floor_block')} />}
-                  <MoneyHero label={t('offer.net_label')} amount={offerNet} pending={belowMin} />
+                  {/* Rebuilt to the « Prix & commission » wiz2 frame (planche
+                      384–388): the structured breakdown — base − commission − frais
+                      — each figure from the LIVE pinned waterfall, then the net in
+                      majesty. Fields stay editable MoneyFields (DF-1 C, device
+                      override of the frame's steppers); the net stays the guarded
+                      MoneyHero (count-up). */}
                   {!belowMin && (
-                    <ReconcileLine>
-                      {t('offre.reconcile')
-                        .replace('{net}', formatFcfa(offerNet))
-                        .replace('{prix}', formatFcfa(priceB))
-                        .replace('{part}', formatFcfa(offerC))
-                        .replace('{frais}', formatFcfa(offerFee))}
-                    </ReconcileLine>
+                    <View style={styles.breakdown}>
+                      <View style={styles.netRow}>
+                        <Text style={ts('body', C.ink)}>{t('offre.champ_prix')}</Text>
+                        <Text style={[ts('body', C.ink), MONEY_TEXT]}>
+                          {t('money.amount_f').replace('{amount}', formatFcfa(priceB))}
+                        </Text>
+                      </View>
+                      <View style={styles.netRow}>
+                        <Text style={ts('body', C.sub)}>{t('offre.champ_commission')}</Text>
+                        <Text style={[ts('body', C.sub), MONEY_TEXT]}>
+                          {`− ${t('money.amount_f').replace('{amount}', formatFcfa(offerC))}`}
+                        </Text>
+                      </View>
+                      <View style={styles.netRow}>
+                        <Text style={ts('body', C.sub)}>{t('offre.ligne_frais')}</Text>
+                        <Text style={[ts('body', C.sub), MONEY_TEXT]}>
+                          {`− ${t('money.amount_f').replace('{amount}', formatFcfa(offerFee))}`}
+                        </Text>
+                      </View>
+                    </View>
                   )}
+                  <MoneyHero label={t('offer.net_label')} amount={offerNet} pending={belowMin} />
                   <PrimaryButton
                     label={t('offre.publier')}
                     money
@@ -1137,6 +1156,7 @@ const styles = StyleSheet.create({
   modCard: { marginBottom: D.gap },
   modHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: D.gap },
   reason: { paddingLeft: D.gapSm },
+  breakdown: { gap: D.gapXs },
   netRow: {
     flexDirection: 'row',
     alignItems: 'baseline',

@@ -1092,6 +1092,12 @@
     "screenClass": "label"
   },
   {
+    "key": "offre.ligne_frais",
+    "fr": "Frais Boutik+ (5 %)",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
     "key": "offre.publier",
     "fr": "Publier l'offre",
     "register": "money",
