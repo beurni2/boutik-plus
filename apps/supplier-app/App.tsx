@@ -795,10 +795,18 @@ export default function App() {
             {refused === undefined ? (
               <EmptyState icon="coche" title={t('corrective.rien')} />
             ) : (
+              // Rebuilt to the « Détail commande » refusal frame (planche 298–301):
+              // the refusal reason as a DANGER banner, then the Protection-Fund
+              // reassurance (the buyer is ALREADY refunded — never gated on the
+              // seller; B+I-12), the countdown, and the correct-and-re-propose CTA.
               <>
-                <QuoteRule>
-                  {t('refused.cause').replace('{issues}', refused.refusedChecks!.map((key) => t(key)).join(', '))}
-                </QuoteRule>
+                <WarnNote
+                  tone="danger"
+                  text={t('refused.cause').replace('{issues}', refused.refusedChecks!.map((key) => t(key)).join(', '))}
+                />
+                <NoteCard>
+                  <Text style={ts('body', C.deep)}>{t('corrective.protection')}</Text>
+                </NoteCard>
                 <Text style={ts('body', C.ink)}>{t('refused.new_code')}</Text>
                 <StatusChip
                   tone="pending"

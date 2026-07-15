@@ -396,6 +396,12 @@
     "screenClass": "status"
   },
   {
+    "key": "corrective.protection",
+    "fr": "La cliente est déjà remboursée par le fonds de protection. Corrigez, puis re-proposez le colis.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
     "key": "nav.tab_accueil",
     "fr": "Accueil",
     "register": "neutral",

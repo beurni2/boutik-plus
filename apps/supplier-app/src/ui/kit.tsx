@@ -573,11 +573,13 @@ export function PendingNotice({ lines, serverWait }: { lines: readonly string[];
 
 /** WarnNote — an inline warn advisory (below-floor, queue error): warn band,
  * alert icon, calm — never a red scold. */
-export function WarnNote({ text, icon = 'alerte' }: { text: string; icon?: IconName }) {
+export function WarnNote({ text, icon, tone = 'warn' }: { text: string; icon?: IconName; tone?: 'warn' | 'danger' }) {
+  const danger = tone === 'danger';
+  const fg = danger ? C.dangerFg : C.warnFgAlt;
   return (
-    <View style={styles.pendingNotice}>
-      <Icon name={icon} size={18} color={C.warnFgAlt} />
-      <Text style={[ts('body', C.warnFgAlt), styles.flex1]}>{text}</Text>
+    <View style={[styles.pendingNotice, danger && styles.pendingNoticeDanger]}>
+      <Icon name={icon ?? (danger ? 'refus' : 'alerte')} size={18} color={fg} />
+      <Text style={[ts('body', fg), styles.flex1]}>{text}</Text>
     </View>
   );
 }
@@ -869,6 +871,7 @@ const styles = StyleSheet.create({
     padding: D.rowPad,
     borderRadius: R.input,
   },
+  pendingNoticeDanger: { backgroundColor: C.dangerBg },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm },
   pendingBar: { marginTop: 2 },
   pendingBody: { flex: 1, gap: 2 },
