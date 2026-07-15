@@ -509,26 +509,27 @@ export default function App() {
         )}
 
         {screen === 'nouveau' && (
+          // Rebuilt to the « Nouveau produit » wiz0 frame (planche 349–355): the big
+          // Bricolage « Catégorie » step title over the category chips on the paper
+          // surface (no card wrapper), then the capture CTA. Divergence: a single
+          // category step, not the frame's full 5-step wizard (that jumps E1 scope).
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
-          <Card>
-            <Text style={ts('body', C.ink)}>{t('product.title')}</Text>
-            <Overline>{t('studio.categorie')}</Overline>
-            <View style={styles.chipRow}>
-              {CAPTURE_CATEGORIES.map((c) => (
-                <Selectable
-                  key={c}
-                  selected={category === c}
-                  onPress={() => setCategory(c)}
-                  accessibilityLabel={t(`categorie.${c}`)}
-                  style={styles.categoryChip}
-                >
-                  <Text style={ts('row', category === c ? C.deep : C.ink)}>{t(`categorie.${c}`)}</Text>
-                </Selectable>
-              ))}
-            </View>
-            <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} icon="camera" />
-          </Card>
+          <Text style={ts('screen', C.ink)}>{t('studio.categorie')}</Text>
+          <View style={styles.chipRow}>
+            {CAPTURE_CATEGORIES.map((c) => (
+              <Selectable
+                key={c}
+                selected={category === c}
+                onPress={() => setCategory(c)}
+                accessibilityLabel={t(`categorie.${c}`)}
+                style={styles.categoryChip}
+              >
+                <Text style={ts('row', category === c ? C.deep : C.ink)}>{t(`categorie.${c}`)}</Text>
+              </Selectable>
+            ))}
+          </View>
+          <PrimaryButton label={t('product.photo_action')} onPress={() => go('photo')} icon="camera" />
           </ScrollView>
         )}
 
