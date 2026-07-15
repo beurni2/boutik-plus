@@ -798,12 +798,7 @@ export default function App() {
             initialNumToRender={6}
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
-            ListHeaderComponent={
-              <>
-                <ViewHeader title={t('echeances.title')} />
-                <Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>
-              </>
-            }
+            ListHeaderComponent={<HubTitle title={t('echeances.title')} subtitle={t('echeances.regle')} />}
             ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
             renderItem={({ item }) => (
               <ListRow
