@@ -935,8 +935,13 @@ export default function App() {
                       <Overline>{t('recette.timeline')}</Overline>
                       {timeline.map((n, i) => (
                         <View key={`${n.state}-${i}`} style={styles.timelineRow}>
-                          <View style={[styles.timelineDot, n.done && styles.timelineDotDone, n.current && styles.timelineDotCurrent]} />
-                          <Text style={ts(n.current ? 'row' : 'body', n.done ? C.ink : C.sub)}>
+                          <View style={styles.timelineDotCol}>
+                            <View style={[styles.timelineDot, n.done && styles.timelineDotDone, n.current && styles.timelineDotCurrent]} />
+                            {i < timeline.length - 1 && (
+                              <View style={[styles.timelineBar, n.done && styles.timelineBarDone]} />
+                            )}
+                          </View>
+                          <Text style={[ts(n.current ? 'row' : 'body', n.done ? C.ink : C.sub), styles.timelineLabel]}>
                             {t(RECEIVABLE_STATE[n.state].label)}
                           </Text>
                         </View>
@@ -1086,10 +1091,14 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   scrollFlow: { paddingTop: D.gap, paddingBottom: D.scrollFlow, gap: D.gap },
   stackGap: { gap: D.gap, paddingTop: D.gapSm },
-  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm, paddingVertical: D.gapXs },
+  timelineRow: { flexDirection: 'row', gap: D.gapSm },
+  timelineDotCol: { alignItems: 'center', width: D.timelineDot },
   timelineDot: { width: D.timelineDot, height: D.timelineDot, borderRadius: R.pill, borderWidth: D.timelineStroke, borderColor: C.hairlineStrong, backgroundColor: C.paper },
   timelineDotDone: { borderColor: C.primary, backgroundColor: C.primary },
   timelineDotCurrent: { borderColor: C.primary, backgroundColor: C.soft },
+  timelineBar: { width: D.timelineStroke, flex: 1, minHeight: D.gap, marginTop: D.padTiny, backgroundColor: C.hairlineStrong },
+  timelineBarDone: { backgroundColor: C.primary },
+  timelineLabel: { flex: 1, paddingBottom: D.gap },
   offerAvoider: { flex: 1 },
   accueilLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: D.pad, paddingTop: D.gapSm },
   refuseBanner: { flexDirection: 'row', alignItems: 'center', gap: D.gap, backgroundColor: C.dangerBg, padding: D.rowPad, borderRadius: R.input },
