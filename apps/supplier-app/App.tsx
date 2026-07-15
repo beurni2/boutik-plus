@@ -435,18 +435,24 @@ export default function App() {
         )}
 
         {screen === 'onboarding' && (
+          // Rebuilt to the « Inscription vendeur » ob0 welcome frame (planche
+          // 512–516): the big Bricolage welcome title + the free-listing promise as
+          // a soft accent card + the CTA. Divergence: the welcome step only, not the
+          // frame's full 5-step signup wizard (jumps E1 scope). Copy is gate-clean
+          // (the frame's banned surety words + its retired shop name are dropped).
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
           <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
-          <Card>
-            <Text style={ts('body', C.ink)}>{t('onboarding.free_listing')}</Text>
-            <PrimaryButton
-              label={t('onboard.action')}
-              onPress={() => {
-                setPendingKey('onboard.phone_pending');
-                go('produits');
-              }}
-            />
-          </Card>
+          <Text style={ts('screen', C.ink)}>{t('onboarding.welcome')}</Text>
+          <NoteCard>
+            <Text style={ts('body', C.deep)}>{t('onboarding.free_listing')}</Text>
+          </NoteCard>
+          <PrimaryButton
+            label={t('onboard.action')}
+            onPress={() => {
+              setPendingKey('onboard.phone_pending');
+              go('produits');
+            }}
+          />
           </ScrollView>
         )}
 
