@@ -769,3 +769,8 @@ Format per entry:
 - **ANATOMY PACKET (13 views):** `_review/WO-FP-BOUTIK/anatomy/{accueil,produits,recettes,echeances,confiance,recette,nouveau,pret,offre,corrective,moderation,onboarding,studio}.md` + `FONT-RENDER-CHECK.md`.
 - **Green throughout:** typecheck ✓ · 179 tests ✓ · all gates green (copy-lint 207, 0 violations). **DO NOT MERGE** (held for founder device pass).
 - **REMAINING for the founder:** device pass (ratify the Mes-recettes DF-1 reconciliation + the PRET readiness-code flag + the Studio follow-up scope); then the merge gate.
+
+### 2026-07-15 (cont.) · ECRANS cross-check addendum — per-view visual gate
+- **Founder addendum:** before shipping any rebuilt view, hold it against its numbered frame in `Boutik Plus - Ecrans_standalone.html` (the flat board that dc-imports every Redesign frame side by side). Persisted the board to `design-reference/handoff_redesign/`. The Ecrans frame == the Redesign frame (import harness), so the visual gate + the byte-cited derivations share one source.
+- **Cross-check outcome (ECRANS-CROSSCHECK.md, per-view):** 11/11 numbered frames match in composition. **ONE re-cut:** frame 03 « Commandes » composes list rows with the SIGNATURE duotone tile — échéances used a horloge glyph → re-cut to the duotone tile (also clears the last clock glyph, #4; df2 echeances→corrective edge preserved). Frame 05 (Fiche produit) + modération = lawful E1 absences (no standalone screen / additional state per the board's own note).
+- **Green:** typecheck ✓ · 179 tests ✓ · all gates green (copy-lint 207, 0 viol). Head `2f866ad`. Final preview re-dispatched. **DO NOT MERGE.**
