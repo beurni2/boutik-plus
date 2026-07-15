@@ -749,3 +749,10 @@ Format per entry:
 - **Preview:** run **54** dispatched on head `5ea39b3` to the `preview` channel (interim — font device-check + the 3 frame-rebuilt views). The single FINAL preview comes when all views are frame-rebuilt.
 - **Green throughout:** typecheck ✓ · 175 tests ✓ · all gates green (copy-lint 193, 0 violations). **DO NOT MERGE** (held for founder device pass).
 - **REMAINING (task #17):** frame-rebuild + derive echeances · recette detail · nouveau · offre · pret · corrective · moderation · confiance · onboarding · photo(studio); then the ONE final preview.
+
+### 2026-07-15 (cont.) · frame-fidelity rebuild — 6/~11 views done + font check
+- **Rebuilt to frame + derived (running total):** Accueil · **Produits** (« Produits ») · **Mes recettes** (« Argent ») · **Échéances** (« Commandes » hub title) · **Confiance** (« Niveau de confiance » tier ladder — money removed from the trust screen per B+I-12; « dépôt »/« caution » reworded gate-clean) · **Détail du versement** (« Détail commande » — Suivi connecting bars; gain card is the SINGLE LOCKED obligation verbatim, never a re-breakdown, B+I-05). Derivations in `_review/WO-FP-BOUTIK/anatomy/{accueil,produits,recettes,echeances,confiance,recette}.md`.
+- **Kit additions (shared, no snowflake):** `HubTitle` (28px Bricolage hub title + subtitle) for the hub frames; `SecondaryButton` optional leading icon.
+- **Font check (shop finding #1): boutik CLEAN, byte-verified + guarded** — see FONT-RENDER-CHECK.md. Preview run **54** (head `5ea39b3`) published to `preview` (EAS step success) — font device-check + the first 3 frame views live.
+- **Green throughout:** typecheck ✓ · 175 tests ✓ · all gates green (copy-lint 199, 0 violations). **DO NOT MERGE.**
+- **REMAINING (task #17):** nouveau · offre · **pret (CUSTODY — max deliberation, four secrets / buyerDropCode-never-shown; do NOT rush on thin context)** · corrective · moderation · onboarding · photo(studio); then the ONE final preview.
