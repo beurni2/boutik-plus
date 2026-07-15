@@ -1,0 +1,16 @@
+WO-FP-BOUTIK — FRAME-FIDELITY REBUILD · current-head proof
+head: 270cdd5  branch: claude/faso-premium-adoption-xxzgke  captured: 2026-07-15T02:36:10Z
+
+=== typecheck (turbo) ===
+ Tasks:    11 successful, 11 total
+
+=== tests (vitest, supplier-app) ===
+@boutik/supplier-app:test:  ✓ test/font-embedding.test.ts (7 tests) 11ms
+@boutik/supplier-app:test:  ✓ test/custody-buyer-code-absent.test.ts (4 tests) 8ms
+@boutik/supplier-app:test:  ✓ test/df1-device-feedback.test.ts (9 tests) 8ms
+@boutik/supplier-app:test:  Test Files  25 passed (25)
+@boutik/supplier-app:test:       Tests  179 passed (179)
+
+=== gates (run-gates.sh) ===
+copy-lint OK: 207 entries, 0 violations
+ALL GATES GREEN (positives passed; every negative fixture failed as required)
