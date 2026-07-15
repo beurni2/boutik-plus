@@ -27,7 +27,6 @@ import { failureDetailOf, type CaptureFailureDetail } from './src/studio/normali
 import { CAPTURE_CATEGORIES, frameGuideKey, type CaptureCategory, type ShotKind } from './src/studio/guidance';
 import {
   AmountHero,
-  AppHeader,
   Card,
   CelebrationLayer,
   CheckRow,
@@ -39,6 +38,7 @@ import {
   Icon,
   ListRow,
   MoneyField,
+  NoteCard,
   OfflineBanner,
   Overline,
   PendingNotice,
@@ -47,13 +47,20 @@ import {
   ReconcileLine,
   ScreenEnter,
   SecondaryButton,
+  SectionLabel,
   Selectable,
   Skeleton,
+  StatCard,
   StatusChip,
   TabBar,
+  TimeChip,
   UnderlineLink,
   useCountUp,
+  VerifiedChip,
+  ViewHeader,
   WarnNote,
+  WordmarkHeader,
+  WovenBand,
   type ChipTone,
   type IconName,
 } from './src/ui/kit';
@@ -326,12 +333,9 @@ export default function App() {
   const receivables = world.receivables;
   const trust = presentTrustConsequence(world.trust);
   const statementFig = statementFigures(world.statement);
-  const urgent = world.products.some(
-    (p) => p.status === 'echeance_depassee' || (p.correctionMinLeft !== undefined && p.correctionMinLeft <= 60),
-  );
-  const aCorriger = world.products.filter(
-    (p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee',
-  ).length;
+  // « À faire maintenant » — products needing seller action (planche accueil).
+  const todo = world.products.filter((p) => p.status === 'refuse_correctable' || p.status === 'echeance_depassee');
+  const aCorriger = todo.length;
   useMemo(() => baselineQuote(), []);
 
   const priceB = Number.parseInt(priceInput, 10) || 0;
@@ -353,69 +357,85 @@ export default function App() {
         </View>
       )}
 
-      <AppHeader
-        title={t(SCREEN_TITLE_KEY[screen])}
-        context={screen === 'accueil' ? t('accueil.tagline') : undefined}
-        backLabel={`← ${t('nav.retour')}`}
-        onBack={stack.length > 1 ? back : undefined}
-        right={
-          screen === 'accueil' ? (
-            <Pressable onPress={() => go('confiance')} accessibilityRole="button">
-              <StatusChip tone="fact" label={t('confiance.title')} icon="scelle" />
-            </Pressable>
-          ) : undefined
-        }
-      />
+      {/* WO-FP-BOUTIK frame fidelity: the Faso Premium frames have NO global
+          fixed header — only the 6px woven band is fixed under the status bar;
+          each screen owns its in-scroll header (WordmarkHeader / ViewHeader),
+          so the header scrolls WITH the content (planche model). */}
+      <WovenBand />
       {offline && <OfflineBanner label={t('shell.offline')} />}
 
       <ScreenEnter screenKey={screen}>
       <View style={styles.content}>
         {screen === 'accueil' && (
+          // Rebuilt to the « Accueil » frame: in-scroll wordmark header · big
+          // greeting · « À faire maintenant » · money stat grid · add CTA ·
+          // « Échéances du jour » chips · gratuité note. Divergences (frozen
+          // store has no ownerName/shopName/stock): greeting drops the name;
+          // shop line uses the market landmark; the Alerte-stock card is omitted.
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
-            <View style={styles.stackGap}>
-              <Text style={ts('screen', C.ink)}>{t('accueil.card_produits')}</Text>
-              {refused !== undefined && (
-                <Pressable style={styles.refuseBanner} onPress={() => go('corrective')} accessibilityRole="button">
-                  <StatusChip tone="problem" label={t('statut.refuse')} icon="refus" />
-                  <Text style={[ts('row', C.ink), styles.flex1]}>{t('accueil.refuse_banner')}</Text>
-                </Pressable>
-              )}
-              {urgent && (
-                // WO-FP-BOUTIK #4: horloge REMOVED (founder ruling) — the warn
-                // band + copy carry the urgency; no clock glyph on this entry.
-                <Pressable style={styles.urgentBanner} onPress={() => go('echeances')} accessibilityRole="button">
-                  <Text style={[ts('row', C.ink), styles.flex1]}>{t('accueil.urgent_banner')}</Text>
-                </Pressable>
-              )}
-              <View style={styles.statGrid}>
-                <Card style={styles.statCard}>
-                  <Overline>{t('accueil.stat_en_ligne')}</Overline>
-                  <Text style={[ts('cardMoney', C.ink), MONEY_TEXT]}>{enLigne}</Text>
-                </Card>
-                <Card style={styles.statCard}>
-                  <Overline>{t('accueil.stat_a_corriger')}</Overline>
-                  <Text style={[ts('cardMoney', aCorriger > 0 ? C.dangerFg : C.ink), MONEY_TEXT]}>{aCorriger}</Text>
-                </Card>
+            <WordmarkHeader
+              shopLine={t('accueil.shopline')}
+              right={<VerifiedChip label={t('confiance.title')} onPress={() => go('confiance')} />}
+            />
+            <Text style={ts('screen', C.ink)}>{t('accueil.greeting')}</Text>
+            <Text style={ts('body', C.sub)}>{t('accueil.greeting_sub').replace('{n}', String(enLigne))}</Text>
+
+            {todo.length > 0 && (
+              <View style={styles.stackGap}>
+                <SectionLabel count={todo.length}>{t('accueil.section_todo')}</SectionLabel>
+                {todo.map((p) => (
+                  <ListRow
+                    key={p.id}
+                    art={<DuotoneTile label={p.name} height={D.artRow} radius={R.art} style={styles.receiptThumb} />}
+                    title={p.name}
+                    meta={`${t('produits.repere')} : ${p.landmark}`}
+                    chip={<StatusChip tone={STATUS_TONE[p.status]} label={t(STATUS_KEY[p.status])} />}
+                    onPress={() => go(p.status === 'refuse_correctable' ? 'corrective' : 'echeances')}
+                  />
+                ))}
               </View>
-              <HeroLedgerBand
-                label={t('accueil.stat_en_ligne')}
+            )}
+
+            <View style={styles.statGrid}>
+              <StatCard
+                label={t('recettes.chip_attente')}
                 amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
-                sub={t('recettes.state_verse')}
+                note={t('accueil.stat_attente_note')}
               />
-              <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} icon="colis" />
-              <SecondaryButton label={t('accueil.card_produits')} onPress={() => go('produits')} />
-              <View style={styles.accueilLinks}>
-                <UnderlineLink label={t('accueil.card_echeances')} onPress={() => go('echeances')} />
-                <UnderlineLink label={t('recettes.title')} onPress={() => go('recettes')} />
-                <UnderlineLink label={t('moderation.title')} onPress={() => go('moderation')} />
-                <UnderlineLink label={t('accueil.card_onboarding')} onPress={() => go('onboarding')} />
-              </View>
+              <StatCard
+                label={t('recettes.chip_verse')}
+                amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.paid))}
+                note={t('accueil.stat_verse_note')}
+                accent
+              />
             </View>
+
+            <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} icon="colis" />
+
+            {clocks.length > 0 && (
+              <Card>
+                <Overline>{t('accueil.ech_titre')}</Overline>
+                {clocks.map((p) => (
+                  <View key={p.id} style={styles.echRow}>
+                    <TimeChip>{t('accueil.ech_restant').replace('{min}', String(p.correctionMinLeft ?? 0))}</TimeChip>
+                    <Text style={[ts('body', C.body), styles.flex1]} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            )}
+
+            <NoteCard>
+              <Text style={ts('body', C.deep)}>{t('accueil.gratuite')}</Text>
+              <UnderlineLink label={t('accueil.gratuite_link')} onPress={() => go('onboarding')} />
+            </NoteCard>
           </ScrollView>
         )}
 
         {screen === 'onboarding' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
           <Card>
             <Text style={ts('body', C.ink)}>{t('onboarding.free_listing')}</Text>
             <PrimaryButton
@@ -439,6 +459,7 @@ export default function App() {
             initialNumToRender={6}
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
+            ListHeaderComponent={<ViewHeader title={t('produits.title')} />}
             ListEmptyComponent={
               <EmptyState
                 icon="colis"
@@ -483,6 +504,7 @@ export default function App() {
 
         {screen === 'nouveau' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
           <Card>
             <Text style={ts('body', C.ink)}>{t('product.title')}</Text>
             <Overline>{t('studio.categorie')}</Overline>
@@ -560,6 +582,7 @@ export default function App() {
 
         {screen === 'photo' && pending !== null && (
           <View style={styles.stackGap}>
+            <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
             <Card accent>
               <Overline>{t('studio.apercu')}</Overline>
               <View style={styles.premiumFrame}>
@@ -595,6 +618,7 @@ export default function App() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.stackGap}>
+                <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
                 {reoffer && (
                   <View style={styles.v2Banner}>
                     <Text style={ts('body', C.body)}>{t('offre.v2')}</Text>
@@ -649,6 +673,7 @@ export default function App() {
 
         {screen === 'pret' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
           <View style={styles.stackGap}>
             <Card accent>
               <StatusChip tone="fact" label={t('pret.badge_payee')} icon="coche" />
@@ -723,6 +748,7 @@ export default function App() {
 
         {screen === 'corrective' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
           <Card>
             {refused === undefined ? (
               <EmptyState icon="coche" title={t('corrective.rien')} />
@@ -766,7 +792,12 @@ export default function App() {
             initialNumToRender={6}
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
-            ListHeaderComponent={<Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>}
+            ListHeaderComponent={
+              <>
+                <ViewHeader title={t('echeances.title')} />
+                <Text style={ts('rowSub', C.sub)}>{t('echeances.regle')}</Text>
+              </>
+            }
             ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
             renderItem={({ item }) => (
               <ListRow
@@ -795,6 +826,8 @@ export default function App() {
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
             ListHeaderComponent={
+              <>
+              <ViewHeader title={t('recettes.title')} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
               <HeroLedgerBand
                 label={t('recettes.chip_attente')}
                 amount={t('money.amount_f').replace('{amount}', formatFcfa(statementFig.pending))}
@@ -807,6 +840,7 @@ export default function App() {
                   </Text>
                 </View>
               </HeroLedgerBand>
+              </>
             }
             ListEmptyComponent={<EmptyState icon="gains" title={t('recettes.vide')} />}
             ListFooterComponent={
@@ -856,6 +890,7 @@ export default function App() {
             (loading — a stale tap; empty — no selection). No new data path. */}
         {screen === 'recette' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+            <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
             {selectedReceivable === null ? (
               <EmptyState icon="gains" title={t('recettes.vide')} action={<SecondaryButton label={t('recettes.title')} onPress={() => go('recettes')} />} />
             ) : (
@@ -917,7 +952,12 @@ export default function App() {
             initialNumToRender={6}
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
-            ListHeaderComponent={offline ? <Text style={ts('rowSub', C.sub)}>{t('moderation.hors_ligne')}</Text> : null}
+            ListHeaderComponent={
+              <>
+                <ViewHeader title={t('moderation.title')} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
+                {offline && <Text style={ts('rowSub', C.sub)}>{t('moderation.hors_ligne')}</Text>}
+              </>
+            }
             ListFooterComponent={<SecondaryButton label={t('produits.title')} onPress={() => go('produits')} />}
             renderItem={({ item }) => {
               const mod = MODERATION[item.moderationState];
@@ -944,6 +984,7 @@ export default function App() {
 
         {screen === 'confiance' && (
           <ScrollView style={styles.fill} contentContainerStyle={styles.scrollFlow} showsVerticalScrollIndicator={false}>
+          <ViewHeader title={t(SCREEN_TITLE_KEY[screen])} backLabel={`← ${t('nav.retour')}`} onBack={stack.length > 1 ? back : undefined} />
           <View style={styles.stackGap}>
             <Card>
               <Overline>{world.statement.periodLabel}</Overline>
@@ -1039,6 +1080,7 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   center: { textAlign: 'center' },
   statGrid: { flexDirection: 'row', gap: D.gap },
+  echRow: { flexDirection: 'row', alignItems: 'center', gap: D.gapSm, paddingVertical: 4 },
   statCard: { flex: 1 },
   listWrap: { flex: 1, gap: D.gap },
   listContent: { paddingBottom: D.gapSm },

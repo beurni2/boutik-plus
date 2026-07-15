@@ -83,6 +83,126 @@ export function AppHeader({
   );
 }
 
+/** Monogram — the accent "B+" square (planche accueil header, 40px r14). */
+export function Monogram({ label = 'B+' }: { label?: string }) {
+  return (
+    <View style={styles.monogram}>
+      <Text style={ts('view', C.onPrimary)}>{label}</Text>
+    </View>
+  );
+}
+
+/** WordmarkHeader — the accueil in-scroll header (planche « Accueil »): monogram
+ * + Boutik+ + the shop line + a right slot (the Vérifié chip). Scrolls WITH the
+ * content — there is no global fixed header in the Faso Premium frames. */
+export function WordmarkHeader({ shopLine, right }: { shopLine: string; right?: React.ReactNode | undefined }) {
+  return (
+    <View style={styles.wordmarkRow}>
+      <Monogram />
+      <View style={styles.wordmarkCol}>
+        <Text style={ts('view', C.ink)}>Boutik+</Text>
+        <Text style={ts('rowSub', C.sub)} numberOfLines={1}>
+          {shopLine}
+        </Text>
+      </View>
+      {right}
+    </View>
+  );
+}
+
+/** ViewHeader — a stacked view's in-scroll header (planche « Fiche produit » /
+ * « Détail commande »…): back (← label) + view title + optional right slot. */
+export function ViewHeader({
+  title,
+  backLabel,
+  onBack,
+  right,
+}: {
+  title: string;
+  backLabel?: string | undefined;
+  onBack?: (() => void) | undefined;
+  right?: React.ReactNode | undefined;
+}) {
+  return (
+    <View style={styles.viewHeader}>
+      {onBack !== undefined && (
+        <Pressable style={pressable(styles.backHit)} onPress={onBack} accessibilityRole="button" hitSlop={8}>
+          <Text style={ts('caps', C.deep)}>{backLabel}</Text>
+        </Pressable>
+      )}
+      <Text style={[ts('view', C.ink), styles.headerTitleWrap]} numberOfLines={1} accessibilityRole="header">
+        {title}
+      </Text>
+      {right}
+    </View>
+  );
+}
+
+/** VerifiedChip — the white outlined « Vérifié » pill (planche accueil): check
+ * + accent label on white with a hairline border (distinct from a StatusChip). */
+export function VerifiedChip({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable style={pressable(styles.verifiedChip)} onPress={onPress} accessibilityRole="button">
+      <Icon name="coche" size={15} color={C.deep} />
+      <Text style={ts('rowSub', C.deep)}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** StatCard — a 2-col stat (planche accueil): caps label + Bricolage tnum amount
+ * + sub note. `accent` renders the amount in deep supply-green (the « Versé »). */
+export function StatCard({
+  label,
+  amount,
+  note,
+  accent,
+}: {
+  label: string;
+  amount: string;
+  note?: string | undefined;
+  accent?: boolean | undefined;
+}) {
+  return (
+    <View style={styles.statCard}>
+      <Text style={ts('caps', C.sub)}>{label}</Text>
+      <Text style={[ts('cardMoney', accent === true ? C.primary : C.ink), MONEY_TEXT, styles.statAmount]} numberOfLines={1}>
+        {amount}
+      </Text>
+      {note !== undefined && <Text style={ts('rowSub', C.sub)}>{note}</Text>}
+    </View>
+  );
+}
+
+/** SectionLabel — a caps section header + optional danger count pill (planche
+ * « À faire maintenant »). */
+export function SectionLabel({ children, count }: { children: React.ReactNode; count?: number | undefined }) {
+  return (
+    <View style={styles.sectionRow}>
+      <Text style={ts('caps', C.sub)}>{children}</Text>
+      {count !== undefined && count > 0 && (
+        <View style={styles.sectionCount}>
+          <Text style={ts('pill', C.dangerFg)}>{count}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** NoteCard — the soft-accent info card (planche accueil gratuité note). */
+export function NoteCard({ children }: { children: React.ReactNode }) {
+  return <View style={styles.noteCard}>{children}</View>;
+}
+
+/** TimeChip — the accent-soft time pill (planche « Échéances du jour »): deep
+ * Bricolage tnum on soft accent. */
+export function TimeChip({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.timeChip}>
+      <Text style={[ts('priceInline', C.deep), MONEY_TEXT]}>{children}</Text>
+    </View>
+  );
+}
+
 /** Card — the FP surface: white, radius 20, 1px hairline, soft card shadow.
  * `accent` swaps the border for a 2px accent rule (the emphasis surface). */
 export function Card({
@@ -587,6 +707,27 @@ const styles = StyleSheet.create({
   },
   headerTitleWrap: { flex: 1, minWidth: 0 },
   backHit: { minHeight: D.minTouch, justifyContent: 'center' },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'center', gap: D.gap, paddingBottom: D.gapSm },
+  wordmarkCol: { flex: 1, minWidth: 0 },
+  viewHeader: { flexDirection: 'row', alignItems: 'center', gap: D.gap, paddingBottom: D.gapSm, minHeight: D.minTouch },
+  verifiedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: D.gapXs,
+    height: D.chipH,
+    paddingHorizontal: D.gap,
+    borderRadius: R.pill,
+    borderWidth: D.hair,
+    borderColor: C.hairlineStrong,
+    backgroundColor: C.card,
+    ...SHADOW.card,
+  },
+  statCard: { flex: 1, padding: D.cardPad, gap: D.gapXs, backgroundColor: C.card, borderRadius: R.card, borderWidth: D.hair, borderColor: C.hairline, ...SHADOW.card },
+  statAmount: { marginVertical: 2 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionCount: { backgroundColor: C.dangerBg, borderRadius: R.pill, paddingHorizontal: D.gapSm, paddingVertical: 3 },
+  noteCard: { backgroundColor: C.soft, borderRadius: R.tile, padding: D.cardPad, gap: D.gapSm },
+  timeChip: { backgroundColor: C.soft, borderRadius: 10, paddingHorizontal: D.gapSm, paddingVertical: 5, alignSelf: 'flex-start' },
   card: {
     padding: D.cardPad,
     gap: D.gapSm,

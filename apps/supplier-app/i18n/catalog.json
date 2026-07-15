@@ -168,6 +168,66 @@
     "screenClass": "general"
   },
   {
+    "key": "accueil.greeting",
+    "fr": "Nd'waoga",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
+    "key": "accueil.greeting_sub",
+    "fr": "Boutique ouverte · {n} produits en ligne · vous n'avancez rien, jamais.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.section_todo",
+    "fr": "À faire maintenant",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.stat_attente_note",
+    "fr": "Payé après livraison validée",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.stat_verse_note",
+    "fr": "Sous 24 h après acceptation",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.ech_titre",
+    "fr": "Échéances du jour",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.gratuite",
+    "fr": "L'inscription est gratuite. Boutik+ gagne 5 % du prix quand votre produit se vend.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.gratuite_link",
+    "fr": "Voir le parcours d'inscription vendeur",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.shopline",
+    "fr": "Marché Rood-Woko",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.ech_restant",
+    "fr": "Dans {min} min",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "accueil.card_produits",
     "fr": "Mes produits",
     "register": "neutral",

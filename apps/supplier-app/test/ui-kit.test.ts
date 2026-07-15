@@ -115,7 +115,12 @@ describe('WO-FP-BOUTIK Faso Premium visual layer', () => {
 
   it('navigation chrome: header everywhere, hubs = Accueil·Produits·Échéances, tabs are waypoint RESETS', () => {
     const app = read('App.tsx');
-    expect(app).toMatch(/<AppHeader/);
+    // Frame fidelity: no global fixed header — the woven band is fixed under the
+    // status bar, and each screen owns its in-scroll header (WordmarkHeader on
+    // accueil, ViewHeader on the stacked/back views).
+    expect(app).toMatch(/<WovenBand \/>/);
+    expect(app).toMatch(/<WordmarkHeader/);
+    expect(app).toMatch(/<ViewHeader/);
     expect(app).toMatch(/HUBS: readonly Screen\[\] = \['accueil', 'produits', 'echeances'\]/);
     expect(app).toMatch(/setStack\(hub === START \? \[START\] : \[START, hub\]\)/);
     for (const key of ['nav.tab_accueil', 'nav.tab_produits', 'nav.tab_echeances']) {

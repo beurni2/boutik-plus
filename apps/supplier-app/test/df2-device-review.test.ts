@@ -37,9 +37,9 @@ describe('#4 — the horloge is removed where the founder named it', () => {
     expect(app).toMatch(/echeances:\s*'echeances' as unknown as IconName/);
     expect(app).not.toMatch(/echeances:\s*'horloge'/);
   });
-  it('the accueil urgent (Échéances) entry renders no horloge icon', () => {
-    const urgent = app.slice(app.indexOf('{urgent && ('), app.indexOf('{urgent && (') + 400);
-    expect(urgent).not.toMatch(/name="horloge"/);
+  it('the accueil screen (its Échéances entry) renders no horloge icon', () => {
+    const accueil = app.slice(app.indexOf("screen === 'accueil' && ("), app.indexOf("screen === 'onboarding' && ("));
+    expect(accueil).not.toMatch(/name="horloge"/);
   });
 });
 
