@@ -35,6 +35,7 @@ import {
   EmptyState,
   GhostButton,
   HeroLedgerBand,
+  HubTitle,
   Icon,
   ListRow,
   MoneyField,
@@ -450,6 +451,12 @@ export default function App() {
         )}
 
         {screen === 'produits' && (
+          // Rebuilt to the « Produits » frame: big Bricolage hub title + subtitle
+          // (n en ligne · sans prix ajouté) · a soft « Lister un produit — gratuit »
+          // button at the top · the 2-col duotone grid. Divergences: the tile shows
+          // the supplier NET (Law 1, reseller/seller sees net) rather than the
+          // frame's base price; no stock text (frozen store); the button glyph is
+          // `colis` (canon icon set has no plus).
           <FlatList
             style={styles.fill}
             data={world.products}
@@ -459,17 +466,16 @@ export default function App() {
             initialNumToRender={6}
             windowSize={5}
             contentContainerStyle={styles.scrollFlow}
-            ListHeaderComponent={<ViewHeader title={t('produits.title')} />}
-            ListEmptyComponent={
-              <EmptyState
-                icon="colis"
-                title={t('produits.vide')}
-                action={<PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} />}
-              />
+            ListHeaderComponent={
+              <View style={styles.stackGap}>
+                <HubTitle
+                  title={t('produits.title')}
+                  subtitle={t('produits.subtitle').replace('{n}', String(enLigne))}
+                />
+                <SecondaryButton label={t('produits.lister')} onPress={() => go('nouveau')} icon="colis" />
+              </View>
             }
-            ListFooterComponent={
-              world.products.length > 0 ? <PrimaryButton label={t('accueil.card_nouveau')} onPress={() => go('nouveau')} /> : null
-            }
+            ListEmptyComponent={<EmptyState icon="colis" title={t('produits.vide')} />}
             renderItem={({ item }) => (
                     <Pressable
                       style={styles.tile}

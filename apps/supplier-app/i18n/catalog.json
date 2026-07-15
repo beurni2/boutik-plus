@@ -258,6 +258,18 @@
     "screenClass": "general"
   },
   {
+    "key": "produits.subtitle",
+    "fr": "{n} en ligne · photos sans prix ajouté",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "produits.lister",
+    "fr": "Lister un produit — gratuit",
+    "register": "selling",
+    "screenClass": "label"
+  },
+  {
     "key": "produits.repere",
     "fr": "Repère",
     "register": "neutral",

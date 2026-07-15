@@ -110,6 +110,20 @@ export function WordmarkHeader({ shopLine, right }: { shopLine: string; right?: 
   );
 }
 
+/** HubTitle — a hub screen's big in-scroll title (planche « Produits » / « Argent »
+ * / « Commandes »): the 28px Bricolage display title + optional subtitle. No back
+ * button — hubs are tab roots; the title scrolls WITH the content. */
+export function HubTitle({ title, subtitle }: { title: string; subtitle?: string | undefined }) {
+  return (
+    <View style={styles.hubTitle}>
+      <Text style={ts('screen', C.ink)} accessibilityRole="header">
+        {title}
+      </Text>
+      {subtitle !== undefined && <Text style={[ts('body', C.sub), styles.hubSubtitle]}>{subtitle}</Text>}
+    </View>
+  );
+}
+
 /** ViewHeader — a stacked view's in-scroll header (planche « Fiche produit » /
  * « Détail commande »…): back (← label) + view title + optional right slot. */
 export function ViewHeader({
@@ -311,23 +325,28 @@ export function PrimaryButton({
   );
 }
 
-/** SecondaryButton — soft-accent fill, deep label; `danger` = danger-tinted. */
+/** SecondaryButton — soft-accent fill, deep label; `danger` = danger-tinted;
+ * optional leading icon (planche « Lister un produit — gratuit »). */
 export function SecondaryButton({
   label,
   onPress,
   danger,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   danger?: boolean | undefined;
+  icon?: IconName | undefined;
 }) {
+  const fg = danger === true ? C.dangerFg : C.deep;
   return (
     <Pressable
       style={pressable([styles.button, styles.buttonSecondary, danger === true && styles.buttonSecondaryDanger])}
       onPress={onPress}
       accessibilityRole="button"
     >
-      <Text style={ts('cta', danger === true ? C.dangerFg : C.deep)}>{label}</Text>
+      {icon !== undefined && <Icon name={icon} size={17} color={fg} />}
+      <Text style={ts('cta', fg)}>{label}</Text>
     </Pressable>
   );
 }
@@ -710,6 +729,8 @@ const styles = StyleSheet.create({
   wordmarkRow: { flexDirection: 'row', alignItems: 'center', gap: D.gap, paddingBottom: D.gapSm },
   wordmarkCol: { flex: 1, minWidth: 0 },
   viewHeader: { flexDirection: 'row', alignItems: 'center', gap: D.gap, paddingBottom: D.gapSm, minHeight: D.minTouch },
+  hubTitle: { paddingBottom: D.gapSm },
+  hubSubtitle: { marginTop: D.padTiny },
   verifiedChip: {
     flexDirection: 'row',
     alignItems: 'center',
