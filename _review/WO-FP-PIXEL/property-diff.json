@@ -1,0 +1,190 @@
+{
+ "$note": "WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.",
+ "generatedAt": "2026-07-17T06:58:04.564Z",
+ "cases": [
+  {
+   "case": "C07",
+   "total": 18,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C02",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  }
+ ],
+ "rows": [
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "background-color",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "height",
+   "expected": "54px",
+   "built": "54px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-top-left-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-top-right-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-bottom-right-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-bottom-left-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "display+direction",
+   "expected": "flex/row",
+   "built": "flex/row",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "align-items",
+   "expected": "center",
+   "built": "center",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "justify-content",
+   "expected": "center",
+   "built": "center",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "gap",
+   "expected": "9px",
+   "built": "9px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "0px",
+   "built": "0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "box-shadow",
+   "expected": "rgba(11,91,71,0.5)|0px|12px|26px|-10px",
+   "built": "rgba(11,91,71,0.5)|0px|12px|26px|-10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-family",
+   "expected": "Bricolage Grotesque",
+   "built": "Bricolage Grotesque",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-weight(style)",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "line-height",
+   "expected": "normal",
+   "built": "19.2px",
+   "verdict": "FROZEN(§9.2)"
+  },
+  {
+   "case": "C02",
+   "el": "band",
+   "prop": "height",
+   "expected": "6px",
+   "built": "6px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C02",
+   "el": "cycle",
+   "prop": "segment-widths",
+   "expected": "18,6,8,6",
+   "built": "18,6,8,6",
+   "verdict": "pass"
+  },
+  {
+   "case": "C02",
+   "el": "cycle",
+   "prop": "segment-colors",
+   "expected": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
+   "built": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
+   "verdict": "pass"
+  }
+ ]
+}

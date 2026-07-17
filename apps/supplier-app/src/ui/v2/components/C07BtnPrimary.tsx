@@ -1,7 +1,7 @@
 import { Pressable, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { P, SH } from '../palette';
-import { fontFamily } from '../../fonts';
+import { P } from '../palette';
+import { C07_STYLES } from './C07.styles';
 
 /**
  * C07 BtnPrimary — HANDOFF V2 §2 C07 + §1.4 btnPrimary, matched to the Phase-0
@@ -64,20 +64,6 @@ export function C07BtnPrimary({
   );
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    height: 54,
-    borderRadius: 16,
-    backgroundColor: P.green,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-  },
-  btnShadow: { boxShadow: SH.btnPrimary },
-  btnPressed: { transform: [{ scale: 0.98 }], boxShadow: SH.btnPrimaryPressed },
-  btnDisabled: { backgroundColor: P.disabledBg },
-  // lh: §1.2 « non défini en source → geler à 1.2 » → 16 × 1.2 = 19.2
-  label: { fontFamily: fontFamily('display', 700), fontSize: 16, fontWeight: '700', lineHeight: 19.2, color: P.cream },
-  labelDisabled: { color: P.disabledFg },
-});
+// style values live in C07.styles.ts (plain data) so the property-diff gate
+// compares them to the Phase-0 table without rendering.
+const styles = StyleSheet.create(C07_STYLES);

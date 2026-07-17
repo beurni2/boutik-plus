@@ -1,24 +1,35 @@
-# WO-FP-PIXEL — Phase 1 status (component library, diff-verified)
+# WO-FP-PIXEL — Phase 1 status (gate order per founder reprioritization)
 
-**Pipeline (proven end-to-end):** Expo Web harness (`?pixel=C##` mounts the case instead of the
-app; native untouched) + `scripts/pixel/diff-component.mjs` (board `.phone` element screenshot →
-crop at the Phase-0 values-table box → DSF-2 supersample → 3×3 blur → per-channel TOL 32 → % + red
-diff PNG in `diff/`). The harness renders with the board's OWN woff2 bytes (hex-encoded,
-`source-fonts.json`) so text diffs measure layout, not TTF-vs-variable rasterization — native ships
-the static TTF instances unchanged (font-embedding tests).
+## PRIMARY GATE — property diff (deterministic, no render)
 
-| case | source | property match | visual diff | verdict |
+`apps/supplier-app/test/pixel-property-diff.test.ts` — a STANDING vitest test: each C##'s style
+DATA (plain objects in `C##.styles.ts`, no react-native import) is compared property-for-property
+to the Phase-0 computed values table, through explicit RN→CSS normalizers (px, hex→rgb, font
+identity via FP_FACES, canonical box-shadow). FROZEN §9 rulings are recorded with their citation,
+never silently skipped. Artifact: `property-diff.json` (per-property rows + per-case verdict).
+Empty diff == VALUE-PASS — this is what catches recolors, and it runs in the normal suite.
+
+| case | properties | mismatches | frozen | verdict |
 |---|---|---|---|---|
-| C02 StripeTissée | S02 stripe (0,54,402×6) | exact stops [green 18 · bg 6 · gold 8 · bg 6] as literal Views (repeating-gradient → listed RN divergence) | **0.000 %** | **PASS** |
-| C07 BtnPrimary | S02 « Ajouter un produit » (362×54) | bg/radius/height/gap/type/shadow(with spread, boxShadow string) all equal computed; lh frozen 19.2 (§9.2) | **1.888 %** | **NOT DONE** — residual = glyph-edge AA from the board's fractional-origin rasterization + §9.2 lh vs web 'normal'; metric to be CALIBRATED with planted-error negatives before any further tolerance move |
+| **C07 BtnPrimary** | 18 | 0 | 1 (§9.2 lh 'normal'→1.2) | **VALUE-PASS** |
+| **C02 StripeTissée** | 3 (box + cycle widths + cycle colors) | 0 | 0 | **VALUE-PASS** |
 
-**Metric governance:** TOL was raised 16→24→32 ONLY alongside supersampling+blur, and stops here.
-Before C07 (or any text component) is declared PASS, the diff metric gets **negative controls**:
-planted wrong-tone / 1px-shift / wrong-radius variants that MUST fail. No calibration by
-tuning-until-green (repo failure mode #7).
+The gate proved itself on first run: it caught two normalizer bugs (shadow color whitespace,
+bare-0 length ordering) before ever letting a value through.
 
-**UA-artifact note (Δ-class of PHASE0-DELTAS Δ1):** the source `<button>` computes `padding-left:
-6px` (UA default; content is flex-centered, visually inert) — not reproduced.
+## SECONDARY — visual diff (demoted per order)
 
-**Founder deltas pending ruling:** PHASE0-DELTAS Δ1 (stepper/[DEMO] font — building IS600 per
-HANDOFF until overruled).
+ONE masked composition check per SCREEN (S01–S40), at the END of Phase 2 — not per component;
+≤2 % on the element-masked region only. The component-level runner
+(`scripts/pixel/diff-component.mjs`) remains as a debugging tool; its C02 0.000 % stands as the
+band's render proof, and C07's earlier 1.888 % is understood as crop paper-bleed +
+fractional-origin AA — value-passed above, per order, not re-measured.
+
+## Server
+
+ONE persistent Metro (watch mode) on :8081 — hard-reload pages on staleness, never restart per
+component.
+
+## Founder deltas pending ruling
+
+PHASE0-DELTAS Δ1 (stepper/[DEMO] font — building IS600 per HANDOFF until overruled).
