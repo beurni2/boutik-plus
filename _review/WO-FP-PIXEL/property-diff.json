@@ -1,6 +1,6 @@
 {
  "$note": "WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.",
- "generatedAt": "2026-07-17T08:43:17.181Z",
+ "generatedAt": "2026-07-17T08:54:54.753Z",
  "cases": [
   {
    "case": "C07",
@@ -137,7 +137,7 @@
   },
   {
    "case": "C15",
-   "total": 11,
+   "total": 12,
    "mismatches": 0,
    "frozen": 1,
    "valuePass": true
@@ -165,9 +165,9 @@
   },
   {
    "case": "C21",
-   "total": 6,
+   "total": 7,
    "mismatches": 0,
-   "frozen": 1,
+   "frozen": 0,
    "valuePass": true
   },
   {
@@ -214,9 +214,9 @@
   },
   {
    "case": "C30",
-   "total": 3,
+   "total": 8,
    "mismatches": 0,
-   "frozen": 2,
+   "frozen": 1,
    "valuePass": true
   },
   {
@@ -300,7 +300,7 @@
    "case": "C42",
    "total": 2,
    "mismatches": 0,
-   "frozen": 1,
+   "frozen": 0,
    "valuePass": true
   },
   {
@@ -1751,6 +1751,14 @@
   },
   {
    "case": "C15",
+   "el": "glyph",
+   "prop": "freeze-premise(UA Arial)",
+   "expected": "Arial",
+   "built": "Arial",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
    "el": "value",
    "prop": "radius",
    "expected": "16px",
@@ -1945,9 +1953,17 @@
    "case": "C21",
    "el": "preview",
    "prop": "size",
-   "expected": "(no frame instance — §2 prose 56)",
+   "expected": "56px",
    "built": "56px",
-   "verdict": "FROZEN(PROSE §2 C21 — no S## renders the 56px preview tile)"
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "preview",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
   },
   {
    "case": "C22",
@@ -2168,18 +2184,58 @@
   {
    "case": "C30",
    "el": "stack",
-   "prop": "table-instance",
-   "expected": "(none — §2 prose)",
-   "built": "(none — §2 prose)",
+   "prop": "top",
+   "expected": "66px",
+   "built": "66px",
    "verdict": "pass"
   },
   {
    "case": "C30",
    "el": "toast",
    "prop": "bg",
-   "expected": "(§2 prose: ink)",
+   "expected": "rgb(28, 23, 16)",
    "built": "rgb(28, 23, 16)",
-   "verdict": "FROZEN(PROSE §2 C30 — toasts are transient; board frames carry none)"
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "pad-v",
+   "expected": "12px",
+   "built": "12px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "pad-h",
+   "expected": "17px",
+   "built": "17px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "txt",
+   "prop": "color",
+   "expected": "rgb(246, 240, 228)",
+   "built": "rgb(246, 240, 228)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "txt",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
   },
   {
    "case": "C30",
@@ -2187,7 +2243,7 @@
    "prop": "life-ms",
    "expected": "(§9.9: 2800, hard removal)",
    "built": "2800",
-   "verdict": "FROZEN(PROSE §4.3/§9.9)"
+   "verdict": "FROZEN(PROSE §4.3/§9.9 — timing is not a computed style)"
   },
   {
    "case": "C31",
@@ -2784,10 +2840,10 @@
   {
    "case": "C42",
    "el": "strokes",
-   "prop": "per-component",
-   "expected": "(markup: base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6)",
+   "prop": "per-component (markup-expected vs code-built)",
+   "expected": "base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6",
    "built": "base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6",
-   "verdict": "FROZEN(PROSE §2 C42 — extraction captures no svg stroke props)"
+   "verdict": "pass"
   },
   {
    "case": "C43",

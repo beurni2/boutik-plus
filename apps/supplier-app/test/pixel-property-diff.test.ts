@@ -399,6 +399,8 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     sweep('C15', 'glyph', 'font-weight', pr(btn, 'font-weight'), String(C15.glyph.fontWeight));
     // Δ1 (PHASE0-DELTAS): computed family is the UA leak (Arial); built = IS600 per HANDOFF, ruling pending
     sweep('C15', 'glyph', 'font-family', pr(btn, 'font-family'), faceOf(C15.glyph.fontFamily).webFamily, 'Δ1 stepper UA font leak — built IS600 per HANDOFF §2, ruling pending');
+    // Δ1 guard (verifier hardening): the freeze holds only while the table really reads Arial
+    sweep('C15', 'glyph', 'freeze-premise(UA Arial)', pr(btn, 'font-family'), 'Arial');
     const val = qe('S22', (e) => e.props['padding-top'] === '13px' && e.props['text-align'] === 'center');
     if (!val) return missing('C15', 'value');
     sweep('C15', 'value', 'radius', pr(val, 'border-top-left-radius'), px(C15.value.borderRadius));
@@ -452,7 +454,11 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     if (hero) sweep('C21', 'heroFiche', 'radius', pr(hero, 'border-top-left-radius'), px(C21.heroFiche.r)); else missing('C21', 'heroFiche');
     const viseur = qe('S26', (e) => e.props['height'] === '230px');
     if (viseur) sweep('C21', 'viseur', 'radius', pr(viseur, 'border-top-left-radius'), px(C21.viseur.r)); else missing('C21', 'viseur');
-    sweep('C21', 'preview', 'size', '(no frame instance — §2 prose 56)', px(C21.preview.size), 'PROSE §2 C21 — no S## renders the 56px preview tile');
+    // verifier finding: S25 DOES render the 56px preview tile (C48 row) — table-asserted, not prose
+    const prev = qe('S25', (e) => e.props['width'] === '56px' && e.props['height'] === '56px');
+    if (!prev) return missing('C21', 'preview');
+    sweep('C21', 'preview', 'size', pr(prev, 'width'), px(C21.preview.size));
+    sweep('C21', 'preview', 'radius', pr(prev, 'border-top-left-radius'), px(C21.preview.r));
   });
 
   it('C22 RowTodo (S02) + C23 RowOrder (S07)', () => {
@@ -519,12 +525,18 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     sweep('C29', 'label', 'padding-bottom', pr(label, 'padding-bottom'), px(C29.label.paddingBottom));
   });
 
-  it('C30 Toast — prose-sourced (no frame carries a live toast)', () => {
-    // verified: no element in the whole table has z-index 80 with toast content
-    const anywhere = Object.keys(TABLE.screens).some((sid) => qe(sid, (e) => e.props['z-index'] === '80' && (e.text ?? '').length > 3) !== undefined);
-    sweep('C30', 'stack', 'table-instance', anywhere ? 'FOUND (update rows!)' : '(none — §2 prose)', '(none — §2 prose)');
-    sweep('C30', 'toast', 'bg', '(§2 prose: ink)', hexToRgb(C30.toast.backgroundColor), 'PROSE §2 C30 — toasts are transient; board frames carry none');
-    sweep('C30', 'toast', 'life-ms', '(§9.9: 2800, hard removal)', String(C30.LIFE_MS), 'PROSE §4.3/§9.9');
+  it('C30 Toast (S12 live toast — verifier finding: z-index sits on the container, text on the child)', () => {
+    const stack = qe('S12', (e) => e.props['z-index'] === '80');
+    if (stack) sweep('C30', 'stack', 'top', `${stack.box.y}px`, px(C30.stack.top)); else missing('C30', 'stack');
+    const toast = qe('S12', (e) => e.props['background-color'] === hexToRgb(C30.toast.backgroundColor) && (e.text ?? '').length > 3);
+    if (!toast) return missing('C30', 'toast');
+    sweep('C30', 'toast', 'bg', pr(toast, 'background-color'), hexToRgb(C30.toast.backgroundColor));
+    sweep('C30', 'toast', 'pad-v', pr(toast, 'padding-top'), px(C30.toast.paddingVertical));
+    sweep('C30', 'toast', 'pad-h', pr(toast, 'padding-left'), px(C30.toast.paddingHorizontal));
+    sweep('C30', 'toast', 'radius', pr(toast, 'border-top-left-radius'), px(GEO.r.pill));
+    sweep('C30', 'txt', 'color', pr(toast, 'color'), hexToRgb(C30.txt.color));
+    sweep('C30', 'txt', 'font-size', pr(toast, 'font-size'), px(C30.txt.fontSize));
+    sweep('C30', 'toast', 'life-ms', '(§9.9: 2800, hard removal)', String(C30.LIFE_MS), 'PROSE §4.3/§9.9 — timing is not a computed style');
   });
 
   it('C31 Sheet (S17 scrim + panel + grabber + title)', () => {
@@ -693,10 +705,21 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     sweep('C41', 'code', 'color', pr(code, 'color'), hexToRgb(C41.code.color));
   });
 
-  it('C42 IconSet — svg dims in table; strokes prose-sourced', () => {
+  it('C42 IconSet — svg dims in table; strokes derived from shipped code vs source markup', () => {
     const svg = qe('S02', (e) => e.tag === 'svg' && e.props['width'] === '15px');
     sweep('C42', 'chipVer-check', 'svg 15×15', svg ? 'found' : 'ABSENT', 'found');
-    sweep('C42', 'strokes', 'per-component', '(markup: base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6)', 'base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6', 'PROSE §2 C42 — extraction captures no svg stroke props');
+    // the table has no svg stroke props (verified) — so the expected side is the
+    // SOURCE MARKUP constant, and the built side is read from the shipped code,
+    // so stroke drift in code IS caught (verifier hardening)
+    const compSrc = readFileSync(join(appDir, 'src/v2/components.tsx'), 'utf8');
+    const c07Src = readFileSync(join(appDir, 'src/ui/v2/components/C07BtnPrimary.tsx'), 'utf8');
+    const base = compSrc.match(/strokeWidth = ([\d.]+)/)?.[1] ?? '?';
+    const c07 = c07Src.match(/strokeWidth=\{([\d.]+)\}/)?.[1] ?? '?';
+    sweep(
+      'C42', 'strokes', 'per-component (markup-expected vs code-built)',
+      'base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6',
+      `base ${base} · C07 ${c07} · C11 ${C11.chevron.strokeWidth} · C30 ${C30.check.strokeWidth} · C35 ${C35.check.strokeWidth}`,
+    );
   });
 
   it('C43 HeaderStacked (S05 title 19 · S22 counter · titleStep 26)', () => {
