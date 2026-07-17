@@ -90,11 +90,10 @@ describe('the approved dependencies (founder rulings) — this slice adds NONE',
     ]);
     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
     // WO-FP-BOUTIK adds NO new runtime dep (the FP fonts are assets; gradients
-    // use the already-approved react-native-svg). WO-FP-PIXEL (founder build
-    // order, Phase 1) MANDATES the Expo Web pixel harness — react-dom +
-    // react-native-web are that ruling; web-only (native bundles neither).
-    expect(added.sort()).toEqual(['expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'react-dom', 'react-native-svg', 'react-native-web']);
-    expect(pkg.dependencies['react-dom']).toBe('19.1.0'); // pinned to react 19.1.0
-    expect(pkg.dependencies['react-native-web']).toBe('^0.21.2');
+    // use the already-approved react-native-svg). The WO-FP-PIXEL web harness
+    // deps (react-dom/react-native-web) were REMOVED with the visual pipeline —
+    // fidelity is VALUE MATCH ONLY (founder order 2026-07-17): the property
+    // gate compares style data to the Phase-0 table; nothing renders.
+    expect(added.sort()).toEqual(['expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
   });
 });

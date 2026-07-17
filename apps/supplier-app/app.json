@@ -8,8 +8,7 @@
     "backgroundColor": "#F4EFE6",
     "platforms": [
       "android",
-      "ios",
-      "web"
+      "ios"
     ],
     "android": {
       "package": "bf.boutikplus.supplier"
@@ -31,10 +30,6 @@
           ]
         }
       ]
-    ],
-    "web": {
-      "bundler": "metro",
-      "output": "single"
-    }
+    ]
   }
 }
