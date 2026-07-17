@@ -1,6 +1,6 @@
 {
  "$note": "WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.",
- "generatedAt": "2026-07-17T07:15:59.113Z",
+ "generatedAt": "2026-07-17T07:25:12.166Z",
  "cases": [
   {
    "case": "C07",
@@ -12,6 +12,62 @@
   {
    "case": "C02",
    "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C18",
+   "total": 9,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C20",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C44",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C06",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C25",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C26",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C03",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C14",
+   "total": 7,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -184,6 +240,414 @@
    "prop": "segment-colors",
    "expected": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
    "built": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "padding",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "radius",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "border",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "shadow",
+   "expected": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "built": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "letter-spacing",
+   "expected": "1.05px",
+   "built": "1.05px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "transform",
+   "expected": "uppercase",
+   "built": "uppercase",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "padding",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "radius",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "bg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "shadow",
+   "expected": "rgba(11,91,71,0.55)|0px|16px|36px|-14px",
+   "built": "rgba(11,91,71,0.55)|0px|16px|36px|-14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "opacity",
+   "expected": "0.75",
+   "built": "0.75",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "color",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "width",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "height",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "bg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "font-size",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "ls",
+   "expected": "0.3px",
+   "built": "0.3px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "font",
+   "expected": "BG",
+   "built": "BG",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "font-size",
+   "expected": "11px",
+   "built": "11px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "pad-v",
+   "expected": "5px",
+   "built": "5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "pad-h",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "bg",
+   "expected": "rgb(246, 233, 200)",
+   "built": "rgb(246, 233, 200)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "fg",
+   "expected": "rgb(122, 81, 4)",
+   "built": "rgb(122, 81, 4)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "color",
+   "expected": "rgb(28, 23, 16)",
+   "built": "rgb(28, 23, 16)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "ls",
+   "expected": "-0.135px",
+   "built": "-0.135px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "font",
+   "expected": "BG",
+   "built": "BG",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-top",
+   "expected": "8px",
+   "built": "8px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-h",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-bottom",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "bg",
+   "expected": "rgba(252, 249, 242, 0.88)",
+   "built": "rgba(252, 249, 242, 0.88)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "border-top",
+   "expected": "1px rgb(235, 226, 208)",
+   "built": "1px rgb(235, 226, 208)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "item",
+   "prop": "active-fg",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "height",
+   "expected": "38px",
+   "built": "38px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "border",
+   "expected": "1px rgb(229, 220, 201)",
+   "built": "1px rgb(229, 220, 201)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "fg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "shadow",
+   "expected": "rgba(28,22,15,0.05)|0px|1px|2px|0px",
+   "built": "rgba(28,22,15,0.05)|0px|1px|2px|0px",
    "verdict": "pass"
   }
  ]

@@ -28,22 +28,41 @@ const TABLE = JSON.parse(readFileSync(join(appDir, '../../_review/WO-FP-PIXEL/va
 
 const px = (n: number) => `${n}px`;
 const hexToRgb = (v: string) => {
-  if (!v.startsWith('#')) return v;
-  const n = parseInt(v.slice(1), 16);
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+  if (v.startsWith('#')) {
+    const n = parseInt(v.slice(1), 16);
+    return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+  }
+  // canonicalize rgba(): spacing + leading-zero alpha ('.88' → '0.88')
+  const m = v.match(/^rgba?\(([^)]*)\)$/);
+  if (!m) return v;
+  const parts = m[1]!.split(',').map((t) => {
+    const x = t.trim();
+    return x.startsWith('.') ? `0${x}` : x;
+  });
+  return `${parts.length === 4 ? 'rgba' : 'rgb'}(${parts.join(', ')})`;
 };
 const normShadow = (s: string) => {
-  // canonical: color|x|y|blur|spread — accepts CSS-order ('0 12px 26px -10px rgba(…)')
-  // and computed-order ('rgba(…) 0px 12px 26px -10px'); lengths may be bare 0.
-  const color = s.match(/rgba?\([^)]*\)/)?.[0]?.replace(/\s+/g, '') ?? '';
-  const nums = s
-    .replace(/rgba?\([^)]*\)/, '')
-    .trim()
-    .split(/\s+/)
-    .filter((t) => /^-?[\d.]+(px)?$/.test(t))
-    .map((t) => (t.endsWith('px') ? t : `${t}px`));
-  while (nums.length < 4) nums.push('0px');
-  return `${color}|${nums.join('|')}`;
+  // Multi-shadow-safe canonical form: mask colour groups, split shadows on the
+  // TOP-LEVEL commas (the only true boundary — a CSS-order shadow may carry
+  // only 3 lengths), then per shadow: one colour + lengths padded to 4
+  // (computed puts colour first; CSS-order puts lengths first; bare 0 → 0px).
+  const colors: string[] = [];
+  const masked = s.replace(/rgba?\([^)]*\)/g, (m) => {
+    colors.push(m);
+    return `@${colors.length - 1}@`;
+  });
+  return masked
+    .split(',')
+    .map((part) => {
+      const ci = part.match(/@(\d+)@/);
+      const color = ci ? hexToRgb(colors[+ci[1]!]!) : '';
+      const lens = (part.replace(/@\d+@/g, '').match(/-?[\d.]+(?:px)?/g) ?? [])
+        .map((t) => (t.endsWith('px') ? t : `${t}px`));
+      while (lens.length < 4) lens.push('0px');
+      return `${color.replace(/\s+/g, '')}|${lens.join('|')}`;
+    })
+    .sort()
+    .join(' + ');
 };
 const faceOf = (rnFamily: string) => {
   const f = FP_FACES.find((x) => x.family === rnFamily);
@@ -107,6 +126,107 @@ describe('PROPERTY DIFF — C02 StripeTissée vs values-table S02', () => {
     const widths = stops.map(([a, b]) => (b ?? 0) - (a ?? 0));
     check('C02', 'cycle', 'segment-widths', widths.join(','), C02_CYCLE.map((s) => s.w).join(','));
     check('C02', 'cycle', 'segment-colors', [colors[0], colors[2], colors[4], colors[6]].join('|'), C02_CYCLE.map((s) => hexToRgb(s.c)).join('|'));
+  });
+});
+
+// ─── batch: the §2 component library vs the table (data-driven) ──────────────
+import { C03, C05, C06, C14, C18, C20, C25, C26, C44, STATUS_PILL } from '../src/ui/v2/styles';
+import { formatF } from '../src/v2/money';
+
+type El = { path: string; tag: string; text?: string; box: { x: number; y: number; w: number; h: number }; props: Record<string, string> };
+const find = (sid: string, pred: (e: El) => boolean): El => {
+  const el = TABLE.screens[sid]!.elements.find(pred);
+  if (!el) throw new Error(`table element not found on ${sid}`);
+  return el;
+};
+
+describe('PROPERTY DIFF — component library batch vs values-table', () => {
+  it('C18 StatCard: card box + overline + value + legend (S02 « En attente »)', () => {
+    const card = find('S02', (e) => e.props['padding-top'] === '16px' && e.props['border-top-left-radius'] === '20px');
+    check('C18', 'card', 'padding', card.props['padding-top'], px(C18.card.padding));
+    check('C18', 'card', 'radius', card.props['border-top-left-radius'], px(C18.card.borderRadius));
+    check('C18', 'card', 'bg', card.props['background-color'], hexToRgb(C18.card.backgroundColor));
+    check('C18', 'card', 'border', card.props['border-top-width'], px(C18.card.borderWidth));
+    check('C18', 'card', 'shadow', normShadow(card.props['box-shadow'] ?? ''), normShadow(C18.card.boxShadow));
+    const ov = find('S02', (e) => e.text === 'En attente');
+    check('C18', 'overline', 'font-size', ov.props['font-size'], px(C05.card.fontSize));
+    check('C18', 'overline', 'letter-spacing', ov.props['letter-spacing'], px(C05.card.letterSpacing));
+    check('C18', 'overline', 'color', ov.props['color'], hexToRgb(C05.card.color));
+    check('C18', 'overline', 'transform', ov.props['text-transform'], C05.card.textTransform ?? '');
+  });
+
+  it('C20 MoneyHero: green card r22 + moneyHero shadow + overline .75 (S32)', () => {
+    const hero = find('S32', (e) => e.props['background-color'] === 'rgb(11, 91, 71)' && e.props['padding-top'] === '20px');
+    check('C20', 'card', 'padding', hero.props['padding-top'], px(C20.card.padding));
+    check('C20', 'card', 'radius', hero.props['border-top-left-radius'], px(C20.card.borderRadius));
+    check('C20', 'card', 'bg', hero.props['background-color'], hexToRgb(C20.card.backgroundColor));
+    check('C20', 'card', 'shadow', normShadow(hero.props['box-shadow'] ?? ''), normShadow(C20.card.boxShadow));
+    const ov = find('S32', (e) => e.text === 'En attente' && e.props['opacity'] === '0.75');
+    check('C20', 'overline', 'font-size', ov.props['font-size'], px(C20.overline.fontSize));
+    check('C20', 'overline', 'opacity', ov.props['opacity'], String(C20.overline.opacity));
+    check('C20', 'overline', 'color', ov.props['color'], hexToRgb(C20.overline.color));
+  });
+
+  it('C44 HeaderBoutique: monogram 40×40 green, RowMonogram 15/+.02 (S02 « BW »)', () => {
+    const m = find('S02', (e) => e.text === 'BW');
+    check('C44', 'monogram', 'width', m.props['width'], px(C44.monogram.width));
+    check('C44', 'monogram', 'height', m.props['height'], px(C44.monogram.height));
+    check('C44', 'monogram', 'radius', m.props['border-top-left-radius'], px(C44.monogram.borderRadius));
+    check('C44', 'monogram', 'bg', m.props['background-color'], hexToRgb(C44.monogram.backgroundColor));
+    check('C44', 'monogram', 'font-size', m.props['font-size'], px(C44.monogramTxt.fontSize));
+    check('C44', 'monogram', 'ls', m.props['letter-spacing'], px(C44.monogramTxt.letterSpacing ?? 0));
+    check('C44', 'monogram', 'font', (m.props['font-family'] ?? '').includes('Bricolage') ? 'BG' : '?', C44.monogramTxt.fontFamily.includes('Bricolage') ? 'BG' : '?');
+  });
+
+  it('C06 StatusPill: FUNDED « À préparer » warnBg/warnFg 11px 5/10 r99 (S07)', () => {
+    const pill = find('S07', (e) => e.text === 'À préparer');
+    expect(STATUS_PILL['FUNDED']!.label).toBe('À préparer');
+    check('C06', 'pill', 'font-size', pill.props['font-size'], px(C06.pill.fontSize));
+    check('C06', 'pill', 'pad-v', pill.props['padding-top'], px(C06.pill.paddingVertical));
+    check('C06', 'pill', 'pad-h', pill.props['padding-left'], px(C06.pill.paddingHorizontal));
+    check('C06', 'pill', 'radius', pill.props['border-top-left-radius'], px(C06.pill.borderRadius));
+    check('C06', 'pill', 'bg', pill.props['background-color'], hexToRgb(STATUS_PILL['FUNDED']!.bg));
+    check('C06', 'pill', 'fg', pill.props['color'], hexToRgb(STATUS_PILL['FUNDED']!.fg));
+  });
+
+  it('C25 RowReleve: week 13.5/700 ink (S32 « Sem. 28 »)', () => {
+    const wk = find('S32', (e) => (e.text ?? '').startsWith('Sem. 28'));
+    check('C25', 'week', 'font-size', wk.props['font-size'], px(C25.week.fontSize));
+    check('C25', 'week', 'weight', wk.props['font-weight'], C25.week.fontWeight);
+    check('C25', 'week', 'color', wk.props['color'], hexToRgb(C25.week.color));
+  });
+
+  it('C26 ProductTile: TileName 13.5/700/−.01/1.25 + price BG800/14 greenDeep (S03 p1)', () => {
+    const name = find('S03', (e) => e.text === 'Robe brodée bogolan' && e.props['font-size'] === '13.5px');
+    check('C26', 'name', 'font-size', name.props['font-size'], px(C26.name.fontSize));
+    check('C26', 'name', 'weight', name.props['font-weight'], C26.name.fontWeight);
+    check('C26', 'name', 'ls', name.props['letter-spacing'], px(+(13.5 * -0.01).toFixed(3)));
+    const price = find('S03', (e) => e.text === formatF(10_000) && e.props['font-size'] === '14px');
+    check('C26', 'price', 'color', price.props['color'], hexToRgb(C26.price.color));
+    check('C26', 'price', 'font', (price.props['font-family'] ?? '').includes('Bricolage') ? 'BG' : '?', 'BG');
+    check('C26', 'price', 'weight', price.props['font-weight'], C26.price.fontWeight);
+  });
+
+  it('C03 Dock: bar padding/bg/border + active item soft/deep (S02)', () => {
+    const bar = find('S02', (e) => e.props['background-color'] === 'rgba(252, 249, 242, 0.88)');
+    check('C03', 'bar', 'pad-top', bar.props['padding-top'], px(C03.bar.paddingTop));
+    check('C03', 'bar', 'pad-h', bar.props['padding-left'], px(C03.bar.paddingHorizontal));
+    check('C03', 'bar', 'pad-bottom', bar.props['padding-bottom'], px(C03.bar.paddingBottom));
+    check('C03', 'bar', 'bg', hexToRgb(bar.props['background-color'] ?? ''), hexToRgb(C03.bar.backgroundColor));
+    check('C03', 'bar', 'border-top', `${bar.props['border-top-width']} ${bar.props['border-top-color']}`, `${px(C03.bar.borderTopWidth)} ${hexToRgb(C03.bar.borderTopColor)}`);
+    const active = find('S02', (e) => e.text === 'Accueil' && e.props['font-size'] === '10.5px');
+    check('C03', 'item', 'active-fg', active.props['color'], hexToRgb(C03.labelActive.color));
+  });
+
+  it('C14 ChipVerified: white pill, border ctl, green 13/600, chipHdr shadow (S02)', () => {
+    const chip = find('S02', (e) => e.text === 'Vérifié' && e.props['height'] === '38px');
+    check('C14', 'chip', 'height', chip.props['height'], px(C14.chip.height));
+    check('C14', 'chip', 'radius', chip.props['border-top-left-radius'], px(C14.chip.borderRadius));
+    check('C14', 'chip', 'border', `${chip.props['border-top-width']} ${chip.props['border-top-color']}`, `${px(C14.chip.borderWidth)} ${hexToRgb(C14.chip.borderColor)}`);
+    check('C14', 'chip', 'bg', chip.props['background-color'], hexToRgb(C14.chip.backgroundColor));
+    check('C14', 'chip', 'fg', chip.props['color'], hexToRgb(C14.txt.color));
+    check('C14', 'chip', 'font-size', chip.props['font-size'], px(C14.txt.fontSize));
+    check('C14', 'chip', 'shadow', normShadow(chip.props['box-shadow'] ?? ''), normShadow(C14.chip.boxShadow));
   });
 });
 
