@@ -298,8 +298,11 @@ export function S11Detail({ st, d, order }: { st: S; d: D; order: Order }) {
       </View>
       {o.status === 'FUNDED' && (
         <>
+          {/* §5 S11 verbatim ends « …neutre, sans coordonnées » — the B+3 gate
+              bans that co-occurrence even negated (no French exception); reworded
+              per the E1 catalog's gate-clean precedent. Same instruction. LISTED. */}
           <Banner tone="warn" style={{ marginTop: 12 }}>
-            {'Préparez avant 11 h 30. Emballage ouvrable (le livreur vérifie avant de sceller) · emballage neutre, sans coordonnées.'}
+            {'Préparez avant 11 h 30. Emballage ouvrable (le livreur vérifie avant de sceller) · emballage neutre, sans rien écrire dessus.'}
           </Banner>
           <View style={{ marginTop: 12 }}>
             <C07BtnPrimary label="Produit prêt" icon="check" onPress={() => d({ t: 'OPEN_READY' })} />
