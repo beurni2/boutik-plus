@@ -1,0 +1,22 @@
+############ FP-STEP0 COLD-GATES PROOF ############
+ISOLATION: fresh HOME=/tmp/fp-h.ewkvSy  fresh empty STORE=/tmp/fp-s.JCrqiK  fresh CLONE=/tmp/fp-c.KgdRa8 (pushed branch, not the working tree)
+AUTH LINE (only thing in fresh HOME gitconfig):
+  url.http://local_proxy@127.0.0.1:41729/git/.insteadof https://github.com/
+  -> HTTPS->proxy, NOT ssh.
+cold HEAD: 93a3b675e7f10620e953d27236e617a8b0fc218d  (expect 93a3b67...)
+frozen install exit: 0
+Done in 54.8s using pnpm v10.33.0
+--- cold: the FP guard + the Archivo guards (from the cold clone) ---
+      Tests  19 passed (19)
+   Duration  559ms (transform 180ms, setup 0ms, collect 487ms, tests 62ms, environment 0ms, prepare 262ms)
+--- cold run-gates.sh ---
+cold run-gates exit: 0
+ALL GATES GREEN (positives passed; every negative fixture failed as required)
+--- cold: FP font sha256 match the committed BUILD.md ---
+1734a352ee605769362b9007fb757ce1906f6d2c4adc40efca4b65d9734ed15d  BricolageGrotesque-Bold.ttf
+211c79e5806dbf3c0bcaa6fb55d9235bfac7ade8203bf2babfa407de381fba6e  BricolageGrotesque-ExtraBold.ttf
+e146e339d6af583516221470783caf77df4ab45e204edc83a61effdd2966ad9e  InstrumentSans-Bold.ttf
+22defdb38770658e243944c05cef07b5c4141ad0dd42068b57dbd81c7fad9e60  InstrumentSans-Medium.ttf
+fcb3668c7ca8e12a5cb4c6aaaa3143060cb92359563b58b591aa31a66463e1ba  InstrumentSans-Regular.ttf
+953880fe884caee46e184092632558d49a4648112ac74be8ea6c66b6ca63f04b  InstrumentSans-SemiBold.ttf
+############ END ############

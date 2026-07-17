@@ -2,14 +2,17 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { computeWaterfall, assertQuoteReconciles } from '@platform/contracts';
-import { boutikColour } from '@platform/ui-tokens';
+import { sharedColour } from '@platform/ui-tokens';
 
 /**
- * DF-1 — device feedback, first batch (founder on-device, 2026-07-14). The kit
- * + App source are scanned (the WO-6.0 ui-kit.test convention — the RN tree has
- * no test-render harness); Part C's recompute is proven on the PINNED waterfall.
- * A — palette off ink + the chip-row owns its height; B — Mes Recettes figure
- * alone; C — la part de la revendeuse is editable and the keypad is handled.
+ * DF-1 — device feedback, carried across the Faso Premium adoption. The kit +
+ * App source are scanned (the RN tree has no test-render harness); Part C's
+ * recompute is proven on the PINNED waterfall. The DF-1 PALETTE ruling
+ * (artisan-gold chips / supply-green CTAs) is SUPERSEDED by the FP system — the
+ * chip tones are re-based to the status palette (fact = server-truth ok green),
+ * the CTA stays supply-green. The BEHAVIOURS DF-1 fixed all SURVIVE: rows own
+ * their height, Mes Recettes shows the figure alone, la part is editable, the
+ * keypad is handled.
  */
 
 const appDir = join(import.meta.dirname, '..');
@@ -17,57 +20,53 @@ const read = (f: string) => readFileSync(join(appDir, f), 'utf8');
 const app = read('App.tsx');
 const kit = read('src/ui/kit.tsx');
 
-describe('DF-1 A — palette pass: chips / status badges / primary CTA come off ink', () => {
-  it('the fact chip is re-derived onto the boutik warm accent (artisanAccent), NOT ink', () => {
-    // the fact tone box is the warm gold accent with ink text (legible at arm's length)
-    expect(kit).toMatch(/fact:\s*\{\s*box:\s*\{\s*backgroundColor:\s*C\.artisanAccent\s*\},\s*fg:\s*C\.ink\s*\}/);
-    // it is NOT the old ink fill
-    expect(kit).not.toMatch(/fact:\s*\{\s*box:\s*\{\s*backgroundColor:\s*C\.ink\s*\}/);
-    // artisanAccent is an EXISTING boutik token (no invented hex)
-    expect(typeof boutikColour.artisanAccent).toBe('string');
+describe('DF-1 A — palette (SUPERSEDED by FP): chips on the status palette, CTA supply-green', () => {
+  it('the fact chip is server-truth OK green (not ink, not the retired gold ruling)', () => {
+    expect(kit).toMatch(/fact:\s*\{\s*bg:\s*C\.okBg,\s*fg:\s*C\.okFg\s*\}/);
+    expect(kit).not.toMatch(/fact:\s*\{\s*(?:box:\s*\{\s*)?backgroundColor:\s*C\.ink/); // never a green/ink lie
+    expect(kit).not.toMatch(/C\.artisanAccent/); // the DF-1 gold ruling is superseded, not carried
+    expect(typeof sharedColour.okBg).toBe('string');
   });
 
-  it('the primary CTA fill comes off ink onto the boutik warm supply-green', () => {
-    expect(kit).toMatch(/buttonInk:\s*\{\s*backgroundColor:\s*C\.primary\s*\}/);
-    expect(kit).not.toMatch(/buttonInk:\s*\{\s*backgroundColor:\s*C\.ink\s*\}/);
+  it('the primary CTA fill is the boutik supply-green accent', () => {
+    expect(kit).toMatch(/buttonPrimary:\s*\{\s*backgroundColor:\s*C\.primary/);
   });
 
-  it('the four status tones stay visually distinct (fact gold · pending cream · problem red · celebrate green)', () => {
-    // no two of the state fills collide after the pass
-    const fills = { fact: 'C.artisanAccent', pending: 'C.warningTint', problem: 'C.dangerTint', celebrate: 'C.primary' };
-    const set = new Set(Object.values(fills));
-    expect(set.size).toBe(Object.keys(fills).length); // all four fills are different
+  it('the status tones stay visually distinct (fact ok · pending warn · problem danger · celebrate soft)', () => {
+    const fills = { fact: 'C.okBg', pending: 'C.warnBg', problem: 'C.dangerBg', celebrate: 'C.soft' };
+    expect(new Set(Object.values(fills)).size).toBe(Object.keys(fills).length);
     for (const fill of Object.values(fills)) expect(kit).toContain(fill);
   });
 });
 
 describe('DF-1 A.2 — the chip-row collision: rows own their height, nothing overlaps', () => {
-  it('ListRow uses minHeight (grows to fit title + meta + chip) — never a hard fixed height', () => {
-    expect(kit).toMatch(/row:\s*\{[^}]*minHeight:\s*LIST_ROW_HEIGHT/s);
-    expect(kit).not.toMatch(/row:\s*\{[^}]*[^n]height:\s*LIST_ROW_HEIGHT/s); // no bare fixed height
-    expect(kit).toMatch(/row:\s*\{[^}]*paddingVertical:\s*spacing\.sm/s);
+  it('ListRow uses minHeight (grows to fit title + sub + chip) — never a hard fixed height', () => {
+    expect(kit).toMatch(/row:\s*\{[^}]*minHeight:\s*56/s);
+    expect(kit).not.toMatch(/row:\s*\{[^}]*[^n]height:\s*56/s); // no bare fixed height
+    expect(kit).toMatch(/row:\s*\{[^}]*padding:\s*D\.rowPad/s);
   });
 });
 
-describe('DF-1 B — Mes Recettes: photo + name as title + the figure ALONE', () => {
-  it('the card carries a product photo thumb and the item name as the visible (body-scale) title', () => {
-    expect(app).toMatch(/style=\{styles\.receiptThumb\}/);
-    expect(app).toMatch(/style=\{styles\.receiptName\}[\s\S]*?item\.label/);
-    // the name style is body/row scale, ink — not the tiny caps Overline
-    expect(app).toMatch(/receiptName:\s*\{\s*\.\.\.textStyle\(T\.row\)/);
+describe('DF-1 B — Mes Recettes: product art + name as title + the figure ALONE', () => {
+  it('the card carries a product-art thumb (duotone) and the item name as the visible title', () => {
+    expect(app).toMatch(/<DuotoneTile label=\{item\.label\}[\s\S]*?style=\{styles\.receiptThumb\}/);
+    expect(app).toMatch(/ts\('row', C\.ink\)[\s\S]*?item\.label/);
   });
 
-  it('the figure renders ALONE at display scale — money.amount_f (« {amount} F ») — the full-sentence duplication is gone', () => {
-    // recettes hero uses the figure-only template + the label ONCE
-    expect(app).toMatch(/label=\{t\('offer\.net_label'\)\}[\s\S]*?amount=\{t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
-    // the old full-sentence template no longer feeds a recettes AmountHero amount
-    expect(app).not.toMatch(/amount=\{t\('recettes\.net_ligne'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)\}/);
+  it('the figure renders ALONE — money.amount_f (« {amount} F ») over the LOCKED obligation, MONEY_TEXT, no sentence (FP « Argent » frame supersedes the round-1 AmountHero form; the invariant survives)', () => {
+    // The FP « Argent » détail-par-commande frame (planche 197–208) makes the money
+    // hero SINGULAR at the top band and the per-order rows COMPACT — the figure is a
+    // display MONEY_TEXT amount ALONE, over the verbatim read-model obligation through
+    // the frozen formatter (never recomputed). The DF-1 durable invariant (« figure
+    // alone, no buried sentence ») survives the composition change.
+    expect(app).toMatch(/ts\('priceInline', C\.ink\), MONEY_TEXT\][\s\S]*?t\('money\.amount_f'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)/);
+    // NEVER the buried full-sentence form (« Vous recevrez … F ») — the round-1 fix holds
+    expect(app).not.toMatch(/recettes\.net_ligne'\)\.replace\('\{amount\}', formatFcfa\(item\.obligation\.amount\)\)/);
   });
 });
 
 describe('DF-1 C.1 — la part de la revendeuse is EDITABLE and the waterfall recomputes live', () => {
   it('the commission field takes input (not readOnly) and drives offerC', () => {
-    // the commission MoneyField is editable — value is the raw input + an onChangeText
     expect(app).toMatch(/label=\{t\('offre\.champ_commission'\)\}[\s\S]*?value=\{commissionInput\}[\s\S]*?onChangeText=\{\(txt\) => setCommissionInput/);
     expect(app).toMatch(/const offerC = Number\.parseInt\(commissionInput, 10\) \|\| 0/);
   });
@@ -79,20 +78,18 @@ describe('DF-1 C.1 — la part de la revendeuse is EDITABLE and the waterfall re
       assertQuoteReconciles(m);
       return m.sellerNet;
     };
-    // a different commission → a different net (the field truly recomputes)
     expect(net(1_000)).not.toBe(net(2_000));
-    // and each still reconciles to the franc (money gate holds)
     expect(net(1_000)).toBe(8_500); // 10 000 − 5 %·B (500) − C (1 000)
     expect(net(2_000)).toBe(7_500); // 10 000 − 500 − 2 000
   });
 });
 
 describe('DF-1 C.2 — the keypad is handled on Mon Prix (props wired; device feel is the founder re-check)', () => {
-  it('the offre screen wires KeyboardAvoidingView + keyboardShouldPersistTaps + keyboardDismissMode', () => {
+  it('the offre screen wires KeyboardAvoidingView + keyboardShouldPersistTaps + keyboardDismissMode + a scroll pad', () => {
     expect(app).toMatch(/screen === 'offre'[\s\S]*?<KeyboardAvoidingView/);
     expect(app).toMatch(/keyboardShouldPersistTaps="handled"/);
     expect(app).toMatch(/keyboardDismissMode="on-drag"/);
-    // the CTA sits in a scroll pad so the keyboard never hides it
-    expect(app).toMatch(/offerScroll:\s*\{\s*paddingBottom:\s*spacing\.xl\s*\}/);
+    // the CTA sits in a scroll pad (scrollFlow bottom pad) so the keyboard never hides it
+    expect(app).toMatch(/scrollFlow:\s*\{[^}]*paddingBottom:\s*D\.scrollFlow/);
   });
 });

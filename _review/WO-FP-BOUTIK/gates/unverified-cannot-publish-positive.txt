@@ -1,0 +1,3 @@
+$ node scripts/gates/unverified-cannot-publish.mjs gates/fixtures/publish.verified-supplier.json
+OK: supplier supplier-1 is phone-verified (tier provisional) — publish allowed
+(exit code: 0)

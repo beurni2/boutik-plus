@@ -1,0 +1,71 @@
+$ pnpm typecheck
+
+> boutik-plus@0.0.1 typecheck /home/user/boutik-plus
+> turbo run typecheck
+
+• turbo 2.10.4
+
+   • Packages in scope: @boutik/catalog-service, @boutik/commerce-core, @boutik/flags-client, @boutik/fulfillment-service, @boutik/inventory-service, @boutik/media-service, @boutik/observability, @boutik/offer-service, @boutik/supplier-app, @boutik/supplier-service
+   • Running typecheck in 10 packages
+   • Remote caching disabled
+
+@boutik/observability:build: cache hit, replaying logs 083598f82b5717fc
+@boutik/observability:build: 
+@boutik/observability:build: > @boutik/observability@0.0.1 build /home/user/boutik-plus/packages/observability
+@boutik/observability:build: > tsc -p tsconfig.json
+@boutik/observability:build: 
+@boutik/flags-client:typecheck: cache hit, replaying logs 7c365c0697ebe5f0
+@boutik/flags-client:typecheck: 
+@boutik/flags-client:typecheck: > @boutik/flags-client@0.0.1 typecheck /home/user/boutik-plus/packages/flags-client
+@boutik/flags-client:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/flags-client:typecheck: 
+@boutik/commerce-core:typecheck: cache hit, replaying logs b39c1201d55692ff
+@boutik/commerce-core:typecheck: 
+@boutik/commerce-core:typecheck: > @boutik/commerce-core@0.0.1 typecheck /home/user/boutik-plus/packages/commerce-core
+@boutik/commerce-core:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/commerce-core:typecheck: 
+@boutik/supplier-app:typecheck: cache miss, executing c5c8307111684996
+@boutik/observability:typecheck: cache hit, replaying logs 5ec25dce7c5655d3
+@boutik/observability:typecheck: 
+@boutik/observability:typecheck: > @boutik/observability@0.0.1 typecheck /home/user/boutik-plus/packages/observability
+@boutik/observability:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/observability:typecheck: 
+@boutik/supplier-service:typecheck: cache hit, replaying logs 33940b070d7f3618
+@boutik/supplier-service:typecheck: 
+@boutik/supplier-service:typecheck: > @boutik/supplier-service@0.0.1 typecheck /home/user/boutik-plus/services/supplier-service
+@boutik/supplier-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-service:typecheck: 
+@boutik/inventory-service:typecheck: cache hit, replaying logs b9dcf1eb2a30e76f
+@boutik/inventory-service:typecheck: 
+@boutik/inventory-service:typecheck: > @boutik/inventory-service@0.0.1 typecheck /home/user/boutik-plus/services/inventory-service
+@boutik/inventory-service:typecheck: > tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json
+@boutik/inventory-service:typecheck: 
+@boutik/media-service:typecheck: cache hit, replaying logs 67d9fd19387b379f
+@boutik/media-service:typecheck: 
+@boutik/media-service:typecheck: > @boutik/media-service@0.0.1 typecheck /home/user/boutik-plus/services/media-service
+@boutik/media-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/media-service:typecheck: 
+@boutik/fulfillment-service:typecheck: cache hit, replaying logs e8b70ab0e177c3f7
+@boutik/fulfillment-service:typecheck: 
+@boutik/fulfillment-service:typecheck: > @boutik/fulfillment-service@0.0.1 typecheck /home/user/boutik-plus/services/fulfillment-service
+@boutik/fulfillment-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/fulfillment-service:typecheck: 
+@boutik/catalog-service:typecheck: cache hit, replaying logs f3e9131dfec89e71
+@boutik/catalog-service:typecheck: 
+@boutik/catalog-service:typecheck: > @boutik/catalog-service@0.0.1 typecheck /home/user/boutik-plus/services/catalog-service
+@boutik/catalog-service:typecheck: > tsc -p tsconfig.typecheck.json
+@boutik/catalog-service:typecheck: 
+@boutik/offer-service:typecheck: cache hit, replaying logs eb085cce1a9fb45c
+@boutik/offer-service:typecheck: 
+@boutik/offer-service:typecheck: > @boutik/offer-service@0.0.1 typecheck /home/user/boutik-plus/services/offer-service
+@boutik/offer-service:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/offer-service:typecheck: 
+@boutik/supplier-app:typecheck: 
+@boutik/supplier-app:typecheck: > @boutik/supplier-app@0.0.1 typecheck /home/user/boutik-plus/apps/supplier-app
+@boutik/supplier-app:typecheck: > tsc -p tsconfig.json --noEmit
+@boutik/supplier-app:typecheck: 
+
+ Tasks:    11 successful, 11 total
+Cached:    10 cached, 11 total
+  Time:    2.827s 
+(exit code: 0)

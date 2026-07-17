@@ -1,0 +1,6 @@
+WO-FP-BOUTIK — native Metro export health (proves the render layer bundles; NO react-native-web/react-dom added)
+
+Android: 838 modules, index-*.hbc 2.8 MB, exit 0
+iOS: index-*.hbc 2793804 bytes, exit 0
+
+Both platforms bundle the full Faso Premium render layer (signature module + kit + 11-view App + react-native-svg gradients + 6 embedded FP fonts). No new dependency; no react-native-web.

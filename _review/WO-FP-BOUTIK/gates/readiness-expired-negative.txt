@@ -1,0 +1,3 @@
+$ node scripts/gates/readiness-gate.mjs gates/fixtures/negative/readiness.expired-challenge.json
+VIOLATION (caught, refused closed): scenario 'expired_challenge' → challenge_expired; no pickup eligibility exists
+(exit code: 1)

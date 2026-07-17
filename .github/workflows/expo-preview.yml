@@ -10,6 +10,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      root:
+        description: "Racine à publier ('' = app E1 · 'v2' = board V2 WO-FP-PIXEL)"
+        required: false
+        default: ''
 
 jobs:
   publish-preview:
@@ -51,7 +56,11 @@ jobs:
         # writes the runtime/update config into the CI workspace only
         # (ephemeral — never committed); update publishes to the preview
         # channel. First REAL publish is founder-verified on his phone.
+        env:
+          # '' on main-push publishes the E1 app; 'v2' (dispatch input) mounts
+          # the WO-FP-PIXEL board build — see apps/supplier-app/index.ts.
+          EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || '' }}
         run: |
           npx eas-cli@20.5.1 init --non-interactive --force
           npx eas-cli@20.5.1 update:configure --non-interactive
-          npx eas-cli@20.5.1 update --channel preview --non-interactive --auto --message "main@${GITHUB_SHA}"
+          npx eas-cli@20.5.1 update --channel preview --non-interactive --auto --message "${GITHUB_REF_NAME}@${GITHUB_SHA} root=${EXPO_PUBLIC_ROOT:-e1}"

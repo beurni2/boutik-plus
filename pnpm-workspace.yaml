@@ -12,16 +12,16 @@ onlyBuiltDependencies:
   - "@platform/ui-tokens"
   - "@platform/certification"
 
-# @platform/contracts depends on @platform/kernel-types@0.9.6, which exists
+# @platform/contracts depends on @platform/kernel-types@1.0.0, which exists
 # on no registry; this override routes that transitive resolution to the
-# same pinned git ref (CONSUMING.md). Pin = sha ba6f16d (canon v0.9.6 — the
-# moderation-decision-shapes pin: catalog-service adopts canon
-# ModerationReasonCodeSchema + ModerationDecisionSchema, retiring its local
-# A1 enum; founder ruling: the release ref is the merge commit).
-# @platform/certification (0.9.6, devDep) additionally depends on
-# @platform/contracts@0.9.6 and @platform/ui-tokens@0.9.6 by VERSION —
+# same pinned git ref (CONSUMING.md). Pin = sha f23407c (canon v1.0.0 — the
+# Faso Premium release: ui-tokens v2 at root, Grand Teint preserved at
+# ./legacy, platform lockstep MAJOR; founder ruling: the release ref is the
+# merge commit).
+# @platform/certification (1.0.0, devDep) additionally depends on
+# @platform/contracts@1.0.0 and @platform/ui-tokens@1.0.0 by VERSION —
 # also registry-absent, so they are routed the same way.
 overrides:
-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/kernel-types"
-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/contracts"
-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#ba6f16d78a2a5a13ff6877237cef6d77d35d8d65&path:packages/ui-tokens"
+  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/kernel-types"
+  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/contracts"
+  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/ui-tokens"

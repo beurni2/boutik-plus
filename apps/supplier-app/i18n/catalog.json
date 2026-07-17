@@ -6,6 +6,12 @@
     "screenClass": "general"
   },
   {
+    "key": "onboarding.welcome",
+    "fr": "Bienvenue sur Boutik+",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
     "key": "onboarding.free_listing",
     "fr": "Listez vos produits gratuitement. Boutik+ et Shop+ ne gagnent que lorsque votre produit est vendu.",
     "register": "selling",
@@ -168,6 +174,66 @@
     "screenClass": "general"
   },
   {
+    "key": "accueil.greeting",
+    "fr": "Nd'waoga",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
+    "key": "accueil.greeting_sub",
+    "fr": "Boutique ouverte · {n} produits en ligne · vous n'avancez rien, jamais.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.section_todo",
+    "fr": "À faire maintenant",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.stat_attente_note",
+    "fr": "Payé après livraison validée",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.stat_verse_note",
+    "fr": "Sous 24 h après acceptation",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.ech_titre",
+    "fr": "Échéances du jour",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.gratuite",
+    "fr": "L'inscription est gratuite. Boutik+ gagne 5 % du prix quand votre produit se vend.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.gratuite_link",
+    "fr": "Voir le parcours d'inscription vendeur",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.shopline",
+    "fr": "Marché Rood-Woko",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.ech_restant",
+    "fr": "Dans {min} min",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "accueil.card_produits",
     "fr": "Mes produits",
     "register": "neutral",
@@ -196,6 +262,18 @@
     "fr": "Mes produits",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "produits.subtitle",
+    "fr": "{n} en ligne · photos sans prix ajouté",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "produits.lister",
+    "fr": "Lister un produit — gratuit",
+    "register": "selling",
+    "screenClass": "label"
   },
   {
     "key": "produits.repere",
@@ -322,6 +400,12 @@
     "fr": "Rien à corriger — tout est en ordre.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "corrective.protection",
+    "fr": "La cliente est déjà remboursée par le fonds de protection. Corrigez, puis re-proposez le colis.",
+    "register": "money",
+    "screenClass": "general"
   },
   {
     "key": "nav.tab_accueil",
@@ -492,6 +576,18 @@
     "screenClass": "label"
   },
   {
+    "key": "studio.honnete_ia",
+    "fr": "De vraies photos — aucune image inventée par une IA.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.honnete_original",
+    "fr": "Cette photo prouve l'accès au produit, pas l'authenticité. Votre photo d'origine est gardée, jamais remplacée.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "studio.permission",
     "fr": "Le Studio a besoin de la caméra pour vos photos.",
     "register": "neutral",
@@ -630,6 +726,24 @@
     "screenClass": "general"
   },
   {
+    "key": "recettes.detail_label",
+    "fr": "Détail par commande",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "recette.title",
+    "fr": "Détail du versement",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "recette.timeline",
+    "fr": "Étapes du versement",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
     "key": "recettes.vide",
     "fr": "Pas encore de recette. Votre première vente s'affiche ici.",
     "register": "neutral",
@@ -740,6 +854,42 @@
   {
     "key": "confiance.title",
     "fr": "Confiance",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.subtitle",
+    "fr": "Votre niveau monte avec des livraisons réussies — jamais avec de l’argent avancé.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.tier_current",
+    "fr": "Votre niveau",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confiance.desc_provisional",
+    "fr": "Une commande à la fois · paiement complet à la commande · un contrôle à chaque enlèvement · catégories choisies.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.desc_verified",
+    "fr": "Paiement à la livraison débloqué · plusieurs commandes en même temps · meilleure visibilité.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.desc_trusted",
+    "fr": "Avec un bon historique : plus de commandes en même temps, contrôles allégés quand c’est sûr, campagnes en avant.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "confiance.warning",
+    "fr": "Une faute répétée réduit l’accès (retour au prépaiement, suspension) — c’est l’accès au marché qui compte, jamais une somme bloquée.",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -966,6 +1116,12 @@
     "screenClass": "label"
   },
   {
+    "key": "offre.ligne_frais",
+    "fr": "Frais Boutik+ (5 %)",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
     "key": "offre.publier",
     "fr": "Publier l'offre",
     "register": "money",
@@ -996,8 +1152,20 @@
     "screenClass": "label"
   },
   {
+    "key": "pret.step_photo",
+    "fr": "1 · Photo de préparation",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "pret.check_photo",
     "fr": "Le colis correspond à la photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "pret.step_emballage",
+    "fr": "2 · Emballage du colis",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -1006,6 +1174,12 @@
     "fr": "Fermé, prêt à partir",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "pret.honnete_code_client",
+    "fr": "Le code client de livraison ne vous est jamais montré.",
+    "register": "neutral",
+    "screenClass": "general"
   },
   {
     "key": "pret.confirmer",

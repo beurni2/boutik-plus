@@ -1,0 +1,4488 @@
+{
+ "$note": "WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.",
+ "generatedAt": "2026-07-17T22:44:00.186Z",
+ "cases": [
+  {
+   "case": "C07",
+   "total": 18,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C02",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C18",
+   "total": 9,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C20",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C44",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C06",
+   "total": 10,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C25",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C26",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C03",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C14",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C01",
+   "total": 2,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C04",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C05",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C08",
+   "total": 12,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C09",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C10",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C11",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C12",
+   "total": 8,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C13",
+   "total": 9,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C15",
+   "total": 12,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C16",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C17",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C19",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C21",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C22",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C23",
+   "total": 1,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C24",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C27",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C28",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C29",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C30",
+   "total": 8,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C31",
+   "total": 9,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C32",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C33",
+   "total": 3,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C34",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C35",
+   "total": 13,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C36",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C37",
+   "total": 8,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C38",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C39",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C40",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C41",
+   "total": 8,
+   "mismatches": 0,
+   "frozen": 1,
+   "valuePass": true
+  },
+  {
+   "case": "C42",
+   "total": 2,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C43",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C45",
+   "total": 7,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C46",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C47",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "C48",
+   "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S01",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S02",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S03",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S04",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S05",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S06",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S07",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S08",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S09",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S10",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S11",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S12",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S13",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S14",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S15",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S16",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S17",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S18",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S19",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S20",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S21",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S22",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S23",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S24",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S25",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S26",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S27",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S28",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S29",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S30",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S31",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S32",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S33",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S34",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S35",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S36",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S37",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S38",
+   "total": 5,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S39",
+   "total": 2,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S40",
+   "total": 4,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  }
+ ],
+ "rows": [
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "background-color",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "height",
+   "expected": "54px",
+   "built": "54px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-top-left-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-top-right-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-bottom-right-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-bottom-left-radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "display+direction",
+   "expected": "flex/row",
+   "built": "flex/row",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "align-items",
+   "expected": "center",
+   "built": "center",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "justify-content",
+   "expected": "center",
+   "built": "center",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "gap",
+   "expected": "9px",
+   "built": "9px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "0px",
+   "built": "0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "btn",
+   "prop": "box-shadow",
+   "expected": "rgba(11,91,71,0.5)|0px|12px|26px|-10px",
+   "built": "rgba(11,91,71,0.5)|0px|12px|26px|-10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-family",
+   "expected": "Bricolage Grotesque",
+   "built": "Bricolage Grotesque",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-weight(style)",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C07",
+   "el": "label",
+   "prop": "line-height",
+   "expected": "normal",
+   "built": "19.2px",
+   "verdict": "FROZEN(§9.2)"
+  },
+  {
+   "case": "C02",
+   "el": "band",
+   "prop": "height",
+   "expected": "6px",
+   "built": "6px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C02",
+   "el": "cycle",
+   "prop": "segment-widths",
+   "expected": "18,6,8,6",
+   "built": "18,6,8,6",
+   "verdict": "pass"
+  },
+  {
+   "case": "C02",
+   "el": "cycle",
+   "prop": "segment-colors",
+   "expected": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
+   "built": "rgb(11, 91, 71)|rgb(244, 239, 230)|rgb(200, 154, 63)|rgb(244, 239, 230)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "padding",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "radius",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "border",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "card",
+   "prop": "shadow",
+   "expected": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "built": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "letter-spacing",
+   "expected": "1.05px",
+   "built": "1.05px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C18",
+   "el": "overline",
+   "prop": "transform",
+   "expected": "uppercase",
+   "built": "uppercase",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "padding",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "radius",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "bg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "card",
+   "prop": "shadow",
+   "expected": "rgba(11,91,71,0.55)|0px|16px|36px|-14px",
+   "built": "rgba(11,91,71,0.55)|0px|16px|36px|-14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "opacity",
+   "expected": "0.75",
+   "built": "0.75",
+   "verdict": "pass"
+  },
+  {
+   "case": "C20",
+   "el": "overline",
+   "prop": "color",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "width",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "height",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "bg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "font-size",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "ls",
+   "expected": "0.3px",
+   "built": "0.3px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C44",
+   "el": "monogram",
+   "prop": "font",
+   "expected": "BG",
+   "built": "BG",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "font-size",
+   "expected": "11px",
+   "built": "11px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "pad-v",
+   "expected": "5px",
+   "built": "5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "pad-h",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "bg",
+   "expected": "rgb(246, 233, 200)",
+   "built": "rgb(246, 233, 200)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "pill",
+   "prop": "fg",
+   "expected": "rgb(122, 81, 4)",
+   "built": "rgb(122, 81, 4)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C25",
+   "el": "week",
+   "prop": "color",
+   "expected": "rgb(28, 23, 16)",
+   "built": "rgb(28, 23, 16)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "name",
+   "prop": "ls",
+   "expected": "-0.135px",
+   "built": "-0.135px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "font",
+   "expected": "BG",
+   "built": "BG",
+   "verdict": "pass"
+  },
+  {
+   "case": "C26",
+   "el": "price",
+   "prop": "weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-top",
+   "expected": "8px",
+   "built": "8px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-h",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "pad-bottom",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "bg",
+   "expected": "rgba(252, 249, 242, 0.88)",
+   "built": "rgba(252, 249, 242, 0.88)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "bar",
+   "prop": "border-top",
+   "expected": "1px rgb(235, 226, 208)",
+   "built": "1px rgb(235, 226, 208)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C03",
+   "el": "item",
+   "prop": "active-fg",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "height",
+   "expected": "38px",
+   "built": "38px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "border",
+   "expected": "1px rgb(229, 220, 201)",
+   "built": "1px rgb(229, 220, 201)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "fg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C14",
+   "el": "chip",
+   "prop": "shadow",
+   "expected": "rgba(28,22,15,0.05)|0px|1px|2px|0px",
+   "built": "rgba(28,22,15,0.05)|0px|1px|2px|0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C01",
+   "el": "zone",
+   "prop": "height",
+   "expected": "54px",
+   "built": "54px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C01",
+   "el": "zone",
+   "prop": "frame-width",
+   "expected": "402px",
+   "built": "402px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C04",
+   "el": "title",
+   "prop": "font-size",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C04",
+   "el": "title",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C04",
+   "el": "title",
+   "prop": "letter-spacing",
+   "expected": "-0.56px",
+   "built": "-0.56px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C04",
+   "el": "title",
+   "prop": "color",
+   "expected": "rgb(28, 23, 16)",
+   "built": "rgb(28, 23, 16)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C04",
+   "el": "title",
+   "prop": "font-family",
+   "expected": "Bricolage Grotesque",
+   "built": "Bricolage Grotesque",
+   "verdict": "pass"
+  },
+  {
+   "case": "C05",
+   "el": "screen",
+   "prop": "font-size",
+   "expected": "11px",
+   "built": "11px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C05",
+   "el": "screen",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C05",
+   "el": "screen",
+   "prop": "letter-spacing",
+   "expected": "1.1px",
+   "built": "1.1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C05",
+   "el": "screen",
+   "prop": "text-transform",
+   "expected": "uppercase",
+   "built": "uppercase",
+   "verdict": "pass"
+  },
+  {
+   "case": "C05",
+   "el": "screen",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "argentRow",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "argentRow",
+   "prop": "pad-v",
+   "expected": "4px",
+   "built": "4px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "argentRow",
+   "prop": "pad-h",
+   "expected": "9px",
+   "built": "9px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C06",
+   "el": "argentRow",
+   "prop": "bg(PAID)",
+   "expected": "rgb(223, 238, 227)",
+   "built": "rgb(223, 238, 227)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "btn",
+   "prop": "height",
+   "expected": "50px",
+   "built": "50px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "btn",
+   "prop": "radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "btn",
+   "prop": "bg",
+   "expected": "rgb(228, 239, 233)",
+   "built": "rgb(228, 239, 233)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "btn",
+   "prop": "gap",
+   "expected": "8px",
+   "built": "8px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "label",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "S05-pair",
+   "prop": "height",
+   "expected": "48px",
+   "built": "48px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "S05-pair",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "S05-pair",
+   "prop": "font-size",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "S17-photo",
+   "prop": "height",
+   "expected": "50px",
+   "built": "50px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C08",
+   "el": "S17-photo",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "btn",
+   "prop": "height",
+   "expected": "46px",
+   "built": "46px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "btn",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C09",
+   "el": "btn",
+   "prop": "border-color",
+   "expected": "rgb(229, 220, 201)",
+   "built": "rgb(229, 220, 201)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "label",
+   "prop": "font-weight",
+   "expected": "600",
+   "built": "600",
+   "verdict": "pass"
+  },
+  {
+   "case": "C09",
+   "el": "S05-pair",
+   "prop": "height",
+   "expected": "48px",
+   "built": "48px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "btn",
+   "prop": "height",
+   "expected": "46px",
+   "built": "46px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "btn",
+   "prop": "border-style",
+   "expected": "dashed",
+   "built": "dashed",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C10",
+   "el": "btn",
+   "prop": "border-color",
+   "expected": "rgb(201, 189, 163)",
+   "built": "rgb(201, 189, 163)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C10",
+   "el": "label",
+   "prop": "prefix",
+   "expected": "▶ ",
+   "built": "▶ ",
+   "verdict": "pass"
+  },
+  {
+   "case": "C11",
+   "el": "btn",
+   "prop": "width",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C11",
+   "el": "btn",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C11",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C11",
+   "el": "btn",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "height",
+   "expected": "38px",
+   "built": "38px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "pad-h",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "active-bg",
+   "expected": "rgb(228, 239, 233)",
+   "built": "rgb(228, 239, 233)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "active-border",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "chip",
+   "prop": "active-fg",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C12",
+   "el": "txt",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "height",
+   "expected": "42px",
+   "built": "42px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "pad-h",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "inactive-bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "inactive-border",
+   "expected": "rgb(229, 220, 201)",
+   "built": "rgb(229, 220, 201)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "txt",
+   "prop": "font-size",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "active-anchor(Mode femme)",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C13",
+   "el": "chip",
+   "prop": "active-bg",
+   "expected": "rgb(228, 239, 233)",
+   "built": "rgb(228, 239, 233)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "btn",
+   "prop": "width",
+   "expected": "52px",
+   "built": "52px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "btn",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "btn",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "btn",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "glyph",
+   "prop": "font-size",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "glyph",
+   "prop": "font-weight",
+   "expected": "600",
+   "built": "600",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "glyph",
+   "prop": "font-family",
+   "expected": "Arial",
+   "built": "Instrument Sans",
+   "verdict": "FROZEN(Δ1 stepper UA font leak — IS600 per §2, founder-ruled 2026-07-17)"
+  },
+  {
+   "case": "C15",
+   "el": "glyph",
+   "prop": "freeze-premise(UA Arial)",
+   "expected": "Arial",
+   "built": "Arial",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "value",
+   "prop": "radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "value",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "value",
+   "prop": "font-size",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C15",
+   "el": "value",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "pad-v",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "pad-h",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C16",
+   "el": "input",
+   "prop": "bg",
+   "expected": "rgb(255, 255, 255)",
+   "built": "rgb(255, 255, 255)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C17",
+   "el": "L",
+   "prop": "padding",
+   "expected": "17px",
+   "built": "17px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C17",
+   "el": "L",
+   "prop": "radius",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C17",
+   "el": "L",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C17",
+   "el": "L",
+   "prop": "shadow",
+   "expected": "rgba(28,22,15,0.04)|0px|1px|2px|0px",
+   "built": "rgba(28,22,15,0.04)|0px|1px|2px|0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C19",
+   "el": "totalLabel",
+   "prop": "font-size",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C19",
+   "el": "totalLabel",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C19",
+   "el": "line",
+   "prop": "font-size",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C19",
+   "el": "totalValL",
+   "prop": "font-size",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C19",
+   "el": "totalValL",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "todo",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "order",
+   "prop": "radius",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "produitImg",
+   "prop": "height",
+   "expected": "108px",
+   "built": "108px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "heroFiche",
+   "prop": "radius",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "viseur",
+   "prop": "radius",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "preview",
+   "prop": "size",
+   "expected": "56px",
+   "built": "56px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C21",
+   "el": "preview",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "row",
+   "prop": "padding",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "row",
+   "prop": "radius",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "row",
+   "prop": "shadow(cardLg)",
+   "expected": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "built": "rgba(28,22,15,0.04)|0px|1px|2px|0px + rgba(28,22,15,0.14)|0px|10px|30px|-16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "title",
+   "prop": "font-size",
+   "expected": "14.5px",
+   "built": "14.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "sub",
+   "prop": "font-size",
+   "expected": "12.5px",
+   "built": "12.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C22",
+   "el": "sub",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C23",
+   "el": "row",
+   "prop": "shadow(cardSm)",
+   "expected": "rgba(28,22,15,0.04)|0px|1px|2px|0px",
+   "built": "rgba(28,22,15,0.04)|0px|1px|2px|0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C24",
+   "el": "code",
+   "prop": "font-size",
+   "expected": "14.5px",
+   "built": "14.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C24",
+   "el": "code",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C24",
+   "el": "row",
+   "prop": "pad-v",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C24",
+   "el": "row",
+   "prop": "pad-h",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C24",
+   "el": "net",
+   "prop": "font-size",
+   "expected": "15.5px",
+   "built": "15.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C27",
+   "el": "banner",
+   "prop": "pad-v",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C27",
+   "el": "banner",
+   "prop": "pad-h",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C27",
+   "el": "banner",
+   "prop": "radius",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C27",
+   "el": "banner",
+   "prop": "warn-bg",
+   "expected": "rgb(246, 233, 200)",
+   "built": "rgb(246, 233, 200)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C28",
+   "el": "box",
+   "prop": "pad-v",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C28",
+   "el": "box",
+   "prop": "pad-h",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C28",
+   "el": "box",
+   "prop": "border-style",
+   "expected": "dashed",
+   "built": "dashed",
+   "verdict": "pass"
+  },
+  {
+   "case": "C28",
+   "el": "box",
+   "prop": "border-color",
+   "expected": "rgb(221, 210, 188)",
+   "built": "rgb(221, 210, 188)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C28",
+   "el": "txt",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C29",
+   "el": "dot",
+   "prop": "width",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C29",
+   "el": "dot",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C29",
+   "el": "dot",
+   "prop": "border-width",
+   "expected": "2px",
+   "built": "2.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C29",
+   "el": "dot",
+   "prop": "done-border",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C29",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C29",
+   "el": "label",
+   "prop": "padding-bottom",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "stack",
+   "prop": "top",
+   "expected": "66px",
+   "built": "66px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "bg",
+   "expected": "rgb(28, 23, 16)",
+   "built": "rgb(28, 23, 16)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "pad-v",
+   "expected": "12px",
+   "built": "12px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "pad-h",
+   "expected": "17px",
+   "built": "17px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "txt",
+   "prop": "color",
+   "expected": "rgb(246, 240, 228)",
+   "built": "rgb(246, 240, 228)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "txt",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C30",
+   "el": "toast",
+   "prop": "life-ms",
+   "expected": "(§9.9: 2800, hard removal)",
+   "built": "2800",
+   "verdict": "FROZEN(PROSE §4.3/§9.9 — timing is not a computed style)"
+  },
+  {
+   "case": "C31",
+   "el": "scrim",
+   "prop": "bg",
+   "expected": "rgba(24, 18, 11, 0.45)",
+   "built": "rgba(24, 18, 11, 0.45)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "radius-top",
+   "expected": "30px",
+   "built": "30px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "pad-top",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "pad-h",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "pad-bottom",
+   "expected": "44px",
+   "built": "44px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "bg",
+   "expected": "rgb(252, 249, 242)",
+   "built": "rgb(252, 249, 242)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "panel",
+   "prop": "shadow",
+   "expected": "rgba(24,18,11,0.25)|0px|-18px|50px|0px",
+   "built": "rgba(24,18,11,0.25)|0px|-18px|50px|0px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "grabber",
+   "prop": "bg",
+   "expected": "rgb(221, 210, 188)",
+   "built": "rgb(221, 210, 188)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C31",
+   "el": "title",
+   "prop": "font-size",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C32",
+   "el": "segDone",
+   "prop": "radius",
+   "expected": "99px",
+   "built": "99px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C32",
+   "el": "segDone",
+   "prop": "bg",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C32",
+   "el": "seg",
+   "prop": "idle-bg",
+   "expected": "rgb(229, 220, 201)",
+   "built": "rgb(229, 220, 201)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C33",
+   "el": "footer",
+   "prop": "pad-top",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C33",
+   "el": "footer",
+   "prop": "pad-h",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C33",
+   "el": "footer",
+   "prop": "pad-bottom",
+   "expected": "40px",
+   "built": "40px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "b1",
+   "prop": "block 18px",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "b2",
+   "prop": "block 34px",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "b3",
+   "prop": "block 86px",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "b5",
+   "prop": "block 104px",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "b6",
+   "prop": "block 54px",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "wrap",
+   "prop": "pad-v",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C34",
+   "el": "wrap",
+   "prop": "pad-h",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "scrim",
+   "prop": "bg",
+   "expected": "rgba(7, 59, 46, 0.95)",
+   "built": "rgba(7, 59, 46, 0.95)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "scrim",
+   "prop": "pad-h",
+   "expected": "32px",
+   "built": "32px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "badge",
+   "prop": "width",
+   "expected": "78px",
+   "built": "78px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "badge",
+   "prop": "bg",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "amount",
+   "prop": "font-size",
+   "expected": "34px",
+   "built": "34px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "amount",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "amount",
+   "prop": "letter-spacing",
+   "expected": "-0.68px",
+   "built": "-0.68px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "amount",
+   "prop": "color",
+   "expected": "rgb(246, 241, 231)",
+   "built": "rgb(246, 241, 231)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "caption",
+   "prop": "font-size",
+   "expected": "11px",
+   "built": "11px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "caption",
+   "prop": "color",
+   "expected": "rgb(200, 154, 63)",
+   "built": "rgb(200, 154, 63)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "caption",
+   "prop": "transform",
+   "expected": "uppercase",
+   "built": "uppercase",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "dash",
+   "prop": "band",
+   "expected": "132×6 seg 12 cycle 20",
+   "built": "132×6 seg 12 cycle 20",
+   "verdict": "pass"
+  },
+  {
+   "case": "C35",
+   "el": "dash",
+   "prop": "gold",
+   "expected": "rgb(200, 154, 63)",
+   "built": "rgb(200, 154, 63)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C36",
+   "el": "current",
+   "prop": "border-width",
+   "expected": "2px",
+   "built": "2px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C36",
+   "el": "current",
+   "prop": "border-color",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C36",
+   "el": "current",
+   "prop": "shadow",
+   "expected": "rgba(11,91,71,0.35)|0px|12px|30px|-14px",
+   "built": "rgba(11,91,71,0.35)|0px|12px|30px|-14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C36",
+   "el": "title",
+   "prop": "font-size",
+   "expected": "15px",
+   "built": "15px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C36",
+   "el": "title",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "13.5px",
+   "built": "13.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "okPill",
+   "prop": "bg",
+   "expected": "rgb(223, 238, 227)",
+   "built": "rgb(223, 238, 227)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "okPill",
+   "prop": "fg",
+   "expected": "rgb(20, 96, 58)",
+   "built": "rgb(20, 96, 58)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "okPill",
+   "prop": "font-size",
+   "expected": "11px",
+   "built": "11px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "okPill",
+   "prop": "pad-v",
+   "expected": "4px",
+   "built": "4px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "okPill",
+   "prop": "pad-h",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C37",
+   "el": "row",
+   "prop": "divider",
+   "expected": "rgb(243, 237, 222)",
+   "built": "rgb(243, 237, 222)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C38",
+   "el": "done",
+   "prop": "font-size",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C38",
+   "el": "done",
+   "prop": "font-weight",
+   "expected": "600",
+   "built": "600",
+   "verdict": "pass"
+  },
+  {
+   "case": "C38",
+   "el": "done",
+   "prop": "color",
+   "expected": "rgb(28, 23, 16)",
+   "built": "rgb(28, 23, 16)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C38",
+   "el": "idle",
+   "prop": "font-weight",
+   "expected": "500",
+   "built": "500",
+   "verdict": "pass"
+  },
+  {
+   "case": "C38",
+   "el": "idle",
+   "prop": "color",
+   "expected": "rgb(138, 125, 107)",
+   "built": "rgb(138, 125, 107)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "frame",
+   "prop": "height",
+   "expected": "230px",
+   "built": "230px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "frame",
+   "prop": "radius",
+   "expected": "22px",
+   "built": "22px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "inset",
+   "prop": "border-width",
+   "expected": "2px",
+   "built": "2.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C39",
+   "el": "inset",
+   "prop": "border-color",
+   "expected": "rgba(255, 255, 255, 0.75)",
+   "built": "rgba(255, 255, 255, 0.75)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "inset",
+   "prop": "radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "caption",
+   "prop": "font-size",
+   "expected": "12px",
+   "built": "12px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C39",
+   "el": "caption",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C40",
+   "el": "imgLeft",
+   "prop": "radius",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C40",
+   "el": "framed",
+   "prop": "border-width",
+   "expected": "5px",
+   "built": "5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C40",
+   "el": "framed",
+   "prop": "border-color",
+   "expected": "rgb(244, 239, 230)",
+   "built": "rgb(244, 239, 230)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C40",
+   "el": "framed",
+   "prop": "radius",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C40",
+   "el": "legend",
+   "prop": "font-size",
+   "expected": "11.5px",
+   "built": "11.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "card",
+   "prop": "padding",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "card",
+   "prop": "radius",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "card",
+   "prop": "border-width",
+   "expected": "1px",
+   "built": "1.5px",
+   "verdict": "FROZEN(Δ4 border-snap: CSS declares the fraction; DPR-1 used value floors it)"
+  },
+  {
+   "case": "C41",
+   "el": "card",
+   "prop": "border-color",
+   "expected": "rgb(11, 91, 71)",
+   "built": "rgb(11, 91, 71)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "code",
+   "prop": "font-size",
+   "expected": "34px",
+   "built": "34px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "code",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "code",
+   "prop": "letter-spacing",
+   "expected": "4.76px",
+   "built": "4.76px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C41",
+   "el": "code",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C42",
+   "el": "chipVer-check",
+   "prop": "svg 15×15",
+   "expected": "found",
+   "built": "found",
+   "verdict": "pass"
+  },
+  {
+   "case": "C42",
+   "el": "strokes",
+   "prop": "per-component (markup-expected vs code-built)",
+   "expected": "base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6",
+   "built": "base 1.9 · C07 2.2 · C11 2.1 · C30 2.4 · C35 2.6",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "title",
+   "prop": "font-size",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "title",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "counter",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "counter",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "titleStep",
+   "prop": "font-size",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "titleStep",
+   "prop": "font-weight",
+   "expected": "800",
+   "built": "800",
+   "verdict": "pass"
+  },
+  {
+   "case": "C43",
+   "el": "titleStep",
+   "prop": "letter-spacing",
+   "expected": "-0.52px",
+   "built": "-0.52px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "time",
+   "prop": "font-size",
+   "expected": "12.5px",
+   "built": "12.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "time",
+   "prop": "bg",
+   "expected": "rgb(228, 239, 233)",
+   "built": "rgb(228, 239, 233)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "time",
+   "prop": "pad-v",
+   "expected": "5px",
+   "built": "5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "time",
+   "prop": "radius",
+   "expected": "10px",
+   "built": "10px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "label",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "label",
+   "prop": "line-height",
+   "expected": "18.2px",
+   "built": "18.2px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C45",
+   "el": "label",
+   "prop": "color",
+   "expected": "rgb(74, 63, 51)",
+   "built": "rgb(74, 63, 51)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C46",
+   "el": "card",
+   "prop": "pad-v",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C46",
+   "el": "card",
+   "prop": "pad-h",
+   "expected": "17px",
+   "built": "17px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C46",
+   "el": "body",
+   "prop": "font-size",
+   "expected": "13px",
+   "built": "13px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C46",
+   "el": "body",
+   "prop": "line-height",
+   "expected": "22.1px",
+   "built": "22.1px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C46",
+   "el": "body",
+   "prop": "color",
+   "expected": "rgb(111, 99, 85)",
+   "built": "rgb(111, 99, 85)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C47",
+   "el": "name",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C47",
+   "el": "line",
+   "prop": "font-size",
+   "expected": "14px",
+   "built": "14px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C47",
+   "el": "net",
+   "prop": "font-size",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C47",
+   "el": "net",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "overline",
+   "prop": "font-size",
+   "expected": "10.5px",
+   "built": "10.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "overline",
+   "prop": "letter-spacing",
+   "expected": "1.05px",
+   "built": "1.05px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "overline",
+   "prop": "transform",
+   "expected": "uppercase",
+   "built": "uppercase",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "commission",
+   "prop": "font-size",
+   "expected": "12.5px",
+   "built": "12.5px",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "commission",
+   "prop": "font-weight",
+   "expected": "700",
+   "built": "700",
+   "verdict": "pass"
+  },
+  {
+   "case": "C48",
+   "el": "commission",
+   "prop": "color",
+   "expected": "rgb(7, 59, 46)",
+   "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "blocks",
+   "prop": "skeleton-blocks",
+   "expected": "(5 block specs asserted under C34)",
+   "built": "(5 block specs asserted under C34)",
+   "verdict": "pass"
+  },
+  {
+   "case": "S02",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S02",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S02",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S02",
+   "el": "title",
+   "prop": "font-size «Boutik+»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S03",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S03",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S03",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S03",
+   "el": "title",
+   "prop": "font-size «Produits»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S03",
+   "el": "screens1",
+   "prop": "composition-string «Produits»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S04",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S04",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S04",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S04",
+   "el": "title",
+   "prop": "font-size «Produits»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S05",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S05",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S05",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S05",
+   "el": "title",
+   "prop": "font-size «Robe brodée bogolan»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S06",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S06",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S06",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S06",
+   "el": "title",
+   "prop": "font-size «Robe brodée bogolan»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S07",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S07",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S07",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S07",
+   "el": "title",
+   "prop": "font-size «Commandes»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S07",
+   "el": "screens1",
+   "prop": "composition-string «Commandes»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S08",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S08",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S08",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S08",
+   "el": "title",
+   "prop": "font-size «Commandes»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S09",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S09",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S09",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S09",
+   "el": "title",
+   "prop": "font-size «Commandes»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S10",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S10",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S10",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S10",
+   "el": "title",
+   "prop": "font-size «Commandes»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S11",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S11",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S11",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S11",
+   "el": "title",
+   "prop": "font-size «CMD-2417»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S12",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S12",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S12",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S12",
+   "el": "title",
+   "prop": "font-size «CMD-2417»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S13",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S13",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S13",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S13",
+   "el": "title",
+   "prop": "font-size «CMD-2411»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S14",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S14",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S14",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S14",
+   "el": "title",
+   "prop": "font-size «CMD-2402»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S15",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S15",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S15",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S15",
+   "el": "title",
+   "prop": "font-size «CMD-2398»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S16",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S16",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S16",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S16",
+   "el": "title",
+   "prop": "font-size «CMD-2409»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S17",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S17",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S17",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S17",
+   "el": "title",
+   "prop": "font-size «Confirmer « Produit prêt»",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S17",
+   "el": "screens2",
+   "prop": "composition-string «Confirmer « Produit prêt »»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S18",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S18",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S18",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S18",
+   "el": "title",
+   "prop": "font-size «Confirmer « Produit prêt»",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S19",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S19",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S19",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S19",
+   "el": "title",
+   "prop": "font-size «Ajuster le stock»",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S19",
+   "el": "screens2",
+   "prop": "composition-string «Ajuster le stock»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S20",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S20",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S20",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S20",
+   "el": "title",
+   "prop": "font-size «Catégorie»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S20",
+   "el": "screens2",
+   "prop": "composition-string «Catégorie»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S21",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S21",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S21",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S21",
+   "el": "title",
+   "prop": "font-size «Détails & stock»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S21",
+   "el": "screens2",
+   "prop": "composition-string «Détails & stock»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S22",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S22",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S22",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S22",
+   "el": "title",
+   "prop": "font-size «Prix & commission»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S22",
+   "el": "screens2",
+   "prop": "composition-string «Prix & commission»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S23",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S23",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S23",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S23",
+   "el": "title",
+   "prop": "font-size «Photos — Studio»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S23",
+   "el": "screens2",
+   "prop": "composition-string «Photos — Studio»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S24",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S24",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S24",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S24",
+   "el": "title",
+   "prop": "font-size «Photos — Studio»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S25",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S25",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S25",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S25",
+   "el": "title",
+   "prop": "font-size «Vérifiez, puis publiez»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S25",
+   "el": "screens2",
+   "prop": "composition-string «Vérifiez, puis publiez»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S26",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S26",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S26",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S26",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S26",
+   "el": "screens2",
+   "prop": "composition-string «Boutik+ Studio»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S27",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S27",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S27",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S27",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S28",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S28",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S28",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S28",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S29",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S29",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S29",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S29",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S30",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S30",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S30",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S30",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S31",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S31",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S31",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S31",
+   "el": "title",
+   "prop": "font-size «Boutik+ Studio»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S32",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S32",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S32",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "150px",
+   "built": "150px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S32",
+   "el": "title",
+   "prop": "font-size «Argent»",
+   "expected": "28px",
+   "built": "28px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S32",
+   "el": "screens2",
+   "prop": "composition-string «Argent»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S33",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S33",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S33",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S33",
+   "el": "title",
+   "prop": "font-size «Niveau de confiance»",
+   "expected": "19px",
+   "built": "19px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S33",
+   "el": "screens2",
+   "prop": "composition-string «Niveau de confiance»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S34",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S34",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S34",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S34",
+   "el": "title",
+   "prop": "font-size «Bienvenue sur Boutik+»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S34",
+   "el": "screens2",
+   "prop": "composition-string «Bienvenue sur Boutik+»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S35",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S35",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S35",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S35",
+   "el": "title",
+   "prop": "font-size «Votre numéro»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S35",
+   "el": "screens2",
+   "prop": "composition-string «Votre numéro»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S36",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S36",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S36",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S36",
+   "el": "title",
+   "prop": "font-size «Votre boutique»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S36",
+   "el": "screens2",
+   "prop": "composition-string «Votre boutique»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S37",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S37",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S37",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S37",
+   "el": "title",
+   "prop": "font-size «Compte de versement»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S37",
+   "el": "screens2",
+   "prop": "composition-string «Compte de versement»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S38",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S38",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S38",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "120px",
+   "built": "120px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S38",
+   "el": "title",
+   "prop": "font-size «Statut provisoire»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S38",
+   "el": "screens2",
+   "prop": "composition-string «Statut provisoire»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S39",
+   "el": "title",
+   "prop": "font-size «Compte provisoire créé»",
+   "expected": "26px",
+   "built": "26px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S39",
+   "el": "screens2",
+   "prop": "composition-string «Compte provisoire créé»",
+   "expected": "present",
+   "built": "present",
+   "verdict": "pass"
+  },
+  {
+   "case": "S40",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "16px",
+   "built": "16px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S40",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S40",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "60px",
+   "built": "60px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S40",
+   "el": "title",
+   "prop": "font-size «12 750 F»",
+   "expected": "34px",
+   "built": "34px",
+   "verdict": "pass"
+  }
+ ]
+}

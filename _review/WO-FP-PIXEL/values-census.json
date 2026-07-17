@@ -1,0 +1,635 @@
+{
+ "$note": "WO-FP-PIXEL Phase 0 — machine ground truth extracted from the Pixel Source render (getComputedStyle). THIS is what RN styles must equal; prose loses on conflict.",
+ "source": "design-reference/pixel-source-v2/Boutik Plus - Pixel Source.standalone.html",
+ "extractedAt": "2026-07-17T04:48:01.076Z",
+ "screenCount": 40,
+ "totalElements": 1767,
+ "census": {
+  "colors": {
+   "rgb(28, 23, 16)": 1975,
+   "rgb(244, 239, 230)": 41,
+   "rgba(0, 0, 0, 0)": 1294,
+   "rgb(246, 241, 231)": 102,
+   "rgb(11, 91, 71)": 107,
+   "rgb(111, 99, 85)": 610,
+   "rgb(255, 255, 255)": 190,
+   "rgb(229, 220, 201)": 101,
+   "rgb(140, 29, 24)": 24,
+   "rgb(248, 225, 222)": 16,
+   "rgb(237, 228, 211)": 76,
+   "rgb(122, 81, 4)": 30,
+   "rgb(246, 233, 200)": 13,
+   "rgb(7, 59, 46)": 179,
+   "rgb(228, 239, 233)": 28,
+   "rgb(74, 63, 51)": 16,
+   "rgba(252, 249, 242, 0.88)": 8,
+   "rgb(235, 226, 208)": 8,
+   "rgb(138, 125, 107)": 244,
+   "rgb(95, 68, 3)": 16,
+   "rgb(20, 96, 58)": 60,
+   "rgb(223, 238, 227)": 23,
+   "rgb(239, 232, 218)": 3,
+   "rgb(221, 210, 188)": 4,
+   "rgb(232, 223, 204)": 40,
+   "rgb(224, 214, 194)": 43,
+   "rgb(201, 189, 163)": 1,
+   "rgb(246, 240, 228)": 2,
+   "rgb(143, 212, 180)": 4,
+   "rgb(126, 26, 21)": 16,
+   "rgba(24, 18, 11, 0.45)": 3,
+   "rgb(252, 249, 242)": 3,
+   "rgb(221, 213, 195)": 3,
+   "rgba(255, 255, 255, 0.75)": 4,
+   "rgb(255, 246, 232)": 8,
+   "rgba(246, 241, 231, 0.22)": 1,
+   "rgba(7, 59, 46, 0.95)": 1,
+   "rgb(200, 154, 63)": 2,
+   "rgba(246, 241, 231, 0.65)": 2
+  },
+  "fontSizes": {
+   "15px": 21,
+   "19px": 22,
+   "12.5px": 88,
+   "13px": 63,
+   "28px": 9,
+   "14px": 100,
+   "11px": 73,
+   "24px": 10,
+   "14.5px": 24,
+   "10.5px": 65,
+   "12px": 28,
+   "16px": 47,
+   "44px": 9,
+   "13.5px": 89,
+   "11.5px": 17,
+   "10px": 1,
+   "68px": 2,
+   "20px": 25,
+   "22px": 6,
+   "34px": 3,
+   "26px": 12,
+   "15.5px": 7,
+   "25px": 1,
+   "72px": 4,
+   "38px": 3,
+   "17px": 1
+  },
+  "fontWeights": {
+   "400": 212,
+   "500": 45,
+   "600": 77,
+   "700": 313,
+   "800": 83
+  },
+  "fontFamilies": {
+   "Bricolage Grotesque": 141,
+   "Instrument Sans": 576,
+   "Arial": 13
+  },
+  "radii": {
+   "9px": 1,
+   "12px": 1,
+   "20px": 46,
+   "16px": 46,
+   "14px": 59,
+   "99px": 225,
+   "18px": 41,
+   "10px": 2,
+   "22px": 7,
+   "13px": 5,
+   "30px": 3
+  },
+  "shadows": {
+   "rgba(28, 22, 15, 0.35) 0px 24px 60px -30px": 40,
+   "rgba(28, 22, 15, 0.05) 0px 1px 2px 0px": 1,
+   "rgba(28, 22, 15, 0.04) 0px 1px 2px 0px, rgba(28, 22, 15, 0.14) 0px 10px 30px -16px": 13,
+   "rgba(11, 91, 71, 0.5) 0px 12px 26px -10px": 22,
+   "rgba(28, 22, 15, 0.04) 0px 1px 2px 0px": 43,
+   "rgba(28, 22, 15, 0.35) 0px 16px 36px -16px": 2,
+   "rgba(0, 0, 0, 0.35) 0px 12px 30px 0px": 1,
+   "rgba(24, 18, 11, 0.25) 0px -18px 50px 0px": 3,
+   "rgba(28, 22, 15, 0.4) 0px 16px 36px -16px": 4,
+   "rgba(28, 22, 15, 0.18) 0px 6px 16px 0px": 1,
+   "rgba(11, 91, 71, 0.55) 0px 16px 36px -14px": 1,
+   "rgba(11, 91, 71, 0.35) 0px 12px 30px -14px": 1,
+   "rgba(11, 91, 71, 0.55) 0px 18px 40px -12px": 1
+  },
+  "letterSpacings": {
+   "0.3px": 1,
+   "-0.38px": 10,
+   "-0.56px": 9,
+   "1.1px": 19,
+   "-0.145px": 3,
+   "1.05px": 28,
+   "-0.24px": 2,
+   "0.105px": 32,
+   "-0.135px": 9,
+   "-0.19px": 6,
+   "-0.2px": 3,
+   "4.76px": 2,
+   "-0.52px": 12,
+   "0.24px": 4,
+   "-0.76px": 1,
+   "-0.68px": 1,
+   "1.32px": 1
+  }
+ },
+ "moneyStrings": [
+  {
+   "screen": "S02",
+   "path": "div:nth-of-type(3)>div:nth-of-type(6)>div:nth-of-type(1)>div:nth-of-type(2)>v",
+   "text": "18 700 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S02",
+   "path": "div:nth-of-type(3)>div:nth-of-type(6)>div:nth-of-type(2)>div:nth-of-type(2)>v",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S03",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(1)>div:nth-of-type(2)>div:nth-of-type(2)>b>v",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S03",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "15 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S03",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "5 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S03",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "12 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S04",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(1)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S04",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "15 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S04",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "5 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S04",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(2)>div:nth-of-type(2)>b",
+   "text": "12 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S04",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(2)>div:nth-of-type(2)>b>v",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S05",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(2)>b>v",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S05",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(3)>b>v",
+   "text": "1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S05",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(4)>b>v",
+   "text": "500 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S05",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(5)>b>v",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S06",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(2)>b",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S06",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(3)>b",
+   "text": "−1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S06",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(4)>b",
+   "text": "−500 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S06",
+   "path": "div:nth-of-type(3)>div:nth-of-type(4)>div:nth-of-type(5)>b",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S11",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b>v",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S11",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b>v",
+   "text": "1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S11",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b>v",
+   "text": "500 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S11",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b>v",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S11",
+   "path": "div:nth-of-type(3)>div:nth-of-type(6)>div:nth-of-type(2)>div:nth-of-type(2)>span:nth-of-type(2)",
+   "text": "Frais de livraison payés : 1 000 F, gardés en sécurité chez le partenaire",
+   "codepoints": []
+  },
+  {
+   "screen": "S12",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S12",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b",
+   "text": "−1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S12",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b",
+   "text": "−500 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S12",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S12",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(2)>div:nth-of-type(3)>span:nth-of-type(2)",
+   "text": "Frais de livraison payés : 1 000 F, gardés en sécurité chez le partenaire",
+   "codepoints": []
+  },
+  {
+   "screen": "S13",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b",
+   "text": "12 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S13",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b",
+   "text": "−1 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S13",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b",
+   "text": "−600 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S13",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b",
+   "text": "10 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S14",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b",
+   "text": "12 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S14",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b",
+   "text": "−1 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S14",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b",
+   "text": "−600 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S14",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b",
+   "text": "10 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S15",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b",
+   "text": "5 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S15",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b",
+   "text": "−550 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S15",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b",
+   "text": "−275 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S15",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b",
+   "text": "4 675 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S16",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>b",
+   "text": "15 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S16",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b",
+   "text": "−1 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S16",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(4)>b",
+   "text": "−750 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S16",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(5)>b",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(3)>div>v",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(5)>div>v",
+   "text": "1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(6)>div:nth-of-type(1)>b",
+   "text": "10 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(6)>div:nth-of-type(2)>b",
+   "text": "−1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(6)>div:nth-of-type(3)>b>v",
+   "text": "500 F",
+   "codepoints": []
+  },
+  {
+   "screen": "S22",
+   "path": "div:nth-of-type(4)>div:nth-of-type(6)>div:nth-of-type(4)>b>v",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S25",
+   "path": "div:nth-of-type(4)>div:nth-of-type(2)>div:nth-of-type(4)>b>v",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S25",
+   "path": "div:nth-of-type(4)>div:nth-of-type(2)>div:nth-of-type(5)>b>v",
+   "text": "1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S25",
+   "path": "div:nth-of-type(4)>div:nth-of-type(3)>div:nth-of-type(2)>div>div:nth-of-type(3)",
+   "text": "Commission revendeuse 1 000 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(2)>v",
+   "text": "18 700 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(3)>div:nth-of-type(3)>b>v",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(1)>div:nth-of-type(2)>div>v",
+   "text": "8 500 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(2)>div:nth-of-type(2)>div",
+   "text": "10 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(3)>div:nth-of-type(2)>div",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(4)>div:nth-of-type(2)>div",
+   "text": "4 675 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(5)>div:nth-of-type(5)>div:nth-of-type(2)>div",
+   "text": "10 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(7)>div:nth-of-type(1)>b",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(7)>div:nth-of-type(2)>b",
+   "text": "21 400 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S32",
+   "path": "div:nth-of-type(3)>div:nth-of-type(7)>div:nth-of-type(3)>b",
+   "text": "9 200 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  },
+  {
+   "screen": "S40",
+   "path": "div:nth-of-type(4)>div:nth-of-type(3)>v",
+   "text": "12 750 F",
+   "codepoints": [
+    "U+202F"
+   ]
+  }
+ ]
+}

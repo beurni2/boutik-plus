@@ -1,0 +1,4 @@
+$ node scripts/gates/premium-frame-assets.mjs gates/fixtures/negative/assets.exif-bearing.json
+VIOLATION: not the canonical strict ProductAssets — undeclared keys (e.g. exif) or missing fields
+VIOLATION: EXIF/GPS metadata material present in the asset record
+(exit code: 1)
