@@ -25,7 +25,7 @@ export function C07BtnPrimary({
 }: {
   label: string;
   onPress: () => void;
-  icon?: 'plus' | 'check' | 'camera' | undefined;
+  icon?: 'plus' | 'check' | 'camera' | 'retry' | undefined;
   disabled?: boolean | undefined;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -55,6 +55,12 @@ export function C07BtnPrimary({
             <>
               <Path d="M4 8h3l2-2.5h6L17 8h3v11H4V8z" strokeWidth={1.9} />
               <Path d="M12 16.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z" strokeWidth={1.9} />
+            </>
+          )}
+          {icon === 'retry' && (
+            <>
+              <Path d="M4 10a8 8 0 1 1 2 5.3" strokeWidth={1.9} />
+              <Path d="M4 5.5V10h4.5" strokeWidth={1.9} />
             </>
           )}
         </Svg>

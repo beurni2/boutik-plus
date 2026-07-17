@@ -330,7 +330,7 @@ export const EmptyState = () => (
   <View style={s.empty}><Text style={s.emptyTxt}>{C28.label}</Text></View>
 );
 
-export function Timeline({ steps, interrupted }: { steps: { label: string; state: 'done' | 'current' | 'future' }[]; interrupted?: { pill: string; note: string } }) {
+export function Timeline({ steps, interrupted }: { steps: { label: string; state: 'done' | 'current' | 'future' }[]; interrupted?: { pill: string; note: string } | undefined }) {
   return (
     <View>
       {steps.map((st, i) => (
