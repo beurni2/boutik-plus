@@ -9,7 +9,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO, TEXTURE } from '../ui/v2/tokens';
-import { C21, C22, STATUS_PILL, TNUM, face, role } from '../ui/v2/styles';
+import { C21, C22, S05L, SCROLL, STATUS_PILL, TNUM, face, role } from '../ui/v2/styles';
 import { formatF, pendingTotal, paidTotal } from './money';
 import { flowOf, flowLabel, OFF_FLOW, SEG_OF, disabled, type S, type A, type Seg } from './machine';
 import type { Order, Product } from './seed';
@@ -21,8 +21,8 @@ import {
 
 type D = (a: A) => void;
 
-const scrollTabs = { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomTabs };
-const scrollStacked = { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomStacked };
+const scrollTabs = SCROLL.tabs;
+const scrollStacked = SCROLL.stacked;
 
 // ── S01 ───────────────────────────────────────────────────────────────────────
 export const S01 = SkeletonBoot;
@@ -238,8 +238,8 @@ export function S05Fiche({ st, d, product }: { st: S; d: D; product: Product }) 
         </View>
       </Card>
       <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1 }}><BtnSoft label="Modifier" onPress={() => d({ t: 'EDIT_DEMO' })} /></View>
-        <View style={{ flex: 1 }}><BtnGhost label={p.paused ? 'Réactiver' : 'Mettre en pause'} onPress={() => d({ t: 'TOGGLE_PAUSE' })} /></View>
+        <View style={{ flex: 1 }}><BtnSoft label="Modifier" style={S05L.pairSoft} labelStyle={S05L.pairSoftTxt} onPress={() => d({ t: 'EDIT_DEMO' })} /></View>
+        <View style={{ flex: 1 }}><BtnGhost label={p.paused ? 'Réactiver' : 'Mettre en pause'} style={S05L.pairGhost} onPress={() => d({ t: 'TOGGLE_PAUSE' })} /></View>
       </View>
       <View style={{ marginTop: 12 }}>
         <ActivityCard

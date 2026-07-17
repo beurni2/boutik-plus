@@ -43,6 +43,20 @@ Phase 3 (driving T11).
 `skeleton #ECE4D4` renders inside the shimmer **gradient** (7 hits). Both verified present in the
 full values table; no disagreement.
 
+## Δ4 — fractional border widths snap in the computed table (UA used-value artifact)
+
+The source CSS declares fractional borders — `border:1.5px solid var(--border-ctl)` (chip-seg,
+chip-cat, .inp, btn-ghost, btn-demo, encart-code) and `border:2.5px …` (timeline dots, viewfinder
+inset) — but `getComputedStyle().border-*-width` returns the **used** value, which Chrome floors to
+whole device pixels at DPR 1: **1.5px reads back as 1px, 2.5px as 2px**. Same artifact class as Δ1
+(UA leak): the extraction is faithful to what Chrome *used*, not what the design *declares*.
+
+**Built per the CSS declarations (1.5 / 2.5).** All 8 affected rows are recorded in
+`property-diff.json` as `FROZEN(Δ4 …)` with table + built values side by side — never silently
+passed. (Borders genuinely declared at 1px — chip-ver, chip-tgl, cards, back button — matched at
+1px and stay ordinary pass rows.) Founder ruling requested with Δ1; building the declaration until
+overruled.
+
 ## Missing-from-both check
 
 Nothing needed so far is absent from both documents. Anything discovered during Phases 1–3 that is in

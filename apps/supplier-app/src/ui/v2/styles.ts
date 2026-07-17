@@ -33,6 +33,23 @@ export const role = (r: TypeRole, colour: string) => ({
 });
 export const TNUM = { fontVariant: ['tabular-nums'] as ['tabular-nums'] };
 
+// ── §5 scroll containers (« Scroll 16/20/150 » = top/latéral/bottom) ─────────
+export const SCROLL = {
+  tabs: { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomTabs },
+  stacked: { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomStacked },
+  wizard: { paddingTop: GEO.wizardContentPad.top, paddingHorizontal: GEO.wizardContentPad.side, paddingBottom: GEO.wizardContentPad.bottom },
+} as const;
+
+// ── §5 screen-local variants (exact per-anatomy values, cited) ───────────────
+/** S05 fiche action pair — source `.btn-soft.h48` / `.btn-ghost.h48`. */
+export const S05L = {
+  pairSoft: { height: 48, borderRadius: 14 },
+  pairSoftTxt: { fontSize: 14 },
+  pairGhost: { height: 48 },
+} as const;
+/** S17 ready-sheet photo button — C08 with inline `border-radius:14px`. */
+export const S17L = { photoBtn: { borderRadius: 14 } } as const;
+
 // ── C03 Dock ──────────────────────────────────────────────────────────────────
 export const C03 = {
   bar: {
@@ -339,6 +356,7 @@ export const C33 = {
 export const C34 = {
   base: P.skeleton,
   highlight: P.cream,
+  wrap: { flex: 1, paddingVertical: 18, paddingHorizontal: 20, gap: 14 },
   // S01's 7 exact blocks (§5 S01): [h, w|null=full, r]
   blocks: [
     { h: 18, w: 150, r: 9 },
@@ -349,6 +367,19 @@ export const C34 = {
     { h: 54, w: null, r: 16 },
   ],
   BOOT_MS: 750,
+} as const;
+
+// ── C35 Celebration (S40) ────────────────────────────────────────────────────
+export const C35 = {
+  scrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 90, backgroundColor: P.celebScrim, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 32 },
+  badge: { marginTop: 24, width: 78, height: 78, borderRadius: GEO.r.pill, backgroundColor: P.cream, alignItems: 'center' as const, justifyContent: 'center' as const },
+  check: { size: 36, stroke: P.green, strokeWidth: 2.6 },
+  amount: { ...role({ f: 'BG', w: 800, s: 34, lsEm: -0.02 }, P.cream), marginTop: 20 },
+  caption: { ...role({ f: 'IS', w: 700, s: 11, lsEm: 0.12, upper: true }, P.gold), marginTop: 8 },
+  hint: { ...role({ f: 'IS', w: 400, s: 12 }, 'rgba(246,241,231,0.65)'), marginTop: 14 },
+  // §1.5 celebDash: 132×6, gold 0-12, transparent 12-20 (cycle 20)
+  dash: { width: 132, height: 6, flexDirection: 'row' as const },
+  dashSeg: { width: 12, height: 6, backgroundColor: P.gold, marginRight: 8 },
 } as const;
 
 // ── C36 TrustCard · C37 MetersList · C38 ProcessingList ──────────────────────
@@ -377,6 +408,24 @@ export const C38 = {
   MARK_FUTURE: '·',
 } as const;
 
+// ── C39 Viewfinder (Studio) · C40 AvantApres ─────────────────────────────────
+export const C39 = {
+  frame: { height: C21.viseur.h, borderRadius: C21.viseur.r, overflow: 'hidden' as const, alignItems: 'center' as const, justifyContent: 'center' as const },
+  inset: { position: 'absolute' as const, top: 20, left: 20, right: 20, bottom: 20, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.75)', borderStyle: 'dashed' as const, borderRadius: 16 },
+  caption: { ...role({ f: 'IS', w: 700, s: 12, lsEm: 0.02 }, P.creamCaption), position: 'absolute' as const, bottom: 30, left: 30, right: 30, textAlign: 'center' as const },
+  CAPTION: "Placez l'article dans le cadre",
+} as const;
+export const C40 = {
+  grid: { marginTop: 12, flexDirection: 'row' as const, gap: 12, alignItems: 'flex-start' as const },
+  col: { flex: 1 },
+  imgLeft: { h: 106, r: 14, glyph: 38 },
+  framed: { borderWidth: 5, borderColor: P.bg, borderRadius: 16, overflow: 'hidden' as const },
+  imgRight: { h: 96, r: 0, glyph: 38 },
+  legend: { ...role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), marginTop: 7, textAlign: 'center' as const },
+  LEGEND_LEFT: 'Originale (conservée en privé)',
+  LEGEND_RIGHT: 'Publique · sans prix',
+} as const;
+
 // ── C41 ChallengeCode ────────────────────────────────────────────────────────
 export const C41 = {
   card: { padding: 19, borderRadius: GEO.r.encartCode, borderWidth: 1.5, borderColor: P.green, backgroundColor: P.surface, alignItems: 'center' as const },
@@ -390,6 +439,8 @@ export const C43 = {
   title: { ...role(T.ScreenTitle, P.ink), flex: 1 },
   titleWizard: { ...role(T.CardHeadline, P.ink), flex: 1 },
   counter: { ...role(T.CardHeadline, P.sub) },
+  /** §5 wizard/onboarding step heading (26 BG800 −.02, ink). */
+  titleStep: role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink),
 } as const;
 export const C44 = {
   row: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },

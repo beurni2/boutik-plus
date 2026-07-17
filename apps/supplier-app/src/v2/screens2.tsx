@@ -14,7 +14,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
-import { C21, TNUM, role } from '../ui/v2/styles';
+import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { formatF, fee, net, pendingTotal, paidTotal } from './money';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
@@ -26,9 +26,9 @@ import {
 } from './components';
 
 type D = (a: A) => void;
-const scrollTabs = { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomTabs };
-const scrollStacked = { paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.bottomStacked };
-const wizScroll = { paddingTop: GEO.wizardContentPad.top, paddingHorizontal: GEO.wizardContentPad.side, paddingBottom: GEO.wizardContentPad.bottom };
+const scrollTabs = SCROLL.tabs;
+const scrollStacked = SCROLL.stacked;
+const wizScroll = SCROLL.wizard;
 
 const GLYPH_PREUVE = '\u{1F933}'; // 🤳 (S28)
 const GLYPH_ETIQUETTE = '\u{1F3F7}\u{FE0F}'; // 🏷️ (S29)
@@ -51,7 +51,7 @@ export function S17ReadySheet({ st, d }: { st: S; d: D }) {
         </View>
       ) : (
         <View style={{ marginTop: 9 }}>
-          <BtnSoft label="Prendre la photo (caméra intégrée)" icon="camera" onPress={() => d({ t: 'TAKE_SHOT' })} />
+          <BtnSoft label="Prendre la photo (caméra intégrée)" icon="camera" style={S17L.photoBtn} onPress={() => d({ t: 'TAKE_SHOT' })} />
         </View>
       )}
       <Overline style={{ marginTop: 16 }}>3 · Disponibilité</Overline>
@@ -103,7 +103,7 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
       <ScrollView contentContainerStyle={wizScroll} showsVerticalScrollIndicator={false}>
         {w.step === 0 && (
           <>
-            <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>Catégorie</Text>
+            <Text style={C43.titleStep}>Catégorie</Text>
             <View style={{ marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
               {CATS.map((c) => (
                 <ChipCategory key={c} label={c} active={w.cat === c} onPress={() => d({ t: 'WIZ_SET', patch: { cat: c } })} />
@@ -113,7 +113,7 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
         )}
         {w.step === 1 && (
           <>
-            <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>Détails & stock</Text>
+            <Text style={C43.titleStep}>Détails & stock</Text>
             <View style={{ marginTop: 18 }}>
               <Input label="Nom du produit" value={w.name} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { name: t } })} />
             </View>
@@ -132,7 +132,7 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
         )}
         {w.step === 2 && (
           <>
-            <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>Prix & commission</Text>
+            <Text style={C43.titleStep}>Prix & commission</Text>
             <Overline style={{ marginTop: 18 }}>Prix de base (ce que vaut le produit)</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
@@ -159,7 +159,7 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
         )}
         {w.step === 3 && (
           <>
-            <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>Photos — Studio</Text>
+            <Text style={C43.titleStep}>Photos — Studio</Text>
             <Text style={[role({ f: 'IS', w: 400, s: 14, lh: 1.55 }, P.inkSoft), { marginTop: 10 }]}>
               {'Le Studio vous guide pour des photos nettes, honnêtes et sans prix incrusté.'}
             </Text>
@@ -179,7 +179,7 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
         )}
         {w.step === 4 && (
           <>
-            <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>Vérifiez, puis publiez</Text>
+            <Text style={C43.titleStep}>Vérifiez, puis publiez</Text>
             <Card style={{ marginTop: 16 }}>
               <Text style={role({ f: 'BG', w: 700, s: 16 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
               <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 3 }]}>
@@ -240,7 +240,7 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
         <>
           <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{shot.title}</Text>
           <Text style={[role({ f: 'IS', w: 400, s: 13.5, lh: 1.5 }, P.sub), { marginTop: 6 }]}>{shot.sub}</Text>
-          <View style={{ marginTop: 13, height: C21.viseur.h, borderRadius: C21.viseur.r, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={[C39.frame, { marginTop: 13 }]}>
             <IconTile
               bg={stu.low ? TILE_GRADIENT.studioLowLight : TILE_GRADIENT.p1}
               glyph={shot.glyph}
@@ -250,10 +250,8 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
               weave="M"
               style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: 1 }}
             />
-            <View style={{ position: 'absolute', top: 20, left: 20, right: 20, bottom: 20, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.75)', borderStyle: 'dashed', borderRadius: 16 }} />
-            <Text style={[role({ f: 'IS', w: 700, s: 12, lsEm: 0.02 }, P.creamCaption), { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center' }]}>
-              {"Placez l'article dans le cadre"}
-            </Text>
+            <View style={C39.inset} />
+            <Text style={C39.caption}>{C39.CAPTION}</Text>
           </View>
           <View style={{ marginTop: 13 }}>
             <MetersList
@@ -305,20 +303,16 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
                     <Text style={role({ f: 'IS', w: 600, s: 12 }, P.ink)}>{stu.orig ? 'Voir la version traitée' : "Couleurs d'origine"}</Text>
                   </Pressable>
                 </View>
-                <View style={{ marginTop: 12, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1 }}>
-                    <IconTile bg={TILE_GRADIENT.studioOriginal} glyph={'\u{1F457}'} height={106} radius={14} glyphSize={38} weave="M" />
-                    <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 7, textAlign: 'center' }]}>
-                      {'Originale (conservée en privé)'}
-                    </Text>
+                <View style={C40.grid}>
+                  <View style={C40.col}>
+                    <IconTile bg={TILE_GRADIENT.studioOriginal} glyph={'\u{1F457}'} height={C40.imgLeft.h} radius={C40.imgLeft.r} glyphSize={C40.imgLeft.glyph} weave="M" />
+                    <Text style={C40.legend}>{C40.LEGEND_LEFT}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ borderWidth: 5, borderColor: P.bg, borderRadius: 16, overflow: 'hidden' }}>
-                      <IconTile bg={stu.orig ? TILE_GRADIENT.studioOriginal : TILE_GRADIENT.p1} glyph={'\u{1F457}'} height={96} radius={0} glyphSize={38} weave="M" />
+                  <View style={C40.col}>
+                    <View style={C40.framed}>
+                      <IconTile bg={stu.orig ? TILE_GRADIENT.studioOriginal : TILE_GRADIENT.p1} glyph={'\u{1F457}'} height={C40.imgRight.h} radius={C40.imgRight.r} glyphSize={C40.imgRight.glyph} weave="M" />
                     </View>
-                    <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 7, textAlign: 'center' }]}>
-                      {'Publique · sans prix'}
-                    </Text>
+                    <Text style={C40.legend}>{C40.LEGEND_RIGHT}</Text>
                   </View>
                 </View>
               </Card>
@@ -411,7 +405,7 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
         <View style={{ width: 84, height: 84, borderRadius: GEO.r.pill, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="check" size={40} stroke={P.cream} strokeWidth={2.4} />
         </View>
-        <Text style={[role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink), { marginTop: 20, textAlign: 'center' }]}>Compte provisoire créé</Text>
+        <Text style={[C43.titleStep, { marginTop: 20, textAlign: 'center' }]}>Compte provisoire créé</Text>
         <Text style={[role({ f: 'IS', w: 400, s: 14, lh: 1.6 }, P.sub), { marginTop: 10, textAlign: 'center' }]}>
           {'« Listez gratuitement. Vous payez seulement lorsqu\'un produit est vendu avec succès. »'}
         </Text>
@@ -429,7 +423,7 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
         <ProgressDots total={5} step={step} />
       </View>
       <ScrollView contentContainerStyle={wizScroll} showsVerticalScrollIndicator={false}>
-        <Text style={role({ f: 'BG', w: 800, s: 26, lsEm: -0.02 }, P.ink)}>{TITLES[step]}</Text>
+        <Text style={C43.titleStep}>{TITLES[step]}</Text>
         {step === 0 && (
           <>
             {/* §5 says « revendeuses de Ma Boutique » — RETIRED name; Law 10 → Shop+. LISTED. */}
@@ -491,26 +485,26 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
 // ── S40 Célébration ───────────────────────────────────────────────────────────
 export function S40Celebration({ amount, onDismiss }: { amount: string; onDismiss: () => void }) {
   return (
-    <Pressable onPress={onDismiss} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90, backgroundColor: P.celebScrim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+    <Pressable onPress={onDismiss} style={C35.scrim}>
       <GoldDashes />
-      <View style={{ marginTop: 24, width: 78, height: 78, borderRadius: GEO.r.pill, backgroundColor: P.cream, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="check" size={36} stroke={P.green} strokeWidth={2.6} />
+      <View style={C35.badge}>
+        <Icon name="check" size={C35.check.size} stroke={C35.check.stroke} strokeWidth={C35.check.strokeWidth} />
       </View>
-      <Text style={[role({ f: 'BG', w: 800, s: 34, lsEm: -0.02 }, P.cream), TNUM, { marginTop: 20 }]}>{amount}</Text>
-      <Text style={[role({ f: 'IS', w: 700, s: 11, lsEm: 0.12, upper: true }, P.gold), { marginTop: 8 }]}>Versé sur votre Mobile Money</Text>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, 'rgba(246,241,231,0.65)'), { marginTop: 14 }]}>Toucher pour continuer</Text>
+      <Text style={[C35.amount, TNUM]}>{amount}</Text>
+      <Text style={C35.caption}>Versé sur votre Mobile Money</Text>
+      <Text style={C35.hint}>Toucher pour continuer</Text>
       <View style={{ marginTop: 24 }}><GoldDashes /></View>
     </Pressable>
   );
 }
 function GoldDashes() {
-  // §1.5: 132×6, gold 0-12, transparent 12-20
+  // §1.5 celebDash: 132×6, gold 0-12, transparent 12-20
   const seg = [];
   for (let x = 0; x < 132; x += 20) seg.push(x);
   return (
-    <View style={{ width: 132, height: 6, flexDirection: 'row' }}>
+    <View style={C35.dash}>
       {seg.map((x) => (
-        <View key={x} style={{ width: 12, height: 6, backgroundColor: P.gold, marginRight: 8 }} />
+        <View key={x} style={C35.dashSeg} />
       ))}
     </View>
   );

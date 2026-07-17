@@ -12,8 +12,8 @@ import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO, GLYPH_SHADOW, PRESSED, TEXTURE } from '../ui/v2/tokens';
 import {
   C03, C04, C05, C06, C08, C09, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C20, C21,
-  C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C36, C37, C38, C41, C43, C44, C45,
-  C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM,
+  C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C34, C36, C37, C38, C41, C43, C44,
+  C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM,
 } from '../ui/v2/styles';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { C07BtnPrimary } from '../ui/v2/components/C07BtnPrimary';
@@ -143,14 +143,14 @@ export function ProductPill({ kind }: { kind: keyof typeof PRODUCT_PILL }) {
 }
 
 // ── buttons ───────────────────────────────────────────────────────────────────
-export const BtnSoft = ({ label, onPress, icon }: { label: string; onPress: () => void; icon?: IconName }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, s.btnSoft)} accessibilityRole="button">
-    {icon !== undefined && <Icon name={icon} size={17} stroke={P.greenDeep} strokeWidth={2.2} />}
-    <Text style={s.btnSoftLabel}>{label}</Text>
+export const BtnSoft = ({ label, onPress, icon, style, labelStyle }: { label: string; onPress: () => void; icon?: IconName; style?: StyleProp<ViewStyle>; labelStyle?: StyleProp<TextStyle> }) => (
+  <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, [s.btnSoft, style])} accessibilityRole="button">
+    {icon !== undefined && <Icon name={icon} size={17} stroke={P.greenDeep} strokeWidth={1.9} />}
+    <Text style={[s.btnSoftLabel, labelStyle]}>{label}</Text>
   </Pressable>
 );
-export const BtnGhost = ({ label, onPress }: { label: string; onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, s.btnGhost)} accessibilityRole="button">
+export const BtnGhost = ({ label, onPress, style }: { label: string; onPress: () => void; style?: StyleProp<ViewStyle> }) => (
+  <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, [s.btnGhost, style])} accessibilityRole="button">
     <Text style={s.btnGhostLabel}>{label}</Text>
   </Pressable>
 );
@@ -387,7 +387,7 @@ export const WizardFooter = ({ children }: { children: ReactNode }) => <View sty
 // ── skeleton (S01 blocks) ─────────────────────────────────────────────────────
 export function SkeletonBoot() {
   return (
-    <View style={{ flex: 1, paddingVertical: 18, paddingHorizontal: 20, gap: 14 }}>
+    <View style={C34.wrap}>
       <View style={[s.skel, { height: 18, width: 150, borderRadius: 9 }]} />
       <View style={[s.skel, { height: 34, width: 230, borderRadius: 12 }]} />
       <View style={[s.skel, { height: 86, borderRadius: 20 }]} />
