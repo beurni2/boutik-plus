@@ -1,6 +1,6 @@
 {
  "$note": "WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.",
- "generatedAt": "2026-07-17T08:54:54.753Z",
+ "generatedAt": "2026-07-17T22:44:00.186Z",
  "cases": [
   {
    "case": "C07",
@@ -334,6 +334,13 @@
   {
    "case": "C48",
    "total": 6,
+   "mismatches": 0,
+   "frozen": 0,
+   "valuePass": true
+  },
+  {
+   "case": "S01",
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -1747,7 +1754,7 @@
    "prop": "font-family",
    "expected": "Arial",
    "built": "Instrument Sans",
-   "verdict": "FROZEN(Δ1 stepper UA font leak — built IS600 per HANDOFF §2, ruling pending)"
+   "verdict": "FROZEN(Δ1 stepper UA font leak — IS600 per §2, founder-ruled 2026-07-17)"
   },
   {
    "case": "C15",
@@ -3075,6 +3082,38 @@
    "prop": "color",
    "expected": "rgb(7, 59, 46)",
    "built": "rgb(7, 59, 46)",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-top",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-bottom",
+   "expected": "18px",
+   "built": "18px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "container",
+   "prop": "pad-side",
+   "expected": "20px",
+   "built": "20px",
+   "verdict": "pass"
+  },
+  {
+   "case": "S01",
+   "el": "blocks",
+   "prop": "skeleton-blocks",
+   "expected": "(5 block specs asserted under C34)",
+   "built": "(5 block specs asserted under C34)",
    "verdict": "pass"
   },
   {

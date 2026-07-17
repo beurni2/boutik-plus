@@ -29,6 +29,11 @@ page never set `font` on those buttons.
 accident (RN has no UA button font to leak), and the glyphs U+2212/U+FF0B render near-identically.
 **Founder ruling requested; building the recommendation until overruled.**
 
+**RULED 2026-07-17 (founder, merge-prep message):** built IS600 per §2 stands — the computed
+Arial is the UA leak, not design intent. Δ1 CLOSED. The gate keeps the premise guard row
+(`C15/glyph/freeze-premise(UA Arial)`): if a re-extraction ever stops reading Arial, the freeze
+premise fails loudly instead of hiding drift.
+
 ## Δ2 — `pauseBadge` has no static render (flow-state-only token)
 
 `rgba(28,23,16,.72)` (« EN PAUSE » tile badge) appears **nowhere** on the 40-screen board: the badge

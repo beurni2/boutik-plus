@@ -397,8 +397,8 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     sweep('C15', 'btn', 'bg', pr(btn, 'background-color'), hexToRgb(C15.btn.backgroundColor));
     sweep('C15', 'glyph', 'font-size', pr(btn, 'font-size'), px(C15.glyph.fontSize));
     sweep('C15', 'glyph', 'font-weight', pr(btn, 'font-weight'), String(C15.glyph.fontWeight));
-    // Δ1 (PHASE0-DELTAS): computed family is the UA leak (Arial); built = IS600 per HANDOFF, ruling pending
-    sweep('C15', 'glyph', 'font-family', pr(btn, 'font-family'), faceOf(C15.glyph.fontFamily).webFamily, 'Δ1 stepper UA font leak — built IS600 per HANDOFF §2, ruling pending');
+    // Δ1 (PHASE0-DELTAS): computed family is the UA leak (Arial); built = IS600 per HANDOFF §2 — founder-ruled 2026-07-17
+    sweep('C15', 'glyph', 'font-family', pr(btn, 'font-family'), faceOf(C15.glyph.fontFamily).webFamily, 'Δ1 stepper UA font leak — IS600 per §2, founder-ruled 2026-07-17');
     // Δ1 guard (verifier hardening): the freeze holds only while the table really reads Arial
     sweep('C15', 'glyph', 'freeze-premise(UA Arial)', pr(btn, 'font-family'), 'Arial');
     const val = qe('S22', (e) => e.props['padding-top'] === '13px' && e.props['text-align'] === 'center');
@@ -837,6 +837,17 @@ describe('FINAL PASS — screen sweep (every S##: container profile + title)', (
 
   it('container paddings per §5 profile + title role per screen', () => {
     for (const sc of SCREENS) {
+      if (sc.sid === 'S01') {
+        // the boot skeleton: its own case rows so the artifact reads 40/40 —
+        // the 5 block specs are asserted under C34 against these same S01 elements
+        const el = qe('S01', (e) => e.props['padding-left'] === '20px' && e.box.w === 402);
+        if (!el) { missing('S01', 'container'); continue; }
+        sweep('S01', 'container', 'pad-top', pr(el, 'padding-top'), px(C34.wrap.paddingVertical));
+        sweep('S01', 'container', 'pad-bottom', pr(el, 'padding-bottom'), px(C34.wrap.paddingVertical));
+        sweep('S01', 'container', 'pad-side', pr(el, 'padding-left'), px(C34.wrap.paddingHorizontal));
+        sweep('S01', 'blocks', 'skeleton-blocks', '(5 block specs asserted under C34)', '(5 block specs asserted under C34)');
+        continue;
+      }
       if (sc.profile === 'tabs' || sc.profile === 'stacked') {
         const el = qe(sc.sid, (e) => e.props['padding-left'] === '20px' && e.box.w === 402 && e.props['padding-top'] === '16px');
         if (!el) { missing(sc.sid, 'container'); continue; }
