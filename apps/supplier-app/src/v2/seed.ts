@@ -6,16 +6,21 @@
  */
 import { fee, net } from './money';
 
+/** §4.2 — the 10 in-flow + 4 off-flow statuses, exact names (== C06 pill keys). */
 export type OrderStatus =
   | 'FUNDED'
   | 'READY'
-  | 'READY_FAILED'
-  | 'PICKED_UP'
-  | 'IN_TRANSIT'
+  | 'TRANSIT'
+  | 'ARRIVED'
+  | 'INSPECT'
+  | 'AWAIT_PAY'
+  | 'PAY_OK'
+  | 'HANDOFF'
   | 'DELIVERED'
   | 'PAID'
-  | 'BUYER_REFUSED'
+  | 'READY_FAILED'
   | 'PICKUP_REFUSED'
+  | 'BUYER_REFUSED'
   | 'RETURNED';
 
 export type Product = {
