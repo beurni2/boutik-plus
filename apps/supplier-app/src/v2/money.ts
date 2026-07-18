@@ -12,10 +12,13 @@
  * orders keep their amounts). These helpers derive DISPLAY values only; the
  * client shows what the server derived in prod.
  *
- * Format (§3.5): toLocaleString('fr-FR') + ' F' — thousands separator U+202F
- * (fallback U+00A0, NEVER U+0020), suffix U+0020 + 'F'. tnum + nowrap at the
- * text sites.
+ * Format (§3.5 · WO-FCFA re-pin, founder order 2026-07-18): toLocaleString
+ * ('fr-FR') with thousands separator normalized to U+202F (fallback U+00A0,
+ * NEVER U+0020), then money.currencySuffix from @platform/ui-tokens/legacy
+ * (canon v1.0.1 = U+202F + « FCFA ») — the suffix is never hardcoded here.
+ * tnum + nowrap at the text sites.
  */
+import { money } from '@platform/ui-tokens/legacy';
 import type { OrderStatus } from './seed';
 
 export const fee = (B: number): number => Math.round(B * 0.05);
@@ -25,7 +28,7 @@ const NNBSP = ' ';
 export function formatF(n: number): string {
   const s = n.toLocaleString('fr-FR');
   // normalize any locale-emitted group separator to U+202F (never U+0020)
-  return `${s.replace(/[  ]/g, NNBSP)} F`;
+  return `${s.replace(/[  ]/g, NNBSP)}${money.currencySuffix}`;
 }
 
 const OUT_OF_PENDING: readonly OrderStatus[] = ['PAID', 'BUYER_REFUSED', 'PICKUP_REFUSED', 'RETURNED'];

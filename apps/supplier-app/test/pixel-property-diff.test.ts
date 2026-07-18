@@ -131,7 +131,11 @@ describe('PROPERTY DIFF — C02 StripeTissée vs values-table S02', () => {
 
 // ─── batch: the §2 component library vs the table (data-driven) ──────────────
 import { C03, C05, C06, C14, C18, C20, C25, C26, C44, STATUS_PILL } from '../src/ui/v2/styles';
-import { formatF } from '../src/v2/money';
+// The Phase-0 board predates the FCFA re-pin (founder order 2026-07-18): its
+// money strings carry U+202F groups + U+0020 + « F ». Table ANCHORS quote the
+// board's own frozen form via tableF; the APP renders money.currencySuffix
+// (U+202F + FCFA) — asserted in v2-money-seed.test.ts, not here.
+const tableF = (n: number) => n.toLocaleString('fr-FR').replace(/[\u00a0\u0020]/g, '\u202f') + ' F';
 
 type El = { path: string; tag: string; text?: string; box: { x: number; y: number; w: number; h: number }; props: Record<string, string> };
 const find = (sid: string, pred: (e: El) => boolean): El => {
@@ -201,7 +205,7 @@ describe('PROPERTY DIFF — component library batch vs values-table', () => {
     check('C26', 'name', 'font-size', name.props['font-size'], px(C26.name.fontSize));
     check('C26', 'name', 'weight', name.props['font-weight'], C26.name.fontWeight);
     check('C26', 'name', 'ls', name.props['letter-spacing'], px(+(13.5 * -0.01).toFixed(3)));
-    const price = find('S03', (e) => e.text === formatF(10_000) && e.props['font-size'] === '14px');
+    const price = find('S03', (e) => e.text === tableF(10_000) && e.props['font-size'] === '14px');
     check('C26', 'price', 'color', price.props['color'], hexToRgb(C26.price.color));
     check('C26', 'price', 'font', (price.props['font-family'] ?? '').includes('Bricolage') ? 'BG' : '?', 'BG');
     check('C26', 'price', 'weight', price.props['font-weight'], C26.price.fontWeight);
@@ -437,7 +441,7 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     const line = qe('S05', (e) => e.text === C19.ORDER[0]);
     if (!line) return missing('C19', 'line');
     sweep('C19', 'line', 'font-size', pr(line, 'font-size'), px(C19.lineTxt.fontSize));
-    const netEl = qe('S05', (e) => e.text === formatF(8_500) && parseFloat(e.props['font-size'] ?? '0') >= 17);
+    const netEl = qe('S05', (e) => e.text === tableF(8_500) && parseFloat(e.props['font-size'] ?? '0') >= 17);
     if (!netEl) return missing('C19', 'totalValL');
     sweep('C19', 'totalValL', 'font-size', pr(netEl, 'font-size'), px(C19.totalValL.fontSize));
     sweep('C19', 'totalValL', 'color', pr(netEl, 'color'), hexToRgb(C19.totalValL.color));
@@ -489,7 +493,7 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
       sweep('C24', 'row', 'pad-v', pr(row, 'padding-top'), px(C24.row.paddingVertical));
       sweep('C24', 'row', 'pad-h', pr(row, 'padding-left'), px(C24.row.paddingHorizontal));
     } else missing('C24', 'row');
-    const net = qe('S32', (e) => e.text === formatF(8_500));
+    const net = qe('S32', (e) => e.text === tableF(8_500));
     if (net) sweep('C24', 'net', 'font-size', pr(net, 'font-size'), px(C24.net.fontSize)); else missing('C24', 'net');
   });
 
@@ -597,7 +601,7 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
       sweep('C35', 'badge', 'width', pr(badge, 'width'), px(C35.badge.width));
       sweep('C35', 'badge', 'bg', pr(badge, 'background-color'), hexToRgb(C35.badge.backgroundColor));
     } else missing('C35', 'badge');
-    const amount = qe('S40', (e) => e.text === formatF(12_750) && e.props['font-size'] === '34px');
+    const amount = qe('S40', (e) => e.text === tableF(12_750) && e.props['font-size'] === '34px');
     if (amount) {
       sweep('C35', 'amount', 'font-size', pr(amount, 'font-size'), px(C35.amount.fontSize));
       sweep('C35', 'amount', 'font-weight', pr(amount, 'font-weight'), String(C35.amount.fontWeight));
@@ -770,7 +774,7 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
     sweep('C47', 'name', 'font-size', pr(name, 'font-size'), px(C47.name.fontSize));
     const line = qe('S25', (e) => e.text === 'Commission revendeuse');
     if (line) sweep('C47', 'line', 'font-size', pr(line, 'font-size'), px(C47.lineTxt.fontSize)); else missing('C47', 'line');
-    const net = qe('S25', (e) => e.text === formatF(8_500));
+    const net = qe('S25', (e) => e.text === tableF(8_500));
     if (!net) return missing('C47', 'net');
     sweep('C47', 'net', 'font-size', pr(net, 'font-size'), px(C47.net.fontSize));
     sweep('C47', 'net', 'color', pr(net, 'color'), hexToRgb(C47.net.color));
@@ -832,7 +836,7 @@ describe('FINAL PASS — screen sweep (every S##: container profile + title)', (
     { sid: 'S37', profile: 'wizard', title: 'Compte de versement', titleStyle: 'step', src: 'screens2' },
     { sid: 'S38', profile: 'wizard', title: 'Statut provisoire', titleStyle: 'step', src: 'screens2' },
     { sid: 'S39', profile: 'none', title: 'Compte provisoire créé', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S40', profile: 'stacked', title: formatF(12_750), titleStyle: 'amount' }, // célébration — amount asserted by C35
+    { sid: 'S40', profile: 'stacked', title: tableF(12_750), titleStyle: 'amount' }, // célébration — amount asserted by C35
   ];
 
   it('container paddings per §5 profile + title role per screen', () => {
