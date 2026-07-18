@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { money } from '@platform/ui-tokens/legacy';
 import { fee, net, formatF, pendingTotal, paidTotal } from '../src/v2/money';
 import { SEED_ORDERS, SEED_PRODUCTS, SEED_RELEVES } from '../src/v2/seed';
 
@@ -45,26 +46,33 @@ describe('§3.4 — first-render aggregates', () => {
   });
 });
 
-describe('§3.5 — formatting, byte-exact vs the board strings', () => {
-  it('formatF emits U+202F group separators and the « F » suffix — never U+0020 groups', () => {
-    const s = formatF(18_700);
-    expect(s).toBe('18 700 F');
-    expect(formatF(12_750)).toBe('12 750 F');
-    expect(formatF(8_500)).toBe('8 500 F');
-    expect(formatF(4_675)).toBe('4 675 F');
-    expect(formatF(10_200)).toBe('10 200 F');
-    expect(formatF(500)).toBe('500 F'); // no separator under 1000
+describe('§3.5 — formatting (WO-FCFA re-pin, founder order 2026-07-18: suffix from canon v1.0.1)', () => {
+  it('the pinned token IS the FCFA suffix (U+202F + FCFA) — premise of every row below', () => {
+    expect(money.currencySuffix).toBe('\u202fFCFA');
   });
 
-  it('the asserted amounts appear BYTE-IDENTICAL in the board (values-table moneyStrings)', () => {
+  it('formatF emits U+202F group separators and the canon suffix — never U+0020 groups, never hardcoded', () => {
+    expect(formatF(18_700)).toBe('18\u202f700\u202fFCFA');
+    expect(formatF(12_750)).toBe('12\u202f750\u202fFCFA');
+    expect(formatF(8_500)).toBe('8\u202f500\u202fFCFA');
+    expect(formatF(4_675)).toBe('4\u202f675\u202fFCFA');
+    expect(formatF(10_200)).toBe('10\u202f200\u202fFCFA');
+    expect(formatF(500)).toBe('500\u202fFCFA'); // no group separator under 1000
+  });
+
+  it('the grouped DIGITS stay byte-identical to the board (the Phase-0 board predates FCFA and renders « F » — founder-ordered display divergence, values unchanged)', () => {
     const all = TABLE.moneyStrings.map((m) => m.text).join('\n');
     for (const n of [18_700, 12_750, 8_500, 4_675, 10_200]) {
-      expect(all, `${n} rendered byte-identical on the board`).toContain(formatF(n));
+      const grouped = formatF(n).slice(0, -money.currencySuffix.length);
+      expect(all, n + ' grouped digits byte-identical on the board').toContain(grouped + ' F');
     }
   });
 
-  it('the weekly relevés totals format to the board strings', () => {
+  it('the weekly relevés totals: grouped digits match the board strings', () => {
     const all = TABLE.moneyStrings.map((m) => m.text).join('\n');
-    for (const r of SEED_RELEVES) expect(all).toContain(formatF(r.total));
+    for (const r of SEED_RELEVES) {
+      const grouped = formatF(r.total).slice(0, -money.currencySuffix.length);
+      expect(all).toContain(grouped + ' F');
+    }
   });
 });
