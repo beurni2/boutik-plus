@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       root:
-        description: "Racine à publier ('' = app E1 · 'v2' = board V2 WO-FP-PIXEL)"
+        description: "Racine à publier ('' = défaut V2 · 'e1' = app E1, dispatch-only — founder ruling 2026-07-17)"
         required: false
         default: ''
 
@@ -57,10 +57,12 @@ jobs:
         # (ephemeral — never committed); update publishes to the preview
         # channel. First REAL publish is founder-verified on his phone.
         env:
-          # '' on main-push publishes the E1 app; 'v2' (dispatch input) mounts
-          # the WO-FP-PIXEL board build — see apps/supplier-app/index.ts.
-          EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || '' }}
+          # Founder ruling 2026-07-17: V2 is the registered preview root — the
+          # DEFAULT (main-push and bare dispatch) publishes 'v2'. E1 stays
+          # reachable dispatch-only via root=e1 (index.ts mounts E1 for any
+          # value other than 'v2'). App code untouched by this flip.
+          EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || 'v2' }}
         run: |
           npx eas-cli@20.5.1 init --non-interactive --force
           npx eas-cli@20.5.1 update:configure --non-interactive
-          npx eas-cli@20.5.1 update --channel preview --non-interactive --auto --message "${GITHUB_REF_NAME}@${GITHUB_SHA} root=${EXPO_PUBLIC_ROOT:-e1}"
+          npx eas-cli@20.5.1 update --channel preview --non-interactive --auto --message "${GITHUB_REF_NAME}@${GITHUB_SHA} root=${EXPO_PUBLIC_ROOT}"
