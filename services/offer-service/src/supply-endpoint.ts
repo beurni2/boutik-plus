@@ -1,8 +1,10 @@
 import { CORRELATION_HEADER, correlationIdFrom, makeHealthFetch } from '@boutik/observability';
 import {
+  makeReadModelSchema,
   ProductVersionSchema,
   SupplyProjectionSchema,
   type ProductVersion,
+  type ReadModel,
   type SupplierOffer,
   type SupplyProjection,
 } from '@platform/contracts';
@@ -49,13 +51,17 @@ export interface SupplyEntry {
   asOf: string;
 }
 
-/** The read-model envelope Shop+ pulls (the mock's certified {version, asOf, value} shape). */
-export interface SupplyReadModel {
-  /** The offer version — canon: a change is a new version. */
-  version: number;
-  asOf: string;
-  value: SupplyProjection;
-}
+/**
+ * The read-model envelope Shop+ pulls. WO-READ-MODEL-KIT migration (canon
+ * v1.2.0): the local {version, asOf, value} interface is retired in favour of
+ * the canon envelope from `makeReadModelSchema(SupplyProjectionSchema)` — the
+ * SAME three fields, the SAME constraints (`version` int ≥ 1 · `asOf` the canon
+ * IsoTimestamp · `value` the strict supply projection). A DEFINITION swap only:
+ * the served body is byte-identical to what SW-1 shipped (proven by
+ * supply-endpoint.readmodel-migration.test.ts).
+ */
+export const SupplyReadModelSchema = makeReadModelSchema(SupplyProjectionSchema);
+export type SupplyReadModel = ReadModel<SupplyProjection>;
 
 export type ServeOutcome =
   | { ok: true; status: 200; body: SupplyReadModel }
