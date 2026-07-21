@@ -159,13 +159,13 @@ log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mi
 capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
 
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 1.0.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 1.2.0
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 1.0.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 1.2.0
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then
