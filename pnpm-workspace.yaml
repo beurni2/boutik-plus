@@ -12,16 +12,22 @@ onlyBuiltDependencies:
   - "@platform/ui-tokens"
   - "@platform/certification"
 
-# @platform/contracts depends on @platform/kernel-types@1.0.0, which exists
-# on no registry; this override routes that transitive resolution to the
-# same pinned git ref (CONSUMING.md). Pin = sha f23407c (canon v1.0.0 — the
-# Faso Premium release: ui-tokens v2 at root, Grand Teint preserved at
-# ./legacy, platform lockstep MAJOR; founder ruling: the release ref is the
-# merge commit).
-# @platform/certification (1.0.0, devDep) additionally depends on
-# @platform/contracts@1.0.0 and @platform/ui-tokens@1.0.0 by VERSION —
-# also registry-absent, so they are routed the same way.
+# @platform/contracts depends on @platform/kernel-types by VERSION, which
+# exists on no registry; this override routes that transitive resolution to
+# the same pinned git ref (CONSUMING.md). THE SINGLE SOURCE OF TRUTH for the
+# @platform/* pins — pnpm 10 reads overrides here, and a stale entry silently
+# wins over package.json on a non-frozen resolve (WO-READ-MODEL-KIT lesson).
+#
+# WO-READ-MODEL-KIT (founder order 2026-07-18): @platform/contracts +
+# @platform/kernel-types re-pinned to canon v1.2.0 (sha d7b27bb) — the shared
+# read-model kit (makeReadModelSchema) offer-service now consumes.
+# contracts@1.2.0 HARD-DEPS kernel-types@1.2.0, so the pair MOVES TOGETHER
+# (matching shop-plus 6936771 + platform). @platform/ui-tokens has no such
+# dep and stays on its own pin, a832df0 (canon v1.0.1 — the FCFA money suffix
+# wave); it is NOT moved by this order.
+# @platform/certification (devDep) additionally depends on @platform/contracts
+# and @platform/ui-tokens by VERSION — also registry-absent, routed the same way.
 overrides:
-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/kernel-types"
-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/contracts"
-  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#f23407ce51e074f7afead5c8e475a692056498e8&path:packages/ui-tokens"
+  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#d7b27bb895667f751d522680282549f16335e631&path:packages/kernel-types"
+  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#d7b27bb895667f751d522680282549f16335e631&path:packages/contracts"
+  "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens"
