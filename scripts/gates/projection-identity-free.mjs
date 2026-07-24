@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // CI gate (B4.2): the supply projection is the PINNED contract shape —
-// strict, five fields, NO supplier identity/contact/precise-pickup. A
+// strict, seven fields (canon v2.0.0: five economics + productName + assetRefs),
+// NO supplier identity/contact/precise-pickup. A
 // leaking fixture FAILS. Exit 1 = violation. Exit 2 = unusable input.
 // (@platform/certification is node tooling — legal in a gate script, banned
 // from the app runtime graph.)
@@ -26,4 +27,4 @@ for (const key of Object.keys(fixture ?? {})) {
   }
 }
 if (failed) process.exit(1);
-console.log('OK: projection matches the pinned contract Shop+ reads — five fields, identity-free');
+console.log('OK: projection matches the pinned contract Shop+ reads — seven fields, identity-free');

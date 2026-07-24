@@ -58,13 +58,17 @@ export type ServeOutcome =
     };
 
 /**
- * The OUT-guard every served value passes: the strict canon schema THEN the
- * identity key-sweep. Throws on any undeclared key (schema) or any identity/
- * pickup key family (sweep). Returns the parsed, clean projection.
+ * The OUT-guard every served value passes: the strict canon schema, THEN the
+ * identity key-sweep, THEN the value-side assetRef check (canon v2.0.0). Throws
+ * on any undeclared key (schema), any identity/pickup key family (sweep), or any
+ * assetRef VALUE that encodes the supplier id. Returns the parsed, clean
+ * projection. `supplierId` is the producer's own `ProductVersion.supplierId` —
+ * it is never on the wire, held here only to compare the refs against.
  */
-export function assertServableValue(value: SupplyProjection): SupplyProjection {
+export function assertServableValue(value: SupplyProjection, supplierId: string): SupplyProjection {
   const parsed = SupplyProjectionSchema.parse(value); // strict — throws on any extra key
-  sweepIdentityKeys(parsed);
+  sweepIdentityKeys(parsed); // key-based teeth
+  assertAssetRefsIdentityFree(parsed.assetRefs, supplierId); // value-based teeth (canon v2.0.0)
   return parsed;
 }
 
@@ -85,6 +89,29 @@ export function sweepIdentityKeys(obj: Record<string, unknown>): void {
 }
 
 /**
+ * The VALUE-SIDE tooth the key-sweep cannot grow (SUPPLY-DISPLAY-PRODUCER-1;
+ * canon states this rule on `AssetRefSchema` but delegates enforcement here).
+ * `sweepIdentityKeys` tests KEY names only, so a supplier id embedded in an
+ * assetRef VALUE — a storage key whose natural shape is supplier-scoped — would
+ * pass untouched. Canon cannot value-enforce it: `SupplyProjection` never carries
+ * `supplierId`, and `supplierId` is an unformatted `IdSchema` with no pattern to
+ * match — so the check belongs to the PRODUCER, which holds
+ * `ProductVersion.supplierId` and compares directly. Stated on its own so its
+ * teeth are lockable in a test independent of the schema, and it exists BEFORE
+ * the first real ref does (`assetRefs` is [] today): the guard precedes the data,
+ * it does not chase it.
+ */
+export function assertAssetRefsIdentityFree(assetRefs: readonly string[], supplierId: string): void {
+  const needle = supplierId.trim();
+  if (needle.length === 0) return; // no id to match — nothing to leak (defensive; IdSchema is non-empty)
+  for (const ref of assetRefs) {
+    if (ref.includes(needle)) {
+      throw new SupplyLeakError(`asset ref encodes supplier identity: ${ref}`);
+    }
+  }
+}
+
+/**
  * The pure core the fetch handler wraps. Given the supply entry the store
  * resolved for a productVersionId (or `undefined`), runs the EXISTING refusal
  * ladder via `buildSupplyProjection`, and — on pass — guards the value out.
@@ -99,7 +126,7 @@ export function serveProjection(service: string, entry: OfferEntry | undefined, 
     // the projection.ts refusal ladder surfaces verbatim — never a 200-empty
     return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };
   }
-  const value = assertServableValue(built.projection);
+  const value = assertServableValue(built.projection, entry.product.supplierId);
   return { ok: true, status: 200, body: { version: entry.offer.version, asOf: entry.asOf, value } };
 }
 

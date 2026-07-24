@@ -9,6 +9,7 @@ import {
   FOUNDER_001_OFFER_ID,
   FOUNDER_001_PRODUCT_VERSION_ID,
   SupplyLeakError,
+  assertAssetRefsIdentityFree,
   assertServableValue,
   founderOneCreateCommand,
   makeSupplyFetch,
@@ -176,10 +177,31 @@ describe('SW-1 · identity + pickup are UN-EMITTABLE on the wire', () => {
     const entry = await entryOf(founderOneCreateCommand(FIXED_ASOF));
     const clean = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW);
     if (!clean.ok) throw new Error('setup');
-    expect(() => assertServableValue(clean.projection)).not.toThrow();
+    const supplierId = entry.product.supplierId;
+    expect(() => assertServableValue(clean.projection, supplierId)).not.toThrow();
     const leaking = { ...clean.projection, supplierPhone: '+226 70 00 00 00' } as never;
-    expect(() => assertServableValue(leaking)).toThrow();
-    expect(() => assertServableValue({ ...clean.projection, pickup: 'Marché' } as never)).toThrow();
+    expect(() => assertServableValue(leaking, supplierId)).toThrow();
+    expect(() => assertServableValue({ ...clean.projection, pickup: 'Marché' } as never, supplierId)).toThrow();
+  });
+
+  it('the VALUE-SIDE tooth refuses a supplier id embedded in an assetRef VALUE — where the key-sweep is blind (canon v2.0.0)', async () => {
+    const entry = await entryOf(founderOneCreateCommand(FIXED_ASOF));
+    const clean = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW);
+    if (!clean.ok) throw new Error('setup');
+    const supplierId = entry.product.supplierId; // 'supplier-founder-001'
+    // a synthetic supplier-keyed ref (the storage-key leak canon warns about) — the
+    // schema accepts it (bare string) and the key-sweep never sees the value.
+    const supplierKeyed = { ...clean.projection, assetRefs: [`media/${supplierId}/hero.jpg`] };
+    expect(() => assertServableValue(supplierKeyed, supplierId)).toThrow(SupplyLeakError);
+    // a productVersionId-keyed ref is clean and passes
+    const pvKeyed = { ...clean.projection, assetRefs: [`media/${entry.product.id}/hero.jpg`] };
+    expect(() => assertServableValue(pvKeyed, supplierId)).not.toThrow();
+  });
+
+  it('assertAssetRefsIdentityFree has INDEPENDENT teeth (lockable without the schema): a ref containing the supplierId throws, others pass', () => {
+    expect(() => assertAssetRefsIdentityFree(['media/supplier-9/x.jpg'], 'supplier-9')).toThrow(SupplyLeakError);
+    expect(() => assertAssetRefsIdentityFree(['media/pv-1/x.jpg', 'media/pv-1/y.jpg'], 'supplier-9')).not.toThrow();
+    expect(() => assertAssetRefsIdentityFree([], 'supplier-9')).not.toThrow(); // the honest empty is always clean
   });
 
   it('the sweep has INDEPENDENT teeth — it refuses identity keys even where the strict schema would not run (locks the second line in)', () => {
@@ -193,7 +215,11 @@ describe('SW-1 · identity + pickup are UN-EMITTABLE on the wire', () => {
   it('SupplyLeakError is the named refusal for identity that clears the schema shape', () => {
     let caught: unknown;
     try {
-      assertServableValue({ productVersionId: 'pv', offerVersion: '1', basePrice: 1, resellerCommission: 1, available: 1, supplierName: 'x' } as never);
+      // a COMPLETE 7-field payload whose ONLY defect is the identity key
+      assertServableValue(
+        { productVersionId: 'pv', offerVersion: '1', basePrice: 1, resellerCommission: 1, available: 1, productName: 'x', assetRefs: [], supplierName: 'x' } as never,
+        'supplier-x',
+      );
     } catch (e) {
       caught = e;
     }

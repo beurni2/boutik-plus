@@ -9,11 +9,19 @@ import type { z } from 'zod';
 /**
  * B4.2 — supply-to-reseller projection: "Only approved active eligible;
  * never contact/precise pickup/mutable amount; shape matches Shop+'s read."
- * The projection carries EXACTLY the pinned payload contract — five fields,
- * no supplier identity, no contact, no pickup location, nothing else. The
- * strict-schema gate + leaking negative fixture enforce it in CI; the
- * certification tests parse every emitted projection against the pinned
+ * The projection carries EXACTLY the pinned payload contract — SEVEN fields
+ * (canon v2.0.0, SUPPLY-DISPLAY-FIELDS-1): the five economics + `productName`
+ * + `assetRefs`. No supplier identity, no contact, no pickup location, nothing
+ * else. The strict-schema gate + leaking negative fixture enforce it in CI;
+ * the certification tests parse every emitted projection against the pinned
  * schema itself.
+ *
+ * `assetRefs` is emitted as an EMPTY ARRAY, and that is a TRUE statement, not a
+ * placeholder: boutik has no image source at all today (no ProductAssets on the
+ * create command, no durable media store), so there is no ref to emit. NAMED GAP
+ * — assetRefs stays [] until boutik's media service is durable, R2-backed and
+ * deployed AND the offer create command carries assets. `productName` comes
+ * straight from `product.name` (name-class, zero transformation).
  */
 
 export type SupplyProjection = z.infer<typeof SupplyProjectionEventPayloadSchema>;
@@ -34,13 +42,18 @@ export function buildSupplyProjection(
   if (nowIso < offer.effective || nowIso > offer.expiry) return { ok: false, reason: 'offer_not_effective' };
 
   // EXACTLY the contract fields — building via explicit literals means a
-  // supplier id or pickup point is not even expressible here.
+  // supplier id or pickup point is not even expressible here. `productName` is
+  // the product's own name (display data is not identity — the ban is on
+  // supplier identity/contact/pickup). `assetRefs` is [] — the honest empty of
+  // a repo with no image source, never an invented ref or demo URL.
   const projection: SupplyProjection = {
     productVersionId: product.id,
     offerVersion: String(offer.version),
     basePrice: offer.basePrice,
     resellerCommission: offer.resellerCommission,
     available,
+    productName: product.name,
+    assetRefs: [],
   };
   return { ok: true, projection };
 }

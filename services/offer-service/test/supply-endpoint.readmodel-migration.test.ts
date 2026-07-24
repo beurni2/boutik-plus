@@ -22,10 +22,12 @@ import {
 
 const FIXED_ASOF = '2026-07-15T08:00:00.000Z';
 
-// SW-1's served body for founder-#001 — the frozen ground truth. The seed mints
+// The served body for founder-#001 — the frozen ground truth. The seed mints
 // offer version 1 through OfferBook.create (basePrice 10 000, resellerCommission
 // 1 000, available 5, DECLARED on the command); the projection is the strict
-// 5-field SupplyProjection.
+// 7-field SupplyProjection (canon v2.0.0, SUPPLY-DISPLAY-FIELDS-1): the five
+// economics + productName ('Pagne tissé Faso (démo)', from product.name) +
+// assetRefs ([] — the honest empty; boutik has no image source yet).
 const SW1_FROZEN_BODY = {
   version: 1,
   asOf: FIXED_ASOF,
@@ -35,6 +37,8 @@ const SW1_FROZEN_BODY = {
     basePrice: 10_000,
     resellerCommission: 1_000,
     available: 5,
+    productName: 'Pagne tissé Faso (démo)',
+    assetRefs: [],
   },
 };
 

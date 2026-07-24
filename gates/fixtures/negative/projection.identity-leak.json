@@ -4,6 +4,8 @@
   "basePrice": 10000,
   "resellerCommission": 1000,
   "available": 4,
+  "productName": "Pagne tissé",
+  "assetRefs": [],
   "supplierPhone": "+226 70 12 34 56",
   "pickupLandmark": "marché central"
 }
