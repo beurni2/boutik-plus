@@ -1279,13 +1279,37 @@
   },
   {
     "key": "publier.echec",
-    "fr": "L'envoi n'a pas abouti. Voici ce que le service a répondu :",
+    "fr": "Le service a répondu, mais n'a pas accepté l'envoi. Voici sa réponse :",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.echec_reseau",
+    "fr": "Pas de réseau. Rien n'a été envoyé. Réessayez quand la connexion revient.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.echec_illisible",
+    "fr": "Le service a répondu quelque chose d'inattendu. Voici sa réponse :",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.echec_appareil",
+    "fr": "Votre téléphone n'a pas pu préparer l'envoi. Rien n'a été envoyé.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.deja_enregistre",
+    "fr": "Ce produit était déjà enregistré. C'est le premier envoi qui est en ligne.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "publier.sans_photo",
-    "fr": "Ce produit part sans photo. Vous pourrez en ajouter plus tard.",
+    "fr": "Ce produit part sans photo.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -1315,7 +1339,7 @@
   },
   {
     "key": "publier.retour",
-    "fr": "Retour aux produits",
+    "fr": "Terminer",
     "register": "neutral",
     "screenClass": "label"
   },

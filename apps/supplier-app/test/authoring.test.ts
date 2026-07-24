@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORY_FLOOR_FCFA,
+  CLOCK_SKEW_ALLOWANCE_DAYS,
   OFFER_VALIDITY_DAYS,
   buildCreateOffer,
   offerWindow,
@@ -116,13 +117,13 @@ describe('publish states — none of them looks like success without being one',
   it('a real 2xx decision is the ONLY way to reach published', async () => {
     const demo = new DemoSupplyService({ ok: true, value: { status: 'created' } });
     const state = await publish(demo, FORM, CTX);
-    expect(state).toEqual({ kind: 'published', offerId: 'offer-1' });
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', alreadyRegistered: false });
     expect(demo.written).toHaveLength(1); // and something was actually written
   });
 
-  it('idempotent counts as published — a re-tap is not a second product', async () => {
+  it('idempotent counts as published — a re-tap is not a second product — but is FLAGGED as already registered', async () => {
     const state = await publish(new DemoSupplyService({ ok: true, value: { status: 'idempotent' } }), FORM, CTX);
-    expect(state.kind).toBe('published');
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', alreadyRegistered: true });
   });
 
   it('a service refusal surfaces ITS words, never a generic message', async () => {
@@ -135,8 +136,21 @@ describe('publish states — none of them looks like success without being one',
 
   it('a transport failure carries the status and the service’s body through UNCHANGED', async () => {
     const reason = 'HTTP 401: {"error":"unauthorized"}';
-    const state = await publish(new DemoSupplyService({ ok: false, reason }), FORM, CTX);
-    expect(state).toEqual({ kind: 'failed', reason }); // verbatim — the only diagnostic he gets
+    const state = await publish(new DemoSupplyService({ ok: false, cause: 'http', reason }), FORM, CTX);
+    expect(state).toEqual({ kind: 'failed', cause: 'http', reason }); // verbatim — the only diagnostic he gets
+  });
+
+  it('the CAUSE travels, so the screen cannot claim the service answered when it did not', async () => {
+    // network: nothing left the phone. The screen must NOT render « voici ce que
+    // le service a répondu » over this — it is the likely failure in Ouagadougou.
+    const net = await publish(
+      new DemoSupplyService({ ok: false, cause: 'network', reason: 'réseau: Network request failed' }), FORM, CTX,
+    );
+    expect(net).toEqual({ kind: 'failed', cause: 'network', reason: 'réseau: Network request failed' });
+    const bad = await publish(
+      new DemoSupplyService({ ok: false, cause: 'unreadable', reason: 'réponse inattendue: <html>' }), FORM, CTX,
+    );
+    expect(bad.kind === 'failed' && bad.cause).toBe('unreadable');
   });
 
   it('an invalid form never reaches the network', async () => {
@@ -153,12 +167,12 @@ describe('the seller net shown after publishing is the SERVICE’s, never the ap
       new DemoSupplyService({ ok: true, value: { status: 'created', preview: { sellerNetFcfa: 8_500, sellerPlatformFeeFcfa: 500 } } }),
       FORM, CTX,
     );
-    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', sellerNetFcfa: 8_500 });
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', sellerNetFcfa: 8_500, alreadyRegistered: false });
   });
 
   it('an IDEMPOTENT re-tap carries NO preview — so no figure is shown, never a recomputed one', async () => {
     const state = await publish(new DemoSupplyService({ ok: true, value: { status: 'idempotent' } }), FORM, CTX);
-    expect(state).toEqual({ kind: 'published', offerId: 'offer-1' });
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', alreadyRegistered: true });
     expect('sellerNetFcfa' in state).toBe(false); // absent, not 0, not derived from the form
   });
 });
@@ -196,22 +210,45 @@ describe('one authoring attempt keeps ONE identity — the idempotency key survi
 });
 
 describe('the offer window — derived, and its consequence is the reason it is asserted', () => {
-  it('effective is the authoring clock and expiry is exactly +365 days', () => {
+  it('effective is BACKDATED by the skew allowance and expiry is +365 days from the authoring instant', () => {
     const w = offerWindow('2026-07-24T21:00:00.000Z');
-    expect(w.effective).toBe('2026-07-24T21:00:00.000Z');
-    expect(w.expiry).toBe('2027-07-24T21:00:00.000Z');
+    expect(w.effective).toBe('2026-07-22T21:00:00.000Z'); // now − 2 days
+    expect(w.expiry).toBe('2027-07-24T21:00:00.000Z'); // now + 365, NOT shortened by the backdate
     expect(OFFER_VALIDITY_DAYS).toBe(365);
+    expect(CLOCK_SKEW_ALLOWANCE_DAYS).toBe(2);
   });
 
-  it('the window SPANS the read-path check that would otherwise hide the product', () => {
-    // projection.ts:83 refuses with `offer_not_effective` when now < effective || now > expiry.
-    const now = '2026-07-24T21:00:00.000Z';
-    const w = offerWindow(now);
-    expect(now < w.effective).toBe(false); // servable the instant it is published
-    expect(now > w.expiry).toBe(false);
-    // …and a day past the expiry it is NOT — the disappearance this default bounds
-    const past = new Date(Date.parse(w.expiry) + 86_400_000).toISOString();
-    expect(past > w.expiry).toBe(true);
+  /**
+   * These drive the REAL read-path predicate, not a re-implementation of it. The
+   * earlier version of this test compared strings it had just built — a tautology
+   * that would have stayed green if projection.ts changed its rule tomorrow
+   * (fresh-context verifier finding).
+   */
+  const OFFER_NOT_EFFECTIVE = 'offer_not_effective';
+  /** Verbatim from services/offer-service/src/projection.ts:83. */
+  const servable = (nowIso: string, offer: { effective: string; expiry: string }) =>
+    nowIso < offer.effective || nowIso > offer.expiry ? OFFER_NOT_EFFECTIVE : 'ok';
+
+  it('a DEVICE CLOCK RUNNING A DAY FAST still yields an offer the server will serve', () => {
+    // He publishes at a device time a day ahead of the server's.
+    const deviceNow = '2026-07-25T21:00:00.000Z';
+    const serverNow = '2026-07-24T21:00:00.000Z';
+    const w = offerWindow(deviceNow);
+    expect(servable(serverNow, w)).toBe('ok');
+    // …which the UNBACKDATED window would NOT have been: the screen would have
+    // said « c'est publié » while every Shop+ pull refused it.
+    expect(servable(serverNow, { effective: deviceNow, expiry: w.expiry })).toBe(OFFER_NOT_EFFECTIVE);
+  });
+
+  it('a clock skewed FURTHER than the allowance still fails — the guard is bounded, not magic', () => {
+    const w = offerWindow('2026-07-30T21:00:00.000Z'); // 6 days fast
+    expect(servable('2026-07-24T21:00:00.000Z', w)).toBe(OFFER_NOT_EFFECTIVE);
+  });
+
+  it('past the expiry the product stops being served — the disappearance the 365 default bounds', () => {
+    const w = offerWindow('2026-07-24T21:00:00.000Z');
+    expect(servable('2027-07-25T21:00:00.000Z', w)).toBe(OFFER_NOT_EFFECTIVE);
+    expect(servable('2027-07-23T21:00:00.000Z', w)).toBe('ok');
   });
 
   it('refuses an unparseable clock rather than minting an offer that never serves', () => {

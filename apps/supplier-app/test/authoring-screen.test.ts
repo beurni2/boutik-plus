@@ -26,12 +26,19 @@ describe('every user-facing string comes from the catalog (Contract §10.5)', ()
     expect(missing, `catalog keys referenced by the screen but absent: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it('carries NO inline French sentence — no user-facing literal outside the catalog', () => {
-    // JSX text nodes and string props holding accented/word-y French would be
-    // inline copy. Comments are excluded (they are not rendered).
+  it('carries NO inline French sentence — neither a JSX text node NOR a string prop', () => {
+    // The earlier version of this test matched text nodes only while its comment
+    // claimed it also covered string props — and props are the likelier leak here,
+    // since every real string on this screen is passed as one (verifier finding).
     const code = screen.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     const jsxText = [...code.matchAll(/>\s*([A-Za-zÀ-ÿ][^<>{}\n]{6,})\s*</g)].map((m) => m[1] as string);
-    expect(jsxText, `inline JSX copy found: ${jsxText.join(' | ')}`).toEqual([]);
+    // string props: label="…", title='…' etc. Two+ words with a letter each, i.e.
+    // a sentence rather than an identifier like "number-pad" or "supplier-founder-001".
+    const props = [...code.matchAll(/\b[a-zA-Z]+=("|')([^"'\n]{6,})\1/g)]
+      .map((m) => m[2] as string)
+      .filter((v) => /^[A-Za-zÀ-ÿ]/.test(v) && /[A-Za-zÀ-ÿ]\s+[A-Za-zÀ-ÿ]/.test(v));
+    const found = [...jsxText, ...props];
+    expect(found, `inline copy found (must live in the catalog): ${found.join(' | ')}`).toEqual([]);
   });
 });
 
@@ -76,8 +83,21 @@ describe('« non configuré » is a CONDITION, never an error (founder ruling)',
 });
 
 describe('nothing on this screen can look like success without being one', () => {
-  it('the published branch is reached ONLY from a PublishState of kind published', () => {
+  it('the success wording exists in EXACTLY ONE place, inside the published branch', () => {
+    // The earlier version asserted only that the `if` existed, which says nothing
+    // about ONLY — a second success-rendering path elsewhere would have kept it
+    // green (verifier finding). This pins the count and the location.
     expect(screen).toMatch(/if \(state\?\.kind === 'published'\)/);
+    const successUses = [...screen.matchAll(/t\('publier\.publie'\)/g)];
+    expect(successUses).toHaveLength(1);
+    const branch = screen.slice(screen.indexOf("if (state?.kind === 'published')"), screen.indexOf('// ── THE FORM'));
+    expect(branch).toContain("t('publier.publie')"); // …and it is inside that branch
+  });
+
+  it('an IDEMPOTENT answer does NOT render the plain success wording', () => {
+    // idempotent means an EARLIER attempt is what is live; the form stayed
+    // editable in between, so « c'est publié » alone could be false about his money.
+    expect(screen).toMatch(/state\.alreadyRegistered \?[\s\S]{0,160}t\('publier\.deja_enregistre'\)/);
   });
 
   it('the seller net rendered is the SERVICE’s figure, and is omitted when absent', () => {
@@ -93,9 +113,47 @@ describe('nothing on this screen can look like success without being one', () =>
     expect(screen).toMatch(/\{state\.offerId\}/);
   });
 
-  it('a refusal and a failure both render the SERVICE’s own words verbatim', () => {
+  it('a refusal renders the SERVICE’s own words verbatim', () => {
     expect(screen).toMatch(/t\('publier\.refuse'\)\}\\n\$\{state\.reason\}/);
-    expect(screen).toMatch(/t\('publier\.echec'\)\}\\n\$\{state\.reason\}/);
+  });
+
+  it('only the `http` cause may claim the service answered — network and device get their own words', () => {
+    // « voici ce que le service a répondu » over an offline error is a falsehood,
+    // and offline is the likely failure on a phone in Ouagadougou.
+    expect(screen).toMatch(/state\.cause === 'network' \?[\s\S]{0,120}t\('publier\.echec_reseau'\)/);
+    expect(screen).toMatch(/state\.cause === 'device' \?[\s\S]{0,120}t\('publier\.echec_appareil'\)/);
+    expect(screen).toMatch(/state\.cause === 'http' \? 'publier\.echec' : 'publier\.echec_illisible'/);
+    // the offline state is NOT a red alert wall — the doctrine's designed state
+    expect(screen).not.toMatch(/tone="danger">\{t\('publier\.echec_reseau'\)/);
+  });
+
+  it('the in-flight guard is released even if publish THROWS — no permanently dead button', () => {
+    // there is no error boundary in this app; without the finally the guard would
+    // latch and the primary action would be dead for the rest of the mount.
+    expect(screen).toMatch(/\} finally \{\s*\n\s*inFlight\.current = false;\s*\n\s*\}/);
+  });
+});
+
+describe('the failure strings say only what is true', () => {
+  it('the network string does NOT claim the service answered', () => {
+    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
+    expect(fr('publier.echec_reseau')).not.toMatch(/répondu|réponse|service/i);
+    expect(fr('publier.echec_appareil')).not.toMatch(/répondu|réponse|service/i);
+    // …and both state plainly that nothing was sent
+    expect(fr('publier.echec_reseau')).toMatch(/rien n'a été envoyé/i);
+    expect(fr('publier.echec_appareil')).toMatch(/rien n'a été envoyé/i);
+  });
+
+  it('no string promises an ability the app does not have (there is no edit path)', () => {
+    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
+    // « Vous pourrez en ajouter plus tard » promised photo editing that exists nowhere:
+    // decideCreateOffer answers `collision` for a second command, and no update route exists.
+    expect(fr('publier.sans_photo')).not.toMatch(/plus tard|pourrez|modifier/i);
+  });
+
+  it('« Terminer » does not promise a products list — the board is still seeded fiction', () => {
+    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
+    expect(fr('publier.retour')).not.toMatch(/produits/i);
   });
 });
 

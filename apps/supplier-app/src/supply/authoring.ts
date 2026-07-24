@@ -1,4 +1,4 @@
-import type { CreateOfferInput, ServiceResult, SupplyServicePort } from './service';
+import type { CreateOfferInput, FailureCause, ServiceResult, SupplyServicePort } from './service';
 import type { CreateOfferOutcome } from './service';
 
 /**
@@ -82,15 +82,31 @@ export const CATEGORY_FLOOR_FCFA = 5_000;
  * but it is an invented figure and he must ratify or replace it. **HARD GATE: no
  * edit path exists yet, so an offer published today cannot have its window changed
  * from the app.**
+ *
+ * THE NEAR END BITES WITHOUT ANY YEAR PASSING (fresh-context verifier finding,
+ * 2026-07-24), and it is the more dangerous half. `effective` is written from the
+ * DEVICE clock and judged against the SERVER clock (`supply-endpoint.ts` calls
+ * `new Date()` itself). A cheap Android whose clock runs a day fast would store an
+ * `effective` a day in the FUTURE — and every Shop+ pull would refuse
+ * `offer_not_effective` while this screen had already said « c'est publié ». So
+ * `effective` is BACKDATED by `CLOCK_SKEW_ALLOWANCE_DAYS`. That is not a lie about
+ * when the offer starts: it starts now, and the backdate only absorbs a
+ * disagreement between two clocks about what "now" is. The expiry keeps its full
+ * span from the authoring instant, so the backdate does not shorten the offer.
  */
 export const OFFER_VALIDITY_DAYS = 365;
+/** How far the device clock may run fast before a published offer would go dark. */
+export const CLOCK_SKEW_ALLOWANCE_DAYS = 2;
 const DAY_MS = 86_400_000;
 
 /** Derive the offer window from the authoring clock. Pure; the caller supplies `now`. */
 export function offerWindow(nowIso: string): { readonly effective: string; readonly expiry: string } {
   const start = Date.parse(nowIso);
   if (!Number.isFinite(start)) throw new Error(`offerWindow: unparseable clock: ${nowIso}`);
-  return { effective: nowIso, expiry: new Date(start + OFFER_VALIDITY_DAYS * DAY_MS).toISOString() };
+  return {
+    effective: new Date(start - CLOCK_SKEW_ALLOWANCE_DAYS * DAY_MS).toISOString(),
+    expiry: new Date(start + OFFER_VALIDITY_DAYS * DAY_MS).toISOString(),
+  };
 }
 
 export type ValidationResult =
@@ -217,15 +233,30 @@ export type PublishState =
   | { readonly kind: 'sending' }
   /**
    * `sellerNetFcfa` is the SERVICE's own figure (`preview.sellerNetFcfa`, from the
-   * pinned waterfall) and is ABSENT on an idempotent re-tap, which carries no
+   * pinned waterfall) and is ABSENT on an idempotent answer, which carries no
    * preview. The screen renders nothing where it is absent — never a local
    * recomputation, never a remembered figure from an earlier attempt.
+   *
+   * `alreadyRegistered` DISTINGUISHES the two ways this state is reached, and the
+   * distinction is not cosmetic (fresh-context verifier finding, 2026-07-24).
+   * Because one attempt keeps one `commandId`, a retry after an AMBIGUOUS failure
+   * can answer `idempotent` — returning the offer stored on the FIRST attempt.
+   * The form is still editable in that window, so he may have corrected the price
+   * before retrying: the service then answers success while the live offer keeps
+   * the OLD price. Rendering a plain « c'est publié » there would tell him
+   * something false about his own money. The screen must say which one happened.
    */
-  | { readonly kind: 'published'; readonly offerId: string; readonly sellerNetFcfa?: number }
+  | {
+      readonly kind: 'published';
+      readonly offerId: string;
+      readonly sellerNetFcfa?: number;
+      /** true ⇒ this offer was stored by an EARLIER attempt; what is live is that version. */
+      readonly alreadyRegistered: boolean;
+    }
   /** The service answered, and declined — its own words, never a generic message. */
   | { readonly kind: 'refused'; readonly reason: string }
-  /** The call failed — the status and the service's words, or the network cause. */
-  | { readonly kind: 'failed'; readonly reason: string };
+  /** The call failed — see `cause`: only `http` means the service answered at all. */
+  | { readonly kind: 'failed'; readonly cause: FailureCause; readonly reason: string };
 
 /**
  * Publish. `service` is `null` when `resolveSupplyService()` found no
@@ -251,14 +282,17 @@ export async function publish(
   if (!built.ok) return { kind: 'invalid', errors: built.errors };
 
   const res: ServiceResult<CreateOfferOutcome> = await service.createOffer(built.command);
-  if (!res.ok) return { kind: 'failed', reason: res.reason };
+  if (!res.ok) return { kind: 'failed', cause: res.cause, reason: res.reason };
 
   const status = res.value.status;
   if (status === 'created' || status === 'idempotent') {
     const net = res.value.preview?.sellerNetFcfa;
-    return net === undefined
-      ? { kind: 'published', offerId: built.command.offerId }
-      : { kind: 'published', offerId: built.command.offerId, sellerNetFcfa: net };
+    const base = {
+      kind: 'published' as const,
+      offerId: built.command.offerId,
+      alreadyRegistered: status === 'idempotent',
+    };
+    return net === undefined ? base : { ...base, sellerNetFcfa: net };
   }
   // 'collision' | 'refused' — the service decided against it; surface its words.
   return { kind: 'refused', reason: res.value.reason ? `${status}: ${res.value.reason}` : status };

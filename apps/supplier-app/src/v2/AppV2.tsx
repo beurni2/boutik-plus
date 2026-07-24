@@ -9,8 +9,13 @@
  * place they touch setTimeout. 'tween'/'haptic' are inert here for now — §7
  * motion wiring is sequenced LAST per the standing value-match-first order.
  *
- * NOT the registered root: E1 App.tsx stays root — the switch to AppV2 is a
- * LISTED founder decision, not taken silently.
+ * THE REGISTERED PREVIEW ROOT. This comment used to say the opposite ("NOT the
+ * registered root: E1 App.tsx stays root") and was stale — corrected here rather
+ * than left to mislead the next reader, since this commit edits this file.
+ * `expo-preview.yml` defaults `EXPO_PUBLIC_ROOT` to `v2` (founder ruling
+ * 2026-07-17) and `index.ts` mounts AppV2 for that value, so every preview
+ * publish — main-push and bare dispatch alike — lands HERE. E1's App.tsx stays
+ * reachable dispatch-only via `root=e1`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';

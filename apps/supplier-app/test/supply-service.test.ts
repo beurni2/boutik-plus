@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HttpSupplyService,
   WRITE_KEY_HEADER,
+  readOutcome,
   resolveSupplyService,
   type CreateOfferInput,
 } from '../src/supply/service';
@@ -135,5 +136,62 @@ describe('the demo adapter exists for TESTS only', () => {
 
   it('carries the sentinel the bundle-absence gate searches for', () => {
     expect(DEMO_SUPPLY_SENTINEL).toBe('BOUTIK_DEMO_SUPPLY_ADAPTER_MUST_NOT_SHIP');
+  });
+});
+
+
+describe('the RESPONSE boundary is validated — money crosses here', () => {
+  /**
+   * The old code did `JSON.parse(text) as CreateOfferOutcome`, which is a
+   * compile-time lie (fresh-context verifier finding). Two real consequences:
+   * a 2xx body of `null` made `res.value.status` a TypeError thrown mid-render
+   * with no error boundary anywhere, and a non-numeric `sellerNetFcfa` reached
+   * `formatF` — a WRONG FIGURE rendered after the offer was already created.
+   */
+  it('refuses a body that is not a decision — null, an array, a string, an unknown status', () => {
+    for (const body of [null, undefined, [], 'ok', 42, {}, { status: 'ok' }, { status: 'CREATED' }]) {
+      expect(readOutcome(body), JSON.stringify(body) ?? 'undefined').toBeNull();
+    }
+  });
+
+  it('accepts each of the four real decision statuses', () => {
+    for (const status of ['created', 'idempotent', 'collision', 'refused']) {
+      expect(readOutcome({ status })).toEqual({ status });
+    }
+  });
+
+  it('carries a string reason and DROPS a non-string one rather than rendering it', () => {
+    expect(readOutcome({ status: 'refused', reason: 'below_category_floor' }))
+      .toEqual({ status: 'refused', reason: 'below_category_floor' });
+    expect(readOutcome({ status: 'refused', reason: { code: 9 } })).toEqual({ status: 'refused' });
+  });
+
+  it('a MALFORMED MONEY FIGURE is dropped, and the decision survives — no figure beats a wrong one', () => {
+    for (const bad of [null, 'huit mille', NaN, Infinity, undefined, {}]) {
+      const out = readOutcome({ status: 'created', preview: { sellerNetFcfa: bad, sellerPlatformFeeFcfa: 500 } });
+      expect(out, String(bad)).toEqual({ status: 'created' }); // decision kept, preview gone
+      expect(out?.preview, String(bad)).toBeUndefined();
+    }
+    // …and a well-formed one is carried through EXACTLY
+    expect(readOutcome({ status: 'created', preview: { sellerNetFcfa: 8_500, sellerPlatformFeeFcfa: 500 } }))
+      .toEqual({ status: 'created', preview: { sellerNetFcfa: 8_500, sellerPlatformFeeFcfa: 500 } });
+  });
+
+  it('a 200 with an unreadable body is a typed FAILURE, never a success', async () => {
+    vi.stubGlobal('fetch', async () => new Response('null', { status: 200 }));
+    const out = await new HttpSupplyService('https://o.example', 'k').createOffer(CMD);
+    expect(out.ok).toBe(false);
+    expect(out.ok === false && out.cause).toBe('unreadable');
+  });
+
+  it('a network throw and a non-2xx carry DIFFERENT causes — the screen must tell them apart', async () => {
+    vi.stubGlobal('fetch', async () => { throw new Error('Network request failed'); });
+    const net = await new HttpSupplyService('https://o.example', 'k').createOffer(CMD);
+    expect(net.ok === false && net.cause).toBe('network');
+
+    vi.stubGlobal('fetch', async () => new Response('{"error":"unauthorized"}', { status: 401 }));
+    const http = await new HttpSupplyService('https://o.example', 'k').createOffer(CMD);
+    expect(http.ok === false && http.cause).toBe('http');
+    expect(http.ok === false && http.reason).toContain('401');
   });
 });

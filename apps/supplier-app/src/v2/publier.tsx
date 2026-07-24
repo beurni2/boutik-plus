@@ -152,14 +152,26 @@ export function SPublier({ onBack }: { onBack: () => void }) {
         moderationState: MODERATION_STATE,
       };
     } catch (err) {
-      // An unavailable CSPRNG is an honest failure, never a weaker id source.
+      // An unavailable CSPRNG is an honest failure, never a weaker id source. The
+      // cause is `device`: nothing left the phone, so the banner must not claim
+      // the service said anything.
       inFlight.current = false;
-      setState({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
+      setState({ kind: 'failed', cause: 'device', reason: String((err as Error)?.message ?? err) });
       return;
     }
-    const outcome = await publish(service, form, ctx);
-    inFlight.current = false;
-    setState(outcome);
+    // try/finally, deliberately: `publish` can still throw (an unexpected shape at
+    // the response boundary, a runtime fault), and there is no error boundary in
+    // this app. Without the finally, `inFlight` would stay true and the primary
+    // action would be dead for the rest of the mount — the guard would have made
+    // recovery strictly worse than no guard at all.
+    try {
+      const outcome = await publish(service, form, ctx);
+      setState(outcome);
+    } catch (err) {
+      setState({ kind: 'failed', cause: 'unreadable', reason: String((err as Error)?.message ?? err) });
+    } finally {
+      inFlight.current = false;
+    }
   };
 
   // ── PUBLIÉ — the form is done; show the outcome, and one way back. ──────────
@@ -170,7 +182,15 @@ export function SPublier({ onBack }: { onBack: () => void }) {
           <HeaderStacked title={t('publier.titre')} onBack={onBack} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Banner tone="success" check>{t('publier.publie')}</Banner>
+          {/* An idempotent answer is NOT a plain success: it means an EARLIER
+              attempt is what is live. He may have edited the form in between, so
+              a bare « c'est publié » would tell him something false about his own
+              money. Distinct words, calmer tone, no false celebration. */}
+          {state.alreadyRegistered ? (
+            <Banner tone="info">{t('publier.deja_enregistre')}</Banner>
+          ) : (
+            <Banner tone="success" check>{t('publier.publie')}</Banner>
+          )}
           <View style={{ marginTop: 18 }}>
             <Overline>{t('publier.reference')}</Overline>
             <Text style={[reference, { marginTop: 6 }]} selectable>{state.offerId}</Text>
@@ -246,12 +266,20 @@ export function SPublier({ onBack }: { onBack: () => void }) {
         )}
         {state?.kind === 'failed' && (
           <View style={{ marginTop: 16 }}>
-            <Banner tone="danger">{`${t('publier.echec')}\n${state.reason}`}</Banner>
-          </View>
-        )}
-        {state?.kind === 'not_configured' && (
-          <View style={{ marginTop: 16 }}>
-            <Banner tone="info">{t('publier.non_configure')}</Banner>
+            {/* Only `http` means the service answered. Saying « voici ce que le
+                service a répondu » over an offline error is a falsehood, and
+                offline is the LIKELY case here — so it gets its own designed,
+                non-alarming state instead of a red wall with a raw English
+                error in it. */}
+            {state.cause === 'network' ? (
+              <Banner tone="warn">{t('publier.echec_reseau')}</Banner>
+            ) : state.cause === 'device' ? (
+              <Banner tone="warn">{t('publier.echec_appareil')}</Banner>
+            ) : (
+              <Banner tone="danger">
+                {`${t(state.cause === 'http' ? 'publier.echec' : 'publier.echec_illisible')}\n${state.reason}`}
+              </Banner>
+            )}
           </View>
         )}
 

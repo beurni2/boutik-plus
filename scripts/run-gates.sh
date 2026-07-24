@@ -128,8 +128,16 @@ capture no-wallet-no-funds-positive pass node scripts/gates/no-wallet-no-funds.m
 log "gate: no-wallet-no-funds — NEGATIVE FIXTURE (wallet/balance module, must fail)"
 capture no-wallet-no-funds-negative fail node scripts/gates/no-wallet-no-funds.mjs gates/fixtures/negative/no-wallet-no-funds
 
-log "gate: no-demo-in-app-graph — the DEMO supply adapter is absent from the app graph (must pass)"
+log "gate: no-demo-in-app-graph — the DEMO supply adapter is absent from the app graph (SOURCE inference, must pass)"
 capture no-demo-in-app-graph-positive pass node scripts/gates/no-demo-in-app-graph.mjs
+
+# The MEASUREMENT beside the inference (cross-lane relay from OZ1, founder order
+# 2026-07-24): `expo export` writes the real Metro/Hermes artifact and this greps
+# it, so bundle absence stops being an argument about reachability. ~9s warm,
+# ~20s cold. Red-proven: planting the demo fallback back into the resolver makes
+# it exit 1 naming the data fingerprint.
+log "gate: bundle-absence — the demo adapter is absent from the REAL exported bundle (measured, must pass)"
+capture bundle-absence-positive pass node scripts/gates/bundle-absence.mjs
 
 log "gate: no-consumer-storefront — services/ + apps/ (must pass)"
 capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-storefront.mjs
