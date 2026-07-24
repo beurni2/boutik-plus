@@ -3,24 +3,26 @@ import {
   makeReadModelSchema,
   ProductVersionSchema,
   SupplyProjectionSchema,
-  type ProductVersion,
   type ReadModel,
-  type SupplierOffer,
   type SupplyProjection,
 } from '@platform/contracts';
-import { OfferBook, type OfferDraft } from './offer.js';
 import { buildSupplyProjection } from './projection.js';
+import type { OfferEntry, CreateOfferCommand } from './offer-core.js';
+import type { OfferStore } from './offer-store.js';
 
 /**
  * SW-1 — the supply READ-MODEL endpoint (founder ruling 2026-07-15: Option B,
  * HTTP pull). offer-service serves the supply projection; Shop+ pulls and
- * caches; staleness blocks agreement on the Shop+ side (SW-2). This module is
- * a thin transport over the EXISTING pure builder: `serveProjection` calls
+ * caches; staleness blocks agreement on the Shop+ side (SW-2). This module is a
+ * thin transport over the EXISTING pure builder: `serveProjection` calls
  * `buildSupplyProjection` unchanged and hands its output through the strict
- * canon schema + an identity key-sweep on the way OUT. The offer aggregate
- * (previewSellerNet — the only math), the category floor, and offer
- * versioning are untouched; the founder-#001 offer is minted through the REAL
- * command path (`OfferBook.create`).
+ * canon schema + an identity key-sweep on the way OUT.
+ *
+ * BOUTIK-OFFER-DURABLE-1: the read now sources its supply state from the
+ * `OfferStore` (durable in prod, in-memory in CI) instead of a fixed registry —
+ * `available` is the number the offer's author DECLARED at create, never the old
+ * hardcoded literal. The OUT-guard, the refusal ladder, and the served envelope
+ * are byte-unchanged.
  */
 
 /**
@@ -39,26 +41,10 @@ export class SupplyLeakError extends Error {
   override readonly name = 'SupplyLeakError';
 }
 
-export interface SupplyEntry {
-  product: ProductVersion;
-  offer: SupplierOffer;
-  available: number;
-  /**
-   * The real age of this supply state — set when the state was WRITTEN, never
-   * at read. The endpoint returns it verbatim so a Shop+ stale-block computes
-   * a truthful age; freshness is never fabricated.
-   */
-  asOf: string;
-}
-
 /**
- * The read-model envelope Shop+ pulls. WO-READ-MODEL-KIT migration (canon
- * v1.2.0): the local {version, asOf, value} interface is retired in favour of
- * the canon envelope from `makeReadModelSchema(SupplyProjectionSchema)` — the
- * SAME three fields, the SAME constraints (`version` int ≥ 1 · `asOf` the canon
- * IsoTimestamp · `value` the strict supply projection). A DEFINITION swap only:
- * the served body is byte-identical to what SW-1 shipped (proven by
- * supply-endpoint.readmodel-migration.test.ts).
+ * The read-model envelope Shop+ pulls (canon v1.2.0): the canon envelope from
+ * `makeReadModelSchema(SupplyProjectionSchema)` — `version` int ≥ 1 · `asOf` the
+ * canon IsoTimestamp · `value` the strict supply projection.
  */
 export const SupplyReadModelSchema = makeReadModelSchema(SupplyProjectionSchema);
 export type SupplyReadModel = ReadModel<SupplyProjection>;
@@ -98,31 +84,13 @@ export function sweepIdentityKeys(obj: Record<string, unknown>): void {
   }
 }
 
-/** In-memory supply registry keyed by productVersionId — the pilot's single-supplier state. */
-export class SupplyRegistry {
-  private readonly entries = new Map<string, SupplyEntry>();
-
-  register(entry: SupplyEntry): void {
-    this.entries.set(entry.product.id, entry);
-  }
-
-  get(productVersionId: string): SupplyEntry | undefined {
-    return this.entries.get(productVersionId);
-  }
-}
-
 /**
- * The pure core the fetch handler wraps. Reads one supply entry, runs the
- * EXISTING refusal ladder via `buildSupplyProjection`, and — on pass — guards
- * the value out. Every refusal is a typed HONEST STATE, never a 200-empty.
+ * The pure core the fetch handler wraps. Given the supply entry the store
+ * resolved for a productVersionId (or `undefined`), runs the EXISTING refusal
+ * ladder via `buildSupplyProjection`, and — on pass — guards the value out.
+ * Every refusal is a typed HONEST STATE, never a 200-empty.
  */
-export function serveProjection(
-  service: string,
-  registry: SupplyRegistry,
-  productVersionId: string,
-  nowIso: string,
-): ServeOutcome {
-  const entry = registry.get(productVersionId);
+export function serveProjection(service: string, entry: OfferEntry | undefined, nowIso: string): ServeOutcome {
   if (!entry) {
     return { ok: false, status: 404, body: { service, status: 'not_found', reason: 'unknown_product_version' } };
   }
@@ -140,15 +108,16 @@ const SUPPLY_ROUTE = /^\/supply-projection\/([^/]+)$/;
 /**
  * Compose the supply route over a `/health`-and-404 fallback. GET only; a
  * non-GET on the supply path is an honest 405 (never a silent serve). The
- * correlation id rides inbound → response header, matching the health door.
+ * correlation id rides inbound → response header, matching the health door. The
+ * supply state is read from the `OfferStore` (durable or in-memory).
  */
 export function makeSupplyFetch(
-  registry: SupplyRegistry,
+  store: OfferStore,
   now: () => string = () => new Date().toISOString(),
   fallback: (request: Request) => Response = makeHealthFetch(SERVICE_NAME),
   service: string = SERVICE_NAME,
-): (request: Request) => Response {
-  return (request: Request): Response => {
+): (request: Request) => Promise<Response> {
+  return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     const match = SUPPLY_ROUTE.exec(url.pathname);
     if (!match) return fallback(request);
@@ -162,7 +131,8 @@ export function makeSupplyFetch(
       );
     }
     const productVersionId = decodeURIComponent(match[1]!);
-    const outcome = serveProjection(service, registry, productVersionId, now());
+    const entry = await store.getEntryByProductVersion(productVersionId);
+    const outcome = serveProjection(service, entry, now());
     return Response.json(outcome.body, { status: outcome.status, headers });
   };
 }
@@ -171,13 +141,16 @@ export function makeSupplyFetch(
 // walking skeleton's manual supplier). PLATFORM_OWNED stays B+9-gated.
 export const FOUNDER_001_SUPPLIER_ID = 'supplier-founder-001';
 export const FOUNDER_001_PRODUCT_VERSION_ID = 'pv-founder-001';
+export const FOUNDER_001_OFFER_ID = 'offer-founder-001';
 
 /**
- * The pilot fixture — founder-#001's real offer, minted through the REAL
- * command path (`OfferBook.create`, never hand-built). `asOf` is supplied so
- * the caller controls the supply-state write time (truthful staleness).
+ * The pilot seed — founder-#001's create command, run through the REAL command
+ * path (`OfferBook.create` inside `decideCreateOffer`, never hand-built). `asOf`
+ * is supplied so the caller controls the supply-state write time (truthful
+ * staleness). `available` is DECLARED here (5) — an honest number from the seed
+ * author, not a fabricated one baked into the read path.
  */
-export function founderOneSupply(asOf: string): SupplyEntry {
+export function founderOneCreateCommand(asOf: string): CreateOfferCommand {
   const product = ProductVersionSchema.parse({
     id: FOUNDER_001_PRODUCT_VERSION_ID,
     supplierId: FOUNDER_001_SUPPLIER_ID,
@@ -191,16 +164,28 @@ export function founderOneSupply(asOf: string): SupplyEntry {
     status: 'active',
     supplyMode: 'SELLER_HELD',
   });
-  const draft: OfferDraft = {
-    productVersionId: product.id,
-    basePrice: 10_000,
-    resellerCommission: 1_000,
-    eligibleVariants: [],
-    zones: [],
-    effective: '2026-07-10T00:00:00.000Z',
-    expiry: '2026-12-31T00:00:00.000Z',
+  return {
+    commandId: 'seed-founder-001',
+    offerId: FOUNDER_001_OFFER_ID,
+    product,
+    draft: {
+      productVersionId: product.id,
+      basePrice: 10_000,
+      resellerCommission: 1_000,
+      eligibleVariants: [],
+      zones: [],
+      effective: '2026-07-10T00:00:00.000Z',
+      expiry: '2026-12-31T00:00:00.000Z',
+    },
+    available: 5,
+    asOf,
   };
-  const outcome = new OfferBook().create(draft, true); // the REAL command path (previewSellerNet runs inside)
-  if (!outcome.ok) throw new Error(`founder-#001 offer did not publish: ${outcome.reason}`);
-  return { product, offer: outcome.offer, available: 5, asOf };
+}
+
+/** Seed the founder-#001 offer into a store (dev/local); throws if it did not create. */
+export async function seedFounderOne(store: OfferStore, asOf: string): Promise<void> {
+  const decision = await store.create(founderOneCreateCommand(asOf));
+  if (decision.status !== 'created' && decision.status !== 'idempotent') {
+    throw new Error(`founder-#001 seed did not persist: ${decision.status}`);
+  }
 }
