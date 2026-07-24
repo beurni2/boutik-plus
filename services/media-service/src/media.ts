@@ -97,11 +97,19 @@ export type UploadOutcome =
   | { readonly ok: false; readonly reason: RejectReason };
 
 /**
+ * A best-effort cache purge for a revoked key. The Worker supplies
+ * `makeEdgeCachePurge(origin)`; anything without a cache (CI, Node) supplies
+ * nothing. It is BEST-EFFORT BY NATURE — a colo-local delete — so revocation's
+ * real guarantee comes from the bounded TTLs, never from this hook firing.
+ */
+export type MediaCachePurge = (key: string) => Promise<void>;
+
+/**
  * The media service. Validates then stores then returns the opaque ref. There is
  * no hold, no review, and no registry — by ruling, not by omission.
  */
 export class ProductMediaService {
-  constructor(private readonly store: MediaStore) {}
+  constructor(private readonly store: MediaStore, private readonly purge?: MediaCachePurge) {}
 
   /** Validate + store. A fresh opaque key every time — an upload NEVER overwrites. */
   async upload(bytes: Uint8Array, at: string): Promise<UploadOutcome> {
@@ -136,21 +144,23 @@ export class ProductMediaService {
   }
 
   /**
-   * REVOCATION (founder requirement) — deletes the object at the STORE.
+   * REVOCATION — destroys the origin object, then best-effort purges the serving
+   * colo.
    *
-   * KNOWN HOLE, DO NOT READ THIS AS "THE IMAGE IS GONE" (verifier finding
-   * 2026-07-24, reproduced): deleting the R2 object does NOT reach the caches in
-   * front of it. The read route serves `caches.default` before the bucket and
-   * stamps `max-age=31536000, immutable`, so after a revoke an edge copy keeps
-   * answering 200 and a browser that already fetched it holds the bytes for a
-   * year with no revalidation path. There is no purge here. Until the caching
-   * policy is settled, revocation removes the ORIGIN copy only — it is not a
-   * reliable takedown, and the deferred read-route moderation gate should not be
-   * justified by it. The caller drops the ref from `ProductAssets` in the same
-   * move; this service holds no index that could do it for them.
+   * THE PROPERTY IS "BOUNDED-LATENCY REVOCATION", NOT "INSTANT TAKEDOWN". Say it
+   * that way (founder ruling 2026-07-24). The origin copy dies immediately and the
+   * colo that served it is purged, but other colos and already-served browsers
+   * keep answering from cache until their TTL expires — so a leaked ref keeps
+   * resolving for UP TO the edge TTL (1 h; see the read route's `CACHE_CONTROL`).
+   * That is bounded and stated, where before it was unbounded (a year of
+   * `immutable`, with nothing able to close it).
+   *
+   * The caller drops the ref from `ProductAssets` in the same move; this service
+   * holds no index that could do it for them.
    */
   async revoke(key: string): Promise<void> {
     await this.store.remove(assertOpaqueMediaKey(key));
+    await this.purge?.(key); // best-effort, colo-local; the TTL is the real bound
   }
 
   /**
@@ -165,6 +175,7 @@ export class ProductMediaService {
     const outcome = await this.upload(bytes, at);
     if (!outcome.ok) return outcome; // refused → old image survives
     await this.store.remove(oldKey);
+    await this.purge?.(oldKey); // same bounded-latency property as revoke
     return outcome;
   }
 }

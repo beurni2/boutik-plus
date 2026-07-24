@@ -40,14 +40,16 @@ function fakeBucket(entries: Record<string, { body: string; contentType?: string
 const req = (key: string): Request => new Request(`https://media.boutik.test/${key}`);
 
 describe('read route — serves the private bucket through the service', () => {
-  it('200s with the stored bytes, the stored content-type, and the IMMUTABLE cache header', async () => {
+  it('200s with the stored bytes, the stored content-type, and the BOUNDED cache header', async () => {
     const key = mintMediaKey();
     const { bucket } = fakeBucket({ [key]: { body: 'IMAGE-BYTES', contentType: 'image/jpeg' } });
     const res = await handleMediaRead(req(key), key, { BUCKET: bucket });
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('image/jpeg');
-    // truthful ONLY because a key is write-once — asserted in media-key.test.ts
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    // BOTH layers bounded so neither outlives a takedown; no `immutable` (it forbids
+    // revalidation). The takedown-latency budget itself is pinned in
+    // revoke-read.regression.test.ts.
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=3600');
     expect(await res.text()).toBe('IMAGE-BYTES');
   });
 
