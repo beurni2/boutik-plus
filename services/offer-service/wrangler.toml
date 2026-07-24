@@ -1,0 +1,39 @@
+# BOUTIK-OFFER-DURABLE-1 — the combined Worker deploy config: index.ts's service
+# routes + the OfferDO Durable Object, one wrangler.toml, one URL. Mirrors
+# shop-plus's combined-Worker deploy slice (no R2/media here — offers are data only).
+#
+# UNPROVEN UNTIL A REAL `wrangler deploy` RUNS. Miniflare binds the DO by its OWN
+# test config, never this file — so the binding and especially the [[migrations]]
+# block below are validated only by an actual deploy, not by any green CI. A
+# malformed migration passes every test and fails only on deploy.
+
+name = "offer-service"
+# The pre-built combined bundle (esbuild, the same artifact the miniflare e2e
+# runs); the deploy workflow runs `bundle:worker` before `wrangler deploy`.
+main = "dist/worker/worker.mjs"
+compatibility_date = "2025-07-05"
+
+# One Durable Object binding — the offer authority, addressed by idFromName(offerId)
+# (and idFromName('pv:'+productVersionId) for the read pointer) inside.
+[[durable_objects.bindings]]
+name = "OFFER"
+class_name = "OfferDO"
+
+# FIRST-DEPLOY MIGRATION — create the DO class. `new_sqlite_classes` is CORRECT
+# AND MANDATORY, not a coin-flip: Cloudflare stopped issuing key-value-backed DO
+# namespaces (changelog 2026-07-09) to any account without a pre-existing one, and
+# the Workers Free plan only ever supported the SQLite backend — so `new_classes`
+# would be rejected outright on this account. SQLite-backed DOs expose the SAME
+# key-value storage API this DO code uses (state.storage.get/put), so no code
+# change follows.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OfferDO"]
+
+# SERVICE-WRITE-AUTH — the shared write secret (OFFER_WRITE_SECRET) is NOT here
+# and must NEVER be added to [vars]: all five repos are PUBLIC and anything in
+# [vars] is committed and published. It is set out-of-band with
+# `wrangler secret put OFFER_WRITE_SECRET` (encrypted, not in the repo). The gate
+# fails CLOSED: until the secret is set, every write (POST /offers) returns 401 by
+# design — so set the secret BEFORE (or right after) deploying, or seeds look
+# broken. GET /supply-projection stays open (the wire's read side).

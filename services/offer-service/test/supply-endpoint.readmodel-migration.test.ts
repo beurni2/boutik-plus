@@ -1,29 +1,31 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { InMemoryOfferStore } from '../src/offer-store.js';
+import type { OfferEntry } from '../src/offer-core.js';
 import {
   FOUNDER_001_PRODUCT_VERSION_ID,
   SupplyReadModelSchema,
-  SupplyRegistry,
-  founderOneSupply,
+  founderOneCreateCommand,
   serveProjection,
+  type ServeOutcome,
 } from '../src/supply-endpoint.js';
 
 /**
- * WO-READ-MODEL-KIT migration proof (canon v1.2.0). The local
- * `SupplyReadModel` interface was replaced by the canon envelope from
- * `makeReadModelSchema(SupplyProjectionSchema)`. This is a DEFINITION swap, not
- * a behaviour change: the served 200 body must be BYTE-IDENTICAL to what SW-1
- * shipped for the same projection. The frozen envelope below is exactly SW-1's
- * `{version, asOf, value}` output for founder-#001 (three fields, same values);
- * the test refuses any field add/drop/rename or reorder (JSON byte compare) and
- * proves the canon envelope schema accepts that same body unchanged.
+ * WO-READ-MODEL-KIT migration proof (canon v1.2.0), carried through
+ * BOUTIK-OFFER-DURABLE-1. The served 200 body must stay BYTE-IDENTICAL to what
+ * SW-1 shipped for the same projection, now that the supply state comes from the
+ * OfferStore (seeded through the real command path) instead of the fixture. The
+ * frozen envelope below is exactly SW-1's `{version, asOf, value}` output for
+ * founder-#001 (three fields, same values); the test refuses any field
+ * add/drop/rename or reorder (JSON byte compare) and proves the canon envelope
+ * schema accepts that same body unchanged.
  */
 
 const FIXED_ASOF = '2026-07-15T08:00:00.000Z';
 
-// SW-1's served body for founder-#001, captured pre-migration — the frozen
-// ground truth. founderOneSupply mints offer version 1 through OfferBook.create
-// (basePrice 10 000, resellerCommission 1 000, available 5); the projection is
-// the strict 5-field SupplyProjection.
+// SW-1's served body for founder-#001 — the frozen ground truth. The seed mints
+// offer version 1 through OfferBook.create (basePrice 10 000, resellerCommission
+// 1 000, available 5, DECLARED on the command); the projection is the strict
+// 5-field SupplyProjection.
 const SW1_FROZEN_BODY = {
   version: 1,
   asOf: FIXED_ASOF,
@@ -36,23 +38,25 @@ const SW1_FROZEN_BODY = {
   },
 };
 
-describe('read-model kit migration — served body is byte-identical pre/post', () => {
-  const registry = new SupplyRegistry();
-  registry.register(founderOneSupply(FIXED_ASOF));
-  const outcome = serveProjection('offer-service', registry, FOUNDER_001_PRODUCT_VERSION_ID, FIXED_ASOF);
+describe('read-model kit migration — served body is byte-identical pre/post (over the durable store seed)', () => {
+  let outcome: ServeOutcome;
+  let entry: OfferEntry | undefined;
+
+  beforeAll(async () => {
+    const store = new InMemoryOfferStore();
+    await store.create(founderOneCreateCommand(FIXED_ASOF));
+    entry = await store.getEntryByProductVersion(FOUNDER_001_PRODUCT_VERSION_ID);
+    outcome = serveProjection('offer-service', entry, FIXED_ASOF);
+  });
 
   it('the 200 body equals SW-1’s frozen envelope, field-for-field and byte-for-byte', () => {
     expect(outcome.ok).toBe(true);
     expect(outcome.status).toBe(200);
     if (!outcome.ok) return;
-    // deep value equality — same three fields, same values
     expect(outcome.body).toEqual(SW1_FROZEN_BODY);
-    // byte equality — canonical key order, no added/renamed key, no coercion
     expect(JSON.stringify(outcome.body)).toBe(JSON.stringify(SW1_FROZEN_BODY));
-    // the envelope keys are EXACTLY the canon three, in order
     expect(Object.keys(outcome.body)).toEqual(['version', 'asOf', 'value']);
-    // version stays a NUMBER (canon: z.number().int().min(1)) — not stringified
-    expect(typeof outcome.body.version).toBe('number');
+    expect(typeof outcome.body.version).toBe('number'); // canon: z.number().int().min(1) — never stringified
   });
 
   it('the canon envelope schema round-trips the served body with no drift', () => {

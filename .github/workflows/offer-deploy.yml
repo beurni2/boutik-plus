@@ -1,0 +1,50 @@
+name: offer-deploy
+
+# BOUTIK-OFFER-DURABLE-1 — deploy the combined offer Worker (the OfferDO Durable
+# Object + the service routes) to Cloudflare. Mirrors shop-plus's deploy workflow.
+#
+# MANUAL ONLY (workflow_dispatch): a deploy is a deliberate act. The FIRST run
+# also applies the DO migration (creating OfferDO). Gated on the
+# CLOUDFLARE_API_TOKEN repo secret.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offer-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Authorize read access to platform-contracts (CI-only)
+        run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+      # Guard against pnpm re-mangling lockfile git-dep URLs to SSH forms (see ci.yml).
+      - name: Authorize read access to platform-contracts (CI-only, SSH forms)
+        run: |
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "git@github.com:beurni2/platform-contracts"
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
+      - run: pnpm install --frozen-lockfile
+      # Compile the workspace packages FIRST (the trap shop-plus's first deploy hit):
+      # the combined bundle inlines @boutik/observability, whose package.json
+      # `exports` resolves to dist/index.js — which only exists after a build.
+      # Without this step esbuild cannot resolve it and the deploy dies at the
+      # bundle step, before ever reaching Cloudflare.
+      - run: pnpm build
+      - name: Bundle the combined Worker (OfferDO + service routes)
+        run: pnpm --filter @boutik/offer-service bundle:worker
+      - name: Deploy to Cloudflare Workers
+        working-directory: services/offer-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
