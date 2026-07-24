@@ -1,0 +1,38 @@
+import type { CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplyServicePort } from './service.js';
+
+/**
+ * THE DEMO ADAPTER — FOR TESTS ONLY. **No app code may import this module.**
+ *
+ * That is not a convention, it is enforced: `scripts/gates/no-demo-in-app-graph.mjs`
+ * fails the build if any file reachable from the app's entry imports it, and this
+ * file carries the sentinel below so a bundle can be searched for it directly. The
+ * resolver in `service.ts` has no demo branch at all, so this module is ABSENT from
+ * the published bundle rather than merely unselected.
+ *
+ * WHY THE HARD LINE (shop-plus's scar, quoted from its JOURNAL): two demo
+ * fallbacks sat bundled and masked — a hardcoded `AICHA_TRUST` trust block that
+ * would appear on ANY real store, and an `orderedProducts` path that filled gaps
+ * from the entire `VITRINE_SEED` catalogue. Neither was reachable while the store
+ * was empty; both would have detonated the moment it was not. The lesson is that a
+ * fabrication path in the bundle is a fabrication waiting for a code path, so the
+ * fix is absence, not selection.
+ *
+ * It records what it was asked to write so a test can assert the app built the
+ * right command. It fabricates NOTHING back: no invented ids, no plausible
+ * products, no success that did not happen.
+ */
+
+/** Searched for by the bundle-absence gate. MUST NOT appear in any app source file. */
+export const DEMO_SUPPLY_SENTINEL = 'BOUTIK_DEMO_SUPPLY_ADAPTER_MUST_NOT_SHIP';
+
+export class DemoSupplyService implements SupplyServicePort {
+  /** Every command handed to it, in order — the assertion surface for tests. */
+  readonly written: CreateOfferInput[] = [];
+
+  constructor(private readonly answer: ServiceResult<CreateOfferOutcome> = { ok: true, value: { status: 'created' } }) {}
+
+  async createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>> {
+    this.written.push(cmd);
+    return this.answer;
+  }
+}

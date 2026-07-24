@@ -62,6 +62,17 @@ jobs:
           # reachable dispatch-only via root=e1 (index.ts mounts E1 for any
           # value other than 'v2'). App code untouched by this flip.
           EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || 'v2' }}
+          # SUPPLIER-AUTHORING-1 — the LIVE offer-service base + shared write key,
+          # inlined into the bundle by babel-preset-expo exactly as EXPO_PUBLIC_ROOT
+          # is. BOTH must be set for the app to write: `resolveSupplyService()`
+          # returns the real client only when both are present, and **null**
+          # otherwise — never a demo adapter, so a preview published without these
+          # secrets authors nothing rather than publishing invented products.
+          # The key ships inside the published bundle (founder-accepted, mirrors
+          # shop-plus): it stops scanners, not a determined attacker, and being
+          # shared it is not per-supplier identity.
+          EXPO_PUBLIC_OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+          EXPO_PUBLIC_OFFER_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
         run: |
           npx eas-cli@20.5.1 init --non-interactive --force
           npx eas-cli@20.5.1 update:configure --non-interactive
