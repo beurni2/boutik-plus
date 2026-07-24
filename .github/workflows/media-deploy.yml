@@ -1,0 +1,69 @@
+name: media-deploy
+
+# SERVICE-PROVENANCE-1 — deploy the media Worker (the `GET /media/{token}` read
+# route over the PRIVATE R2 bucket). Mirrors offer-deploy.yml; media-service was
+# merged with a wrangler config but NO workflow, so it was undeployable through CI.
+#
+# MANUAL ONLY (workflow_dispatch): a deploy is a deliberate act. Gated on the
+# CLOUDFLARE_API_TOKEN repo secret.
+#
+# UNPROVEN UNTIL THIS ACTUALLY RUNS — media-service has NEVER been deployed, so
+# nothing below is validated by any local run or by green CI: the R2 binding and
+# the bucket name in wrangler.toml, whether the bucket exists on the account, and
+# the first-deploy behaviour generally. Miniflare binds R2 by its OWN test config,
+# never this file. (There is no Durable Object here, so unlike offer-service there
+# is no [[migrations]] block to get wrong — the one first-deploy hazard that does
+# NOT apply to this service.)
+#
+# NO WRITE SECRET IS SET HERE. This Worker exposes no write route yet (the
+# supplier-app upload path is not built). When it lands, its secret goes in with
+# `wrangler secret put` — NEVER the dashboard.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Authorize read access to platform-contracts (CI-only)
+        run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+      # Guard against pnpm re-mangling lockfile git-dep URLs to SSH forms (see ci.yml).
+      - name: Authorize read access to platform-contracts (CI-only, SSH forms)
+        run: |
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "git@github.com:beurni2/platform-contracts"
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
+      - run: pnpm install --frozen-lockfile
+      # Compile the workspace packages FIRST — the trap that killed shop-plus's
+      # first deploy: the bundle inlines @boutik/observability, whose package.json
+      # `exports` resolves to dist/index.js, which only exists after a build.
+      # Without this the deploy dies at the bundle step, before reaching Cloudflare.
+      - run: pnpm build
+      # SERVICE-PROVENANCE-1 — same stamp as offer-deploy, so BOTH services answer
+      # which build they are and which wire shape they speak in one curl. `canon`
+      # is read from the INSTALLED package, never hand-typed, so it cannot drift
+      # from what was actually bundled.
+      - name: Resolve the provenance stamp
+        run: |
+          echo "BOUTIK_RELEASE=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "BOUTIK_CANON=$(node -p "require('./node_modules/@platform/contracts/package.json').version")" >> "$GITHUB_ENV"
+      - name: Bundle the media Worker (read route)
+        run: pnpm --filter @boutik/media-service bundle:worker
+      - name: Deploy to Cloudflare Workers
+        working-directory: services/media-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
