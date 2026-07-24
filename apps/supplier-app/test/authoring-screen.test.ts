@@ -107,12 +107,32 @@ describe('the screen writes through the seam, and the demo adapter is not in rea
   });
 
   it('ids are minted from the OS CSPRNG path, never Math.random', () => {
-    expect(screen).toMatch(/mintCommandId\(\)/);
+    // the mint function handed to retainIdentity IS the canon command-id mint
+    // (expo-crypto → globalThis.crypto.randomUUID); there is no other id source.
+    expect(screen).toMatch(/import \{ mintCommandId \} from '\.\.\/offline\/commandId'/);
+    expect(screen).toMatch(/retainIdentity\([^)]*,\s*mintCommandId\)/);
     expect(screen).not.toMatch(/Math\.random/);
   });
 
   it('a CSPRNG failure becomes an honest failed state, never a weaker id', () => {
-    expect(screen).toMatch(/catch \(err\)[\s\S]{0,200}setState\(\{ kind: 'failed'/);
+    expect(screen).toMatch(/catch \(err\)[\s\S]{0,250}setState\(\{ kind: 'failed'/);
+  });
+
+  it('the double-tap guard is a REF, not the async `sending` state — two taps cannot both fire', () => {
+    // `setState` is asynchronous: a guard reading `state` sees the pre-render
+    // value on a stalled JS thread, and two taps become two products.
+    expect(screen).toMatch(/if \(inFlight\.current\) return;\s*\n\s*inFlight\.current = true;/);
+    expect(screen).not.toMatch(/if \(state\?\.kind === 'sending'\) return;/);
+    // and it is released on BOTH exits, or the button is dead forever
+    const guardReleases = [...screen.matchAll(/inFlight\.current = false;/g)];
+    expect(guardReleases).toHaveLength(2); // the CSPRNG-failure path and the answered path
+  });
+
+  it('a RETRY reuses the attempt’s identity — the commandId is not re-minted per tap', () => {
+    expect(screen).toMatch(/identity\.current = retainIdentity\(identity\.current, mintCommandId\)/);
+    // the three ids are spread from the retained identity, never minted inline
+    expect(screen).toMatch(/\.\.\.identity\.current,/);
+    expect(screen).not.toMatch(/commandId: mintCommandId\(\)/);
   });
 });
 

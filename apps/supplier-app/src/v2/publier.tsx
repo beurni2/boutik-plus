@@ -30,7 +30,7 @@
  * header). A second supplier requires real per-supplier identity FIRST; this
  * constant must not become a picker.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -43,9 +43,11 @@ import { resolveSupplyService } from '../supply/service';
 import {
   offerWindow,
   publish,
+  retainIdentity,
   type AuthoringContext,
   type AuthoringForm,
   type FieldError,
+  type OfferIdentity,
   type PublishState,
 } from '../supply/authoring';
 import { randomSuffixBytes, suggestProductCode } from '../supply/product-code';
@@ -92,6 +94,10 @@ export function SPublier({ onBack }: { onBack: () => void }) {
   // Once he edits the code himself, the suggestion stops touching it — he is the
   // author, the system was only suggesting (founder ruling).
   const [codeTouched, setCodeTouched] = useState(false);
+  // Synchronous guards — see onPublish. `identity` is this attempt's three ids,
+  // minted once so a retry after a lost response is idempotent at the service.
+  const inFlight = useRef(false);
+  const identity = useRef<OfferIdentity | null>(null);
   const set = (patch: Partial<AuthoringForm>) => setForm((f) => ({ ...f, ...patch }));
 
   // The suffix entropy is drawn ONCE per mount so the suggestion is stable while
@@ -122,17 +128,24 @@ export function SPublier({ onBack }: { onBack: () => void }) {
   };
 
   const onPublish = async () => {
-    if (state?.kind === 'sending') return;
+    // A REF, not the `sending` state: `setState` is asynchronous, so on a stalled
+    // JS thread two taps can both read the pre-render state and both fire. Two
+    // requests would carry two identities and create TWO products. The ref is
+    // written synchronously, so the second tap sees it.
+    if (inFlight.current) return;
+    inFlight.current = true;
     setState({ kind: 'sending' });
     let ctx: AuthoringContext;
     try {
+      // Identity is minted ONCE and retained across retries so a lost response
+      // cannot become a duplicate product (see retainIdentity). The CLOCK is
+      // re-derived every attempt — asOf is a real write time.
+      identity.current = retainIdentity(identity.current, mintCommandId); // OS CSPRNG; throws if absent
       const now = new Date().toISOString();
       const win = offerWindow(now);
       ctx = {
         supplierId: SUPPLIER_ID,
-        productVersionId: mintCommandId(), // OS CSPRNG (expo-crypto); throws if absent
-        offerId: mintCommandId(),
-        commandId: mintCommandId(),
+        ...identity.current,
         now,
         effective: win.effective,
         expiry: win.expiry,
@@ -140,10 +153,13 @@ export function SPublier({ onBack }: { onBack: () => void }) {
       };
     } catch (err) {
       // An unavailable CSPRNG is an honest failure, never a weaker id source.
+      inFlight.current = false;
       setState({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
       return;
     }
-    setState(await publish(service, form, ctx));
+    const outcome = await publish(service, form, ctx);
+    inFlight.current = false;
+    setState(outcome);
   };
 
   // ── PUBLIÉ — the form is done; show the outcome, and one way back. ──────────

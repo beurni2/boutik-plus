@@ -5,6 +5,7 @@ import {
   buildCreateOffer,
   offerWindow,
   publish,
+  retainIdentity,
   type AuthoringContext,
   type AuthoringForm,
 } from '../src/supply/authoring';
@@ -159,6 +160,38 @@ describe('the seller net shown after publishing is the SERVICE’s, never the ap
     const state = await publish(new DemoSupplyService({ ok: true, value: { status: 'idempotent' } }), FORM, CTX);
     expect(state).toEqual({ kind: 'published', offerId: 'offer-1' });
     expect('sellerNetFcfa' in state).toBe(false); // absent, not 0, not derived from the form
+  });
+});
+
+describe('one authoring attempt keeps ONE identity — the idempotency key survives a retry', () => {
+  const counting = () => {
+    let n = 0;
+    return { mint: () => `id-${(n += 1)}`, count: () => n };
+  };
+
+  it('mints three DISTINCT ids on the first attempt', () => {
+    const c = counting();
+    const id = retainIdentity(null, c.mint);
+    expect(c.count()).toBe(3);
+    expect(new Set([id.productVersionId, id.offerId, id.commandId]).size).toBe(3);
+  });
+
+  it('a RETRY reuses them and mints NOTHING — a lost response cannot become a second product', () => {
+    const c = counting();
+    const first = retainIdentity(null, c.mint);
+    const retry = retainIdentity(first, c.mint);
+    expect(c.count()).toBe(3); // the counter did not advance: no fresh mint
+    expect(retry).toBe(first); // the same object, so the same commandId reaches the service
+    expect(retry.commandId).toBe(first.commandId);
+  });
+
+  it('the retained commandId is what makes the service answer idempotent rather than create twice', () => {
+    // offer-core keys idempotency on commandId; a fresh one would be a NEW create.
+    const c = counting();
+    const id = retainIdentity(null, c.mint);
+    const attempts = [retainIdentity(id, c.mint), retainIdentity(id, c.mint), retainIdentity(id, c.mint)];
+    expect(new Set(attempts.map((a) => a.commandId)).size).toBe(1);
+    expect(new Set(attempts.map((a) => a.offerId)).size).toBe(1); // same DO address → not a collision either
   });
 });
 

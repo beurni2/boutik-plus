@@ -176,6 +176,37 @@ export function buildCreateOffer(form: AuthoringForm, ctx: AuthoringContext): Va
 }
 
 /**
+ * The three ids one authoring attempt carries. They are minted ONCE and REUSED
+ * across retries — see `retainIdentity`.
+ */
+export interface OfferIdentity {
+  readonly productVersionId: string;
+  readonly offerId: string;
+  readonly commandId: string;
+}
+
+/**
+ * Mint the attempt's ids once, then hand back the SAME ones forever.
+ *
+ * THE DEFECT THIS CLOSES, which is the whole reason `commandId` exists: the
+ * service is idempotent on `commandId` (`decideCreateOffer` — an existing entry
+ * with the same command id answers `idempotent` and writes nothing). A retry that
+ * minted FRESH ids would throw that away. The scenario that bites: the POST
+ * reaches the service, the offer IS created, and the response is lost on the way
+ * back (3G, tunnel, dead battery on the router). The screen shows `failed`, he
+ * taps « Réessayer » — and with fresh ids that second request creates a SECOND
+ * product. With the ids retained it answers `idempotent`, and he sees the one
+ * product that exists.
+ *
+ * The CLOCK is deliberately NOT retained: `asOf` is the real supply-state write
+ * time, so each attempt carries its own. Only identity must be stable.
+ */
+export function retainIdentity(current: OfferIdentity | null, mint: () => string): OfferIdentity {
+  if (current !== null) return current;
+  return { productVersionId: mint(), offerId: mint(), commandId: mint() };
+}
+
+/**
  * What the screen shows after the publish button. Every state is honest and
  * distinct — there is no state that looks like success without being one.
  */
