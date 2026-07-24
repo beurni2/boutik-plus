@@ -32,6 +32,18 @@ const WRITE_SECRET = 'test-offer-write-secret-0001';
 const WRITE_KEY_HEADER = 'X-Write-Key';
 const authed = { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: WRITE_SECRET };
 
+/**
+ * SUPPLY-READ-AUTH — the SERVICE-TO-SERVICE read credential, stated independently
+ * of the code constants so a rename that breaks the wire is caught HERE. The
+ * header and scheme are exactly what shop-plus's `supply-source.ts` builds
+ * (`Authorization: Bearer ${readSecret}`), read from its source.
+ *
+ * A DIFFERENT SECRET FROM THE WRITE KEY on purpose: the two must never be
+ * interchangeable, and the e2e proves it at the deployed entry.
+ */
+const READ_SECRET = 'test-supply-read-secret-0002';
+const readAuthed = { Accept: 'application/json', Authorization: `Bearer ${READ_SECRET}` };
+
 const PV = 'pv-founder-001';
 const SEED = {
   commandId: 'seed-founder-001',
@@ -71,7 +83,7 @@ function mkWorker(persistDir: string, withSecret: boolean): Miniflare {
     scriptPath: SCRIPT,
     durableObjects: { OFFER: 'OfferDO' },
     durableObjectsPersist: persistDir,
-    ...(withSecret ? { bindings: { OFFER_WRITE_SECRET: WRITE_SECRET } } : {}),
+    ...(withSecret ? { bindings: { OFFER_WRITE_SECRET: WRITE_SECRET, SUPPLY_READ_SECRET: READ_SECRET } } : {}),
   });
 }
 
@@ -100,8 +112,8 @@ describe('combined Worker — durable offers on real workerd', () => {
     expect(((await created.json()) as { status: string }).status).toBe('created');
   });
 
-  it('READ: GET /supply-projection/:pv is OPEN (no key) and returns the projection from durable state — available is the DECLARED 5', async () => {
-    const read = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET' });
+  it('READ: GET /supply-projection/:pv with the BEARER returns the projection from durable state — available is the DECLARED 5', async () => {
+    const read = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET', headers: readAuthed });
     expect(read.status).toBe(200);
     const body = (await read.json()) as { version: number; asOf: string; value: { productVersionId: string; available: number; basePrice: number } };
     expect(body.value.productVersionId).toBe(PV);
@@ -167,7 +179,7 @@ describe('combined Worker — durable offers on real workerd', () => {
   it('SURVIVES RESTART: after disposing and recreating the Worker on the SAME persist dir, the offer is still there', async () => {
     await mf.dispose(); // tear the Worker down entirely
     mf = mkWorker(persist, true); // fresh Worker, same on-disk DO storage
-    const read = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET' });
+    const read = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET', headers: readAuthed });
     expect(read.status).toBe(200);
     const body = (await read.json()) as { value: { productVersionId: string; available: number } };
     expect(body.value.productVersionId).toBe(PV); // the write outlived the process — real durability
@@ -175,7 +187,7 @@ describe('combined Worker — durable offers on real workerd', () => {
   });
 
   it('UNKNOWN pv still reads as an honest 404, never a 200-empty', async () => {
-    const read = await mf.dispatchFetch('http://o/supply-projection/pv-nope', { method: 'GET' });
+    const read = await mf.dispatchFetch('http://o/supply-projection/pv-nope', { method: 'GET', headers: readAuthed });
     expect(read.status).toBe(404);
     expect(((await read.json()) as { reason: string }).reason).toBe('unknown_product_version');
   });
@@ -183,6 +195,48 @@ describe('combined Worker — durable offers on real workerd', () => {
   it('FAILS CLOSED: a Worker with NO secret configured refuses every write (401), even with a key presented', async () => {
     const attempt = await mfNoSecret.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(SEED) });
     expect(attempt.status).toBe(401); // no secret ⇒ nothing can match ⇒ closed
+  });
+
+  // ── SUPPLY-READ-AUTH, proven at the DEPLOYED entry on real workerd ──────────
+
+  it('SUPPLY READ GATE: the projection is 401 without a bearer — it carries basePrice and resellerCommission', async () => {
+    const open = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET' });
+    expect(open.status).toBe(401);
+    // and the supplier's cost structure is NOT in the refusal body
+    expect(await open.text()).not.toMatch(/basePrice|resellerCommission|10000|1000|supplier-founder/);
+  });
+
+  it('the 401 is NOT AN EXISTENCE ORACLE: a real pv and a nonsense pv are byte-identical without the secret', async () => {
+    const real = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET' });
+    const fake = await mf.dispatchFetch('http://o/supply-projection/pv-does-not-exist', { method: 'GET' });
+    expect(real.status).toBe(fake.status);
+    expect(await real.text()).toBe(await fake.text());
+    // …whereas WITH the secret they differ (200 vs 404) — proving the gate, not a
+    // blanket 401, is what hid the difference.
+    const realOk = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET', headers: readAuthed });
+    const fakeOk = await mf.dispatchFetch('http://o/supply-projection/pv-does-not-exist', { method: 'GET', headers: readAuthed });
+    expect(realOk.status).toBe(200);
+    expect(fakeOk.status).toBe(404);
+  });
+
+  it('the WRITE key does not open the supply read — the two credentials are not interchangeable', async () => {
+    const wrongCred = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${WRITE_SECRET}`, [WRITE_KEY_HEADER]: WRITE_SECRET },
+    });
+    expect(wrongCred.status).toBe(401);
+  });
+
+  it('FAILS CLOSED on the read too: a Worker with no SUPPLY_READ_SECRET refuses the projection', async () => {
+    const attempt = await mfNoSecret.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET', headers: readAuthed });
+    expect(attempt.status).toBe(401);
+  });
+
+  it('/health stays UNGATED — it is how the deploy is verified and carries no supply data', async () => {
+    const health = await mf.dispatchFetch('http://o/health', { method: 'GET' });
+    expect(health.status).toBe(200);
+    const noSecretHealth = await mfNoSecret.dispatchFetch('http://o/health', { method: 'GET' });
+    expect(noSecretHealth.status).toBe(200); // reachable even on a Worker with no secrets at all
   });
 
   // READ_NOW is referenced so a future edit that needs the read clock has it wired.

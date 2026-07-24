@@ -30,10 +30,30 @@ class_name = "OfferDO"
 tag = "v1"
 new_sqlite_classes = ["OfferDO"]
 
-# SERVICE-WRITE-AUTH — the shared write secret (OFFER_WRITE_SECRET) is NOT here
-# and must NEVER be added to [vars]: all five repos are PUBLIC and anything in
-# [vars] is committed and published. It is set out-of-band with
-# `wrangler secret put OFFER_WRITE_SECRET` (encrypted, not in the repo). The gate
-# fails CLOSED: until the secret is set, every write (POST /offers) returns 401 by
-# design — so set the secret BEFORE (or right after) deploying, or seeds look
-# broken. GET /supply-projection stays open (the wire's read side).
+# TWO SECRETS, NEITHER OF THEM HERE. Both are set out-of-band with
+# `wrangler secret put` (encrypted, not in the repo) and must NEVER be added to
+# [vars]: all five repos are PUBLIC and anything in [vars] is committed and
+# published. Both gates fail CLOSED — until each secret is set, the route it
+# guards returns 401 by design.
+#
+#   OFFER_WRITE_SECRET   — SERVICE-WRITE-AUTH. Guards POST /offers (and the
+#                          GET /offers admin list). Set it before or right after
+#                          deploying, or seeds and the supplier app look broken.
+#                          NOTE: this one SHIPS INSIDE THE SUPPLIER APP BUNDLE, so
+#                          it stops scanners, not attackers, and is not identity.
+#
+#   SUPPLY_READ_SECRET   — SUPPLY-READ-AUTH. Guards GET /supply-projection/:pv.
+#                          A REAL credential: it never leaves two Workers. The
+#                          SAME value must be set on shop-plus's Worker, which
+#                          presents it as `Authorization: Bearer`.
+#
+# THIS COMMENT USED TO END "GET /supply-projection stays open (the wire's read
+# side)" — that is no longer true and is corrected here. The projection carries
+# basePrice and resellerCommission and product version ids are guessable, so an
+# open route handed a supplier's cost structure to anyone who guessed one.
+#
+# THE FAILURE MODE TO KNOW BEFORE DEPLOYING: a missing or mismatched
+# SUPPLY_READ_SECRET produces NO error anywhere. shop-plus treats any non-2xx as
+# "undescribable" and OMITS the product, so the vitrine simply empties — silently,
+# with both repos green. Verify against the LIVE /supply-projection response after
+# deploying, never against a green workflow.

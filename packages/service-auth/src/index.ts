@@ -18,8 +18,23 @@
  *   · ONE IDENTICAL 401 — the same body for a bad key, a missing key and an unset
  *     secret, computed BEFORE any storage touch or existence lookup, so the 401
  *     can never become an existence oracle.
- *   · READS ARE NEVER GATED — GET/HEAD/OPTIONS carry no credential. The supply
- *     wire's consumer holds no key and must never need one.
+ *
+ * ═══ CORRECTION (SUPPLY-READ-AUTH, founder ruling 2026-07-24) ═══
+ * This header used to end with: "READS ARE NEVER GATED — GET/HEAD/OPTIONS carry
+ * no credential. The supply wire's consumer holds no key and must never need
+ * one." **That is now false and is corrected rather than left to mislead.** The
+ * *write* gate below still ignores safe methods — unchanged — but the supply READ
+ * is now gated separately by `rejectUnauthorizedBearer`, because the projection
+ * carries `basePrice` and `resellerCommission` and product version ids are
+ * guessable: an open route hands a supplier's cost structure to anyone who
+ * guesses one.
+ *
+ * TWO GATES, TWO CREDENTIALS, DELIBERATELY NOT ONE:
+ *   · the WRITE key (`X-Write-Key`) ships INSIDE AN APP BUNDLE — readable by
+ *     anyone who downloads it. It stops scanners, not attackers, and is not a
+ *     real credential.
+ *   · the READ secret (`Authorization: Bearer`) NEVER LEAVES TWO WORKERS, so it
+ *     is one. They must never be conflated or reused.
  *
  * WHAT IT IS NOT: per-author identity. The secret is shared, so it stops scanners
  * and casual abuse but does not identify who wrote. Real per-supplier identity is
@@ -88,4 +103,64 @@ export async function rejectUnauthorizedWriteAgainst(
 ): Promise<Response | null> {
   if (!isWrite(request.method)) return null;
   return (await keyAuthorizedAgainst(request, secret)) ? null : unauthorized();
+}
+
+// ─── SERVICE-TO-SERVICE READ AUTH (SUPPLY-READ-AUTH) ─────────────────────────
+
+/**
+ * The scheme the calling Worker presents its read secret under. Read from the
+ * CALLER's own source rather than agreed in prose — shop-plus
+ * `services/storefront-service/src/supply-source.ts` builds exactly
+ * `{ Authorization: \`Bearer ${this.readSecret}\` }`. Both halves of a wire in
+ * this project have been built to different specs once already; this constant is
+ * asserted in a test so a rename on either side fails loudly instead of 401'ing
+ * every product into silence.
+ */
+export const BEARER_HEADER = 'Authorization';
+export const BEARER_PREFIX = 'Bearer ';
+
+/**
+ * Extract the presented bearer token, or `''` when the header is absent or not
+ * Bearer-shaped. Returning `''` rather than `null` keeps the caller's compare
+ * UNCONDITIONAL — a missing header takes the same path, and the same time, as a
+ * wrong one.
+ *
+ * The scheme match is case-insensitive per RFC 7235 (`Bearer`/`bearer` are the
+ * same credential); the TOKEN itself is compared byte-exactly.
+ */
+export function bearerTokenFrom(request: Request): string {
+  const raw = request.headers.get(BEARER_HEADER) ?? '';
+  const prefix = raw.slice(0, BEARER_PREFIX.length);
+  if (prefix.toLowerCase() !== BEARER_PREFIX.toLowerCase()) return '';
+  return raw.slice(BEARER_PREFIX.length);
+}
+
+/**
+ * Fail-closed bearer check. True iff a non-empty secret is configured AND the
+ * request's bearer token matches it (constant-time, via the SAME
+ * `timingSafeEqual` the write gate uses — one primitive, not two).
+ *
+ * The compare runs unconditionally, even with no secret configured, so timing
+ * never reveals whether a secret exists; the length guard keeps it fail-closed.
+ */
+export async function bearerAuthorizedAgainst(request: Request, secret: string | undefined): Promise<boolean> {
+  const configured = secret ?? '';
+  const provided = bearerTokenFrom(request);
+  const match = await timingSafeEqual(provided, configured);
+  return configured.length > 0 && match;
+}
+
+/**
+ * READ gate for a service-to-service route. Resolves to `null` iff authorised,
+ * else the ONE identical 401 — which the caller MUST return before any store
+ * lookup, so it can never become an existence oracle for product version ids.
+ *
+ * Unlike the write gate this does NOT exempt safe methods: the whole point is
+ * that a GET is what needs gating here.
+ */
+export async function rejectUnauthorizedBearer(
+  request: Request,
+  secret: string | undefined,
+): Promise<Response | null> {
+  return (await bearerAuthorizedAgainst(request, secret)) ? null : unauthorized();
 }

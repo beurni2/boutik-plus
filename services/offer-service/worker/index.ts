@@ -1,7 +1,14 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import { resolveOfferStore } from '../src/offer-store.js';
-import { keyAuthorized, rejectUnauthorizedWrite, unauthorized, type WriteAuthEnv } from './auth.js';
+import {
+  keyAuthorized,
+  rejectUnauthorizedSupplyRead,
+  rejectUnauthorizedWrite,
+  unauthorized,
+  type SupplyReadAuthEnv,
+  type WriteAuthEnv,
+} from './auth.js';
 
 /**
  * THE COMBINED WORKER (BOUTIK-OFFER-DURABLE-1, mirroring shop-plus's
@@ -15,9 +22,12 @@ import { keyAuthorized, rejectUnauthorizedWrite, unauthorized, type WriteAuthEnv
  */
 export { OfferDO };
 
-interface Env extends WriteAuthEnv {
+interface Env extends WriteAuthEnv, SupplyReadAuthEnv {
   OFFER: DurableObjectNamespace;
 }
+
+/** The gated service-to-service read. Matches `SUPPLY_ROUTE` in supply-endpoint.ts. */
+const SUPPLY_PREFIX = '/supply-projection/';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -39,9 +49,28 @@ export default {
       return offerRouter.fetch(request, env);
     }
 
-    // GET /supply-projection/:pv (the wire's read side, open) + health → the
-    // supply fetch over the DURABLE store, resolved here against the DO namespace
-    // via the fetcher shim (the analogue of shop-plus's read-path shim).
+    // SUPPLY-READ-AUTH — the wire's read side is a SERVICE-TO-SERVICE route and is
+    // gated by `Authorization: Bearer` against SUPPLY_READ_SECRET.
+    //
+    // WHY IT IS GATED AT ALL: the projection carries `basePrice` and
+    // `resellerCommission`, and product version ids are guessable. Open to the
+    // internet, anyone who guesses one reads a supplier's cost structure.
+    //
+    // WHY IT IS GATED **HERE**: before `resolveOfferStore`, so an unauthorised
+    // caller never reaches a Durable Object and the 401 cannot become an existence
+    // oracle — a wrong id and a real id are indistinguishable without the secret.
+    //
+    // `/health` and unknown routes fall through UNGATED, deliberately: the health
+    // door is how the deploy is verified and it carries no supply data.
+    const { pathname: p } = new URL(request.url);
+    if (p.startsWith(SUPPLY_PREFIX)) {
+      const refused = await rejectUnauthorizedSupplyRead(request, env);
+      if (refused) return refused;
+    }
+
+    // GET /supply-projection/:pv (now gated, above) + health → the supply fetch
+    // over the DURABLE store, resolved here against the DO namespace via the
+    // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
     return makeSupplyFetch(store)(request);
   },
