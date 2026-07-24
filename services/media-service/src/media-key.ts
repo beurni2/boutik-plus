@@ -47,7 +47,14 @@ export class MediaKeyError extends Error {
  * Mint a fresh opaque key. Takes NO arguments BY DESIGN — there is no parameter
  * through which a caller could smuggle a productVersionId, a supplierId, or a
  * counter into the key. `crypto.randomUUID` is the platform CSPRNG in both
- * workerd and Node; `Math.random` is banned repo-wide by the mint-path gate.
+ * workerd and Node.
+ *
+ * NOT COVERED BY THE MINT-PATH GATE (verifier finding 2026-07-24): that gate
+ * (`scripts/gates/check-mint-path-entropy.mjs:31`) only scans files whose
+ * basename matches `command-id*`/`commandId*`, so THIS file — the slice's
+ * highest-stakes line — is never scanned for `Math.random`. The code is correct;
+ * the safety net simply does not extend here. Widening the gate's glob to cover
+ * mint paths like this one is a named follow-up, not something this slice did.
  */
 export function mintMediaKey(): string {
   return `${MEDIA_KEY_PREFIX}${crypto.randomUUID()}`;

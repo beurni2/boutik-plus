@@ -24,8 +24,12 @@ export interface StoredObject {
 /**
  * The one media-persistence port. `put` writes bytes at a key; `remove` deletes
  * the object — REVOCATION is a first-class operation here (founder requirement),
- * because the read route carries no moderation check: without delete, a leaked or
- * superseded ref would stay live forever with nothing able to revoke it.
+ * because the read route carries no moderation check.
+ *
+ * SCOPE OF `remove`, stated precisely: it destroys the ORIGIN object and nothing
+ * else. It does not purge the edge cache or expire a browser copy, so a revoked
+ * image can still be served from cache (see `media.ts` `revoke` and the read
+ * route). Do not treat `remove` as a takedown until the caching policy is settled.
  */
 export interface MediaStore {
   put(key: string, bytes: Uint8Array, contentType: string): Promise<StoredObject>;

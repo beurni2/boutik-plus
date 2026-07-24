@@ -136,10 +136,18 @@ export class ProductMediaService {
   }
 
   /**
-   * REVOCATION (founder requirement — what makes the deferred read-route gate
-   * survivable). Deletes the object, so a leaked or superseded ref stops
-   * resolving. The caller drops the ref from `ProductAssets` in the same move;
-   * this service holds no index that could do it for them.
+   * REVOCATION (founder requirement) — deletes the object at the STORE.
+   *
+   * KNOWN HOLE, DO NOT READ THIS AS "THE IMAGE IS GONE" (verifier finding
+   * 2026-07-24, reproduced): deleting the R2 object does NOT reach the caches in
+   * front of it. The read route serves `caches.default` before the bucket and
+   * stamps `max-age=31536000, immutable`, so after a revoke an edge copy keeps
+   * answering 200 and a browser that already fetched it holds the bytes for a
+   * year with no revalidation path. There is no purge here. Until the caching
+   * policy is settled, revocation removes the ORIGIN copy only — it is not a
+   * reliable takedown, and the deferred read-route moderation gate should not be
+   * justified by it. The caller drops the ref from `ProductAssets` in the same
+   * move; this service holds no index that could do it for them.
    */
   async revoke(key: string): Promise<void> {
     await this.store.remove(assertOpaqueMediaKey(key));

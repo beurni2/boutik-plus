@@ -97,9 +97,10 @@ export function sweepIdentityKeys(obj: Record<string, unknown>): void {
  * `supplierId`, and `supplierId` is an unformatted `IdSchema` with no pattern to
  * match — so the check belongs to the PRODUCER, which holds
  * `ProductVersion.supplierId` and compares directly. Stated on its own so its
- * teeth are lockable in a test independent of the schema, and it exists BEFORE
- * the first real ref does (`assetRefs` is [] today): the guard precedes the data,
- * it does not chase it.
+ * teeth are lockable in a test independent of the schema. It was built BEFORE the
+ * first real ref existed — the guard preceded the data rather than chasing it —
+ * and now bites on real populated arrays (BOUTIK-MEDIA-1): media keys are opaque
+ * tokens precisely so a ref can never carry the supplier id this refuses.
  */
 export function assertAssetRefsIdentityFree(assetRefs: readonly string[], supplierId: string): void {
   const needle = supplierId.trim();

@@ -85,8 +85,9 @@ export function buildSupplyProjection(
   // EXACTLY the contract fields — building via explicit literals means a
   // supplier id or pickup point is not even expressible here. `productName` is
   // the product's own name (display data is not identity — the ban is on
-  // supplier identity/contact/pickup). `assetRefs` is [] — the honest empty of
-  // a repo with no image source, never an invented ref or demo URL.
+  // supplier identity/contact/pickup). `assetRefs` carries the product's real
+  // images via `wireAssetRefs` (masterRef excluded, hero first); a product with
+  // no assets yields the honest empty [], never an invented ref or demo URL.
   const projection: SupplyProjection = {
     productVersionId: product.id,
     offerVersion: String(offer.version),

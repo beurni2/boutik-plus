@@ -27,11 +27,18 @@ import type { R2BucketLike } from '../src/media-store.js';
  *
  * NO MODERATION CHECK HERE — deferred by founder ruling to the second-supplier
  * retrofit (the retrofit point is `ProductVersion.moderationState`, canon and
- * already wired; do NOT build a parallel media-moderation machine). REVOCATION is
- * what makes that deferral survivable: a superseded or leaked ref is deleted at
- * the store, so it stops resolving here. Named honestly: today, anyone holding a
- * valid token can fetch that image regardless of the product's moderation state —
- * the token's 122 bits of CSPRNG entropy is the only wall.
+ * already wired; do NOT build a parallel media-moderation machine). Today, anyone
+ * holding a valid token can fetch that image regardless of the product's
+ * moderation state — the token's 122 bits of CSPRNG entropy is the only wall.
+ *
+ * REVOCATION DOES NOT REACH THIS ROUTE (verifier finding 2026-07-24, reproduced —
+ * a revoked image still answers 200 here). Deleting the R2 object leaves both
+ * cache layers intact: the edge copy is served at step 2 below without ever
+ * consulting the bucket, and `immutable` tells browsers never to revalidate for a
+ * year. There is no purge on revoke. The deferral above was justified on the
+ * strength of revocability, so this hole is load-bearing and is the founder's to
+ * rule on (purge on revoke · split browser `max-age` from edge `s-maxage` · or an
+ * explicit accepted-risk with a stated propagation bound).
  */
 
 export interface MediaWorkerEnv {
