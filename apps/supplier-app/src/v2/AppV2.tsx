@@ -24,9 +24,10 @@ import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
 import {
-  S17ReadySheet, S19StockSheet, S20Wizard, S26Studio, S32Argent, S33Trust,
+  S17ReadySheet, S19StockSheet, S26Studio, S32Argent, S33Trust,
   S34Onboard, S40Celebration,
 } from './screens2';
+import { SPublier } from './publier';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
   const stRef = useRef<S | null>(null);
@@ -98,7 +99,15 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
         ) : v.s === 'order' && order ? (
           <S11Detail st={st} d={d} order={order} />
         ) : v.s === 'add' ? (
-          <S20Wizard st={st} d={d} />
+          // SUPPLIER-AUTHORING-1: « Lister un produit » now opens the REAL
+          // authoring screen — one product, one offer, written to the live
+          // offer-service. It replaces the S20 demo wizard, whose « publier »
+          // added a fabricated product to the seeded board and showed a toast.
+          // The machine action (OPEN_WIZ) and the view id ('add') are UNCHANGED,
+          // so §4's transition table still holds; only what renders here moved.
+          // S20Wizard itself still exists in screens2.tsx and is no longer
+          // reachable — it goes with the rest of the seeded board, not here.
+          <SPublier onBack={() => d({ t: 'BACK' })} />
         ) : v.s === 'studio' ? (
           <S26Studio st={st} d={d} />
         ) : v.s === 'trust' ? (

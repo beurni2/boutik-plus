@@ -198,11 +198,17 @@ export function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: ()
     </View>
   );
 }
-export function Input({ label, value, onChangeText, defaultValue }: { label: string; value?: string; onChangeText?: (t: string) => void; defaultValue?: string }) {
+/**
+ * C16 Input. `keyboardType` is OPTIONAL and defaults to the existing behaviour —
+ * no style changes, so the §2 property-diff table is untouched. It exists because
+ * a FCFA field that opens the alphabetic keyboard on a 1GB Android is a failed
+ * screen (SUPPLIER-AUTHORING-1).
+ */
+export function Input({ label, value, onChangeText, defaultValue, keyboardType }: { label: string; value?: string; onChangeText?: (t: string) => void; defaultValue?: string; keyboardType?: 'default' | 'number-pad' }) {
   return (
     <View>
       <Overline>{label}</Overline>
-      <TextInput style={[s.input, { marginTop: C16.labelGap }]} value={value} defaultValue={defaultValue} onChangeText={onChangeText} placeholderTextColor={P.sub} />
+      <TextInput style={[s.input, { marginTop: C16.labelGap }]} value={value} defaultValue={defaultValue} onChangeText={onChangeText} keyboardType={keyboardType} placeholderTextColor={P.sub} />
     </View>
   );
 }

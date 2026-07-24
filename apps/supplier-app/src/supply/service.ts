@@ -74,10 +74,20 @@ export interface CreateOfferInput {
   readonly asOf: string;
 }
 
-/** What the service answers on a create (offer-core's decision, mirrored). */
+/**
+ * What the service answers on a create (offer-core's decision, mirrored).
+ *
+ * `preview` rides on a REAL create only (`services/offer-service/src/offer.ts`
+ * `previewSellerNet` → `computeWaterfall` + `assertQuoteReconciles`, returned on
+ * the `created` decision and forwarded verbatim by the worker). It is the ONLY
+ * seller-net number this app will ever show: the app computes no money, and an
+ * `idempotent` re-tap carries no preview — so the screen shows no figure rather
+ * than a recomputed one.
+ */
 export interface CreateOfferOutcome {
   readonly status: 'created' | 'idempotent' | 'collision' | 'refused';
   readonly reason?: string;
+  readonly preview?: { readonly sellerNetFcfa: number; readonly sellerPlatformFeeFcfa: number };
 }
 
 /**

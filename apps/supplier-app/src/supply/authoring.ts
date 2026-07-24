@@ -61,6 +61,38 @@ export type FieldError =
 /** The category floor mirrored from services/offer-service/src/offer.ts (B4.1: ≥ 5 000). */
 export const CATEGORY_FLOOR_FCFA = 5_000;
 
+/**
+ * THE OFFER WINDOW — a FOURTH field a supplier cannot honestly state, found while
+ * wiring the screen (the founder ruled on three: productCode · supplyMode ·
+ * handlingClass). `OfferDraft` requires `effective` and `expiry`, and they are not
+ * decorative: `services/offer-service/src/projection.ts:83` refuses the read with
+ * `offer_not_effective` when `nowIso < effective || nowIso > expiry`. **Past the
+ * expiry the product silently stops being served to Shop+ — a disappearance with
+ * no error anywhere.**
+ *
+ * A supplier cannot state "until when is this product for sale"; he does not know.
+ * So the window is DERIVED — effective = now, expiry = now + 365 days — and the
+ * screen STATES the consequence in plain words (« Cette offre reste en ligne un
+ * an. ») rather than hiding it. This is not the productCode treatment (visible AND
+ * editable): a date field on a phone is a real UX cost, and the founder has not
+ * ruled here.
+ *
+ * **FLAGGED FOR THE FOUNDER — 365 IS MY NUMBER, NOT HIS.** It is the safest of the
+ * available defaults (a short window fails invisibly; a long one is correctable),
+ * but it is an invented figure and he must ratify or replace it. **HARD GATE: no
+ * edit path exists yet, so an offer published today cannot have its window changed
+ * from the app.**
+ */
+export const OFFER_VALIDITY_DAYS = 365;
+const DAY_MS = 86_400_000;
+
+/** Derive the offer window from the authoring clock. Pure; the caller supplies `now`. */
+export function offerWindow(nowIso: string): { readonly effective: string; readonly expiry: string } {
+  const start = Date.parse(nowIso);
+  if (!Number.isFinite(start)) throw new Error(`offerWindow: unparseable clock: ${nowIso}`);
+  return { effective: nowIso, expiry: new Date(start + OFFER_VALIDITY_DAYS * DAY_MS).toISOString() };
+}
+
 export type ValidationResult =
   | { readonly ok: true; readonly command: CreateOfferInput }
   | { readonly ok: false; readonly errors: readonly FieldError[] };
@@ -152,7 +184,13 @@ export type PublishState =
   | { readonly kind: 'not_configured' }
   | { readonly kind: 'invalid'; readonly errors: readonly FieldError[] }
   | { readonly kind: 'sending' }
-  | { readonly kind: 'published'; readonly offerId: string }
+  /**
+   * `sellerNetFcfa` is the SERVICE's own figure (`preview.sellerNetFcfa`, from the
+   * pinned waterfall) and is ABSENT on an idempotent re-tap, which carries no
+   * preview. The screen renders nothing where it is absent — never a local
+   * recomputation, never a remembered figure from an earlier attempt.
+   */
+  | { readonly kind: 'published'; readonly offerId: string; readonly sellerNetFcfa?: number }
   /** The service answered, and declined — its own words, never a generic message. */
   | { readonly kind: 'refused'; readonly reason: string }
   /** The call failed — the status and the service's words, or the network cause. */
@@ -186,7 +224,10 @@ export async function publish(
 
   const status = res.value.status;
   if (status === 'created' || status === 'idempotent') {
-    return { kind: 'published', offerId: built.command.offerId };
+    const net = res.value.preview?.sellerNetFcfa;
+    return net === undefined
+      ? { kind: 'published', offerId: built.command.offerId }
+      : { kind: 'published', offerId: built.command.offerId, sellerNetFcfa: net };
   }
   // 'collision' | 'refused' — the service decided against it; surface its words.
   return { kind: 'refused', reason: res.value.reason ? `${status}: ${res.value.reason}` : status };

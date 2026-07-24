@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORY_FLOOR_FCFA,
+  OFFER_VALIDITY_DAYS,
   buildCreateOffer,
+  offerWindow,
   publish,
   type AuthoringContext,
   type AuthoringForm,
@@ -141,6 +143,46 @@ describe('publish states — none of them looks like success without being one',
     const state = await publish(demo, { ...FORM, name: '' }, CTX);
     expect(state.kind).toBe('invalid');
     expect(demo.written).toHaveLength(0);
+  });
+});
+
+describe('the seller net shown after publishing is the SERVICE’s, never the app’s', () => {
+  it('carries preview.sellerNetFcfa through UNCHANGED when the service returned one', async () => {
+    const state = await publish(
+      new DemoSupplyService({ ok: true, value: { status: 'created', preview: { sellerNetFcfa: 8_500, sellerPlatformFeeFcfa: 500 } } }),
+      FORM, CTX,
+    );
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1', sellerNetFcfa: 8_500 });
+  });
+
+  it('an IDEMPOTENT re-tap carries NO preview — so no figure is shown, never a recomputed one', async () => {
+    const state = await publish(new DemoSupplyService({ ok: true, value: { status: 'idempotent' } }), FORM, CTX);
+    expect(state).toEqual({ kind: 'published', offerId: 'offer-1' });
+    expect('sellerNetFcfa' in state).toBe(false); // absent, not 0, not derived from the form
+  });
+});
+
+describe('the offer window — derived, and its consequence is the reason it is asserted', () => {
+  it('effective is the authoring clock and expiry is exactly +365 days', () => {
+    const w = offerWindow('2026-07-24T21:00:00.000Z');
+    expect(w.effective).toBe('2026-07-24T21:00:00.000Z');
+    expect(w.expiry).toBe('2027-07-24T21:00:00.000Z');
+    expect(OFFER_VALIDITY_DAYS).toBe(365);
+  });
+
+  it('the window SPANS the read-path check that would otherwise hide the product', () => {
+    // projection.ts:83 refuses with `offer_not_effective` when now < effective || now > expiry.
+    const now = '2026-07-24T21:00:00.000Z';
+    const w = offerWindow(now);
+    expect(now < w.effective).toBe(false); // servable the instant it is published
+    expect(now > w.expiry).toBe(false);
+    // …and a day past the expiry it is NOT — the disappearance this default bounds
+    const past = new Date(Date.parse(w.expiry) + 86_400_000).toISOString();
+    expect(past > w.expiry).toBe(true);
+  });
+
+  it('refuses an unparseable clock rather than minting an offer that never serves', () => {
+    expect(() => offerWindow('pas une date')).toThrow(/unparseable clock/);
   });
 });
 

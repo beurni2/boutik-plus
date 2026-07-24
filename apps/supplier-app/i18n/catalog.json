@@ -1240,5 +1240,179 @@
     "fr": "Cette confirmation n'a pas pu être enregistrée. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "publier.non_configure",
+    "fr": "Pas encore relié au service. Rien ne sera envoyé pour l'instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.titre",
+    "fr": "Nouveau produit",
+    "register": "selling",
+    "screenClass": "selling_surface"
+  },
+  {
+    "key": "publier.action",
+    "fr": "Publier",
+    "register": "selling",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.envoi",
+    "fr": "Envoi en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.publie",
+    "fr": "C'est publié. Votre produit est en ligne.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.refuse",
+    "fr": "Pas publié. Voici la raison :",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.echec",
+    "fr": "L'envoi n'a pas abouti. Voici ce que le service a répondu :",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.sans_photo",
+    "fr": "Ce produit part sans photo. Vous pourrez en ajouter plus tard.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.validite",
+    "fr": "Cette offre reste en ligne un an.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.reference",
+    "fr": "Référence de l'offre",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.net",
+    "fr": "Vous recevez",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.retour",
+    "fr": "Retour aux produits",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_nom",
+    "fr": "Nom du produit",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_code",
+    "fr": "Code produit",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_code_aide",
+    "fr": "Proposé pour vous. Vous pouvez le changer.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_categorie",
+    "fr": "Catégorie",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_zone",
+    "fr": "Zone",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_prix",
+    "fr": "Prix de base",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_commission",
+    "fr": "Commission revendeur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_stock",
+    "fr": "Quantité disponible",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.err_nom",
+    "fr": "Le nom manque.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_code",
+    "fr": "Le code produit manque.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_categorie",
+    "fr": "La catégorie manque.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_zone",
+    "fr": "La zone manque.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_prix",
+    "fr": "Le prix doit être un nombre entier.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_prix_plancher",
+    "fr": "Le prix de base est de 5 000 FCFA au minimum.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_commission",
+    "fr": "La commission doit être un nombre entier.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_stock",
+    "fr": "La quantité doit être un nombre entier.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

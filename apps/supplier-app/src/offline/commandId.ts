@@ -39,6 +39,27 @@ if (typeof g.crypto?.randomUUID !== 'function' && typeof Crypto.randomUUID === '
   }
 }
 
+// SUPPLIER-AUTHORING-1 — the SAME surfacing for `getRandomValues`, which React
+// Native also does not provide and which `src/supply/product-code.ts` draws its
+// product-code suffix entropy from. Kept as a SEPARATE block on purpose: the one
+// above is the proven command-id path and stays byte-identical. No Math.random
+// fallback here either — if no CSPRNG can be wired the global stays absent and the
+// draw THROWS, which the authoring screen surfaces as an honest failure rather
+// than minting a code from a weak source.
+const gr = globalThis as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } };
+if (typeof gr.crypto?.getRandomValues !== 'function' && typeof Crypto.getRandomValues === 'function') {
+  const getRandomValues = (a: Uint8Array): Uint8Array => Crypto.getRandomValues(a);
+  if (gr.crypto && Object.isExtensible(gr.crypto)) {
+    gr.crypto.getRandomValues = getRandomValues;
+  } else {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { ...(gr.crypto ?? {}), getRandomValues },
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+
 /**
  * Mint a fresh command_id ONCE, at command creation, from the OS CSPRNG (canon
  * `mintCommandId`). The caller MUST persist it (via the durable queue) and NEVER
