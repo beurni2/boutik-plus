@@ -1,7 +1,7 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import { resolveOfferStore } from '../src/offer-store.js';
-import { rejectUnauthorizedWrite, type WriteAuthEnv } from './auth.js';
+import { keyAuthorized, rejectUnauthorizedWrite, unauthorized, type WriteAuthEnv } from './auth.js';
 
 /**
  * THE COMBINED WORKER (BOUTIK-OFFER-DURABLE-1, mirroring shop-plus's
@@ -30,6 +30,14 @@ export default {
     const { pathname } = new URL(request.url);
     // POST /offers (the founder-seed write path) → the offer DO router.
     if (request.method === 'POST' && pathname === '/offers') return offerRouter.fetch(request, env);
+
+    // GET /offers (the founder's admin list) is a GET, so the write gate above
+    // skipped it — key-gate it EXPLICITLY here with the same key before any
+    // dispatch, then hand to the offer DO router (which enriches with live fields).
+    if (request.method === 'GET' && pathname === '/offers') {
+      if (!(await keyAuthorized(request, env))) return unauthorized();
+      return offerRouter.fetch(request, env);
+    }
 
     // GET /supply-projection/:pv (the wire's read side, open) + health → the
     // supply fetch over the DURABLE store, resolved here against the DO namespace

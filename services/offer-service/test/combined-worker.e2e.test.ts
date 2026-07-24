@@ -115,6 +115,44 @@ describe('combined Worker — durable offers on real workerd', () => {
     expect(((await replay.json()) as { status: string }).status).toBe('idempotent');
   });
 
+  it('ADMIN LIST: GET /offers is 401 without the key (a GET, but still gated at the composition root)', async () => {
+    const noKey = await mf.dispatchFetch('http://o/offers', { method: 'GET' });
+    expect(noKey.status).toBe(401);
+  });
+
+  it('ADMIN LIST: GET /offers with the key returns the RICHER rows with LIVE fields, and no seller-net', async () => {
+    // a second offer so the list has more than one row, with distinct live values
+    const SEED2 = {
+      ...SEED,
+      commandId: 'seed-2',
+      offerId: 'offer-2',
+      product: { ...SEED.product, id: 'pv-2', name: 'Sac cuir artisanal (démo)' },
+      draft: { ...SEED.draft, productVersionId: 'pv-2', basePrice: 15_000, resellerCommission: 1_500 },
+      available: 3,
+    };
+    await mf.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(SEED2) });
+
+    const res = await mf.dispatchFetch('http://o/offers', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    expect(res.status).toBe(200);
+    const rows = (await res.json()) as { offerId: string; productVersionId: string; available: number; basePrice: number; resellerCommission: number; name: string }[];
+    const byOffer = Object.fromEntries(rows.map((r) => [r.offerId, r]));
+    // founder-#001 — LIVE fields read off the entry
+    expect(byOffer['offer-founder-001']).toEqual({
+      offerId: 'offer-founder-001',
+      productVersionId: PV,
+      available: 5,
+      basePrice: 10_000,
+      resellerCommission: 1_000,
+      name: 'Pagne tissé Faso (démo)',
+    });
+    // the second offer, its own live values
+    expect(byOffer['offer-2']?.available).toBe(3);
+    expect(byOffer['offer-2']?.basePrice).toBe(15_000);
+    expect(byOffer['offer-2']?.name).toBe('Sac cuir artisanal (démo)');
+    // NO seller-net anywhere in the list — money stays a preview
+    expect(JSON.stringify(rows)).not.toMatch(/sellerNet|sellerPlatformFee|8500|13500/);
+  });
+
   it('SURVIVES RESTART: after disposing and recreating the Worker on the SAME persist dir, the offer is still there', async () => {
     await mf.dispose(); // tear the Worker down entirely
     mf = mkWorker(persist, true); // fresh Worker, same on-disk DO storage

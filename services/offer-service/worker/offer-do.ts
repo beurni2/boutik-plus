@@ -21,9 +21,22 @@ import { decideCreateOffer, OfferAvailableError, type CreateOfferCommand, type C
 
 const ENTRY_KEY = 'offer-entry';
 const POINTER_KEY = 'pv-pointer';
+const INDEX_KEY = 'index-list';
 
 interface PvPointer {
   offerId: string;
+}
+
+/**
+ * The directory-index row (BOUTIK-OFFER-DURABLE-1 admin list). ONLY the immutable
+ * identifiers are stored — the mutable fields (available, basePrice,
+ * resellerCommission, product name) are read LIVE off the offer entry at list
+ * time (founder ruling), so the list can never show stale state. Write-once per
+ * offer, append-only.
+ */
+interface IndexRow {
+  offerId: string;
+  productVersionId: string;
 }
 
 export class OfferDO {
@@ -74,6 +87,26 @@ export class OfferDO {
       return Response.json(ptr);
     }
 
+    // ── directory-index-instance ops (idFromName('index')) — the admin list ───
+    if (request.method === 'PUT' && pathname === '/index/add') {
+      let row: IndexRow;
+      try {
+        row = (await request.json()) as IndexRow;
+      } catch {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
+      const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
+      if (!list.some((r) => r.offerId === row.offerId)) {
+        list.push({ offerId: row.offerId, productVersionId: row.productVersionId });
+        await this.state.storage.put(INDEX_KEY, list);
+      }
+      return Response.json({ ok: true });
+    }
+    if (request.method === 'GET' && pathname === '/index') {
+      const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
+      return Response.json(list);
+    }
+
     return Response.json({ error: 'not_found' }, { status: 404 });
   }
 }
@@ -86,18 +119,29 @@ const offerStub = (env: Env, offerId: string): DurableObjectStub =>
   env.OFFER.get(env.OFFER.idFromName(offerId));
 const pvStub = (env: Env, productVersionId: string): DurableObjectStub =>
   env.OFFER.get(env.OFFER.idFromName(`pv:${productVersionId}`));
+// The single directory-index instance. ONE object, written only on offer
+// creation and read only by the founder's admin list — a contention profile
+// utterly unlike the per-productVersion pointers, which sit on the READ path and
+// are touched by every wire pull. That difference is why the single-object choice
+// (rejected for the pointer) is correct here (JOURNAL — do not "fix" one to match
+// the other). A single index has a size ceiling — irrelevant at this scale, not
+// infinite.
+const indexStub = (env: Env): DurableObjectStub =>
+  env.OFFER.get(env.OFFER.idFromName('index'));
 
 const forward = async (res: Response, status = res.status): Promise<Response> =>
   new Response(await res.text(), { status, headers: { 'Content-Type': 'application/json' } });
 
 /**
- * Router — the durable offer surface used by `DurableOfferStore`:
- *   POST /offers                       create (+ writes the pv pointer on 'created')
- *   GET  /supply-entry/:productVersionId  the READ resolution — pointer → offer entry (or 404)
- * The DO name IS the offerId (or 'pv:'+productVersionId); one authority per offer
- * by construction. These are INTERNAL router paths, reached only through the
- * store shim — the external surface (POST /offers write, GET /supply-projection
- * read) lives in worker/index.ts.
+ * Router — the durable offer surface:
+ *   POST /offers                       create (+ writes the pv pointer AND the index row on 'created')
+ *   GET  /supply-entry/:productVersionId  the READ resolution — pointer → offer entry (or 404) [internal, via the store shim]
+ *   GET  /offers                       THE ADMIN LIST — the index rows enriched with LIVE fields off each entry
+ * The DO name IS the offerId (or 'pv:'+productVersionId, or 'index'); one
+ * authority per offer by construction. POST /offers + GET /supply-entry are
+ * reached through the store shim; GET /offers is the founder's key-gated admin
+ * list (the gate is at the composition root — worker/index.ts — since the write
+ * gate skips GETs).
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -117,13 +161,50 @@ export default {
         new Request('https://do/entry/create', { method: 'POST', body: JSON.stringify(cmd) }),
       );
       const decision = (await res.clone().json()) as CreateOfferDecision;
-      // write-once: the pv pointer lands on the REAL create only.
+      // write-once: the pv pointer + the immutable index row land on the REAL create only.
       if (decision.status === 'created') {
         await pvStub(env, decision.entry.product.id).fetch(
           new Request('https://do/pointer', { method: 'PUT', body: JSON.stringify({ offerId: cmd.offerId }) }),
         );
+        await indexStub(env).fetch(
+          new Request('https://do/index/add', {
+            method: 'PUT',
+            body: JSON.stringify({ offerId: cmd.offerId, productVersionId: decision.entry.product.id }),
+          }),
+        );
       }
       return forward(res);
+    }
+
+    // THE ADMIN LIST — key-gated at the composition root (a GET, so the write gate
+    // skips it). Reads the write-once index, then the LIVE fields off each offer
+    // entry (available / basePrice / resellerCommission / product name), so the
+    // list never shows stale state. No seller-net: money stays a preview.
+    if (request.method === 'GET' && pathname === '/offers') {
+      const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
+      const rows = (await idxRes.json()) as IndexRow[];
+      const out: {
+        offerId: string;
+        productVersionId: string;
+        available: number;
+        basePrice: number;
+        resellerCommission: number;
+        name: string;
+      }[] = [];
+      for (const r of rows) {
+        const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
+        if (eRes.status !== 200) continue; // an orphaned index row (offer gone) is honestly skipped
+        const entry = (await eRes.json()) as OfferEntry;
+        out.push({
+          offerId: r.offerId,
+          productVersionId: r.productVersionId,
+          available: entry.available,
+          basePrice: entry.offer.basePrice,
+          resellerCommission: entry.offer.resellerCommission,
+          name: entry.product.name,
+        });
+      }
+      return Response.json(out);
     }
 
     const m = /^\/supply-entry\/([^/]+)$/.exec(pathname);
