@@ -4,9 +4,18 @@
 // draw its idempotency key from `Math.random` — only the OS CSPRNG. `Math.random()`
 // carries only its SEED's entropy (unproven on a cold-booted Android-Go device), so
 // two commands can collide into one idempotency key — a double-charge or a lost
-// action. This gate scans every mint-path source file (`command-id*` / `commandId*`)
-// and fails the build on any `Math.random`, and requires each to actually draw from a
-// CSPRNG (randomUUID/getRandomValues) so an empty file cannot pass vacuously.
+// action. This gate scans every mint-path source file and fails the build on any
+// `Math.random`, and requires each to actually draw from a CSPRNG
+// (randomUUID/getRandomValues) so an empty file cannot pass vacuously.
+//
+// SCOPE WIDENED (BOUTIK-MEDIA-1, founder ruling 2026-07-24): originally
+// `command-id*`/`commandId*` only. `media-key*`/`mediaKey*` is now scanned too —
+// BOUTIK-MEDIA-1 mints media object keys from `crypto.randomUUID`, and with no
+// image moderation and no read-route moderation check that token's entropy is the
+// ONLY thing between an uploaded image and someone enumerating URLs. A
+// `Math.random` key there is the same class of defect as a colliding command_id,
+// so it belongs under the same gate. Widening a scan's scope is not weakening the
+// gate: the Math.random check and the CSPRNG non-vacuity token are unchanged.
 //
 // Adapted from canon UNCHANGED in logic; the ONLY change is the scan root. Canon's
 // mint path lives under `packages/`; boutik's lives at its isolated offline seam
@@ -28,7 +37,7 @@ function walk(dir, acc) {
     if (statSync(p).isDirectory()) {
       if (name === 'node_modules' || name === 'dist' || name === 'test') continue;
       walk(p, acc);
-    } else if (/(command-id|commandId)[^/\\]*\.(ts|mjs|js)$/.test(name)) {
+    } else if (/(command-id|commandId|media-key|mediaKey)[^/\\]*\.(ts|mjs|js)$/.test(name)) {
       acc.push(p);
     }
   }

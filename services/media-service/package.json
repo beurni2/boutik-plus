@@ -2,7 +2,7 @@
   "name": "@boutik/media-service",
   "version": "0.0.1",
   "private": true,
-  "description": "Workers service stub (WO-B0.1): folder, types, health endpoint — no features.",
+  "description": "Product media (BOUTIK-MEDIA-1): validate → store in private R2 → serve by opaque token.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,8 +10,10 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json",
+    "test": "vitest run",
+    "bundle:worker": "esbuild worker/index.ts --bundle --format=esm --outfile=dist/worker/worker.mjs --platform=neutral --conditions=import",
+    "pretest": "pnpm bundle:worker"
   },
   "dependencies": {
     "@boutik/observability": "workspace:*",
@@ -19,6 +21,9 @@
   },
   "devDependencies": {
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@cloudflare/workers-types": "^4.20250705.0",
+    "esbuild": "^0.25.5",
+    "miniflare": "^4.20250705.0"
   }
 }

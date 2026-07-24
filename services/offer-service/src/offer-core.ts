@@ -1,5 +1,6 @@
-import { ProductVersionSchema, type ProductVersion, type SupplierOffer } from '@platform/contracts';
+import { ProductAssetsSchema, ProductVersionSchema, type ProductAssets, type ProductVersion, type SupplierOffer } from '@platform/contracts';
 import { OfferBook, type NetPreview, type OfferDraft } from './offer.js';
+import { ASSET_REFS_MAX, wireAssetRefs } from './projection.js';
 
 /**
  * OFFER DECISION CORE (BOUTIK-OFFER-DURABLE-1). The pure per-offer transition,
@@ -37,6 +38,15 @@ export interface OfferEntry {
   /** Real supply-state write time; the endpoint returns it verbatim (truthful staleness). */
   readonly asOf: string;
   readonly createCommandId: string;
+  /**
+   * The product's images (BOUTIK-MEDIA-1). Canon `ProductAssets`, carried on the
+   * BOUTIK-LOCAL command — `ProductVersion` has no assets field and canon was
+   * deliberately NOT changed for a linkage only this producer needs (founder
+   * ruling). This IS the key→product link the opaque media keys keep out of the
+   * URL: the durable offer record holds it. OPTIONAL — an offer may legitimately
+   * have no images, and then the wire carries `[]`.
+   */
+  readonly assets?: ProductAssets;
 }
 
 /**
@@ -54,13 +64,22 @@ export interface CreateOfferCommand {
   readonly draft: OfferDraft;
   readonly available: number;
   readonly asOf: string;
+  /** The product's images — optional; boundary-validated and capped at create. */
+  readonly assets?: ProductAssets;
 }
 
 export type CreateOfferDecision =
   | { readonly status: 'created'; readonly entry: OfferEntry; readonly preview: NetPreview }
   | { readonly status: 'idempotent'; readonly entry: OfferEntry }
   | { readonly status: 'collision'; readonly existing: OfferEntry }
-  | { readonly status: 'refused'; readonly reason: 'below_category_floor' | 'publisher_not_eligible'; readonly floor?: number };
+  | {
+      readonly status: 'refused';
+      readonly reason: 'below_category_floor' | 'publisher_not_eligible' | 'too_many_asset_refs';
+      readonly floor?: number;
+      /** On `too_many_asset_refs`: the cap and what was actually presented — the caller can read why. */
+      readonly max?: number;
+      readonly presented?: number;
+    };
 
 export class OfferAvailableError extends Error {
   override readonly name = 'OfferAvailableError';
@@ -91,6 +110,18 @@ export function decideCreateOffer(
     throw new OfferAvailableError(`declared available must be an integer ≥ 0: ${JSON.stringify(cmd.available)}`);
   }
   const product = ProductVersionSchema.parse(cmd.product); // boundary validation — never trust the wire
+  // Images: boundary-validate the canon shape, then CAP THE WIRE REFS HERE — at
+  // the create command, never at the wire (founder ruling). The refusal is TYPED
+  // and names both numbers; the array is NEVER truncated, because dropping a
+  // supplier's photograph without telling them is the same class of dishonesty as
+  // a silent demo fallback. `masterRef` is excluded from the count — it never travels.
+  const assets = cmd.assets === undefined ? undefined : ProductAssetsSchema.parse(cmd.assets);
+  const refCount = wireAssetRefs(assets).length;
+  if (refCount > ASSET_REFS_MAX) {
+    return {
+      decision: { status: 'refused', reason: 'too_many_asset_refs', max: ASSET_REFS_MAX, presented: refCount },
+    };
+  }
   const outcome = new OfferBook().create(cmd.draft, true); // the REAL command path (previewSellerNet runs inside)
   if (!outcome.ok) {
     if (outcome.reason === 'below_category_floor') {
@@ -107,6 +138,7 @@ export function decideCreateOffer(
     available: cmd.available,
     asOf: cmd.asOf,
     createCommandId: cmd.commandId,
+    ...(assets !== undefined ? { assets } : {}), // exactOptionalPropertyTypes: absent, never `undefined`
   };
   return { decision: { status: 'created', entry, preview: outcome.preview }, next: entry };
 }
