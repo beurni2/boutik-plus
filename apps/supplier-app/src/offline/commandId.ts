@@ -39,6 +39,43 @@ if (typeof g.crypto?.randomUUID !== 'function' && typeof Crypto.randomUUID === '
   }
 }
 
+// SUPPLIER-AUTHORING-1 — the SAME surfacing for `getRandomValues`, which React
+// Native also does not provide and which `src/supply/product-code.ts` draws its
+// product-code suffix entropy from. No Math.random fallback here either — if no
+// CSPRNG can be wired the global stays absent and the draw THROWS, which the
+// authoring screen surfaces as an honest failure rather than minting a code from
+// a weak source.
+//
+// THE DEFECT THIS SHAPE EXISTS TO AVOID (fresh-context verifier, 2026-07-24):
+// the block above is separate in the SOURCE, but both blocks write the SAME
+// global, so "byte-identical source" is not "no runtime effect". A spread
+// (`{ ...gr.crypto }`) copies OWN ENUMERABLE properties only. A real `Crypto`
+// instance carries its methods on the PROTOTYPE — so on a runtime whose
+// `crypto` is non-extensible and already has `randomUUID` (block 1 therefore
+// skipped), a spread-based replacement here would silently DROP `randomUUID`,
+// `mintCommandId()` would throw, and publishing would become impossible. The
+// replacement below therefore carries any existing `randomUUID` forward
+// EXPLICITLY, bound to its original receiver, instead of trusting the spread.
+const gr = globalThis as {
+  crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array; randomUUID?: () => string };
+};
+if (typeof gr.crypto?.getRandomValues !== 'function' && typeof Crypto.getRandomValues === 'function') {
+  const getRandomValues = (a: Uint8Array): Uint8Array => Crypto.getRandomValues(a);
+  if (gr.crypto && Object.isExtensible(gr.crypto)) {
+    gr.crypto.getRandomValues = getRandomValues;
+  } else {
+    const existing = gr.crypto;
+    const carried = typeof existing?.randomUUID === 'function'
+      ? { randomUUID: existing.randomUUID.bind(existing) } // prototype methods survive
+      : {};
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { ...(existing ?? {}), ...carried, getRandomValues },
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+
 /**
  * Mint a fresh command_id ONCE, at command creation, from the OS CSPRNG (canon
  * `mintCommandId`). The caller MUST persist it (via the durable queue) and NEVER

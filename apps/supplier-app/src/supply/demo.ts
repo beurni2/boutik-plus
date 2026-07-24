@@ -22,10 +22,25 @@ import type { CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplyService
  * products, no success that did not happen.
  */
 
-/** Searched for by the bundle-absence gate. MUST NOT appear in any app source file. */
+/**
+ * THE BUNDLE FINGERPRINT. Searched for inside the real Metro/Hermes artifact by
+ * `scripts/gates/bundle-absence.mjs`, and MUST NOT appear in any app source file.
+ *
+ * It is a STRING LITERAL — data — deliberately: a minifier may rename any class
+ * or function it likes, but it cannot delete a string the program still holds.
+ * That is why the gate keys on this and treats `DemoSupplyService` as a
+ * secondary signal only: the gate must fail on PRESENCE, not on naming fashion.
+ *
+ * And it is REACHABLE FROM THE CLASS (see `sentinel` below) rather than a
+ * free-floating export, so it cannot be dropped as an unused binding while the
+ * adapter itself is still in the graph.
+ */
 export const DEMO_SUPPLY_SENTINEL = 'BOUTIK_DEMO_SUPPLY_ADAPTER_MUST_NOT_SHIP';
 
 export class DemoSupplyService implements SupplyServicePort {
+  /** Ties the fingerprint to the class — see DEMO_SUPPLY_SENTINEL. */
+  readonly sentinel: string = DEMO_SUPPLY_SENTINEL;
+
   /** Every command handed to it, in order — the assertion surface for tests. */
   readonly written: CreateOfferInput[] = [];
 

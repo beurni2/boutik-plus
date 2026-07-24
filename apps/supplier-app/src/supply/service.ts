@@ -74,10 +74,20 @@ export interface CreateOfferInput {
   readonly asOf: string;
 }
 
-/** What the service answers on a create (offer-core's decision, mirrored). */
+/**
+ * What the service answers on a create (offer-core's decision, mirrored).
+ *
+ * `preview` rides on a REAL create only (`services/offer-service/src/offer.ts`
+ * `previewSellerNet` → `computeWaterfall` + `assertQuoteReconciles`, returned on
+ * the `created` decision and forwarded verbatim by the worker). It is the ONLY
+ * seller-net number this app will ever show: the app computes no money, and an
+ * `idempotent` re-tap carries no preview — so the screen shows no figure rather
+ * than a recomputed one.
+ */
 export interface CreateOfferOutcome {
   readonly status: 'created' | 'idempotent' | 'collision' | 'refused';
   readonly reason?: string;
+  readonly preview?: { readonly sellerNetFcfa: number; readonly sellerPlatformFeeFcfa: number };
 }
 
 /**
@@ -85,12 +95,69 @@ export interface CreateOfferOutcome {
  * non-2xx is `{ok:false}` with a readable reason; nothing throws up into the UI,
  * because a failed write is pending or refused, never « publié ».
  */
+/**
+ * WHY THE CAUSE IS TYPED (fresh-context verifier finding, 2026-07-24): the screen
+ * used to render one sentence — « voici ce que le service a répondu » — for all
+ * three failures. On the two commonest ones the service answered NOTHING: the
+ * network never reached it, or no id could be minted. Saying otherwise is a
+ * user-facing falsehood, and on a phone in Ouagadougou the network case is the
+ * likely one. The cause travels so the screen can be truthful about which
+ * happened, and so `network` can be a DESIGNED offline state rather than a red
+ * wall with a raw English error in it.
+ */
+export type FailureCause =
+  /** Nothing left the phone — offline, DNS, TLS. The service was never reached. */
+  | 'network'
+  /** The service answered, with a non-2xx. Its status and body are the reason. */
+  | 'http'
+  /** The service answered 2xx with something this app cannot read as a decision. */
+  | 'unreadable'
+  /**
+   * The PHONE could not prepare the command (no CSPRNG for the ids). Never
+   * produced by this seam — the caller sets it — but it lives in the same union
+   * because the screen must tell those four apart, and only `http` may claim the
+   * service said anything.
+   */
+  | 'device';
+
 export type ServiceResult<T> =
   | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly cause: FailureCause; readonly reason: string };
 
 export interface SupplyServicePort {
   createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>>;
+}
+
+const DECISION_STATUSES = ['created', 'idempotent', 'collision', 'refused'] as const;
+
+/**
+ * VALIDATE THE RESPONSE AT THE BOUNDARY — money crosses here (verifier finding,
+ * 2026-07-24). The old code did `JSON.parse(text) as CreateOfferOutcome`, which
+ * is a compile-time lie: a 2xx body of `null` made `res.value.status` a TypeError
+ * that threw out of `publish()` mid-render, and a `sellerNetFcfa` of `null` or a
+ * string reached `formatF` and rendered a wrong figure — or crashed — AFTER the
+ * offer was already created. Zod is unavailable at runtime here (Metro law: no
+ * `@platform/*` import in app code), so this is hand-written and deliberately
+ * strict: an unknown status or a non-finite net is `unreadable`, never a
+ * half-trusted decision.
+ */
+export function readOutcome(body: unknown): CreateOfferOutcome | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as Record<string, unknown>;
+  const status = DECISION_STATUSES.find((s) => s === b['status']);
+  if (status === undefined) return null;
+  const reason = typeof b['reason'] === 'string' ? { reason: b['reason'] } : {};
+
+  const raw = b['preview'];
+  if (typeof raw !== 'object' || raw === null) return { status, ...reason };
+  const p = raw as Record<string, unknown>;
+  const net = p['sellerNetFcfa'];
+  const fee = p['sellerPlatformFeeFcfa'];
+  // A malformed preview drops the FIGURE, not the decision: the offer really was
+  // created, so refusing the whole response would be the bigger lie. No figure
+  // beats a wrong one.
+  if (!Number.isFinite(net) || !Number.isFinite(fee)) return { status, ...reason };
+  return { status, ...reason, preview: { sellerNetFcfa: net as number, sellerPlatformFeeFcfa: fee as number } };
 }
 
 /** The REAL client. Every failure path returns a reason the device can display —
@@ -109,21 +176,27 @@ export class HttpSupplyService implements SupplyServicePort {
       });
     } catch (err) {
       // Offline / DNS / TLS — named, because « échec réseau » with no cause is
-      // undiagnosable from a phone in Ouagadougou.
-      return { ok: false, reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+      // undiagnosable from a phone in Ouagadougou. NOTHING was sent.
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
     const text = await res.text();
     if (!res.ok) {
       // Surface the SERVICE's own words (401 unauthorized · 400 malformed · a typed
       // refusal), never a generic failure — the status plus its body is the whole
       // diagnostic surface for an app-only flow.
-      return { ok: false, reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+      return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     }
+    let parsed: unknown;
     try {
-      return { ok: true, value: JSON.parse(text) as CreateOfferOutcome };
+      parsed = JSON.parse(text);
     } catch {
-      return { ok: false, reason: `réponse illisible: ${text.slice(0, 300)}` };
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
     }
+    const outcome = readOutcome(parsed);
+    if (outcome === null) {
+      return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    }
+    return { ok: true, value: outcome };
   }
 }
 

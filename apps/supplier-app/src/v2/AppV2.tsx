@@ -9,8 +9,13 @@
  * place they touch setTimeout. 'tween'/'haptic' are inert here for now — §7
  * motion wiring is sequenced LAST per the standing value-match-first order.
  *
- * NOT the registered root: E1 App.tsx stays root — the switch to AppV2 is a
- * LISTED founder decision, not taken silently.
+ * THE REGISTERED PREVIEW ROOT. This comment used to say the opposite ("NOT the
+ * registered root: E1 App.tsx stays root") and was stale — corrected here rather
+ * than left to mislead the next reader, since this commit edits this file.
+ * `expo-preview.yml` defaults `EXPO_PUBLIC_ROOT` to `v2` (founder ruling
+ * 2026-07-17) and `index.ts` mounts AppV2 for that value, so every preview
+ * publish — main-push and bare dispatch alike — lands HERE. E1's App.tsx stays
+ * reachable dispatch-only via `root=e1`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
@@ -24,9 +29,10 @@ import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
 import {
-  S17ReadySheet, S19StockSheet, S20Wizard, S26Studio, S32Argent, S33Trust,
+  S17ReadySheet, S19StockSheet, S26Studio, S32Argent, S33Trust,
   S34Onboard, S40Celebration,
 } from './screens2';
+import { SPublier } from './publier';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
   const stRef = useRef<S | null>(null);
@@ -98,7 +104,15 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
         ) : v.s === 'order' && order ? (
           <S11Detail st={st} d={d} order={order} />
         ) : v.s === 'add' ? (
-          <S20Wizard st={st} d={d} />
+          // SUPPLIER-AUTHORING-1: « Lister un produit » now opens the REAL
+          // authoring screen — one product, one offer, written to the live
+          // offer-service. It replaces the S20 demo wizard, whose « publier »
+          // added a fabricated product to the seeded board and showed a toast.
+          // The machine action (OPEN_WIZ) and the view id ('add') are UNCHANGED,
+          // so §4's transition table still holds; only what renders here moved.
+          // S20Wizard itself still exists in screens2.tsx and is no longer
+          // reachable — it goes with the rest of the seeded board, not here.
+          <SPublier onBack={() => d({ t: 'BACK' })} />
         ) : v.s === 'studio' ? (
           <S26Studio st={st} d={d} />
         ) : v.s === 'trust' ? (
