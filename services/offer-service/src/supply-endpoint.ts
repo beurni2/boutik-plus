@@ -121,7 +121,7 @@ export function serveProjection(service: string, entry: OfferEntry | undefined, 
   if (!entry) {
     return { ok: false, status: 404, body: { service, status: 'not_found', reason: 'unknown_product_version' } };
   }
-  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso);
+  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets);
   if (!built.ok) {
     // the projection.ts refusal ladder surfaces verbatim — never a 200-empty
     return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };

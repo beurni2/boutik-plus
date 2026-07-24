@@ -15,3 +15,8 @@ export const handleRequest = makeHealthFetch(SERVICE_NAME);
 
 export default { fetch: handleRequest };
 export * from './premium-frame.js';
+// BOUTIK-MEDIA-1 — the real byte path: the R2-backed store boundary, the opaque
+// object key, and the validate→store→revoke pipeline.
+export * from './media-store.js';
+export * from './media-key.js';
+export * from './media.js';

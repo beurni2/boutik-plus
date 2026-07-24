@@ -1,0 +1,26 @@
+# BOUTIK-MEDIA-1 — the media Worker deploy config: the read route + the PRIVATE
+# R2 bucket that backs it. No Durable Object here (this service holds no durable
+# index — the key→product link is the offer entry's ProductAssets in offer-service).
+#
+# UNPROVEN UNTIL A REAL `wrangler deploy` RUNS. Miniflare binds R2 by its OWN test
+# config, never this file, so the binding below is validated only by an actual
+# deploy. The same is true of the edge cache: `caches.default` is a no-op in some
+# local runtimes and only demonstrably caches on real Cloudflare.
+
+name = "media-service"
+main = "dist/worker/worker.mjs"
+compatibility_date = "2025-07-05"
+
+# THE PRIVATE BUCKET. Never exposed as a public custom domain and never given a
+# public r2.dev URL: the ONLY path to an image is `GET /media/{token}` on this
+# Worker. A public bucket would make the opaque token pointless — the object
+# names would be listable at the bucket, not merely unguessable per-URL.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "beurni-boutik-product-media"
+
+# NO [vars] secret here. This slice exposes NO upload route on the Worker (the
+# supplier-app write path is out of scope), so there is no write to gate yet. When
+# the upload route lands it MUST carry the same shared-secret write gate the offer
+# service uses (worker/auth.ts), set via `wrangler secret put` — never [vars],
+# because all five repos are public.
