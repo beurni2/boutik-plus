@@ -136,9 +136,21 @@ describe('the worker composes onto the health door and exposes NO upload route',
     expect((await worker.fetch(new Request('https://media.boutik.test/nope'), {})).status).toBe(404);
   });
 
-  it('POST to the media path is NOT an upload route on this Worker (the write path is out of scope this slice)', async () => {
+  it('POST to a media KEY path is still not a route — only POST /media uploads (MEDIA-UPLOAD-ROUTE-1)', async () => {
     const key = mintMediaKey();
-    const res = await worker.fetch(new Request(`https://media.boutik.test/${key}`, { method: 'POST' }), {});
-    expect(res.status).toBe(404); // falls through to the health door's 404 — no write surface exists
+    const SECRET = 'k';
+    // authorised, so this proves ROUTING and not the gate: a keyed path is not an
+    // upload target — the upload route is the bare collection path, which is what
+    // makes a caller-supplied key unexpressible.
+    const res = await worker.fetch(
+      new Request(`https://media.boutik.test/${key}`, { method: 'POST', headers: { 'X-Write-Key': SECRET } }),
+      { MEDIA_WRITE_SECRET: SECRET },
+    );
+    expect(res.status).toBe(404); // falls through to the health door's 404
+  });
+
+  it('an UNAUTHORISED POST anywhere is 401 — the gate precedes routing', async () => {
+    const res = await worker.fetch(new Request('https://media.boutik.test/media', { method: 'POST' }), {});
+    expect(res.status).toBe(401);
   });
 });

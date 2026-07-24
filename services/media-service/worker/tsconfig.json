@@ -2,10 +2,19 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["@cloudflare/workers-types"],
-    "lib": ["ES2023"],
+    "types": [
+      "@cloudflare/workers-types"
+    ],
+    "lib": [
+      "ES2023"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler"
   },
-  "include": ["./**/*.ts", "../src/media-key.ts", "../src/media-store.ts", "../src/media.ts"]
+  "include": [
+    "./**/*.ts",
+    "../src/media-key.ts",
+    "../src/media-store.ts",
+    "../src/media.ts"
+  ]
 }
