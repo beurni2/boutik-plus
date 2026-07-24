@@ -137,6 +137,15 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.1)(lightningcss@1.32.0)(terser@5.49.0)(yaml@2.9.0)
 
+  packages/service-auth:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(lightningcss@1.32.0)(terser@5.49.0)(yaml@2.9.0)
+
   services/catalog-service:
     dependencies:
       '@boutik/observability':
@@ -205,6 +214,9 @@ importers:
       '@boutik/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@boutik/service-auth':
+        specifier: workspace:*
+        version: link:../../packages/service-auth
       '@platform/contracts':
         specifier: git+https://github.com/beurni2/platform-contracts.git#642f849b9b3f93c2eb4f6c0de9421a9081443a6e&path:packages/contracts
         version: git+https://github.com/beurni2/platform-contracts.git#642f849b9b3f93c2eb4f6c0de9421a9081443a6e&path:packages/contracts
@@ -230,6 +242,9 @@ importers:
       '@boutik/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@boutik/service-auth':
+        specifier: workspace:*
+        version: link:../../packages/service-auth
       '@platform/contracts':
         specifier: git+https://github.com/beurni2/platform-contracts.git#642f849b9b3f93c2eb4f6c0de9421a9081443a6e&path:packages/contracts
         version: git+https://github.com/beurni2/platform-contracts.git#642f849b9b3f93c2eb4f6c0de9421a9081443a6e&path:packages/contracts

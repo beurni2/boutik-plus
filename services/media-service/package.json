@@ -2,12 +2,17 @@
   "name": "@boutik/media-service",
   "version": "0.0.1",
   "private": true,
-  "description": "Product media (BOUTIK-MEDIA-1): validate → store in private R2 → serve by opaque token.",
+  "description": "Product media (BOUTIK-MEDIA-1): validate \u2192 store in private R2 \u2192 serve by opaque token.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json",
@@ -17,6 +22,7 @@
   },
   "dependencies": {
     "@boutik/observability": "workspace:*",
+    "@boutik/service-auth": "workspace:*",
     "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#642f849b9b3f93c2eb4f6c0de9421a9081443a6e&path:packages/contracts"
   },
   "devDependencies": {

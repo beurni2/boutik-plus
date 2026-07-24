@@ -1,6 +1,8 @@
 import { makeHealthFetch } from '@boutik/observability';
 import { isOpaqueMediaKey, MEDIA_KEY_PREFIX } from '../src/media-key.js';
-import type { R2BucketLike } from '../src/media-store.js';
+import { resolveMediaStore, type R2BucketLike } from '../src/media-store.js';
+import { ProductMediaService } from '../src/media.js';
+import { rejectUnauthorizedWrite, type MediaWriteAuthEnv } from './auth.js';
 
 /**
  * BOUTIK-MEDIA-1 — THE MEDIA READ ROUTE, `GET /media/{token}`.
@@ -134,15 +136,70 @@ export async function handleMediaRead(
 
 const health = makeHealthFetch('media-service');
 
+/** The upload route's path. A bare collection path — it can never carry a key. */
+export const UPLOAD_PATH = '/media';
+
+/**
+ * MEDIA-UPLOAD-ROUTE-1 — `POST /media`, the ONLY way a byte enters the bucket.
+ *
+ * Before this route the service could read from a bucket nothing could write to;
+ * the upload/validate/store path existed in `src/` but was never wired to the
+ * Worker's fetch handler.
+ *
+ * THE BODY IS THE IMAGE. Raw bytes, nothing else — no multipart, no JSON wrapper,
+ * no filename field. The request's declared `Content-Type` is IGNORED: the
+ * magic-byte sniff in `ProductMediaService.upload` decides the real format, and
+ * the stored content type is DERIVED from the bytes, never from what the caller
+ * claimed.
+ *
+ * NO CALLER INPUT REACHES THE KEY (founder ruling). This handler passes the
+ * service exactly two things — the bytes and the clock — and `mintMediaKey()` is
+ * arity-zero by design, so there is no parameter through which a filename, a
+ * caller-supplied key, a productVersionId or a counter could shape the object
+ * name. A name in the request would be metadata; this route does not read one at
+ * all, which is the strongest form of that guarantee.
+ *
+ * THE RESPONSE IS THE REF AND ITS FACTS — the opaque `media/{token}` that goes
+ * into an offer's `ProductAssets`, plus the dimensions and content type the
+ * validator actually measured. Nothing about the bucket: no bucket name, no
+ * storage URL, no account detail. The readable URL is the ref appended to this
+ * service's own origin.
+ *
+ * NO CORS, deliberately: this is called by the supplier app, not a browser.
+ * Adding browser origins would widen exactly the surface the write gate exists to
+ * close.
+ */
+export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
+  const store = resolveMediaStore(env);
+  const service = new ProductMediaService(store);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const outcome = await service.upload(bytes, now);
+  if (!outcome.ok) {
+    // The validator's TYPED reason, surfaced verbatim — the caller can read WHY
+    // (empty · unsupported_type · too_large · bad_dimensions), never a bare 400.
+    return Response.json({ error: 'rejected', reason: outcome.reason }, { status: 400 });
+  }
+  const { key, contentType, width, height, byteLength } = outcome.image;
+  return Response.json({ ref: key, contentType, width, height, byteLength }, { status: 201 });
+}
+
 export default {
-  async fetch(request: Request, env: MediaWorkerEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
+  async fetch(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
+    // THE WRITE GATE, at the one deployed entry, BEFORE any dispatch or storage
+    // touch — so a rejected upload never reaches R2 and the 401 is never an
+    // existence oracle. Reads (GET) short-circuit through untouched: the media
+    // read route is open by design.
+    const denied = await rejectUnauthorizedWrite(request, env);
+    if (denied) return denied;
+
     const { pathname } = new URL(request.url);
+    if (request.method === 'POST' && pathname === UPLOAD_PATH) {
+      return handleMediaUpload(request, env);
+    }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
       return handleMediaRead(request, decodeURIComponent(pathname.slice(1)), env, ctx);
     }
-    // NO upload route is exposed on this Worker: the supplier-app write path is
-    // OUT OF SCOPE this slice. Uploads run through `ProductMediaService` only.
     return health(request);
   },
 };

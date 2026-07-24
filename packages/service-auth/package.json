@@ -1,0 +1,25 @@
+{
+  "name": "@boutik/service-auth",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The ONE shared-secret write gate for boutik Workers — constant-time, fail-closed, one identical 401. Bound to a per-service secret by each service's thin adapter.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
