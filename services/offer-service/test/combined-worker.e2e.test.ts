@@ -107,7 +107,18 @@ describe('combined Worker — durable offers on real workerd', () => {
     expect(body.value.productVersionId).toBe(PV);
     expect(body.value.available).toBe(5); // declared on the create command, not a fixture literal
     expect(body.value.basePrice).toBe(10_000);
-    expect(body.asOf).toBe(T0); // truthful write time
+
+    // THE ASOF REVERSAL, proven on REAL WORKERD (founder ruling 2026-07-24).
+    // The offer was written at T0. Serving that write time would have made this
+    // product stale — and refused by Shop+ — 15 minutes after creation. The
+    // envelope now carries the SERVE clock, so a product authored days ago is
+    // still fresh at the consumer's bound.
+    expect(body.asOf).not.toBe(T0);
+    const ageMs = Date.now() - Date.parse(body.asOf);
+    expect(ageMs).toBeGreaterThanOrEqual(0);
+    expect(ageMs).toBeLessThan(15 * 60 * 1000); // fresh at SUPPLY_PROJECTION_MAX_AGE_MS
+    // …and this is a REAL clock, not a fixture: it is far past the seed's T0.
+    expect(Date.parse(body.asOf)).toBeGreaterThan(Date.parse(T0));
   });
 
   it('IDEMPOTENT: replaying the same commandId is a no-op create, not a duplicate', async () => {

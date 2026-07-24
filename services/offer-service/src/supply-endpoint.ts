@@ -117,6 +117,37 @@ export function assertAssetRefsIdentityFree(assetRefs: readonly string[], suppli
  * resolved for a productVersionId (or `undefined`), runs the EXISTING refusal
  * ladder via `buildSupplyProjection`, and — on pass — guards the value out.
  * Every refusal is a typed HONEST STATE, never a 200-empty.
+ *
+ * ── THE ASOF REVERSAL (founder ruling 2026-07-24) ────────────────────────────
+ * `asOf` is now the SERVE clock. It used to be `entry.asOf`, the WRITE time, and
+ * a test pinned that on purpose — « staleness is real age, never fabricated
+ * freshness ». That reasoning was right about a cached read and wrong about this
+ * one, and the consequence was severe enough to be a blocker:
+ *
+ *   Shop+ blocks any projection older than `SUPPLY_PROJECTION_MAX_AGE_MS`
+ *   (`shop-plus/packages/supply-consumer/src/read-model.ts:19` — 15 minutes,
+ *   founder ruling 2026-07-15, = QUOTE_TTL_MS). Serving the write time meant a
+ *   product authored at 10:00 served `asOf 10:00` FOREVER. At 10:16 it was stale
+ *   and Shop+ refused it. **Every real product would have vanished from every
+ *   vitrine fifteen minutes after it was created — silently, on the buyer's side,
+ *   with every gate green in both repos.**
+ *
+ * WHY SERVE-TIME IS NOT FABRICATED FRESHNESS, verified rather than assumed:
+ * nothing is memoised on this path. `makeSupplyFetch` calls
+ * `store.getEntryByProductVersion` on EVERY request and `buildSupplyProjection`
+ * recomputes from that entry each time; there is no server-side cache to go
+ * stale behind. So the value genuinely IS accurate as of `nowIso`, and saying so
+ * is a true statement about a live computation.
+ *
+ * WHAT THE CONSUMER'S BOUND NOW CATCHES — which is what it was always for: a
+ * RESPONSE that sat somewhere between serve and use (an edge cache, a retry
+ * queue, a resumed offline request). That is a real staleness risk and the bound
+ * still detects it. What it no longer does is reject every product for the
+ * crime of having been created more than a quarter of an hour ago.
+ *
+ * WHAT `asOf` DOES **NOT** CLAIM: that a supplier confirmed stock just now.
+ * `available` is a DECLARED number that changes only on a write. `asOf` answers
+ * "as of when is this envelope accurate", not "when was this last verified".
  */
 export function serveProjection(service: string, entry: OfferEntry | undefined, nowIso: string): ServeOutcome {
   if (!entry) {
@@ -128,7 +159,8 @@ export function serveProjection(service: string, entry: OfferEntry | undefined, 
     return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };
   }
   const value = assertServableValue(built.projection, entry.product.supplierId);
-  return { ok: true, status: 200, body: { version: entry.offer.version, asOf: entry.asOf, value } };
+  // asOf is the SERVE clock — see THE ASOF REVERSAL above `serveProjection`.
+  return { ok: true, status: 200, body: { version: entry.offer.version, asOf: nowIso, value } };
 }
 
 const SUPPLY_ROUTE = /^\/supply-projection\/([^/]+)$/;

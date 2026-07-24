@@ -35,7 +35,26 @@ export interface OfferEntry {
   readonly offer: SupplierOffer;
   /** Declared stock from the create command — never fabricated, never hub-verified. */
   readonly available: number;
-  /** Real supply-state write time; the endpoint returns it verbatim (truthful staleness). */
+  /**
+   * WRITTEN-AT: when this supply state was created, **as claimed by the author's
+   * device clock** (it travels on the create command).
+   *
+   * THE SECOND HALF OF THIS COMMENT USED TO SAY "the endpoint returns it verbatim
+   * (truthful staleness)" AND THAT IS NO LONGER TRUE — corrected rather than left
+   * to mislead. Since the asOf reversal (`supply-endpoint.ts`, founder ruling
+   * 2026-07-24) the read-model envelope carries the SERVE clock, because serving
+   * the write time made every product stale to Shop+ 15 minutes after creation.
+   *
+   * **THIS FIELD NOW HAS NO READER** (grep-verified across `src/` and `worker/`:
+   * it is written here and read nowhere — the admin list does not expose it).
+   * It is kept, not deleted, because it is the only record of when a supply state
+   * was authored and it is already persisted in live durable objects; removing it
+   * would change the stored shape of offers that already exist to gain nothing.
+   *
+   * **IT MUST NEVER BECOME A DECISION INPUT.** It is device-sourced and therefore
+   * untrusted — a phone with a wrong clock writes a wrong value here. It is a
+   * record, not evidence.
+   */
   readonly asOf: string;
   readonly createCommandId: string;
   /**
