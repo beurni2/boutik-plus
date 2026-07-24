@@ -29,6 +29,11 @@ function projectionSequence(seed: string) {
     basePrice: 10_000,
     resellerCommission: 1_000,
     available,
+    // canon v2.0.0 (SUPPLY-DISPLAY-FIELDS-1): productName + assetRefs both
+    // required on the wire. Refs are productVersionId-keyed (never supplier-keyed),
+    // matching the canon reference adapter.
+    productName: 'Savon de karité',
+    assetRefs: [`media/pv_${seed}/hero.jpg`],
   });
   return [
     { name: 'offer.published.v1' as const, payload: payload(5) },
