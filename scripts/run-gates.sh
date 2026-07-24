@@ -128,6 +128,9 @@ capture no-wallet-no-funds-positive pass node scripts/gates/no-wallet-no-funds.m
 log "gate: no-wallet-no-funds — NEGATIVE FIXTURE (wallet/balance module, must fail)"
 capture no-wallet-no-funds-negative fail node scripts/gates/no-wallet-no-funds.mjs gates/fixtures/negative/no-wallet-no-funds
 
+log "gate: no-demo-in-app-graph — the DEMO supply adapter is absent from the app graph (must pass)"
+capture no-demo-in-app-graph-positive pass node scripts/gates/no-demo-in-app-graph.mjs
+
 log "gate: no-consumer-storefront — services/ + apps/ (must pass)"
 capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-storefront.mjs
 
