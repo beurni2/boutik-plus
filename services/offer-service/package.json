@@ -17,7 +17,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json",
     "test": "vitest run",
-    "bundle:worker": "esbuild worker/index.ts --bundle --format=esm --outfile=dist/worker/worker.mjs --platform=neutral --conditions=import",
+    "bundle:worker": "esbuild worker/index.ts --bundle --format=esm --outfile=dist/worker/worker.mjs --platform=neutral --conditions=import --define:__BOUTIK_RELEASE__=\"'${BOUTIK_RELEASE:-dev}'\" --define:__BOUTIK_CANON__=\"'${BOUTIK_CANON:-dev}'\"",
     "pretest": "pnpm bundle:worker"
   },
   "dependencies": {

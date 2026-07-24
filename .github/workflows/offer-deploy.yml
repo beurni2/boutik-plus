@@ -41,6 +41,16 @@ jobs:
       # Without this step esbuild cannot resolve it and the deploy dies at the
       # bundle step, before ever reaching Cloudflare.
       - run: pnpm build
+      # SERVICE-PROVENANCE-1 — stamp the bundle so the deployed artifact can say
+      # WHICH BUILD it is (release) and WHICH WIRE SHAPE it speaks (canon). The
+      # second is the one that matters: a sha alone would not have revealed that
+      # the live Worker was still emitting the five-field projection. Read canon
+      # from the INSTALLED package, never from a hand-typed constant, so it cannot
+      # drift from what was actually bundled.
+      - name: Resolve the provenance stamp
+        run: |
+          echo "BOUTIK_RELEASE=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "BOUTIK_CANON=$(node -p "require('./node_modules/@platform/contracts/package.json').version")" >> "$GITHUB_ENV"
       - name: Bundle the combined Worker (OfferDO + service routes)
         run: pnpm --filter @boutik/offer-service bundle:worker
       - name: Deploy to Cloudflare Workers
