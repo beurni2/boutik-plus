@@ -227,15 +227,53 @@ describe('SW-1 · identity + pickup are UN-EMITTABLE on the wire', () => {
   });
 });
 
-describe('SW-1 · asOf is TRUTHFUL — staleness is real age, never fabricated freshness', () => {
-  it('the served asOf is the supply-state timestamp, NOT the read clock', async () => {
+/**
+ * THE ASOF REVERSAL (founder ruling 2026-07-24). This block previously asserted
+ * the OPPOSITE — « the served asOf is the supply-state timestamp, NOT the read
+ * clock » — and it was deliberate. It is reversed here, with the consequence it
+ * caused written into the test names so nobody restores the old rule by accident.
+ */
+describe('SW-1 · asOf is the SERVE clock — a live computation says so, and products do not vanish', () => {
+  /** Verbatim from shop-plus/packages/supply-consumer/src/read-model.ts:19. */
+  const SUPPLY_PROJECTION_MAX_AGE_MS = 15 * 60 * 1000;
+  const stale = (asOf: string, atIso: string) => Date.parse(atIso) - Date.parse(asOf) > SUPPLY_PROJECTION_MAX_AGE_MS;
+
+  it('an entry written 90 minutes ago still serves asOf = NOW — nothing is memoised, so this is true', async () => {
     const store = await seeded(founderOneCreateCommand(FIXED_ASOF)); // written at 08:00
     const res = await makeSupplyFetch(store, () => READ_NOW)(reqGet(FOUNDER_001_PRODUCT_VERSION_ID)); // read at 09:30
     const body = (await res.json()) as { asOf: string };
-    expect(body.asOf).toBe(FIXED_ASOF); // the write time, verbatim
-    expect(body.asOf).not.toBe(READ_NOW); // freshness is never fabricated at read
-    const ageMs = Date.parse(READ_NOW) - Date.parse(body.asOf);
-    expect(ageMs).toBe(90 * 60 * 1000);
+    expect(body.asOf).toBe(READ_NOW);
+    expect(body.asOf).not.toBe(FIXED_ASOF);
+  });
+
+  it('THE VANISHING THIS PREVENTS: with the write time, Shop+ would refuse the product 16 minutes after creation', async () => {
+    const store = await seeded(founderOneCreateCommand(FIXED_ASOF)); // authored 08:00
+    const sixteenMinutesLater = '2026-07-15T08:16:00.000Z';
+    const res = await makeSupplyFetch(store, () => sixteenMinutesLater)(reqGet(FOUNDER_001_PRODUCT_VERSION_ID));
+    const body = (await res.json()) as { asOf: string };
+
+    // what SHIPS now: fresh at the consumer's bound
+    expect(stale(body.asOf, sixteenMinutesLater)).toBe(false);
+    // what the OLD rule would have produced: blocked, silently, on the buyer's side
+    expect(stale(FIXED_ASOF, sixteenMinutesLater)).toBe(true);
+  });
+
+  it('the bound STILL BITES on what it exists for — a response that sat in a cache or a queue', async () => {
+    const store = await seeded(founderOneCreateCommand(FIXED_ASOF));
+    const servedAt = '2026-07-15T09:00:00.000Z';
+    const res = await makeSupplyFetch(store, () => servedAt)(reqGet(FOUNDER_001_PRODUCT_VERSION_ID));
+    const body = (await res.json()) as { asOf: string };
+    // consumed 30 minutes after it was SERVED (edge cache / retry queue / resumed
+    // offline request) — still refused. Serve-time stamping did not disarm SW-2.
+    expect(stale(body.asOf, '2026-07-15T09:30:00.000Z')).toBe(true);
+  });
+
+  it('every read re-stamps — two reads of the same unchanged entry carry different asOf', async () => {
+    const store = await seeded(founderOneCreateCommand(FIXED_ASOF));
+    const a = (await (await makeSupplyFetch(store, () => '2026-07-15T08:05:00.000Z')(reqGet(FOUNDER_001_PRODUCT_VERSION_ID))).json()) as { asOf: string; value: unknown };
+    const b = (await (await makeSupplyFetch(store, () => '2026-07-15T08:40:00.000Z')(reqGet(FOUNDER_001_PRODUCT_VERSION_ID))).json()) as { asOf: string; value: unknown };
+    expect(a.asOf).not.toBe(b.asOf);
+    expect(a.value).toEqual(b.value); // …and the VALUE is unchanged: only the envelope moved
   });
 });
 
@@ -258,7 +296,7 @@ describe('SW-1 · the health door is preserved (the endpoint composes onto it)',
     const entry = await entryOf(founderOneCreateCommand(FIXED_ASOF));
     const outcome = serveProjection(SERVICE_NAME, entry, READ_NOW);
     expect(outcome.ok).toBe(true);
-    if (outcome.ok) expect(outcome.body.asOf).toBe(FIXED_ASOF);
+    if (outcome.ok) expect(outcome.body.asOf).toBe(READ_NOW); // the serve clock — see THE ASOF REVERSAL
     // undefined entry → honest 404 (the store returned nothing)
     expect(serveProjection(SERVICE_NAME, undefined, READ_NOW).status).toBe(404);
   });
