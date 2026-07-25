@@ -31,10 +31,12 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,600}<SListerReal st=\{st\} d=\{d\} captures=\{captures\}/);
     // `money` joined this line under the founder rounding ruling (2026-07-25):
     // the wizard's seller-net figures are computed by the wrapper through the
-    // CANON waterfall, never by the wizard. Asserted by value in
+    // CANON waterfall, never by the wizard — and under the floor ruling
+    // (same day) it is `null` below the publish floor rather than a number for
+    // an offer that cannot exist. Both asserted by value in
     // test/preview-rounding.test.ts; asserted here as the wiring.
     expect(lister).toMatch(
-      /return <S20Wizard st=\{st\} d=\{dd\} money=\{previewSellerNet\(st\.wiz\.B, st\.wiz\.C\)\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/,
+      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/,
     );
   });
 

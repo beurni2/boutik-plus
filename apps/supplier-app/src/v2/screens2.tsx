@@ -108,10 +108,25 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // product and order figures). Named precisely because a looser version of this
 // line said "seed, machine, screens1" and was wrong: machine.ts imports
 // fee/net but uses only formatF, and screens1 never imported them at all.
-export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerPreview; heroUri?: string | undefined }) {
+// `money` IS NULL BELOW THE PUBLISH FLOOR (founder ruling 2026-07-25, and it was
+// neither option offered). The B stepper keeps its FULL designed range down to
+// 500 — his chrome is not changed — but the app's publish floor is 5 000, so the
+// nine positions beneath it describe an offer that cannot exist. Rendering a net
+// there was arithmetically true and commercially meaningless, and at the default
+// C = 1 000 the two lowest positions printed a NEGATIVE « Vous recevez » in the
+// large green type this app reserves for money he receives.
+//
+// The rule: below the floor, STATE NO FIGURE — show the refusal that already
+// exists (`publier.err_prix_plancher`) and block continue. Not a fabricated
+// value, not a hidden control: a refusal to say something confidently that is
+// not true of any publishable offer. `null` rather than a number is how that
+// absence is carried, so a screen cannot accidentally print one.
+export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerPreview | null; heroUri?: string | undefined }) {
   const w = st.wiz;
-  const feeV = money.sellerPlatformFeeFcfa;
-  const netV = money.sellerNetFcfa;
+  // BELOW THE FLOOR the caller passes null — the wrapper owns the publish rules
+  // and the constant (`supply/authoring.ts` CATEGORY_FLOOR_FCFA), so this frozen
+  // screen does not learn a product rule, it just renders what it is handed.
+  const belowFloor = money === null;
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>
@@ -184,7 +199,21 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
               />
             </View>
             <View style={{ marginTop: 16 }}>
-              <MoneyBreakdown B={formatF(w.B)} C={formatF(w.C)} feeV={formatF(feeV)} netV={formatF(netV)} netSize="XL" />
+              {money === null ? (
+                // The refusal takes the card's place rather than emptying it: a
+                // breakdown with B and C but no fee and no total would be a
+                // half-statement about an offer that cannot exist. C19
+                // MoneyBreakdown is untouched — it is simply not rendered here.
+                <Banner tone="warn">{tr('publier.err_prix_plancher')}</Banner>
+              ) : (
+                <MoneyBreakdown
+                  B={formatF(w.B)}
+                  C={formatF(w.C)}
+                  feeV={formatF(money.sellerPlatformFeeFcfa)}
+                  netV={formatF(money.sellerNetFcfa)}
+                  netSize="XL"
+                />
+              )}
             </View>
             <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 10 }]}>
               {"La cliente paie : prix de base + marge de la revendeuse. Votre commission n'est jamais ajoutée une deuxième fois au prix client."}
@@ -220,10 +249,17 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
                 {`${w.cat} · variantes ${w.sizes} · stock ${w.stock}`}
               </Text>
               <View style={{ height: 1, backgroundColor: P.borderCard, marginVertical: 13 }} />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
-                <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>Vous recevez / vente</Text>
-                <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(netV)}</Text>
-              </View>
+              {/* Unreachable below the floor — continue is blocked on step 2 —
+                  but the type makes the case explicit rather than letting a
+                  number be printed for an offer that cannot exist. */}
+              {money === null ? (
+                <Banner tone="warn">{tr('publier.err_prix_plancher')}</Banner>
+              ) : (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
+                  <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>Vous recevez / vente</Text>
+                  <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(money.sellerNetFcfa)}</Text>
+                </View>
+              )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
                 <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>Commission revendeuse</Text>
                 <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{formatF(w.C)}</Text>
@@ -251,7 +287,23 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
         )}
       </ScrollView>
       <WizardFooter>
-        <C07BtnPrimary label={footerLabel} disabled={disabled.wizContinue(st)} onPress={() => d({ t: 'WIZ_NEXT' })} />
+        {/* THE BLOCK LIVES HERE, NOT IN THE REDUCER. `disabled.wizContinue` is
+            the machine's own §4 predicate and stays untouched: the floor is a
+            REAL-FLOW product rule, and putting it in machine.ts would subject
+            the demo board to a publish rule it has nothing to do with. This
+            footer is the only dispatcher of WIZ_NEXT, so a disabled button here
+            makes step 3 unreachable below the floor — and the core refuses it
+            independently anyway (`base_price_below_floor`), which is the two
+            independent refusals the empty-name block established.
+            The label stays « Continuer »: the reason is stated in full, in his
+            own existing words, in the card directly above — a long sentence
+            crammed into a button truncates on a low-end Android and would say
+            less, not more. */}
+        <C07BtnPrimary
+          label={footerLabel}
+          disabled={disabled.wizContinue(st) || (w.step === 2 && belowFloor)}
+          onPress={() => d({ t: 'WIZ_NEXT' })}
+        />
       </WizardFooter>
     </View>
   );

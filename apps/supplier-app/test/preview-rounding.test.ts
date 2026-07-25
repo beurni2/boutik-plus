@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { previewSellerNet } from '../src/supply/preview';
+import { CATEGORY_FLOOR_FCFA } from '../src/supply/authoring';
+import { catalog } from '../src/i18n';
 import { fee, net } from '../src/v2/money';
 
 /**
@@ -101,8 +103,12 @@ describe('the wizard cannot fall back to the demo math — the capability is gon
     expect(bound).not.toContain('fee');
     expect(bound).not.toContain('net');
     // and the wizard reads its figures off the passed-in canon preview
-    expect(src).toMatch(/const feeV = money\.sellerPlatformFeeFcfa;/);
-    expect(src).toMatch(/const netV = money\.sellerNetFcfa;/);
+    // and the wizard reads its figures off the passed-in canon preview, at both
+    // money sites, guarded by the null arm (the floor ruling replaced the two
+    // hoisted `feeV`/`netV` consts with reads inside the non-null branches).
+    expect(src).toMatch(/feeV=\{formatF\(money\.sellerPlatformFeeFcfa\)\}/);
+    expect(src).toMatch(/netV=\{formatF\(money\.sellerNetFcfa\)\}/);
+    expect(src).toMatch(/\{formatF\(money\.sellerNetFcfa\)\}<\/Text>/);
   });
 
   /**
@@ -121,12 +127,71 @@ describe('the wizard cannot fall back to the demo math — the capability is gon
     expect(moneyImport, 'lister-real still imports from ./money').not.toBeNull();
     const bound = moneyImport![1]!.split(',').map((s) => s.trim());
     expect(bound).toEqual(['formatF']); // formatting only — no arithmetic
-    expect(src).toMatch(/money=\{previewSellerNet\(st\.wiz\.B, st\.wiz\.C\)\}/);
+    // the canon call, and the floor refusal that now gates it, on one line
+    expect(src).toMatch(/const money = st\.wiz\.B < CATEGORY_FLOOR_FCFA \? null : previewSellerNet\(st\.wiz\.B, st\.wiz\.C\);/);
+    expect(src).toMatch(/money=\{money\}/);
   });
 
   it('§3.4 money.ts itself is UNTOUCHED — the demo board still rounds, exactly as frozen', () => {
     const src = readFileSync(join(appDir, 'src/v2/money.ts'), 'utf8');
     expect(src).toMatch(/export const fee = \(B: number\): number => Math\.round\(B \* 0\.05\);/);
     expect(src).toMatch(/export const net = \(B: number, C: number\): number => B - C - fee\(B\);/);
+  });
+});
+
+describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling 2026-07-25)', () => {
+  /**
+   * The stepper keeps its full designed range (B down to 500); the publish
+   * floor is 5 000. The nine positions between describe an offer that cannot
+   * exist. Canon still HAPPILY computes a number for them — including a
+   * negative one — so the refusal is a decision, not an arithmetic outcome.
+   * These assertions are about which francs exist and which are left unsaid.
+   */
+  it('canon WOULD return a figure below the floor — including a NEGATIVE net at the default C', () => {
+    // this is the number the screen used to print in large green type
+    expect(previewSellerNet(500, 1_000).sellerNetFcfa).toBe(-525);
+    expect(previewSellerNet(1_000, 1_000).sellerNetFcfa).toBe(-50);
+    // so staying silent about it is a deliberate refusal, not "nothing to show"
+    expect(previewSellerNet(4_500, 1_000).sellerNetFcfa).toBeGreaterThan(0);
+  });
+
+  it('EVERY stepper position below the floor is refused, and every one at or above it is served', () => {
+    const source = readFileSync(join(appDir, 'src/v2/lister-real.tsx'), 'utf8');
+    expect(source).toMatch(/const money = st\.wiz\.B < CATEGORY_FLOOR_FCFA \? null : previewSellerNet\(st\.wiz\.B, st\.wiz\.C\);/);
+    // the predicate itself, walked over the real stepper grid (±500 from 500)
+    const refused: number[] = [];
+    for (let B = 500; B <= 20_000; B += 500) if (B < CATEGORY_FLOOR_FCFA) refused.push(B);
+    expect(refused).toEqual([500, 1_000, 1_500, 2_000, 2_500, 3_000, 3_500, 4_000, 4_500]); // the nine
+    expect(CATEGORY_FLOOR_FCFA).toBe(5_000);
+    // the boundary is inclusive-at-the-floor: 5 000 publishes, 4 500 does not
+    expect(4_500 < CATEGORY_FLOOR_FCFA).toBe(true);
+    expect(5_000 < CATEGORY_FLOOR_FCFA).toBe(false);
+  });
+
+  it('the wizard cannot print a net when none was handed to it — the type carries the absence', () => {
+    const src = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
+    // the prop admits null, so `money.sellerNetFcfa` cannot be reached unguarded
+    expect(src).toMatch(/money: SellerPreview \| null/);
+    // both money render sites branch on it, and neither formats a net in the null arm
+    const step2 = /money === null \? \([\s\S]{0,400}?publier\.err_prix_plancher[\s\S]{0,600}?<MoneyBreakdown/;
+    expect(src, 'step 2 must refuse before it breaks down').toMatch(step2);
+    const step4 = /money === null \? \([\s\S]{0,300}?publier\.err_prix_plancher[\s\S]{0,400}?Vous recevez \/ vente/;
+    expect(src, 'step 4 must refuse before it states a net').toMatch(step4);
+  });
+
+  it('continue is BLOCKED on step 2 below the floor — the frozen reducer predicate is untouched', () => {
+    const src = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
+    expect(src).toMatch(/disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && belowFloor\)\}/);
+    const machine = readFileSync(join(appDir, 'src/v2/machine.ts'), 'utf8');
+    // the floor is a REAL-FLOW rule and must not have leaked into the demo machine
+    expect(machine).not.toMatch(/CATEGORY_FLOOR|5_000|below_category_floor/);
+  });
+
+  it('the refusal reuses HIS existing string — no new copy was invented for it', () => {
+    const entry = catalog.find((e) => e.key === 'publier.err_prix_plancher');
+    expect(entry, 'publier.err_prix_plancher must already exist').toBeDefined();
+    expect(entry!.fr).toBe('Le prix de base est de 5 000 FCFA au minimum.');
+    // and the sentence names the SAME number the code refuses on
+    expect(entry!.fr).toContain('5 000');
   });
 });

@@ -46,6 +46,7 @@ import { resolveSupplyService, type AttachAssetsOutcome, type ServiceResult, typ
 import { resolveMediaService, sha256Hex, type MediaServicePort } from '../supply/media';
 import { assembleAssets, type AssemblyInput, type ProductAssetsInput, type RoleUpload } from '../supply/assets';
 import {
+  CATEGORY_FLOOR_FCFA,
   offerWindow,
   publish,
   retainIdentity,
@@ -449,7 +450,16 @@ export function SListerReal({ st, d, captures, session }: {
   // ruling 2026-07-25), computed HERE — on the real flow — and handed down. The
   // wizard does no money arithmetic; `v2/money.ts` §3.4 stays frozen and unused
   // by this path.
-  return <S20Wizard st={st} d={dd} money={previewSellerNet(st.wiz.B, st.wiz.C)} heroUri={captures.current?.heroSquare.uri} />;
+  //
+  // BELOW THE PUBLISH FLOOR, NO FIGURE TRAVELS (founder ruling 2026-07-25). The
+  // stepper reaches B = 500; `buildCreateOffer` refuses anything under
+  // CATEGORY_FLOOR_FCFA (5 000) with `base_price_below_floor`. Nine reachable
+  // positions therefore describe an offer that cannot exist, and canon would
+  // still hand back a number for them — a negative one at the default C for the
+  // lowest two. The refusal is decided HERE because this wrapper is the layer
+  // that owns the publish rules; the wizard renders the absence it is handed.
+  const money = st.wiz.B < CATEGORY_FLOOR_FCFA ? null : previewSellerNet(st.wiz.B, st.wiz.C);
+  return <S20Wizard st={st} d={dd} money={money} heroUri={captures.current?.heroSquare.uri} />;
 }
 
 export { type CaptureSet };
