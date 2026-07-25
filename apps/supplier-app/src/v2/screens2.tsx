@@ -15,7 +15,8 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
-import { formatF, fee, net, pendingTotal, paidTotal } from './money';
+import { formatF, pendingTotal, paidTotal } from './money';
+import type { SellerPreview } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
 import { t as tr } from '../i18n';
@@ -94,10 +95,23 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // step-4 « Aperçu » card shows the REAL heroSquare instead of the demo glyph
 // tile — frozen demo chrome must not make a claim about a listing that now has
 // three real photographs. Undefined (the demo board) renders exactly as before.
-export function S20Wizard({ st, d, heroUri }: { st: S; d: D; heroUri?: string | undefined }) {
+//
+// `money` IS REQUIRED, NOT OPTIONAL (founder rounding ruling 2026-07-25). The
+// figures shown on steps 2 and 4 are the seller's own net on a listing he is
+// about to publish for real, so they come from the CANON waterfall
+// (`supply/preview.ts` → RoundingLaw v1 floor), computed by the caller. It is
+// required rather than defaulted so that a caller which forgets it FAILS TO
+// COMPILE instead of silently falling back to the frozen demo `Math.round`
+// math — a silent fallback to non-canon rounding on a money screen is precisely
+// the divergence this ruling closes. `v2/money.ts` §3.4 is untouched; its
+// `fee`/`net` now have exactly ONE consumer left, `seed.ts` (the demo board's
+// product and order figures). Named precisely because a looser version of this
+// line said "seed, machine, screens1" and was wrong: machine.ts imports
+// fee/net but uses only formatF, and screens1 never imported them at all.
+export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerPreview; heroUri?: string | undefined }) {
   const w = st.wiz;
-  const feeV = fee(w.B);
-  const netV = net(w.B, w.C);
+  const feeV = money.sellerPlatformFeeFcfa;
+  const netV = money.sellerNetFcfa;
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>

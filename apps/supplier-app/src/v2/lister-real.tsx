@@ -56,6 +56,7 @@ import {
   type PublishState,
 } from '../supply/authoring';
 import { randomSuffixBytes, suggestProductCode } from '../supply/product-code';
+import { previewSellerNet } from '../supply/preview';
 import { derivativeBytesFromUri } from '../studio/capture';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
@@ -443,7 +444,12 @@ export function SListerReal({ st, d, captures, session }: {
   // The step-4 aperçu shows the REAL heroSquare when the Studio produced one —
   // frozen demo chrome must not claim « photo premium » over a glyph tile on a
   // listing that has real photographs (verifier finding).
-  return <S20Wizard st={st} d={dd} heroUri={captures.current?.heroSquare.uri} />;
+  //
+  // The seller-net figures come from the CANON waterfall (founder rounding
+  // ruling 2026-07-25), computed HERE — on the real flow — and handed down. The
+  // wizard does no money arithmetic; `v2/money.ts` §3.4 stays frozen and unused
+  // by this path.
+  return <S20Wizard st={st} d={dd} money={previewSellerNet(st.wiz.B, st.wiz.C)} heroUri={captures.current?.heroSquare.uri} />;
 }
 
 export { type CaptureSet };

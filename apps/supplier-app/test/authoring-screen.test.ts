@@ -29,7 +29,13 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
 
   it("view 'add' renders SListerReal, which renders HIS S20Wizard — not a new form", () => {
     expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,600}<SListerReal st=\{st\} d=\{d\} captures=\{captures\}/);
-    expect(lister).toMatch(/return <S20Wizard st=\{st\} d=\{dd\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/);
+    // `money` joined this line under the founder rounding ruling (2026-07-25):
+    // the wizard's seller-net figures are computed by the wrapper through the
+    // CANON waterfall, never by the wizard. Asserted by value in
+    // test/preview-rounding.test.ts; asserted here as the wiring.
+    expect(lister).toMatch(
+      /return <S20Wizard st=\{st\} d=\{dd\} money=\{previewSellerNet\(st\.wiz\.B, st\.wiz\.C\)\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/,
+    );
   });
 
   it("view 'studio' renders the REAL studio; the demo S26Studio is unrouted but intact", () => {

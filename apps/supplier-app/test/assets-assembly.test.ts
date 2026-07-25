@@ -111,13 +111,23 @@ describe('THE ROUND-VS-FLOOR LATENT DIVERGENCE — pinned so it bites loudly, ne
   /**
    * The frozen V2 demo math (`money.ts:26`, WO-FP-PIXEL §3.4 EXACT) computes
    * `fee = Math.round(B × 0.05)`. Canon RoundingLaw v1 mandates FLOOR — the
-   * fraction of a franc stays with the participant. The wizard's step-2/step-4
-   * preview uses the demo math on what is now the REAL publish flow; the
-   * outcome pane then shows the SERVICE's own net. Today they agree ONLY
-   * because the stepper moves B in ±500 steps from a ×500 base, where 0.05·B is
-   * always integral. Changing either the frozen formula or the stepper
-   * granularity is a FOUNDER ruling; this test exists so that day arrives as a
-   * red test naming the law, not as two silently different figures on one flow.
+   * fraction of a franc stays with the participant.
+   *
+   * CORRECTED 2026-07-25 (founder rounding ruling — the paragraph here used to
+   * say "the wizard's step-2/step-4 preview uses the demo math on what is now
+   * the REAL publish flow", and that is no longer true): the real flow's
+   * preview now goes through `supply/preview.ts` → the canon waterfall, so the
+   * wizard FLOORS. What survives on the demo math is the DEMO BOARD — seed
+   * products, the machine's board-write, the Argent screens.
+   *
+   * This test is kept (founder: "keep your pinning test either way") because
+   * the board and the real flow still render side by side in one app, and they
+   * agree today ONLY because the stepper moves B in ±500 steps from a ×500
+   * base, where 0.05·B is always integral. Changing the frozen formula or the
+   * stepper granularity is a FOUNDER ruling; this test makes that day arrive as
+   * a red test naming the law, not as two silently different figures.
+   * The real flow's own floor behaviour is asserted by value in
+   * `test/preview-rounding.test.ts`.
    */
   it('every stepper-reachable B keeps round(0.05·B) === floor(0.05·B) — the demo preview cannot diverge from canon today', () => {
     for (let B = 1_000; B <= 200_000; B += 500) {
