@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  keptAfter,
   reviewGuides,
   reviewPaneSize,
   roleTitleKey,
@@ -227,5 +228,39 @@ describe('THE GUIDE STYLES — the composed sibling is DERIVED from the planche 
     expect(C39G.vertical.borderWidth).toBeLessThan(C39G.square.borderWidth);
     expect(C39G.square.borderStyle).toBe('dashed');
     expect(C39G.vertical.borderStyle).toBe('solid');
+  });
+});
+
+describe('BANKING A KEPT PHOTOGRAPH — what survives « choisir une autre », and what an abandon leaves', () => {
+  it('keeps accumulate in role order', () => {
+    let kept: readonly string[] = [];
+    kept = keptAfter(kept, 0, 'hero');
+    kept = keptAfter(kept, 1, 'preuve');
+    kept = keptAfter(kept, 2, 'detail');
+    expect(kept).toEqual(['hero', 'preuve', 'detail']);
+  });
+
+  it('« choisir une autre » at slot 2 does NOT lose slots 0 and 1 — the whole point of banking on keep', () => {
+    const kept = keptAfter(keptAfter(keptAfter([], 0, 'hero'), 1, 'preuve'), 2, 'detail-A');
+    expect(keptAfter(kept, 2, 'detail-B')).toEqual(['hero', 'preuve', 'detail-B']);
+  });
+
+  it('re-keeping an EARLIER slot truncates the suffix — never leaves a stale photograph behind it', () => {
+    const kept = ['hero-A', 'preuve', 'detail'];
+    expect(keptAfter(kept, 0, 'hero-B')).toEqual(['hero-B']);
+  });
+
+  it('it never mutates the array it was given — the ref is replaced, not edited under React', () => {
+    const kept = ['hero'];
+    keptAfter(kept, 1, 'preuve');
+    expect(kept).toEqual(['hero']);
+  });
+
+  it('ABANDONING MID-SEQUENCE BANKS A SHORT LIST, and a short list is never a capture set', () => {
+    // two reviewed and kept, the third never taken
+    const kept = keptAfter(keptAfter([], 0, 'hero'), 1, 'preuve');
+    expect(kept).toHaveLength(2);
+    // the flow only builds a CaptureSet from three; two cannot fill hero+proof+detail
+    expect(kept.length).toBeLessThan(3);
   });
 });

@@ -1,92 +1,96 @@
-/**
- * COMBINED SLICE — BOUTIK+ STUDIO, REAL. His S26 design (C39 viseur frame,
- * MetersList, ProcessingList, C40 avant/après, C07 primary) with a REAL camera
- * behind it — expo-camera capture through the PROVEN pipeline (`captureShot`:
- * decode → strip → assertExifFree as a post-condition on the shipped bytes).
- * The demo S26Studio stays in screens2.tsx untouched and unrouted; this is the
- * same design carrying real substance, not a new capture screen.
- *
- * THREE SHOTS, HIS SEQUENCE: héro · preuve · détail. The hero's TWO CROPS
- * (square + vertical, canon's two hero slots) render during « Traitement » —
- * real work where the demo ticked timers. The before/after card shows the REAL
- * master next to the REAL stripped derivative: WYSIWYG is the shipped bytes.
- *
- * Approval hands the capture set UP to the wizard wrapper (uploads happen at
- * publish, not here — a capture is instant and local; the network waits until
- * he decides) and dispatches the machine's own STUDIO_APPROVE, so `wiz.photos`
- * and the return-to-wizard transition stay §4's, not a parallel copy.
- */
 import { useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
-import { GEO } from '../ui/v2/tokens';
-import { C21, C39, C40, role } from '../ui/v2/styles';
+import { GEO, SHADOW } from '../ui/v2/tokens';
+import { C21, role } from '../ui/v2/styles';
 import { SCROLL } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, C07BtnPrimary, Card, HeaderStacked, IconTile, MetersList, Overline, ProcessingList } from './components';
-import { captureShot, renderCropDerivative, type CaptureResult, type StrippedDerivative } from '../studio/capture';
+import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, IconTile, MetersList, ProcessingList } from './components';
+import { S26StudioReview } from './studio-review';
+import { captureShot, renderCropDerivative, type StrippedDerivative } from '../studio/capture';
 import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
+import {
+  decodeRefusalSentence,
+  galleryRefusalKey,
+  pickShot,
+  type DecodeRefusal,
+  type StudioRole,
+  type StudioShot,
+} from '../studio/pick';
+import { nativeImageSource } from '../studio/pick-native';
+import { keptAfter, roleTitleKey, type ShotSource } from '../studio/review';
 import type { A } from './machine';
+
+/**
+ * BOUTIK+ STUDIO — ONE PHOTOGRAPH AT A TIME, REVIEWED BEFORE THE NEXT
+ * (founder reshape 2026-07-25: *"MOST PRODUCT PICTURES WILL COME FROM THE
+ * GALLERY, not the camera"*, plus one review step per role).
+ *
+ * **WHAT CHANGED FROM THE FLOW THIS REPLACES.** It shot three times in a row,
+ * then batch-processed, then showed ONE review of everything at the end. Now
+ * each photograph is chosen or shot, reviewed on its own with the crop guides
+ * drawn on the real image, and kept or replaced before the next begins.
+ *
+ * **THE CROP RENDER DID NOT MOVE, AND THAT IS THE PLAIN ANSWER RATHER THAN THE
+ * TIDY ONE.** The guides on the review are pure arithmetic over
+ * `shot.master.width/height` — no bitmap is decoded to draw them. So the two
+ * hero crops still render once, after all three photographs are kept, exactly
+ * as before: peak memory on a 2 GB phone is unchanged. And a late crop failure
+ * now costs LESS than it did, because re-doing the hero no longer discards the
+ * proof and the detail with it.
+ *
+ * **THE LIVE CAMERA CARRIES NO GUIDES.** It fills the region it is given, full
+ * width, and claims nothing about the still's aspect — which is precisely why
+ * the guides moved to review, where the dimensions are known rather than
+ * assumed.
+ *
+ * Approval hands the capture set UP to the wizard wrapper (uploads happen at
+ * publish, not here) and dispatches the machine's own `STUDIO_APPROVE`, so
+ * `wiz.photos` and the return-to-wizard transition stay §4's, not a parallel
+ * copy. The demo `S26Studio` stays in screens2.tsx, untouched and unrouted.
+ */
 
 /** Everything the publish path needs from one Studio session. */
 export interface CaptureSet {
-  readonly hero: CaptureResult;
+  readonly hero: StudioShot;
   readonly heroSquare: StrippedDerivative;
   readonly heroVertical: StrippedDerivative;
-  readonly proof: CaptureResult;
-  readonly detail: CaptureResult;
+  readonly proof: StudioShot;
+  readonly detail: StudioShot;
 }
 
-/** His shot sequence, verbatim from the S26 design. */
-const SHOTS = [
-  { title: '1 · Photo héro', sub: 'Sur une surface simple. Elle recevra la mise en forme premium.' },
-  { title: '2 · Photo preuve', sub: "L'article en main, dans votre boutique. Une photo réelle qui inspire confiance (le désordre est permis)." },
-  { title: '3 · Détail catégorie', sub: 'Mode : étiquette de taille bien lisible.' },
-] as const;
+/** His three photographs, in order. The PROOF role is camera-only (standing ruling). */
+const ROLES: readonly StudioRole[] = ['hero', 'preuve', 'detail'];
 
-/** The processing rows — now the names of REAL work, in the order it runs. */
+/** The processing rows — the names of REAL work, in the order it runs. */
 const PROC_ROWS = ['Métadonnées retirées (preuve à l\'appui)', 'Cadrage carré du héro', 'Cadrage vertical du héro', 'Vérification finale'];
 
+type Slot = 0 | 1 | 2;
+
 type Phase =
-  | { kind: 'shooting'; index: 0 | 1 | 2 }
+  | { kind: 'shooting'; slot: Slot; refusal: DecodeRefusal | null }
+  | { kind: 'reviewing'; slot: Slot; shot: StudioShot; source: ShotSource }
   | { kind: 'processing'; done: number }
-  | { kind: 'review'; set: CaptureSet }
   | { kind: 'failed'; reason: string };
 
 export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved: (set: CaptureSet) => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView | null>(null);
-  const shots = useRef<CaptureResult[]>([]);
-  const [phase, setPhase] = useState<Phase>({ kind: 'shooting', index: 0 });
-  const [lastVerdict, setLastVerdict] = useState<string | null>(null);
+  /** The photographs he has KEPT, in role order. Never holds an unreviewed shot. */
+  const kept = useRef<StudioShot[]>([]);
+  const [phase, setPhase] = useState<Phase>({ kind: 'shooting', slot: 0, refusal: null });
   const busy = useRef(false);
 
-  const capture = async () => {
+  /** Both sources land here: one photograph to review, its origin remembered. */
+  const toReview = (slot: Slot, shot: StudioShot, source: ShotSource) =>
+    setPhase({ kind: 'reviewing', slot, shot, source });
+
+  const takePhoto = async (slot: Slot) => {
     if (busy.current || camera.current === null) return;
     busy.current = true;
     try {
-      const shot = await captureShot(camera.current);
-      // guidanceFor returns full CATALOG KEYS (studio.conseil.*) — used as-is
-      setLastVerdict(shot.guidance.verdict === 'ok' ? null : shot.guidance.key);
-      shots.current.push(shot);
-      if (shots.current.length < 3) {
-        setPhase({ kind: 'shooting', index: shots.current.length as 1 | 2 });
-      } else {
-        // « Traitement (sur votre téléphone) » — REAL work, progressed as it runs.
-        setPhase({ kind: 'processing', done: 1 }); // strip already ran inside captureShot, per shot
-        const [hero, proof, detail] = shots.current as [CaptureResult, CaptureResult, CaptureResult];
-        // THE CROP RECT IS COMPUTED IN THE MASTER'S OWN PIXEL SPACE — the rect
-        // is applied to masterUri, so it must come from master dimensions. The
-        // derivative's dimensions here selected a ~8% corner fragment on a
-        // 12MP camera, silently (verifier finding, HIGH — fixed and pinned).
-        const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.master.width, hero.master.height));
-        setPhase({ kind: 'processing', done: 2 });
-        const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.master.width, hero.master.height));
-        setPhase({ kind: 'processing', done: 3 });
-        setPhase({ kind: 'processing', done: 4 });
-        setPhase({ kind: 'review', set: { hero, heroSquare, heroVertical, proof, detail } });
-      }
+      toReview(slot, await captureShot(camera.current), 'camera');
     } catch (err) {
       // A capture that cannot be PROVEN clean does not exist (assertExifFree
       // throws) — an honest failed state, never an unstripped byte kept.
@@ -96,15 +100,62 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     }
   };
 
+  const pickPhoto = async (slot: Slot) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const out = await pickShot(nativeImageSource);
+      // A CANCEL is not a fault: he backed out, the screen stays where it was.
+      if (out.kind === 'picked') toReview(slot, out.shot, 'gallery');
+      else if (out.kind === 'refused') setPhase({ kind: 'shooting', slot, refusal: out.refusal });
+    } catch (err) {
+      // A STRIP failure reaches here, not the typed refusal — bytes that cannot
+      // be proven clean fail closed, exactly as on the camera path.
+      setPhase({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
+    } finally {
+      busy.current = false;
+    }
+  };
+
+  /** « Garder cette photo » — banked in role order; the last one starts the crops. */
+  const keep = (slot: Slot, shot: StudioShot) => {
+    kept.current = [...keptAfter(kept.current, slot, shot)];
+    const next = slot + 1;
+    if (next < ROLES.length) {
+      setPhase({ kind: 'shooting', slot: next as Slot, refusal: null });
+      return;
+    }
+    void renderHeroCrops();
+  };
+
+  /** THE ONLY BITMAP WORK IN THE FLOW — two crops of the hero, once, at the end. */
+  const renderHeroCrops = async () => {
+    const [hero, proof, detail] = kept.current as [StudioShot, StudioShot, StudioShot];
+    setPhase({ kind: 'processing', done: 1 }); // the strip already ran per photograph
+    try {
+      // THE CROP RECT IS COMPUTED IN THE MASTER'S OWN PIXEL SPACE — the rect is
+      // applied to masterUri, so it must come from master dimensions. The
+      // derivative's dimensions here selected a ~8% corner fragment on a 12MP
+      // camera, silently (verifier finding, HIGH — fixed and pinned).
+      const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.master.width, hero.master.height));
+      setPhase({ kind: 'processing', done: 2 });
+      const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.master.width, hero.master.height));
+      setPhase({ kind: 'processing', done: 4 });
+      onApproved({ hero, heroSquare, heroVertical, proof, detail });
+      d({ t: 'STUDIO_APPROVE' }); // §4's own transition, dispatched — never copied here
+    } catch (err) {
+      setPhase({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
+    }
+  };
+
   if (!permission?.granted) {
-    // TWO honest states, not one (verifier finding): « pas encore demandé »
-    // offers the request; « bloqué » (denied, cannot re-ask) says so plainly and
-    // points at the phone settings — a button that silently no-ops forever is
-    // the dead-input family.
+    // TWO honest states, not one: « pas encore demandé » offers the request;
+    // « bloqué » (denied, cannot re-ask) says so and points at the phone
+    // settings — a button that silently no-ops forever is the dead-input family.
     const blocked = permission !== null && !permission.canAskAgain && permission.status === 'denied';
     return (
       <View style={{ flex: 1 }}>
-        <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
+        <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
           <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
@@ -119,103 +170,101 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     );
   }
 
-  return (
-    <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+  if (phase.kind === 'reviewing') {
+    const slot = phase.slot;
+    const shot = phase.shot;
+    return (
+      <S26StudioReview
+        shot={shot}
+        role={ROLES[slot]!}
+        source={phase.source}
+        onKeep={() => keep(slot, shot)}
+        onChooseAnother={() => setPhase({ kind: 'shooting', slot, refusal: null })}
+        onBack={() => d({ t: 'BACK' })}
+      />
+    );
+  }
+
+  if (phase.kind === 'processing') {
+    return (
+      <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
         <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
+        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{'Traitement (sur votre téléphone)'}</Text>
+        <View style={{ marginTop: 13 }}>
+          <ProcessingList rows={[...PROC_ROWS]} proc={phase.done} />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (phase.kind === 'failed') {
+    return (
+      <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
+        <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
+        <View style={{ marginTop: 16 }}>
+          <Banner tone="warn">{`${t('studio.echec')}\n${phase.reason}`}</Banner>
+        </View>
+        <View style={{ marginTop: 12 }}>
+          <C07BtnPrimary
+            label={t('publier.reessayer')}
+            icon="retry"
+            onPress={() => { kept.current = []; setPhase({ kind: 'shooting', slot: 0, refusal: null }); }}
+          />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // ── SHOOTING: the live camera, full width, NO guides ──────────────────────
+  const slot = phase.slot;
+  const shotRole = ROLES[slot]!;
+  const galleryRefusal = galleryRefusalKey(shotRole);
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
+        <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
+        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
+        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t(roleTitleKey(shotRole))}</Text>
       </View>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub)]}>{'De vraies photos — aucune image inventée par IA'}</Text>
 
-      {phase.kind === 'shooting' && (
-        <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{SHOTS[phase.index].title}</Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 13.5, lh: 1.5 }, P.sub), { marginTop: 6 }]}>{SHOTS[phase.index].sub}</Text>
-          <View style={[C39.frame, { marginTop: 13 }]}>
-            {/* THE REAL VISEUR — the camera lives where the demo's gradient tile sat. */}
-            <CameraView ref={camera} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: C21.viseur.r }} />
-            <View style={C39.inset} pointerEvents="none" />
-            <Text style={C39.caption}>{C39.CAPTION}</Text>
-          </View>
-          {lastVerdict !== null && (
-            <Banner tone="warn" style={{ marginTop: 11, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 15 }}>
-              {t(lastVerdict)}
-            </Banner>
-          )}
-          <View style={{ marginTop: 12 }}>
-            <C07BtnPrimary label="Capturer" icon="camera" onPress={() => { void capture(); }} />
-          </View>
-        </>
-      )}
+      {/* The viewfinder takes the room that is left — the SAME flex:1 region the
+          review pane uses, so the two screens share one skeleton and the frame
+          does not jump when he keeps a photograph. */}
+      <View style={{ flex: 1, marginTop: 13 }}>
+        <View style={{ flex: 1, borderRadius: C21.viseur.r, overflow: 'hidden', boxShadow: SHADOW.heroStudio }}>
+          <CameraView ref={camera} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        </View>
+      </View>
 
-      {phase.kind === 'processing' && (
-        <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{'Traitement (sur votre téléphone)'}</Text>
-          <View style={{ marginTop: 13 }}>
-            <ProcessingList rows={[...PROC_ROWS]} proc={phase.done} />
-          </View>
-        </>
-      )}
+      <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
+        {phase.refusal !== null && (
+          <Banner tone="warn" style={{ marginTop: 12 }}>{decodeRefusalSentence(phase.refusal)}</Banner>
+        )}
+        <View style={{ marginTop: 12 }}>
+          <C07BtnPrimary label={t('studio.capture')} icon="camera" onPress={() => { void takePhoto(slot); }} />
+        </View>
+        {galleryRefusal === null ? (
+          <BtnGhost
+            label={t('studio.depuis_telephone')}
+            onPress={() => { void pickPhoto(slot); }}
+            style={{ marginTop: 10 }}
+          />
+        ) : (
+          // CAMERA-ONLY, STATED IN WORDS rather than by a missing button — a
+          // control that silently is not there reads as a bug.
+          <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
+            {t(galleryRefusal)}
+          </Text>
+        )}
+      </View>
 
-      {phase.kind === 'review' && (
-        <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{'Traitement (sur votre téléphone)'}</Text>
-          <View style={{ marginTop: 13 }}>
-            <ProcessingList rows={[...PROC_ROWS]} proc={4} />
-          </View>
-          <Card style={{ marginTop: 12, padding: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Overline level="card">Avant / Après</Overline>
-            </View>
-            <View style={C40.grid}>
-              <View style={C40.col}>
-                {/* the REAL master — retained on-device, never uploaded, never published */}
-                <Image source={{ uri: phase.set.hero.masterUri }} style={{ height: C40.imgLeft.h, borderRadius: C40.imgLeft.r }} resizeMode="cover" />
-                <Text style={C40.legend}>{C40.LEGEND_LEFT}</Text>
-              </View>
-              <View style={C40.col}>
-                <View style={C40.framed}>
-                  {/* the REAL stripped derivative — these exact bytes upload */}
-                  <Image source={{ uri: phase.set.heroSquare.uri }} style={{ height: C40.imgRight.h, borderRadius: C40.imgRight.r }} resizeMode="cover" />
-                </View>
-                <Text style={C40.legend}>{C40.LEGEND_RIGHT}</Text>
-              </View>
-            </View>
-          </Card>
-          <View style={{ marginTop: 12 }}>
-            <C07BtnPrimary
-              label="J'approuve ces photos"
-              onPress={() => {
-                onApproved(phase.set);
-                d({ t: 'STUDIO_APPROVE' }); // §4's own transition: wiz.photos=true, back to the wizard
-              }}
-            />
-          </View>
-        </>
-      )}
-
-      {phase.kind === 'failed' && (
-        <>
-          <View style={{ marginTop: 16 }}>
-            <Banner tone="warn">{`${t('studio.echec')}\n${phase.reason}`}</Banner>
-          </View>
-          <View style={{ marginTop: 12 }}>
-            <C07BtnPrimary
-              label={t('publier.reessayer')}
-              icon="retry"
-              onPress={() => { shots.current = []; setPhase({ kind: 'shooting', index: 0 }); }}
-            />
-          </View>
-        </>
-      )}
-
-      {/* the demo's low-light simulate toggle is gone — light is judged from the
-          REAL metrics frame now; the IconTile/Pressable demo affordances live on
-          only in the unrouted S26Studio */}
+      {/* the demo's simulate-low toggle and fake meters live on only in the
+          unrouted S26Studio; light is judged from the REAL metrics frame */}
       <View style={{ height: 0, opacity: 0 }} pointerEvents="none">
         <IconTile bg={TILE_GRADIENT.p1} glyph="" size={0} radius={0} glyphSize={0} />
         <MetersList rows={[]} />
         <Pressable onPress={() => {}} accessibilityRole="button"><Text>{''}</Text></Pressable>
       </View>
-    </ScrollView>
+    </View>
   );
 }

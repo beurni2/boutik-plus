@@ -95,3 +95,21 @@ export function roleTitleKey(role: StudioRole): string {
 export function secondaryActionKey(source: ShotSource): string {
   return source === 'camera' ? 'studio.reprendre' : 'studio.choisir_autre';
 }
+
+/**
+ * BANK ONE KEPT PHOTOGRAPH, in role order.
+ *
+ * The prefix up to this slot, plus this one — so **« choisir une autre » at
+ * slot 2 never loses slots 0 and 1**, and re-keeping an earlier slot truncates
+ * the suffix rather than leaving a stale photograph behind it. Extracted as a
+ * value because the alternative is a test that can only describe the array
+ * surgery inside a component.
+ *
+ * **NOTHING IS BANKED BEFORE HE KEEPS IT.** A photograph he is still looking at
+ * lives in the phase, not here; abandoning mid-sequence therefore hands the
+ * publish path nothing at all, which is the honest empty (`assetRefs: []`)
+ * rather than a partial set.
+ */
+export function keptAfter<T>(kept: readonly T[], slot: number, shot: T): readonly T[] {
+  return [...kept.slice(0, slot), shot];
+}

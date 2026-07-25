@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { initialState, reduce } from '../src/v2/machine';
 import { catalog } from '../src/i18n';
 
 /**
@@ -159,8 +160,29 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
     expect(studio).not.toMatch(/STUDIO_CAPTURE/); // the demo's simulated capture is not dispatched
   });
 
-  it('studio approval goes through the MACHINE’s own STUDIO_APPROVE — §4 owns the transition', () => {
-    expect(studio).toMatch(/onApproved\(phase\.set\);\s*\n\s*d\(\{ t: 'STUDIO_APPROVE' \}\);/);
+  /**
+   * REWRITTEN 2026-07-25 — this used to match the SOURCE TEXT of the call pair
+   * (`onApproved(phase.set); d({t:'STUDIO_APPROVE'})`). A source-shape
+   * assertion breaks on any refactor and proves nothing about the transition,
+   * which is the class the founder ruled against: *a decision that renders
+   * differently should be a function that returns a value.* The transition IS
+   * a value — it lives in the reducer — so it is asserted there, and the screen
+   * is only checked for what a grep can honestly check: an ABSENCE.
+   */
+  it('§4 OWNS THE TRANSITION — the reducer, not the screen, sets wiz.photos and the return view', () => {
+    const before = initialState();
+    expect(before.wiz.photos).toBe(false);
+    const after = reduce(before, { t: 'STUDIO_APPROVE' }).s;
+    expect(after.wiz.photos).toBe(true);
+    expect(after.wiz.step).toBe(3);
+    expect(after.view).toEqual({ s: 'add' });
+  });
+
+  it('the studio DISPATCHES that action and keeps no parallel copy of the transition', () => {
+    expect(studio).toMatch(/d\(\{ t: 'STUDIO_APPROVE' \}\)/);
+    // it must never write the wizard's state itself — that is the parallel copy
+    expect(studio).not.toMatch(/wiz\s*:/);
+    expect(studio).not.toMatch(/photos\s*:\s*true/);
   });
 });
 

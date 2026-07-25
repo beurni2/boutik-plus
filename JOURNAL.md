@@ -1674,3 +1674,36 @@ Founder: *"I ruled 'both guides' without distinguishing the roles, and canon set
 - **265 entries, 0 violations.** `studio.role_hero` « Photo héro » · `studio.role_preuve` « Photo preuve » · `studio.role_detail` « Photo détail » (all neutral/label) · `studio.choisir_autre` « Choisir une autre photo » (neutral/general).
 - **AND THE REPORTING GAP IS MINE:** the French text was in the proposal file's §0-C table all along, but my message to him carried only the keys. He looked in the catalog — correct for an unbuilt slice — and found nothing. **A proposal he has to go hunting for is a proposal I did not send.**
 - **His standard, recorded because it outranks the linter:** *"Lint-clean is necessary and not sufficient — the linter cannot tell whether a sentence is TRUE, which is the half that has mattered most in this program."*
+
+### 2026-07-25 · STUDIO-REVIEW-1 MERGED — main `d885cd9`
+Guarded merge: remote heads verified → `--no-ff` → **tree diff vs the approved `5a305aa` EMPTY** → re-proved green from the repo root → pushed → **ancestry read-back: `5a305aa` IS an ancestor of `origin/main`; tree diff empty.**
+- **Founder ruling on the chrome correction, recorded because it names the behaviour rather than the number:** *"What matters is not that the rule absorbed it, but that you went back and re-measured the number you had already reported rather than carrying it forward. That is the same instinct as the typecheck 13-versus-11 catch."*
+- **And on the fourth red proof:** *"The guarantee fails THROUGH its cause. It is defended nowhere, so it cannot quietly rot — that is the difference between a property that is true and a property that is asserted, and you demonstrated it by mutation rather than argument."*
+- **Three strings approved as written.** `studio.role_hero` « Photo héro » is **WITH THE FOUNDER**: designer vocabulary, a transliteration of an English layout term, and a market seller has no reason to know what a hero image is. « Photo principale » is the candidate. **One-line catalog edit either way; no layout moves; the merge was not blocked on it.**
+
+### 2026-07-25 · STANDING — COPY TRAVELS IN THE MESSAGE, NOT ONLY IN A FILE
+Founder, adopting my own note back at me: *"a proposal the reader has to go hunting for is a proposal that was not sent. Copy for a founder ruling travels in the message, not only in a file."*
+
+### 2026-07-25 · STUDIO-WIRE-1 BUILT — THE FLOW INVERTS, ONE PHOTOGRAPH AT A TIME
+The review screen has a call site. `S26StudioReal` restructured from four phases to four different ones.
+
+**BEFORE:** `shooting{index}` ×3 in a row → `processing` (batch) → ONE `review` of everything (the C40 avant/après card) → approve.
+**AFTER:** per role — `shooting{slot}` (live camera, full width, no guides; camera **and** gallery) → `reviewing{slot, shot, source}` (the real image, guides on the hero only) → keep → next role; after the third keep, `processing` (the two hero crops) → approve.
+
+- **THE CROP RENDER DID NOT MOVE, AND THAT IS THE ANSWER RATHER THAN A DEFERRAL.** The guides are pure arithmetic over `shot.master.width/height` — **no bitmap is decoded to draw them.** So the two `renderCropDerivative` calls still run once, after all three photographs are kept: **peak memory on the 2 GB reference device is unchanged from the flow this replaces.** And a late crop failure now costs LESS than it did, because re-doing the hero no longer discards the proof and the detail with it.
+- **THE C40 AVANT/APRÈS CARD IS GONE FROM THE FLOW.** It compared master to derivative in two thumbnails; the review screen shows the derivative alone at full width, which is the same truth, larger. Listed as divergence D-3 in the composition proposal, now realised.
+- **`CaptureSet` NOW CARRIES `StudioShot`, NOT `CaptureResult`** — the gallery path has no camera `guidance`, so the shared narrower type is what both sources can honestly fill. `CaptureResult` is structurally a `StudioShot`, so `captureShot` and every consumer in `lister-real.tsx` are untouched.
+- **RED-PROVEN on the banking rule:** appending instead of prefix-then-replace fails 2 tests; an off-by-one in the prefix fails the same 2.
+- **VERIFIED:** typecheck 11/11 · supplier-app **459/459 (37 files)** · copy-lint 266 entries, 0 violations · ALL GATES GREEN.
+
+### 2026-07-25 · A SOURCE-SHAPE TEST REPLACED BY A VALUE TEST — CAUGHT BY THE REWIRE BREAKING IT
+`authoring-screen.test.ts` asserted the literal call pair `onApproved(phase.set);\n d({t:'STUDIO_APPROVE'});` by regex. The rewire renamed `phase.set` and the test went red — **on a refactor, not a defect.**
+- **That is the shape the founder ruled against**, and the fix was not to loosen the regex. **The transition IS a value: it lives in the reducer.** So it is asserted there — `reduce(initialState(), {t:'STUDIO_APPROVE'})` yields `wiz.photos === true`, `wiz.step === 3`, `view === {s:'add'}` — and the screen is checked only for what a grep can honestly check: **an ABSENCE** (it dispatches the action and never writes `wiz` or `photos: true` itself).
+- **RED-PROVEN both halves:** removing `photos: true` from the reducer fails the value test; removing the dispatch from the screen fails the absence test.
+- **The generalisable form:** a test that breaks on a rename it should not care about is telling you which layer the property belongs in.
+
+### 2026-07-25 · ⚠️ FINDING — CANON ALLOWS A PRODUCT WITH NO DETAIL PHOTOGRAPH; THE APP REQUIRES THREE
+`assembleAssets`'s missing list is `('master'|'heroSquare'|'heroVertical'|'proof')[]` and `ProductAssetsInput.detail` is an array that may be empty — **so canon's longest-complete-prefix law already permits hero + proof with zero details.** `CaptureSet` requires all three, and always has.
+- **The per-role flow makes that requirement visible for the first time**: he can now abandon after two photographs and see what happens, where the old flow simply refused to leave the shooting screen.
+- **NOT CHANGED — reported, not filled.** Making the detail optional is a product decision about what a listing must carry, not a wiring change.
+- **What an abandon does today:** nothing is banked until he taps « Garder cette photo », and `onApproved` fires only after the third keep. So abandoning mid-sequence hands the publish path **nothing at all** — the product publishes with `assetRefs: []`, the honest empty, and the wizard shows `publier.sans_photo`. **Two kept photographs travel no further than zero kept photographs**, which is exactly what the finding above is about.
