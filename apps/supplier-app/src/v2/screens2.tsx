@@ -126,6 +126,13 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
   // BELOW THE FLOOR the caller passes null — the wrapper owns the publish rules
   // and the constant (`supply/authoring.ts` CATEGORY_FLOOR_FCFA), so this frozen
   // screen does not learn a product rule, it just renders what it is handed.
+  //
+  // TWO SPELLINGS OF ONE CONDITION, ON PURPOSE (verifier finding, LOW): the
+  // footer reads `belowFloor`, the two money sites read `money === null`
+  // directly. That is not drift — TypeScript narrows `money` to non-null only
+  // from the direct comparison, so the render sites must use it or they cannot
+  // touch the fields at all. `belowFloor` IS that comparison, defined on this
+  // line, so the two cannot diverge without editing it.
   const belowFloor = money === null;
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (

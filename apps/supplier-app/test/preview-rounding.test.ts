@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { previewSellerNet } from '../src/supply/preview';
-import { CATEGORY_FLOOR_FCFA } from '../src/supply/authoring';
+import { CATEGORY_FLOOR_FCFA, buildCreateOffer, type AuthoringContext, type AuthoringForm } from '../src/supply/authoring';
 import { catalog } from '../src/i18n';
 import { fee, net } from '../src/v2/money';
 
@@ -30,6 +30,18 @@ import { fee, net } from '../src/v2/money';
  */
 
 const appDir = join(import.meta.dirname, '..');
+
+/** A form that is valid in every field EXCEPT the price under test. */
+const FLOOR_FORM: AuthoringForm = {
+  name: 'Pagne tissé Faso', productCode: 'PAGNE-7K2M', category: 'textile',
+  zone: 'Gounghin', basePrice: '10 000', resellerCommission: '1000', available: '5',
+};
+const FLOOR_CTX: AuthoringContext = {
+  supplierId: 'supplier-founder-001', productVersionId: 'pv-1', offerId: 'offer-1',
+  commandId: 'cmd-1', now: '2026-07-24T21:00:00.000Z',
+  effective: '2026-07-24T00:00:00.000Z', expiry: '2026-12-31T00:00:00.000Z',
+  moderationState: 'approved',
+};
 
 describe('the real flow floors — RoundingLaw v1, to the franc', () => {
   it('OFF-GRID B: the canon preview FLOORS where the frozen demo math ROUNDS UP', () => {
@@ -155,17 +167,49 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     expect(previewSellerNet(4_500, 1_000).sellerNetFcfa).toBeGreaterThan(0);
   });
 
-  it('EVERY stepper position below the floor is refused, and every one at or above it is served', () => {
+  /**
+   * REWRITTEN after the verifier (MEDIUM). The first version walked a COPY of
+   * the predicate — `for (B...) if (B < CATEGORY_FLOOR_FCFA)` — and asserted
+   * `4_500 < CATEGORY_FLOOR_FCFA`, which tests JavaScript's `<` against the
+   * test's own literals. Production was never evaluated, and the comment
+   * claiming it was "the predicate itself" was false. That is precisely the
+   * standing rule (JOURNAL 2026-07-25) committed one slice after writing it.
+   *
+   * This version walks the REAL CORE VALIDATOR, `buildCreateOffer`, over every
+   * stepper-reachable B. That is the second of the two independent refusals,
+   * and the one that decides whether an offer can exist at all.
+   */
+  it('the REAL validator refuses every stepper position below the floor, and accepts every one at or above it', () => {
+    const priced = (B: number) => buildCreateOffer({ ...FLOOR_FORM, basePrice: String(B) }, FLOOR_CTX);
+    const refused: number[] = [];
+    const accepted: number[] = [];
+    for (let B = 500; B <= 20_000; B += 500) {
+      const r = priced(B);
+      const hit = r.ok === false && r.errors.includes('base_price_below_floor');
+      (hit ? refused : accepted).push(B);
+      // nothing ELSE may fail on these forms — otherwise "accepted" would be
+      // measuring the wrong thing and this walk would prove nothing
+      if (!hit) expect(r.ok, `B=${B} must be valid for the right reason`).toBe(true);
+    }
+    expect(refused).toEqual([500, 1_000, 1_500, 2_000, 2_500, 3_000, 3_500, 4_000, 4_500]); // the nine
+    expect(accepted[0], 'the floor itself must publish').toBe(5_000);
+    expect(accepted).toHaveLength(31);
+  });
+
+  it('THE SCREEN AND THE CORE AGREE AT THE BOUNDARY — one constant, one operator, no divergence', () => {
+    // the screen's predicate, pinned as text (this repo has no render harness,
+    // so this regex is the load-bearing part — labelled, not disguised)
     const source = readFileSync(join(appDir, 'src/v2/lister-real.tsx'), 'utf8');
     expect(source).toMatch(/const money = st\.wiz\.B < CATEGORY_FLOOR_FCFA \? null : previewSellerNet\(st\.wiz\.B, st\.wiz\.C\);/);
-    // the predicate itself, walked over the real stepper grid (±500 from 500)
-    const refused: number[] = [];
-    for (let B = 500; B <= 20_000; B += 500) if (B < CATEGORY_FLOOR_FCFA) refused.push(B);
-    expect(refused).toEqual([500, 1_000, 1_500, 2_000, 2_500, 3_000, 3_500, 4_000, 4_500]); // the nine
+    // and the core's own answer at the two values either side of it, RUN
+    const at = (B: number) => buildCreateOffer({ ...FLOOR_FORM, basePrice: String(B) }, FLOOR_CTX);
+    expect(at(4_500).ok, 'one step below the floor must be refused').toBe(false);
+    expect(at(5_000).ok, 'the floor itself must be accepted').toBe(true);
+    // the screen imports the SAME constant the core validates against — not a
+    // second copy that could drift
     expect(CATEGORY_FLOOR_FCFA).toBe(5_000);
-    // the boundary is inclusive-at-the-floor: 5 000 publishes, 4 500 does not
-    expect(4_500 < CATEGORY_FLOOR_FCFA).toBe(true);
-    expect(5_000 < CATEGORY_FLOOR_FCFA).toBe(false);
+    expect(source).toContain('CATEGORY_FLOOR_FCFA');
+    expect(source).not.toMatch(/< 5[_ ]?000/); // never a hardcoded twin of the floor
   });
 
   it('the wizard cannot print a net when none was handed to it — the type carries the absence', () => {
@@ -185,6 +229,33 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     const machine = readFileSync(join(appDir, 'src/v2/machine.ts'), 'utf8');
     // the floor is a REAL-FLOW rule and must not have leaked into the demo machine
     expect(machine).not.toMatch(/CATEGORY_FLOOR|5_000|below_category_floor/);
+  });
+
+  /**
+   * THE LOAD-BEARING CLAIM, NOW GATED (verifier finding, LOW). The whole
+   * "step 3 and 4 are unreachable below the floor" argument rests on the
+   * wizard footer being the ONLY dispatcher of WIZ_NEXT. That was true by
+   * inspection and asserted by nothing — so a second dispatcher added later
+   * would silently defeat the floor block while every other test stayed green.
+   * Same instrument as the custody absence scan: count the real dispatch sites.
+   */
+  it('exactly ONE WIZ_NEXT dispatcher exists in the app — the gated wizard footer', () => {
+    const files = ['src/v2/screens2.tsx', 'src/v2/screens1.tsx', 'src/v2/lister-real.tsx',
+                   'src/v2/studio-real.tsx', 'src/v2/AppV2.tsx', 'src/v2/components.tsx', 'src/v2/machine.ts'];
+    const sites: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(join(appDir, f), 'utf8');
+      // a DISPATCH, not a comparison (`a.t === 'WIZ_NEXT'`) and not the reducer
+      // case label — `d(...)`/`dd(...)` called with the action object
+      for (const m of src.matchAll(/\b(?:d|dd)\(\s*\{\s*t:\s*'WIZ_NEXT'/g)) sites.push(`${f}:${m.index}`);
+    }
+    expect(sites, `WIZ_NEXT dispatchers found: ${sites.join(', ')}`).toHaveLength(1);
+    expect(sites[0]).toContain('src/v2/screens2.tsx');
+    // and that one site is the footer button whose disabled prop carries the floor
+    const screens2 = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
+    expect(screens2).toMatch(
+      /disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && belowFloor\)\}\s*\n\s*onPress=\{\(\) => d\(\{ t: 'WIZ_NEXT' \}\)\}/,
+    );
   });
 
   it('the refusal reuses HIS existing string — no new copy was invented for it', () => {
