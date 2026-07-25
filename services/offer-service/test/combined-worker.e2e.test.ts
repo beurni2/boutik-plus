@@ -155,9 +155,29 @@ describe('combined Worker — durable offers on real workerd', () => {
     };
     await mf.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(SEED2) });
 
-    const res = await mf.dispatchFetch('http://o/offers', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    // SCOPE IS REQUIRED — on REAL workerd, not a fixture. A key-holder with no
+    // scope gets a 400 that NAMES the missing param, never everyone's offers.
+    const unscoped = await mf.dispatchFetch('http://o/offers', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    expect(unscoped.status).toBe(400);
+    expect(await unscoped.json()).toEqual({ error: 'missing_supplier_id', param: 'supplierId' });
+
+    // and a scope that matches nothing is an honest EMPTY — a different answer
+    const stranger = await mf.dispatchFetch('http://o/offers?supplierId=supplier-nobody-999', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    expect(stranger.status).toBe(200);
+    expect(((await stranger.json()) as { items: unknown[] }).items).toEqual([]);
+
+    const res = await mf.dispatchFetch(`http://o/offers?supplierId=${encodeURIComponent('supplier-founder-001')}`, { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
     expect(res.status).toBe(200);
-    const rows = (await res.json()) as { offerId: string; productVersionId: string; available: number; basePrice: number; resellerCommission: number; name: string }[];
+    const body = (await res.json()) as { asOf: string; items: { offerId: string; productVersionId: string; available: number; basePrice: number; resellerCommission: number; name: string; category: string; assetRefs: string[] }[] };
+    // the ENVELOPE, with a SERVE clock — seconds old, not the write time
+    expect(Number.isFinite(Date.parse(body.asOf))).toBe(true);
+    // BOUNDED ON BOTH SIDES (verifier finding): the one-sided version passed for
+    // an asOf an hour in the FUTURE, which is exactly the clock defect the asOf
+    // reversal exists to catch.
+    const skew = Date.now() - Date.parse(body.asOf);
+    expect(skew).toBeLessThan(60_000);
+    expect(skew).toBeGreaterThan(-1_000);
+    const rows = body.items;
     const byOffer = Object.fromEntries(rows.map((r) => [r.offerId, r]));
     // founder-#001 — LIVE fields read off the entry
     expect(byOffer['offer-founder-001']).toEqual({
@@ -167,6 +187,8 @@ describe('combined Worker — durable offers on real workerd', () => {
       basePrice: 10_000,
       resellerCommission: 1_000,
       name: 'Pagne tissé Faso (démo)',
+      category: 'textile',
+      assetRefs: [],
     });
     // the second offer, its own live values
     expect(byOffer['offer-2']?.available).toBe(3);

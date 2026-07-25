@@ -6,17 +6,20 @@
  * Composition only; every style from styles.ts; §3.6 amounts rendered from the
  * order's FROZEN fields, never recomputed.
  */
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO, TEXTURE } from '../ui/v2/tokens';
 import { C21, C22, S05L, SCROLL, STATUS_PILL, TNUM, face, role } from '../ui/v2/styles';
 import { formatF, pendingTotal, paidTotal } from './money';
 import { flowOf, flowLabel, OFF_FLOW, SEG_OF, disabled, type S, type A, type Seg } from './machine';
 import type { Order, Product } from './seed';
+import type { SupplierOfferRow } from '../supply/service';
+import { t as tr } from '../i18n';
+import { hiddenSentence, photoSlot, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
   EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, MoneyBreakdown, Overline, PageTitle,
-  ProductPill, ProductTile, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
+  OfferTile, ProductPill, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
 } from './components';
 
 type D = (a: A) => void;
@@ -122,33 +125,64 @@ export function S02Accueil({ st, d, shopName, ownerName }: { st: S; d: D; shopNa
 }
 
 // ── S03/S04 Produits ──────────────────────────────────────────────────────────
-export function S03Produits({ st, d }: { st: S; d: D }) {
-  const products = st.porder.map((id) => st.products[id]!);
+/**
+ * PRODUITS — REAL OFFERS ONLY (founder rulings 2026-07-25).
+ *
+ * IT NO LONGER READS `st.products` / `st.porder`. Those are the Commandes demo
+ * board's fixture and this screen has NO BINDING to them — that is option (b),
+ * and it is what makes a mock unable to reach a tile. The rows are handed down
+ * by `SProduitsReal`, which owns the read.
+ *
+ * WHAT THE TILE DROPPED, and why — every one had NO REAL SOURCE:
+ *   · `glyph` / `bg` — demo decoration. A decorative glyph sitting where
+ *     evidence belongs is the same lie as a fake count, so a photograph-less
+ *     offer says « Sans photo » instead.
+ *   · `paused` — `catalog-service/src/moderation.ts` records the field as
+ *     "deliberately NOT modelled". A pause control would change nothing on the
+ *     wire: a dead switch that lies.
+ *   · `mod` — `moderationState` exists but authoring self-approves, so the badge
+ *     would always be absent. It returns when moderation is real.
+ * `sizes` renders `variantsNote` VERBATIM — his typed words, never reformatted
+ * into the board's « S · M · L » style.
+ *
+ * TILES ARE NOT TAPPABLE THIS SLICE. There is no fiche for a real offer and
+ * `st.products` holds no entry for one, so a tap would land on the id-miss
+ * guard. A dead tap is worse than no tap; the detail screen is its own slice.
+ */
+export function S03Produits({ rows, mediaBase, d, header }: {
+  rows: readonly SupplierOfferRow[];
+  mediaBase: string | null;
+  d: D;
+  header?: boolean;
+}) {
+  const live = rows.filter((r) => r.hiddenReason === undefined).length;
+  const body = (
+    <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: GEO.gap.grid }}>
+      {rows.map((r) => (
+        <OfferTile
+          key={r.offerId}
+          name={r.name}
+          priceF={formatF(r.basePrice)}
+          stock={r.available}
+          variants={r.variantsNote}
+          photo={photoSlot(r.assetRefs, mediaBase)}
+          hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
+          style={{ width: (GEO.frame.w - GEO.screenPad.side * 2 - GEO.gap.grid) / 2 }}
+        />
+      ))}
+    </View>
+  );
+  if (header !== true) return body;
   return (
     <ScrollView contentContainerStyle={scrollTabs} showsVerticalScrollIndicator={false}>
       <PageTitle>Produits</PageTitle>
       <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 4 }]}>
-        {`${products.length} en ligne · photos sans prix incrusté`}
+        {`${live} en ligne · photos sans prix incrusté`}
       </Text>
       <View style={{ marginTop: 16 }}>
         <BtnSoft label="Lister un produit — gratuit" icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
       </View>
-      <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: GEO.gap.grid }}>
-        {products.map((p) => (
-          <ProductTile
-            key={p.id}
-            bg={p.bg}
-            glyph={p.glyph}
-            name={p.name}
-            priceF={formatF(p.B)}
-            stock={p.stock}
-            paused={p.paused}
-            mod={p.mod === true}
-            onPress={() => d({ t: 'OPEN_PRODUCT', id: p.id })}
-            style={{ width: (GEO.frame.w - GEO.screenPad.side * 2 - GEO.gap.grid) / 2 }}
-          />
-        ))}
-      </View>
+      {body}
     </ScrollView>
   );
 }

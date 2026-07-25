@@ -4,8 +4,7 @@ import {
   WRITE_KEY_HEADER,
   readOutcome,
   resolveSupplyService,
-  type CreateOfferInput,
-} from '../src/supply/service';
+  type CreateOfferInput, SUPPLIER_ID} from '../src/supply/service';
 import { DEMO_SUPPLY_SENTINEL, DemoSupplyService } from '../src/supply/demo';
 
 /**
@@ -80,6 +79,48 @@ describe('the real client sends what the service expects', () => {
     expect(calls[0]!.url).toBe('https://offer.example/offers'); // no double slash
     expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual(CMD); // the command, verbatim
+  });
+
+  it('LISTS with the scope IN THE URL and the write key header — the one thing ruling 1 turns on', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ asOf: '2026-07-25T08:00:00.000Z', items: [] }), { status: 200 });
+    });
+    const svc = new HttpSupplyService('https://offer.example/', 'the-key'); // trailing slash on purpose
+    const out = await svc.listOffers(SUPPLIER_ID);
+    expect(out).toEqual({ ok: true, value: { asOf: '2026-07-25T08:00:00.000Z', items: [] } });
+    expect(calls[0]!.url).toBe(`https://offer.example/offers?supplierId=${SUPPLIER_ID}`); // no double slash
+    expect(calls[0]!.init.method).toBe('GET');
+    expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
+  });
+
+  it('ENCODES the scope — an id with URL-special characters cannot forge a second parameter', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      return new Response(JSON.stringify({ asOf: '2026-07-25T08:00:00.000Z', items: [] }), { status: 200 });
+    });
+    await new HttpSupplyService('https://offer.example', 'k').listOffers('a&supplierId=b');
+    expect(calls[0]).toBe('https://offer.example/offers?supplierId=a%26supplierId%3Db');
+  });
+
+  it('a 400 from the scope refusal is an HTTP failure carrying the service’s own words', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ error: 'missing_supplier_id', param: 'supplierId' }), { status: 400 }));
+    const out = await new HttpSupplyService('https://offer.example', 'k').listOffers('');
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.cause).toBe('http');
+    expect(out.reason).toContain('missing_supplier_id'); // the param is named, not swallowed
+  });
+
+  it('a 2xx of the WRONG SHAPE is unreadable — never an empty shop', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ items: [] }), { status: 200 })); // no asOf
+    const out = await new HttpSupplyService('https://offer.example', 'k').listOffers(SUPPLIER_ID);
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.cause).toBe('unreadable');
   });
 
   it('carries NO assets — this slice authors products with no photographs, so the wire gets []', async () => {

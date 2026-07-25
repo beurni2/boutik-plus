@@ -42,7 +42,7 @@ import { formatF } from './money';
 import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, Overline } from './components';
 import { S20Wizard } from './screens2';
 import { mintCommandId } from '../offline/commandId';
-import { resolveSupplyService, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
+import { resolveSupplyService, SUPPLIER_ID, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
 import { resolveMediaService, sha256Hex, type MediaServicePort } from '../supply/media';
 import { assembleAssets, type AssemblyInput, type ProductAssetsInput, type RoleUpload } from '../supply/assets';
 import {
@@ -62,8 +62,7 @@ import { derivativeBytesFromUri } from '../studio/capture';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 
-/** The founder's supplier id (offer-service `FOUNDER_001_SUPPLIER_ID`). HARD GATE: one supplier. */
-const SUPPLIER_ID = 'supplier-founder-001';
+
 /** Set at authoring — the founder is the only supplier. HARD GATE in authoring.ts. */
 const MODERATION_STATE = 'approved';
 /** The derivative pipeline version stamped into canon `processingVersion`. */

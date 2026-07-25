@@ -291,6 +291,13 @@ export const C26 = {
   badgePause: { backgroundColor: P.pauseBadge },
   badgeMod: { backgroundColor: P.warnBg },
   badgeModTxt: { color: P.warnDeep },
+  // PRODUITS-READ-1 — the two states a REAL offer has that a mock never did.
+  // Built from the same tokens as the rest of C26; no one-off values.
+  noPhoto: { alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: P.bg },
+  noPhotoTxt: { ...role({ f: 'IS', w: 600, s: 12 }, P.sub) },
+  variants: { ...role({ f: 'IS', w: 400, s: 11.5 }, P.sub), marginTop: 4 },
+  /** « expirée » — warn, never danger: a lapsed offer is a fact to act on, not a fault. */
+  hidden: { ...role({ f: 'IS', w: 600, s: 11.5 }, P.warnDeep), marginTop: 6 },
 } as const;
 
 // ── C27 Banner ───────────────────────────────────────────────────────────────

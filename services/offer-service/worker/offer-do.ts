@@ -1,4 +1,5 @@
 import { decideAttachAssets, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
+import { buildSupplierList } from '../src/supplier-list.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -158,7 +159,7 @@ const forward = async (res: Response, status = res.status): Promise<Response> =>
  * Router — the durable offer surface:
  *   POST /offers                       create (+ writes the pv pointer AND the index row on 'created')
  *   GET  /supply-entry/:productVersionId  the READ resolution — pointer → offer entry (or 404) [internal, via the store shim]
- *   GET  /offers                       THE ADMIN LIST — the index rows enriched with LIVE fields off each entry
+ *   GET  /offers?supplierId=…          THE SUPPLIER LIST — his own offers, scope REQUIRED (400 names it)
  * The DO name IS the offerId (or 'pv:'+productVersionId, or 'index'); one
  * authority per offer by construction. POST /offers + GET /supply-entry are
  * reached through the store shim; GET /offers is the founder's key-gated admin
@@ -214,35 +215,36 @@ export default {
       return forward(res);
     }
 
-    // THE ADMIN LIST — key-gated at the composition root (a GET, so the write gate
-    // skips it). Reads the write-once index, then the LIVE fields off each offer
-    // entry (available / basePrice / resellerCommission / product name), so the
-    // list never shows stale state. No seller-net: money stays a preview.
+    // THE SUPPLIER LIST — key-gated at the composition root (a GET, so the write
+    // gate skips it). Reads the write-once index, then the LIVE fields off each
+    // offer entry, so the list can never show stale state. No seller-net: money
+    // stays a preview.
+    //
+    // **SCOPE IS REQUIRED, AND ITS ABSENCE IS A 400 THAT NAMES IT** (founder
+    // ruling 2026-07-25). `IndexRow` carries no supplierId and the index DO is
+    // global, so a scope-less list is EVERY supplier's offers. That is invisible
+    // while one supplier exists and fails OPEN the day a second does — the same
+    // class as the `/supply-projections` prefix hazard. Refusing beats returning
+    // empty: an empty list is indistinguishable from « you have no products »,
+    // which is the one confusion the empty states exist to prevent.
+    //
+    // The refusal comes BEFORE the index read: a malformed request does no work.
     if (request.method === 'GET' && pathname === '/offers') {
+      const supplierId = new URL(request.url).searchParams.get('supplierId');
+      if (supplierId === null || supplierId.trim() === '') {
+        return Response.json({ error: 'missing_supplier_id', param: 'supplierId' }, { status: 400 });
+      }
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
       const rows = (await idxRes.json()) as IndexRow[];
-      const out: {
-        offerId: string;
-        productVersionId: string;
-        available: number;
-        basePrice: number;
-        resellerCommission: number;
-        name: string;
-      }[] = [];
+      const entries: OfferEntry[] = [];
       for (const r of rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row (offer gone) is honestly skipped
-        const entry = (await eRes.json()) as OfferEntry;
-        out.push({
-          offerId: r.offerId,
-          productVersionId: r.productVersionId,
-          available: entry.available,
-          basePrice: entry.offer.basePrice,
-          resellerCommission: entry.offer.resellerCommission,
-          name: entry.product.name,
-        });
+        entries.push((await eRes.json()) as OfferEntry);
       }
-      return Response.json(out);
+      // Filtering, the wire-order refs and the ladder-derived `hiddenReason` all
+      // live in the PURE builder, so they are testable without a DO.
+      return Response.json(buildSupplierList(supplierId, entries, new Date().toISOString()));
     }
 
     // DISCOVERY (SLICE B) — every supply entry, RAW. The collection analogue of

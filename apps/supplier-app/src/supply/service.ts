@@ -147,10 +147,103 @@ export interface AttachAssetsOutcome {
   readonly reason?: string;
 }
 
+/** The four reasons the wire's refusal ladder can give — mirrors `supplier-list.ts`. */
+export const HIDDEN_REASONS = [
+  'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective',
+] as const;
+export type HiddenReason = (typeof HIDDEN_REASONS)[number];
+
+/**
+ * PRODUITS-READ-1 — one of HIS offers, as the supplier list serves it. Mirrors
+ * `services/offer-service/src/supplier-list.ts` `SupplierOfferRow`.
+ */
+export interface SupplierOfferRow {
+  readonly offerId: string;
+  readonly productVersionId: string;
+  readonly name: string;
+  readonly category: string;
+  readonly basePrice: number;
+  readonly resellerCommission: number;
+  readonly available: number;
+  /** Wire order, hero FIRST, master excluded. `[]` when the offer has no photographs. */
+  readonly assetRefs: readonly string[];
+  /** His typed words, verbatim. Absent when he typed none. */
+  readonly variantsNote?: string;
+  /**
+   * Present ⇒ Shop+ is NOT showing this offer, and this is the ladder's own
+   * reason. TYPED AS THE UNION, not `string` (verifier finding): the loose type
+   * let an unknown reason — or `''` from a broken server — type-check and render
+   * a confident wrong cause, with the compiler unable to flag the unhandled
+   * case. The reader below refuses anything outside the union.
+   */
+  readonly hiddenReason?: HiddenReason;
+}
+
+/** The envelope — SERVE clock, matching the supply collection. */
+export interface SupplierOfferList {
+  readonly asOf: string;
+  readonly items: readonly SupplierOfferRow[];
+}
+
+/**
+ * VALIDATED AT THE BOUNDARY, never cast — same law as the create response. A 2xx
+ * body of `null`, or an item missing `basePrice`, would otherwise become a
+ * TypeError inside a render or a blank price on a real product. Anything that
+ * does not read as a list is `null`, and the screen states a read failure rather
+ * than an empty shop.
+ */
+export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const o = raw as { asOf?: unknown; items?: unknown };
+  if (typeof o.asOf !== 'string' || o.asOf === '' || !Number.isFinite(Date.parse(o.asOf))) return null;
+  if (!Array.isArray(o.items)) return null;
+  const items: SupplierOfferRow[] = [];
+  for (const it of o.items) {
+    if (it === null || typeof it !== 'object') return null;
+    const r = it as Record<string, unknown>;
+    const str = (k: string): string | null => (typeof r[k] === 'string' && r[k] !== '' ? (r[k] as string) : null);
+    const num = (k: string): number | null => (Number.isFinite(r[k]) ? (r[k] as number) : null);
+    const offerId = str('offerId');
+    const productVersionId = str('productVersionId');
+    const name = str('name');
+    const category = str('category');
+    const basePrice = num('basePrice');
+    const resellerCommission = num('resellerCommission');
+    const available = num('available');
+    if (offerId === null || productVersionId === null || name === null || category === null) return null;
+    if (basePrice === null || resellerCommission === null || available === null) return null;
+    if (!Array.isArray(r['assetRefs']) || !r['assetRefs'].every((x) => typeof x === 'string')) return null;
+    items.push({
+      offerId, productVersionId, name, category, basePrice, resellerCommission, available,
+      assetRefs: r['assetRefs'] as string[],
+      ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
+      ...(HIDDEN_REASONS.includes(r['hiddenReason'] as HiddenReason)
+        ? { hiddenReason: r['hiddenReason'] as HiddenReason }
+        : {}),
+    });
+  }
+  return { asOf: o.asOf, items };
+}
+
+/**
+ * THE ONE SUPPLIER ID (HARD GATE: there is one supplier). It lived in TWO files
+ * — `lister-real.tsx` (the write) and `AppV2.tsx` (the read) — kept in step by a
+ * comment. Verifier finding: if they ever drifted, the read would return
+ * `items: []`, a SUCCESSFUL read, and the app would say « vous n'avez pas encore
+ * de produit » about a shop that has products — this slice's own bug, recreated,
+ * with nothing to catch it. One constant instead of a promise.
+ */
+export const SUPPLIER_ID = 'supplier-founder-001';
+
 export interface SupplyServicePort {
   createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>>;
   /** Attach photographs to an ALREADY-PUBLISHED offer — completion, not replacement. */
   attachAssets(cmd: AttachAssetsInput): Promise<ServiceResult<AttachAssetsOutcome>>;
+  /**
+   * HIS OWN offers. SCOPE IS REQUIRED by the route — an absent one is a 400 that
+   * names it, never everyone's offers (founder ruling 2026-07-25).
+   */
+  listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>>;
 }
 
 const DECISION_STATUSES = ['created', 'idempotent', 'collision', 'refused'] as const;
@@ -247,6 +340,33 @@ export class HttpSupplyService implements SupplyServicePort {
     const outcome = readAttachOutcome(parsed);
     if (outcome === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     return { ok: true, value: outcome };
+  }
+
+  /**
+   * HIS OWN offers — a READ over the same shared write key, which already ships
+   * in this bundle. The scope is sent explicitly and ENCODED; the route refuses a
+   * missing one with a 400 naming the param, so a bug here fails loudly rather
+   * than quietly listing every supplier.
+   */
+  async listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>> {
+    const url = `${this.base.replace(/\/+$/, '')}/offers?supplierId=${encodeURIComponent(supplierId)}`;
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'GET', headers: { [WRITE_KEY_HEADER]: this.writeKey } });
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    const text = await res.text();
+    if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    const list = readSupplierOfferList(parsed);
+    if (list === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    return { ok: true, value: list };
   }
 }
 

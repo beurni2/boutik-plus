@@ -5,8 +5,8 @@
  * (the RN mapping §1.8). Motion (§7) is wired in a later slice — value match
  * first (founder order 2026-07-17).
  */
-import type { ReactNode } from 'react';
-import { Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Image, Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Rect, Stop, Circle } from 'react-native-svg';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO, GLYPH_SHADOW, PRESSED, TEXTURE } from '../ui/v2/tokens';
@@ -15,6 +15,8 @@ import {
   C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C34, C36, C37, C38, C41, C43, C44,
   C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM,
 } from '../ui/v2/styles';
+import { t as tr } from '../i18n';
+import type { PhotoSlot } from '../supply/produits-view';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { C07BtnPrimary } from '../ui/v2/components/C07BtnPrimary';
 import type { OrderStatus } from './seed';
@@ -322,6 +324,74 @@ export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPre
   );
 }
 
+
+/**
+ * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT `ProductTile`: that one
+ * takes `bg` / `glyph` / `paused`, three fields with no real source.
+ *
+ * `ProductTile` IS LEFT IN PLACE BUT IT NOW HAS ZERO CALL SITES — corrected
+ * after a verifier finding, because the comment here used to say it was "left
+ * untouched for the Commandes demo board" and Commandes never used it (it uses
+ * IconTile and ProductPill). It is kept rather than deleted under the
+ * no-unrequested-tidying rule; what is fixed is the CLAIM about why.
+ *
+ * THE PHOTOGRAPH: `assetRefs[0]` is the heroSquare by construction (wire order,
+ * master excluded). Media reads are UNAUTHENTICATED — the media Worker's write
+ * gate short-circuits GETs — so `${base}/${ref}` renders with no credential. No
+ * refs, or no configured base, gives « Sans photo »: an honest absence, never
+ * the demo glyph standing in for evidence.
+ *
+ * NOT PRESSABLE: there is no fiche for a real offer yet, and `st.products` holds
+ * no entry for one, so a tap would land on the id-miss guard. A dead tap is
+ * worse than no tap.
+ */
+export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, style }: {
+  name: string;
+  priceF: string;
+  stock: number;
+  variants?: string | undefined;
+  /** THREE facts, not two — a photograph, an honest absence, or « we cannot
+   * fetch it ». Decided purely in `supply/produits-view.ts`. */
+  photo: PhotoSlot;
+  /** Present ⇒ Shop+ is not showing this offer, and this is the sentence for why. */
+  hiddenNote?: string | undefined;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <View style={[s.tile, style]}>
+      {photo.kind === 'photo' && !broken ? (
+        <Image
+          source={{ uri: photo.uri }}
+          style={{ width: '100%', height: C21.produitImg.h }}
+          resizeMode="cover"
+          // A ref that 404s (wrong base, purged object) must land on the SAME
+          // designed state as an unfetchable one — never an empty box.
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <View style={[s.tileNoPhoto, { height: C21.produitImg.h }]}>
+          {/* A ref that was fetchable in principle but 404'd lands HERE, on the
+              same designed state as one we cannot fetch at all — « Photo
+              indisponible », never « Sans photo », because he DID upload one. */}
+          <Text style={s.tileNoPhotoTxt}>
+            {tr(photo.kind === 'photo' ? 'produits.photo_non_configure' : photo.message)}
+          </Text>
+        </View>
+      )}
+      <View style={s.tileBody}>
+        <Text style={s.tileName} numberOfLines={2}>{name}</Text>
+        <View style={s.tilePriceRow}>
+          <Text style={[s.tilePrice, TNUM]}>{priceF}</Text>
+          <Text style={[s.tileStock, stock <= 4 && s.tileStockLow, TNUM]} numberOfLines={1}>{`stock ${stock}`}</Text>
+        </View>
+        {variants !== undefined && <Text style={s.tileVariants} numberOfLines={1}>{variants}</Text>}
+        {hiddenNote !== undefined && <Text style={s.tileHidden}>{hiddenNote}</Text>}
+      </View>
+    </View>
+  );
+}
+
 // ── banners, empty, timeline ─────────────────────────────────────────────────
 export function Banner({ tone, children, check, style }: { tone: 'info' | 'warn' | 'danger' | 'success'; children: ReactNode; check?: boolean; style?: StyleProp<ViewStyle> }) {
   const t = C27[tone];
@@ -505,6 +575,7 @@ const s = StyleSheet.create({
   moneyRow: C24.row, moneyRowCode: C24.code, moneyRowName: C24.name, moneyRowNet: C24.net, moneyRowRight: C24.right,
   releveRow: C25.row, releveWeek: C25.week, releveSub: C25.sub, releveTotal: C25.total,
   tile: C26.tile, tileBody: C26.body, tileName: C26.name, tilePriceRow: C26.priceRow, tilePrice: C26.price, tileStock: C26.stock, tileStockLow: C26.stockLow,
+  tileNoPhoto: C26.noPhoto, tileNoPhotoTxt: C26.noPhotoTxt, tileVariants: C26.variants, tileHidden: C26.hidden,
   tileBadge: C26.badge, tileBadgeTxt: C26.badgeTxt, tileBadgePause: C26.badgePause, tileBadgeMod: C26.badgeMod, tileBadgeModTxt: C26.badgeModTxt,
   banner: C27.banner, bannerTxt: C27.txt, bannerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   empty: C28.box, emptyTxt: C28.txt,
