@@ -1588,5 +1588,11 @@
     "fr": "Choisir une autre photo",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "studio.depuis_telephone",
+    "fr": "Choisir une photo du téléphone",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]
