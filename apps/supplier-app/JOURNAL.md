@@ -1,0 +1,27 @@
+
+### 2026-07-25 · 🔄 THE STUDIO SLICE WAS RESHAPED — GUIDES MOVE OFF THE CAMERA AND ONTO THE PICTURE
+Founder, on how he actually works: **most product pictures will come from the gallery, not the camera** — and he wants it SIMPLE. After he picks or shoots, he sees **the actual image at full width with both crop guides drawn on it**, and keeps it or chooses another. One review step per role, one screen for both sources.
+
+- **THE ASPECT BLOCK IS LIFTED, AND NOT BY BEING SOLVED.** I reported that the still's aspect cannot be known before the shutter, so a guide on the live viewfinder is drawn over an assumption. The reshape makes that finding the *reason* rather than the problem: **a chosen image's dimensions are known, so the guide is exact rather than probable.**
+- **`guideForCrop` SURVIVES UNCHANGED AND BECOMES MORE CENTRAL.** It maps a crop into a displayed rectangle; a review pane is a container like any other. The invariant proved over swept aspects holds identically there. **Do not rebuild it.**
+- **CANCELLED:** the viewfinder rebuild, guides on the live preview, and the 480 px composition budget. Decisions A, B and C are withdrawn with it — all three were about a live viewfinder. **C re-emerges on the review screen and is RULED: both guides, nesting concentrically, because both crops ship whether or not he saw them.**
+- **The camera preview still gets bigger** — fill the width, no guides, no derived geometry, no aspect assumption. It was only ever hard because of the guides.
+- `_review/WO-FP-BOUTIK/anatomy/studio-real-composition-PROPOSAL.md` is marked SUPERSEDED in place, not deleted: the anatomy table and planche citations carry to the review screen. The arithmetic does not.
+- **The footer honesty note (planche 495) — « votre photo d'origine est gardée, jamais remplacée » — lands on the review screen.** Journaled as a MOVE with its reason, never a deletion: it had no room beside a 480 px camera pane, and the review surface is where a person is actually deciding about his original.
+
+### 2026-07-25 · STANDING INSTRUCTION — PLAIN OVER ELABORATE, BUT NEVER PLAIN BY REMOVING HONESTY
+Founder, verbatim: *"Where a choice exists between a correct-and-elaborate design and a correct-and-plain one, take the plain one and say in your report what the elaborate one would have bought. Do NOT simplify by removing honesty — that is not the trade he is asking for — but do not spend his screen or his taps on completeness he did not ask for. **If a rule can be stated by the picture, do not also write a sentence about it.**"*
+
+### 2026-07-25 · STUDIO-PICK-1 BUILT — THE GALLERY SEAM, WITH THE DIMENSION DISCIPLINE IN THE TESTED LAYER
+`src/studio/pick.ts` (pure) + `src/studio/pick-native.ts` (three native calls, no branching). **Seam only — no call site yet**, per the approved packaging.
+
+- **THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER.** `ImageRef.width/height` — what the manipulator actually decoded — is the source; the picker's own `width`/`height` are read nowhere. Its types say they *"Can be `0` if the system did not provide the width."*
+- **AND THAT RULE IS IN THE TESTED LAYER, WHICH IS WHY THE MODULE IS SPLIT IN TWO.** A file importing `expo-image-picker` cannot load in node. `capture.ts` is the cautionary case — it is proved today by **grepping its own source**, which is exactly the shape ruled against. So every decision lives in a native-free module behind a two-method port, and a fake port whose decode *disagrees with the picker on purpose* proves the rule by value.
+- **ONE DECODE, NOT TWO.** `manipulate()` accepts `string | SharedRef<'image'>` and `ImageRef` IS a `SharedRef<'image'>` (`expo-image-manipulator@14.0.8`, `ImageManipulator.types.d.ts:118`), so the decoded image is handed straight to the encode step. On a 2 GB Android holding a 12 MP bitmap that is the difference worth having.
+- **SAME FUNNEL AS CAPTURE — no laxer path for a library photo:** decode → bounded resize → our own segment strip → `assertExifFree` on the exact shipped bytes. **The EXIF widening is more load-bearing here than where it merged:** XMP is where a gallery app writes GPS, and gallery is now the majority path. The test fixture is a JPEG carrying XMP *and* IPTC.
+- **A strip failure is NOT caught into the soft refusal.** Bytes that cannot be proven clean fail closed exactly as on the camera path — pinned by its own test, because catching one exception too many is how a fail-closed guard quietly becomes fail-open.
+- **The three approved strings are in the catalog: 261 entries, 0 violations.**
+- **NO GUIDANCE ON THE GALLERY PATH, and that is honesty rather than saving.** « Rapprochez-vous ou ajoutez un peu de lumière » is advice he cannot act on for a photograph taken last week. The useful next move is « choisissez-en une autre », which is the review screen's own secondary action.
+- **RED-PROVEN, four separate defects, each planted and reverted:** trusting the picker's dimensions (4 tests fail) · master dimensions taken from the derivative, the original crop-space defect (1) · skipping the strip and trusting the encoder (2) · swallowing the strip failure into a refusal (1) · opening the gallery on the PROOF role (1).
+- **VERIFIED:** typecheck 13/13 · supplier-app **430/430 (36 files)** · ALL GATES GREEN.
+- **NOT TESTED, STATED PLAINLY:** `pick-native.ts` itself. Three native calls, no branching, unrunnable in node. Its correctness rests on the type signatures quoted in its header, and it will first be exercised on his device.

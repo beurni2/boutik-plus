@@ -1546,5 +1546,23 @@
     "fr": "La quantité doit être un nombre entier.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "studio.image_illisible",
+    "fr": "Cette image n'a pas pu être ouverte ({format}). Choisissez-en une autre, ou prenez la photo maintenant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "studio.format_inconnu",
+    "fr": "format inconnu",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.preuve_appareil_seul",
+    "fr": "La photo preuve se prend maintenant, avec l'appareil. C'est elle qui montre que le produit est bien chez vous.",
+    "register": "selling",
+    "screenClass": "instruction"
   }
 ]

@@ -1,0 +1,224 @@
+import { describe, expect, it } from 'vitest';
+import {
+  decodeRefusalSentence,
+  galleryRefusalKey,
+  pickShot,
+  pickedFormatLabel,
+  type ImageSourcePort,
+  type PickedAsset,
+} from '../src/studio/pick';
+import { base64ToBytes, bytesToBase64, jpegCarriesExif, ExifLeakError } from '../src/studio/normalization';
+import { heroSquareCrop, heroVerticalCrop } from '../src/studio/crops';
+import { t } from '../src/i18n';
+
+/**
+ * STUDIO-PICK-1 — the gallery seam. The properties under test are the founder's
+ * rulings: the dimensions come from the DECODE and never from the picker, the
+ * shipped bytes go through the same strip as capture, a decode fault is a typed
+ * refusal that NAMES the format, and the proof shot stays camera-only.
+ */
+
+// --- a real JPEG carrying metadata, same segment grammar as exif-strip -------
+const seg = (marker: number, payload: number[]): number[] => {
+  const len = payload.length + 2;
+  return [0xff, marker, (len >> 8) & 0xff, len & 0xff, ...payload];
+};
+const SOI = [0xff, 0xd8];
+const EOI = [0xff, 0xd9];
+const APP1_XMP = seg(0xe1, [...'http://ns.adobe.com/xap/1.0/\0<x>35.1,-1.5</x>'].map((c) => c.charCodeAt(0)));
+const APP13_IPTC = seg(0xed, [...'Photoshop 3.0\0'].map((c) => c.charCodeAt(0)));
+const DQT = seg(0xdb, [0x00, ...Array.from({ length: 64 }, (_, i) => (i % 16) + 1)]);
+const SOF0 = seg(0xc0, [8, 0, 16, 0, 16, 1, 0x11, 0]);
+const DHT = seg(0xc4, [0x00, ...Array.from({ length: 16 }, () => 0), 0x05]);
+const SOS = seg(0xda, [1, 0, 0, 0, 63, 0]);
+const ENTROPY = [0x12, 0x34, 0xff, 0x00, 0x56];
+/** What a phone gallery hands back: XMP (which carries GPS) and IPTC. */
+const GALLERY_JPEG = new Uint8Array([SOI, APP1_XMP, DQT, SOF0, DHT, APP13_IPTC, SOS, ENTROPY, EOI].flat());
+
+const ASSET: PickedAsset = { uri: 'file:///cache/IMG_2031.heic', mimeType: 'image/heic', fileName: 'IMG_2031.HEIC' };
+
+/**
+ * A port whose DECODE disagrees with the picker on purpose. `decodeW/decodeH`
+ * are the truth; the picker's own numbers never appear anywhere in this file's
+ * expectations, which is the whole point.
+ */
+function fakePort(over: Partial<{
+  decodeW: number; decodeH: number; bytes: Uint8Array;
+  failDecode: boolean; failEncode: boolean; asset: PickedAsset | null;
+}> = {}): ImageSourcePort & { actionsSeen: unknown[] } {
+  const actionsSeen: unknown[] = [];
+  return {
+    actionsSeen,
+    async pickFromLibrary() {
+      return over.asset === undefined ? ASSET : over.asset;
+    },
+    async decode(uri: string) {
+      if (over.failDecode === true) throw new Error('native decode failed');
+      return { image: { handle: uri }, width: over.decodeW ?? 4000, height: over.decodeH ?? 3000 };
+    },
+    async encode(image, actions) {
+      if (over.failEncode === true) throw new Error('native encode failed');
+      actionsSeen.push({ image, actions });
+      return { base64: bytesToBase64(over.bytes ?? GALLERY_JPEG), width: 1280, height: 960 };
+    },
+  };
+}
+
+describe('THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER', () => {
+  it('reports the DECODED size as the master, not the picker’s (which its own types say may be 0)', async () => {
+    // the picker claims a degenerate 0x0 — the exact value its .d.ts warns about
+    const out = await pickShot(fakePort({ decodeW: 4032, decodeH: 3024 }), {
+      ...ASSET,
+      // deliberately shaped like the picker's asset, extra fields and all
+      ...({ width: 0, height: 0 } as unknown as PickedAsset),
+    });
+    if (out.kind !== 'picked') throw new Error(`expected picked, got ${out.kind}`);
+    expect(out.shot.master).toEqual({ width: 4032, height: 3024 });
+  });
+
+  it('DERIVES THE RESIZE from the decoded size — a 0x0 picker claim would have produced NO resize at all', async () => {
+    const port = fakePort({ decodeW: 4000, decodeH: 3000 });
+    await pickShot(port, ASSET);
+    // 4000 is above the 1280 ceiling and landscape ⇒ resize by WIDTH
+    expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [{ resize: { width: 1280 } }] }]);
+  });
+
+  it('a PORTRAIT decode resizes by HEIGHT — the branch a wrong-orientation source would flip', async () => {
+    const port = fakePort({ decodeW: 3000, decodeH: 4000 });
+    await pickShot(port, ASSET);
+    expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [{ resize: { height: 1280 } }] }]);
+  });
+
+  it('an already-small image gets NO resize action', async () => {
+    const port = fakePort({ decodeW: 900, decodeH: 700 });
+    await pickShot(port, ASSET);
+    expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [] }]);
+  });
+
+  it('the master dimensions it reports are the ones the CROPS will be carved from — square and 4:5 both land in bounds', async () => {
+    const out = await pickShot(fakePort({ decodeW: 4032, decodeH: 3024 }), ASSET);
+    if (out.kind !== 'picked') throw new Error('expected picked');
+    const { width, height } = out.shot.master;
+    for (const rect of [heroSquareCrop(width, height), heroVerticalCrop(width, height)]) {
+      expect(rect.width).toBeGreaterThan(0);
+      expect(rect.height).toBeGreaterThan(0);
+      expect(rect.originX + rect.width).toBeLessThanOrEqual(width);
+      expect(rect.originY + rect.height).toBeLessThanOrEqual(height);
+    }
+  });
+
+  it('the ENCODE runs on the DECODED image handle — one decode, not a second pass over the URI', async () => {
+    const port = fakePort();
+    await pickShot(port, ASSET);
+    expect(port.actionsSeen).toHaveLength(1);
+    expect((port.actionsSeen[0] as { image: unknown }).image).toEqual({ handle: ASSET.uri });
+  });
+});
+
+describe('THE SAME STRIP FUNNEL AS CAPTURE — no laxer path for a library photo', () => {
+  it('XMP and IPTC are GONE from the shipped bytes (XMP is where a gallery app writes GPS)', async () => {
+    expect(jpegCarriesExif(GALLERY_JPEG)).toBe(true); // the fixture really is dirty
+    const out = await pickShot(fakePort(), ASSET);
+    if (out.kind !== 'picked') throw new Error('expected picked');
+    // decoded with OUR decoder, not `atob` — normalization.ts removed that
+    // dependency by construction after the founder's device failed on it
+    const shipped = base64ToBytes(out.shot.derivative.uri.split(',')[1]!);
+    expect(jpegCarriesExif(shipped)).toBe(false);
+    expect(shipped.length).toBeLessThan(GALLERY_JPEG.length); // segments were actually removed
+  });
+
+  it('the PREVIEW URI is built from the stripped bytes — what he sees is what uploads', async () => {
+    const out = await pickShot(fakePort(), ASSET);
+    if (out.kind !== 'picked') throw new Error('expected picked');
+    expect(out.shot.derivative.uri.startsWith('data:image/jpeg;base64,')).toBe(true);
+    // and the master is the ORIGINAL file, kept apart from the derivative
+    expect(out.shot.masterUri).toBe(ASSET.uri);
+    expect(out.shot.derivative.uri).not.toContain(ASSET.uri);
+  });
+
+  it('BYTES THAT CANNOT BE PROVEN CLEAN FAIL CLOSED — the strip error is not swallowed into a refusal', async () => {
+    const notAJpeg = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    await expect(pickShot(fakePort({ bytes: notAJpeg }), ASSET)).rejects.toBeInstanceOf(ExifLeakError);
+  });
+});
+
+describe('A DECODE FAULT IS A TYPED REFUSAL THAT NAMES THE FORMAT', () => {
+  it('a decode failure refuses with the format the phone reported', async () => {
+    const out = await pickShot(fakePort({ failDecode: true }), ASSET);
+    expect(out).toEqual({ kind: 'refused', refusal: { messageKey: 'studio.image_illisible', format: 'heic' } });
+  });
+
+  it('an ENCODE failure refuses the same way — he cannot tell the two apart and should not have to', async () => {
+    const out = await pickShot(fakePort({ failEncode: true }), ASSET);
+    expect(out).toEqual({ kind: 'refused', refusal: { messageKey: 'studio.image_illisible', format: 'heic' } });
+  });
+
+  it('backing out of the picker is a CANCEL, not a fault — no refusal sentence, nothing kept', async () => {
+    expect(await pickShot(fakePort({ asset: null }))).toEqual({ kind: 'cancelled' });
+  });
+});
+
+describe('NAMING THE FORMAT — pure, and null is a real answer', () => {
+  it('an image/* MIME is trimmed to the part a person reads', () => {
+    expect(pickedFormatLabel({ uri: 'x', mimeType: 'image/heic' })).toBe('heic');
+    expect(pickedFormatLabel({ uri: 'x', mimeType: 'image/webp' })).toBe('webp');
+  });
+
+  it('a NON-image MIME travels whole rather than being trimmed into a lie', () => {
+    expect(pickedFormatLabel({ uri: 'x', mimeType: 'video/quicktime' })).toBe('video/quicktime');
+  });
+
+  it('falls back to the filename extension when the MIME is missing', () => {
+    expect(pickedFormatLabel({ uri: 'x', fileName: 'IMG_0042.HEIC' })).toBe('heic');
+  });
+
+  it('returns NULL when the phone gave nothing usable — the ph:// and limited-permission cases', () => {
+    expect(pickedFormatLabel({ uri: 'ph://ABC-123' })).toBeNull();
+    expect(pickedFormatLabel({ uri: 'x', mimeType: '', fileName: null })).toBeNull();
+    expect(pickedFormatLabel({ uri: 'x', fileName: 'no-extension-here' })).toBeNull();
+    // a "." that is not an extension must not be read as one
+    expect(pickedFormatLabel({ uri: 'x', fileName: 'photo.' })).toBeNull();
+    expect(pickedFormatLabel({ uri: 'x', fileName: '.hidden' })).toBeNull();
+    expect(pickedFormatLabel({ uri: 'x', fileName: 'archive.tarball' })).toBeNull(); // >5 chars
+  });
+});
+
+describe('THE REFUSAL SENTENCE — rendered from the catalog, never assembled inline', () => {
+  it('substitutes the named format into the approved string', () => {
+    const sentence = decodeRefusalSentence({ messageKey: 'studio.image_illisible', format: 'heic' });
+    expect(sentence).toBe(t('studio.image_illisible').replace('{format}', 'heic'));
+    expect(sentence).toContain('(heic)');
+    expect(sentence).not.toContain('{format}'); // the placeholder never reaches his screen
+  });
+
+  it('an UNNAMEABLE format renders « format inconnu », never an empty « () »', () => {
+    const sentence = decodeRefusalSentence({ messageKey: 'studio.image_illisible', format: null });
+    expect(sentence).toContain(`(${t('studio.format_inconnu')})`);
+    expect(sentence).not.toContain('()');
+  });
+
+  it('the sentence gives BOTH ways out — the shape ruled on the commission refusal', () => {
+    const sentence = decodeRefusalSentence({ messageKey: 'studio.image_illisible', format: 'heic' });
+    expect(sentence).toContain('une autre'); // choose a different image
+    expect(sentence).toContain('maintenant'); // or take it now
+  });
+});
+
+describe('CAMERA-ONLY FOR THE PROOF SHOT — stated in words, not by a missing button', () => {
+  it('the proof role refuses the gallery, and names the reason string', () => {
+    expect(galleryRefusalKey('preuve')).toBe('studio.preuve_appareil_seul');
+  });
+
+  it('hero and detail allow the gallery — the founder’s standing ruling, both halves', () => {
+    expect(galleryRefusalKey('hero')).toBeNull();
+    expect(galleryRefusalKey('detail')).toBeNull();
+  });
+
+  it('the refusal string exists, states the rule AND the reason, and claims no verification', () => {
+    const s = t('studio.preuve_appareil_seul');
+    expect(s).toContain("avec l'appareil"); // the rule
+    expect(s).toContain('chez vous'); // the reason
+    // it must not claim the platform can check the photo — provenance is all we have
+    expect(s).not.toMatch(/vérifi|contrôl|authentif/i);
+  });
+});

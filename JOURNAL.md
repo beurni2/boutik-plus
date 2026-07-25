@@ -1623,3 +1623,9 @@ He asked whether items 1 and 4-wiring should land as one slice with the screen. 
 - **Splitting means no file is touched twice**, and the seam (`src/studio/picker.ts` + tests: dimensions taken from the manipulator's decode, never the picker's; typed format-naming refusal; camera-only PROOF role) is testable entirely by value, with no layout decision inside it.
 - **The cost, stated: the gallery path is unreachable from the UI until the screen slice lands.** A module with tests and no call site yet — journaled here so it is not later mistaken for dead code.
 - **What is NOT a reason to split:** diff size alone. The seam and the screen are separate files and would have been reviewable together.
+
+### 2026-07-25 · ERROR LEDGER — I HAVE BEEN REPORTING « typecheck 13/13 » AND THE NUMBER IS 11
+Caught by counting instead of repeating. `pnpm -r typecheck` runs **11** workspace packages and prints **11** « Done »; a twelfth `typecheck` script exists only on the ROOT package, which `-r` does not run. There is no thirteenth.
+- **Nothing about the result was wrong** — every package that has a typecheck has passed, every time. What was wrong was **a number I carried forward from memory instead of from the tool output**, in reports and in this journal, including in the already-pushed merge commit `2d48eb7`.
+- **It is the small version of the failure this program keeps finding**: a claim that sounds like evidence because it is specific. Specificity is not provenance.
+- **Corrected going forward: 11/11.** Earlier entries are left as written — the journal is a record, not a draft.
