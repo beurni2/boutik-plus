@@ -1732,3 +1732,22 @@ Ratified by the founder as a law in its own right, from the `authoring-screen.te
 Recorded at the founder's instruction after I did exactly this cleaning up a red proof: `git checkout apps/supplier-app/src/v2/studio-real.tsx` reverted **the entire rewrite**, not the one planted line. Caught on the next `git diff`; nothing was pushed in that state; the file was rewritten and the machine file verified restored by grep before the green run.
 - **Use `git stash` or a backup copy.** The command silently discards work that exists nowhere else — **and a red proof is precisely the moment the working tree holds something undescribed.**
 - **Founder on the report of it:** *"the temptation to quietly redo the work and say nothing is exactly the temptation the journal exists to defeat."*
+
+### 2026-07-25 · 🚨 LIVE DEFECT — WHITE SCREEN AT BOOT ON THE DEVICE-PASS BUILD (fast path)
+**The founder could not open the app.** Screenshot: iOS status bar, entirely white body. Diagnosed, fixed and shipped under the live-defect fast path.
+
+**THE MECHANISM, evidence-backed rather than guessed:**
+- `expo-image-picker` entered `package.json` at **`59e0f0f`** — a JS-only slice, shipped to his phone as an `eas update` OTA bundle. **`eas update` ships JAVASCRIPT. A native module reaches a phone only inside a new binary.** So the module has never existed in his installed build.
+- At **`e015feb`** the wiring slice put a TOP-LEVEL `import * as ImagePicker from 'expo-image-picker'` into the boot graph: `AppV2.tsx:39 → studio-real.tsx:21 → pick-native.ts:1`, three static imports, all evaluated at startup.
+- **Verified by git rather than asserted:** `git show d885cd9:…/studio-real.tsx | grep -c pick-native` returns **0**. Before the wiring slice the module was unreachable from boot — which is exactly why `d885cd9`'s preview opened and `8359e55`'s did not.
+- **The catalog was ruled OUT, not assumed innocent:** `CatalogSchema.parse` over the 266 shipped entries passes.
+- **What I could not do:** run his binary. The mechanism is inferred from the import graph and the publish channel, and the timing is exact — but the proof is his phone opening.
+
+**THE FIX (OTA-deliverable, no rebuild needed to get him working):** `expo-image-picker` is now `require`d **lazily, inside the call**. Boot never touches it; only tapping « Choisir une photo du téléphone » does. On a binary without the module that tap lands in the Studio's designed `failed` state instead of killing the app.
+- **THE REAL FIX IS A NEW NATIVE BUILD.** This makes the app usable until he installs one; it does not make the gallery work on the old binary.
+
+**THE GATE THAT SHOULD HAVE EXISTED, ADDED (`runtime-imports.test.ts`):** no source file may STATICALLY import a package on the OTA-unsafe list, and the second half asserts the feature is still reachable lazily — *a ban that removed the feature would be no fix at all*. **RED-PROVEN against the real defect:** restoring the top-level import fails the gate with `src/studio/pick-native.ts → expo-image-picker`.
+
+**⚠️ THE GENERALISABLE LESSON, and it is bigger than this package:** **adding a native dependency and shipping it over OTA are two different acts, and the repo had no gate on the gap between them.** Every existing gate reasoned about the SOURCE. None reasoned about **what is already installed on his phone.** The OTA-unsafe list is now the place that knowledge lives, and it must gain an entry every time a native dep is added ahead of a binary.
+
+**AND THE DEVICE PASS FOUND IT IN ONE SCREEN.** Every proof in this repo was green — typecheck, 459 tests, all gates — on a build that could not start. **A green suite says nothing about whether the app opens.**
