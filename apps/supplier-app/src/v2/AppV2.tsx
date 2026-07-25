@@ -32,7 +32,7 @@ import {
   S17ReadySheet, S19StockSheet, S32Argent, S33Trust,
   S34Onboard, S40Celebration,
 } from './screens2';
-import { SListerReal } from './lister-real';
+import { SListerReal, type ListingSession } from './lister-real';
 import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
@@ -60,6 +60,14 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
 
   const d = useCallback(
     (a: A) => {
+      // COMBINED SLICE — a NEW listing starts clean: opening the wizard resets
+      // the shell-held session (captures, code-suggestion state). This is what
+      // makes the « cleared when a new wizard opens » claim TRUE in code, and
+      // what stops product A's captures or code state reaching product B.
+      if (a.t === 'OPEN_WIZ') {
+        captures.current = null;
+        listing.current = { codeTouched: false, suffixBytes: null };
+      }
       const out = reduce(stRef.current as S, a);
       stRef.current = out.s;
       setSt(out.s);
@@ -78,9 +86,13 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
     };
   }, [run]);
 
-  // COMBINED SLICE — the Studio's approved captures, owned at the shell because
-  // the studio and the wizard are sibling views; cleared when a new wizard opens.
+  // COMBINED SLICE — the Studio's approved captures AND the listing session
+  // (code-suggestion state), owned at the SHELL: studio and wizard are sibling
+  // views, so SListerReal UNMOUNTS on every studio round-trip — refs living
+  // inside it would reset and the suggestion would overwrite his edited code
+  // (verifier finding). Both are cleared in d() when a new wizard opens.
   const captures = useRef<CaptureSet | null>(null);
+  const listing = useRef<ListingSession>({ codeTouched: false, suffixBytes: null });
 
   const { width } = useWindowDimensions();
   const v = st.view;
@@ -114,7 +126,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           // wraps the untouched S20Wizard with the real plumbing (uploads,
           // publish, outcome states); publier.tsx is DELETED — one path, his.
           // The machine action and the view id are unchanged.
-          <SListerReal st={st} d={d} captures={captures} />
+          <SListerReal st={st} d={d} captures={captures} session={listing} />
         ) : v.s === 'studio' ? (
           // Studio is REAL: his S26 design over expo-camera + the proven strip
           // pipeline. The demo S26Studio stays in screens2.tsx, unrouted. The

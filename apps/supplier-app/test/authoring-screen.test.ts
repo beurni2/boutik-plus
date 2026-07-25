@@ -29,7 +29,7 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
 
   it("view 'add' renders SListerReal, which renders HIS S20Wizard — not a new form", () => {
     expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,600}<SListerReal st=\{st\} d=\{d\} captures=\{captures\}/);
-    expect(lister).toMatch(/return <S20Wizard st=\{st\} d=\{dd\} \/>;/);
+    expect(lister).toMatch(/return <S20Wizard st=\{st\} d=\{dd\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/);
   });
 
   it("view 'studio' renders the REAL studio; the demo S26Studio is unrouted but intact", () => {
@@ -38,9 +38,29 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     expect(screens2).toMatch(/export function S26Studio\(/); // the frozen demo survives, unrouted
   });
 
-  it('the capture set is owned by the SHELL — studio and wizard are sibling views', () => {
+  it('the capture set AND the listing session are owned by the SHELL — studio and wizard are sibling views', () => {
     expect(shell).toMatch(/const captures = useRef<CaptureSet \| null>\(null\);/);
+    expect(shell).toMatch(/const listing = useRef<ListingSession>/);
     expect(shell).toMatch(/onApproved=\{\(set\) => \{ captures\.current = set; \}\}/);
+    // …and OPEN_WIZ genuinely clears both — the comment's claim is code now
+    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{\s*\n\s*captures\.current = null;\s*\n\s*listing\.current = \{ codeTouched: false, suffixBytes: null \};/);
+  });
+
+  it('ONE TAP leaves the outcome pane — never four dead taps then a destroyed completion path', () => {
+    expect(lister).toMatch(/const exitToProduits = \(\): void => d\(\{ t: 'TAB', tab: 'produits' \}\);/);
+    // the outcome pane never dispatches a raw BACK (which would step the hidden wizard four times)
+    const pane = lister.slice(lister.indexOf('── the outcome pane'), lister.indexOf("if (pub?.kind === 'sending')"));
+    expect(pane).not.toMatch(/d\(\{ t: 'BACK' \}\)/);
+  });
+
+  it('media unconfigured + photos taken is an HONEST banner, never silence under a success line', () => {
+    expect(lister).toMatch(/mediaService === null \? \(/);
+    expect(lister).toMatch(/t\('publier\.photos_non_config'\)/);
+  });
+
+  it('the step-4 aperçu shows the REAL heroSquare when one exists — demo chrome makes no claim over real photos', () => {
+    expect(lister).toMatch(/heroUri=\{captures\.current\?\.heroSquare\.uri\}/);
+    expect(screens2).toMatch(/heroUri !== undefined \? \(/);
   });
 });
 
@@ -57,8 +77,8 @@ describe('THE INTERCEPTOR — the real publish, and the frozen rules never reach
   });
 
   it('the product code fills from the name while untouched and stops on first edit', () => {
-    expect(lister).toMatch(/a\.t === 'WIZ_SET' && 'code' in a\.patch[\s\S]{0,120}codeTouched\.current = true/);
-    expect(lister).toMatch(/suggestProductCode\(name, suffixBytes\)/);
+    expect(lister).toMatch(/a\.t === 'WIZ_SET' && 'code' in a\.patch[\s\S]{0,140}session\.current\.codeTouched = true/);
+    expect(lister).toMatch(/suggestProductCode\(name, session\.current\.suffixBytes\)/);
     expect(lister).not.toMatch(/Math\.random/);
   });
 
@@ -120,8 +140,13 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
   });
 
   it('the studio crops the ONE hero into square + vertical during REAL processing — no fourth capture', () => {
-    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(/);
-    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(/);
+    // THE DIMENSIONS ARE THE FINDING (verifier, HIGH): a rect computed from the
+    // DERIVATIVE's dimensions but applied to the master ships an off-centre
+    // corner fragment on every real camera. The crop MUST be computed from the
+    // master's OWN dimensions — pinned to the exact argument text.
+    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(studio).not.toMatch(/heroSquareCrop\(hero\.derivative/);
     expect(studio).toMatch(/<CameraView ref=\{camera\}/); // a REAL camera in his C39 frame
     expect(studio).not.toMatch(/STUDIO_CAPTURE/); // the demo's simulated capture is not dispatched
   });

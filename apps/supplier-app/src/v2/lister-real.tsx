@@ -112,12 +112,26 @@ function formFromWiz(wiz: S['wiz']): AuthoringForm {
   };
 }
 
-export function SListerReal({ st, d, captures }: {
+/**
+ * The shell-held listing session — code-suggestion state that must SURVIVE the
+ * studio round-trip (SListerReal unmounts when the studio view opens; refs held
+ * here would reset, and the suggestion would silently overwrite a code he had
+ * edited — the exact founder-ruling violation the verifier caught). Reset by
+ * the shell on OPEN_WIZ.
+ */
+export interface ListingSession {
+  codeTouched: boolean;
+  suffixBytes: Uint8Array | null;
+}
+
+export function SListerReal({ st, d, captures, session }: {
   st: S;
   d: (a: A) => void;
   /** Owned by the SHELL: studio and wizard are sibling views, so the approved
    * set must survive the view switch. Written by S26StudioReal's onApproved. */
   captures: { current: CaptureSet | null };
+  /** Owned by the SHELL for the same reason — see ListingSession. */
+  session: { current: ListingSession };
 }) {
   const offerService = useMemo(() => resolveSupplyService(), []);
   const mediaService = useMemo(() => resolveMediaService(), []);
@@ -126,25 +140,37 @@ export function SListerReal({ st, d, captures }: {
   const [attachNote, setAttachNote] = useState<'sending' | 'done' | string | null>(null);
   const inFlight = useRef(false);
   const identity = useRef<OfferIdentity | null>(null);
-  const codeTouched = useRef(false);
-  const suffixBytes = useMemo(() => {
+  // The suffix is drawn ONCE PER LISTING (not per mount): held in the shell
+  // session so the suggested code for an unchanged name is stable across a
+  // studio round-trip. No CSPRNG → stays null → no suggestion, never weak.
+  if (session.current.suffixBytes === null && !session.current.codeTouched) {
     try {
-      return randomSuffixBytes();
+      session.current.suffixBytes = randomSuffixBytes();
     } catch {
-      return null; // no CSPRNG → no suggestion, never a weak-source code
+      /* stays null */
     }
-  }, []);
+  }
+
+  /**
+   * ONE TAP LEAVES THE OUTCOME PANE (verifier finding, HIGH). A raw BACK from
+   * here would hit the machine's wizard step-back four times invisibly (view is
+   * still 'add', step still 4 — the real publish never advanced the machine)
+   * and only the fifth tap would exit: the success screen's single exit would
+   * look broken four times, then destroy the pane. TAB produits is the demo
+   * flow's own landing spot after publish — one tap, same destination.
+   */
+  const exitToProduits = (): void => d({ t: 'TAB', tab: 'produits' });
 
   /** The interceptor — see the module header. Everything else passes through. */
   const dd = (a: A): void => {
     if (a.t === 'WIZ_SET' && 'code' in a.patch) {
-      codeTouched.current = true;
+      session.current.codeTouched = true;
       d(a);
       return;
     }
-    if (a.t === 'WIZ_SET' && typeof a.patch.name === 'string' && !codeTouched.current && suffixBytes !== null) {
+    if (a.t === 'WIZ_SET' && typeof a.patch.name === 'string' && !session.current.codeTouched && session.current.suffixBytes !== null) {
       const name = a.patch.name;
-      d({ t: 'WIZ_SET', patch: { ...a.patch, code: name.trim().length === 0 ? '' : suggestProductCode(name, suffixBytes) } });
+      d({ t: 'WIZ_SET', patch: { ...a.patch, code: name.trim().length === 0 ? '' : suggestProductCode(name, session.current.suffixBytes) } });
       return;
     }
     if (a.t === 'WIZ_NEXT' && st.wiz.step === 4) {
@@ -256,8 +282,13 @@ export function SListerReal({ st, d, captures }: {
       if (res.ok && (res.value.status === 'attached' || res.value.status === 'idempotent')) {
         setPending(null);
         setAttachNote('done');
+      } else if (!res.ok && res.cause === 'network') {
+        setAttachNote(t('publier.echec_reseau')); // nothing was sent — say only that
       } else {
-        setAttachNote(res.ok ? `${res.value.status}${res.value.reason ? `: ${res.value.reason}` : ''}` : res.reason);
+        // the diagnostic NEVER stands alone — framed by the catalog sentence,
+        // exactly as every other failure surface in this file (verifier finding)
+        const detail = res.ok ? `${res.value.status}${res.value.reason ? `: ${res.value.reason}` : ''}` : res.reason;
+        setAttachNote(`${t('publier.echec')}\n${detail}`);
       }
     } finally {
       inFlight.current = false;
@@ -286,7 +317,7 @@ export function SListerReal({ st, d, captures }: {
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Nouveau produit" onBack={() => d({ t: 'BACK' })} />
+          <HeaderStacked title="Nouveau produit" onBack={exitToProduits} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
           {pub.kind === 'published' && (
@@ -329,10 +360,16 @@ export function SListerReal({ st, d, captures }: {
                 </View>
               ) : captures.current === null ? (
                 <Text style={[bodySub, { marginTop: 18 }]}>{t('publier.sans_photo')}</Text>
+              ) : mediaService === null ? (
+                // He SHOT photos and the media seam is unconfigured: silence here
+                // would render success over missing photographs (verifier finding).
+                <View style={{ marginTop: 18 }}>
+                  <Banner tone="warn">{t('publier.photos_non_config')}</Banner>
+                </View>
               ) : null}
               <Text style={[bodySub, { marginTop: 18 }]}>{t('publier.validite')}</Text>
               <View style={{ marginTop: 22 }}>
-                <BtnGhost label={t('publier.retour')} onPress={() => d({ t: 'BACK' })} />
+                <BtnGhost label={t('publier.retour')} onPress={exitToProduits} />
               </View>
             </>
           )}
@@ -376,7 +413,7 @@ export function SListerReal({ st, d, captures }: {
             <>
               <Banner tone="info">{t('publier.non_configure')}</Banner>
               <View style={{ marginTop: 22 }}>
-                <BtnGhost label={t('publier.retour')} onPress={() => d({ t: 'BACK' })} />
+                <BtnGhost label={t('publier.retour')} onPress={exitToProduits} />
               </View>
             </>
           )}
@@ -387,20 +424,26 @@ export function SListerReal({ st, d, captures }: {
 
   // ── envoi — his wizard goes quiet under one honest line ─────────────────────
   if (pub?.kind === 'sending') {
+    // No back control AT ALL while in flight — a live-looking button that does
+    // nothing is the dead-input family (verifier finding). Backing out mid-send
+    // cannot cancel the send anyway (journaled limitation), so nothing is lost.
     return (
       <View style={{ flex: 1 }}>
-        <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Nouveau produit" onBack={() => {}} />
-        </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Banner tone="info">{t('publier.envoi')}</Banner>
+          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink)]}>{'Nouveau produit'}</Text>
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="info">{t('publier.envoi')}</Banner>
+          </View>
         </ScrollView>
       </View>
     );
   }
 
   // ── HIS WIZARD, untouched, over the intercepted dispatcher ──────────────────
-  return <S20Wizard st={st} d={dd} />;
+  // The step-4 aperçu shows the REAL heroSquare when the Studio produced one —
+  // frozen demo chrome must not claim « photo premium » over a glyph tile on a
+  // listing that has real photographs (verifier finding).
+  return <S20Wizard st={st} d={dd} heroUri={captures.current?.heroSquare.uri} />;
 }
 
 export { type CaptureSet };

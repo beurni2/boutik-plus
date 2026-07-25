@@ -29,8 +29,12 @@ describe('the longest-complete-prefix rule', () => {
     if (!out.ok) return;
     expect(out.assets.heroSquare.ref).toBe('media/hs-1');
     expect(out.assets.detail.map((d) => d.ref)).toEqual(['media/d-1', 'media/d-2']);
-    // hashes: every shipped ref's sha256 in wire order, master included
-    expect(out.assets.hashes).toHaveLength(6);
+    // hashes: the PROVENANCE ROOT — the master's hash alone, matching the only
+    // established producer (media-service premium-frame: hashes:[input.sha256]).
+    // Every shipped ref carries its OWN sha256 on its MediaRef; a parallel index
+    // here, zipped against assetRefs (master excluded from the wire), would be
+    // off by one — a hash claiming to be something it is not (verifier finding).
+    expect(out.assets.hashes).toEqual([out.assets.masterRef.sha256]);
   });
 
   it('A MISSING HERO MEANS NO HERO — a detail is never promoted, the whole set is honestly absent', () => {
@@ -100,5 +104,26 @@ describe('the upload response boundary — validated, never cast', () => {
     ]) {
       expect(readUploadResult(bad), JSON.stringify(bad)).toBeNull();
     }
+  });
+});
+
+describe('THE ROUND-VS-FLOOR LATENT DIVERGENCE — pinned so it bites loudly, never silently (verifier finding #7)', () => {
+  /**
+   * The frozen V2 demo math (`money.ts:26`, WO-FP-PIXEL §3.4 EXACT) computes
+   * `fee = Math.round(B × 0.05)`. Canon RoundingLaw v1 mandates FLOOR — the
+   * fraction of a franc stays with the participant. The wizard's step-2/step-4
+   * preview uses the demo math on what is now the REAL publish flow; the
+   * outcome pane then shows the SERVICE's own net. Today they agree ONLY
+   * because the stepper moves B in ±500 steps from a ×500 base, where 0.05·B is
+   * always integral. Changing either the frozen formula or the stepper
+   * granularity is a FOUNDER ruling; this test exists so that day arrives as a
+   * red test naming the law, not as two silently different figures on one flow.
+   */
+  it('every stepper-reachable B keeps round(0.05·B) === floor(0.05·B) — the demo preview cannot diverge from canon today', () => {
+    for (let B = 1_000; B <= 200_000; B += 500) {
+      expect(Math.round(B * 0.05), `B=${B}`).toBe(Math.floor(B * 0.05));
+    }
+    // and the divergence is REAL off-grid — this is why the grid is load-bearing
+    expect(Math.round(1_010 * 0.05)).not.toBe(Math.floor(1_010 * 0.05));
   });
 });

@@ -594,6 +594,12 @@
     "screenClass": "instruction"
   },
   {
+    "key": "studio.permission_bloquee",
+    "fr": "La caméra est bloquée pour Boutik+. Ouvrez les réglages du téléphone pour la permettre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "studio.autoriser",
     "fr": "Autoriser la caméra",
     "register": "neutral",
@@ -1309,7 +1315,13 @@
   },
   {
     "key": "publier.photos_manquantes",
-    "fr": "Le produit est en ligne, mais des photos ne sont pas parties. Vous pouvez les renvoyer.",
+    "fr": "Le produit est en ligne, mais des photos ne sont pas parties. Renvoyez-les avant de quitter cet écran.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_non_config",
+    "fr": "Vos photos sont prêtes, mais l'envoi d'images n'est pas encore relié. Le produit est en ligne sans photo.",
     "register": "neutral",
     "screenClass": "status"
   },

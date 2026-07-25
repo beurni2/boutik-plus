@@ -76,9 +76,13 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
         // « Traitement (sur votre téléphone) » — REAL work, progressed as it runs.
         setPhase({ kind: 'processing', done: 1 }); // strip already ran inside captureShot, per shot
         const [hero, proof, detail] = shots.current as [CaptureResult, CaptureResult, CaptureResult];
-        const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.derivative.width, hero.derivative.height));
+        // THE CROP RECT IS COMPUTED IN THE MASTER'S OWN PIXEL SPACE — the rect
+        // is applied to masterUri, so it must come from master dimensions. The
+        // derivative's dimensions here selected a ~8% corner fragment on a
+        // 12MP camera, silently (verifier finding, HIGH — fixed and pinned).
+        const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.master.width, hero.master.height));
         setPhase({ kind: 'processing', done: 2 });
-        const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.derivative.width, hero.derivative.height));
+        const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.master.width, hero.master.height));
         setPhase({ kind: 'processing', done: 3 });
         setPhase({ kind: 'processing', done: 4 });
         setPhase({ kind: 'review', set: { hero, heroSquare, heroVertical, proof, detail } });
@@ -93,16 +97,23 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
   };
 
   if (!permission?.granted) {
+    // TWO honest states, not one (verifier finding): « pas encore demandé »
+    // offers the request; « bloqué » (denied, cannot re-ask) says so plainly and
+    // points at the phone settings — a button that silently no-ops forever is
+    // the dead-input family.
+    const blocked = permission !== null && !permission.canAskAgain && permission.status === 'denied';
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
           <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Banner tone="info">{t('studio.permission')}</Banner>
-          <View style={{ marginTop: 16 }}>
-            <C07BtnPrimary label={t('studio.autoriser')} icon="camera" onPress={() => { void requestPermission(); }} />
-          </View>
+          <Banner tone={blocked ? 'warn' : 'info'}>{t(blocked ? 'studio.permission_bloquee' : 'studio.permission')}</Banner>
+          {!blocked && (
+            <View style={{ marginTop: 16 }}>
+              <C07BtnPrimary label={t('studio.autoriser')} icon="camera" onPress={() => { void requestPermission(); }} />
+            </View>
+          )}
         </ScrollView>
       </View>
     );

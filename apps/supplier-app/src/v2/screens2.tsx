@@ -11,7 +11,7 @@
  *    « Ma Boutique » is a RETIRED name; canon is Shop+.
  *  · S28/S29 glyphs U+1F933/U+1F3F7 as escapes (chrome gate scans literals).
  */
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
@@ -90,7 +90,11 @@ export function S19StockSheet({ st, d }: { st: S; d: D }) {
 
 // ── S20–S25 Wizard ────────────────────────────────────────────────────────────
 const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beauté scellée', 'Maison', 'Enfant'];
-export function S20Wizard({ st, d }: { st: S; d: D }) {
+// `heroUri` is ADDITIVE (combined slice, verifier finding): on the REAL flow the
+// step-4 « Aperçu » card shows the REAL heroSquare instead of the demo glyph
+// tile — frozen demo chrome must not make a claim about a listing that now has
+// three real photographs. Undefined (the demo board) renders exactly as before.
+export function S20Wizard({ st, d, heroUri }: { st: S; d: D; heroUri?: string | undefined }) {
   const w = st.wiz;
   const feeV = fee(w.B);
   const netV = net(w.B, w.C);
@@ -214,7 +218,11 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
             <Card style={{ marginTop: 12, padding: 16 }}>
               <Overline level="card">Aperçu — ce que verront les revendeuses</Overline>
               <View style={{ marginTop: 11, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <IconTile bg={TILE_GRADIENT.nouveau} glyph={'\u{1F9E5}'} size={C21.preview.size} radius={C21.preview.r} glyphSize={C21.preview.glyph} />
+                {heroUri !== undefined ? (
+                  <Image source={{ uri: heroUri }} style={{ width: C21.preview.size, height: C21.preview.size, borderRadius: C21.preview.r }} resizeMode="cover" />
+                ) : (
+                  <IconTile bg={TILE_GRADIENT.nouveau} glyph={'\u{1F9E5}'} size={C21.preview.size} radius={C21.preview.r} glyphSize={C21.preview.glyph} />
+                )}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={role({ f: 'IS', w: 700, s: 14 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{`${w.cat} · photo premium, sans prix incrusté`}</Text>

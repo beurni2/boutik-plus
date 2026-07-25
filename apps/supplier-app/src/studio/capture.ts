@@ -26,8 +26,17 @@ import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance
  */
 
 export interface CaptureResult {
-  /** Private master — the untouched original (never published, never previewed). */
+  /** Private master — the untouched original. Never published, never uploaded;
+   * shown ON-DEVICE to its author (the Studio's avant/après) and nowhere else. */
   masterUri: string;
+  /**
+   * The master's OWN pixel dimensions (combined-slice verifier finding, HIGH):
+   * a crop rect computed from the DERIVATIVE's dimensions but applied to the
+   * master selects an off-centre corner fragment on every camera above 1280px —
+   * silently, because the smaller rect is always in bounds. Any geometry aimed
+   * at the master MUST be computed from these.
+   */
+  master: { width: number; height: number };
   /** The ONE derivative — the STRIPPED bytes as a data URI, previewed AND stored. */
   derivative: { uri: string; width: number; height: number };
   /** Guidance from the downscaled metrics frame. */
@@ -73,6 +82,7 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
 
   return {
     masterUri: photo.uri,
+    master: { width: photo.width, height: photo.height },
     // The data URI IS the stripped artifact: previewed and stored alike —
     // the file at derivative.uri (which the founder's device proved can
     // carry EXIF) never ships.

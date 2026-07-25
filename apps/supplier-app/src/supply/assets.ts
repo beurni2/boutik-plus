@@ -109,8 +109,13 @@ export function assembleAssets(input: AssemblyInput): AssemblyOutcome {
       heroVertical,
       proof,
       detail,
-      // every SHIPPED ref's hash, in wire order, master included (canon `hashes`)
-      hashes: [master.sha256, heroSquare.sha256, heroVertical.sha256, proof.sha256, ...detail.map((d) => d.sha256)],
+      // THE PROVENANCE ROOT, matching the only established producer
+      // (media-service premium-frame writes `hashes: [input.sha256]`). Every
+      // shipped ref already carries its own sha256 on its MediaRef; a parallel
+      // hash index here, zipped against assetRefs (which EXCLUDE the master),
+      // would be off by one for the whole array — a hash claiming to be
+      // something it is not (verifier finding, corrected).
+      hashes: [master.sha256],
       processingVersion: input.processingVersion,
     },
   };
