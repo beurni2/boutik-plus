@@ -1180,3 +1180,25 @@ Both are provenance-family failures — the class where everything looks green a
 - **Green:** workspace typecheck 13/13 · offer-service **89** tests **via `pnpm test`** (worker rebundled; real-workerd e2e included) · **ALL GATES GREEN**.
 - **DEPLOY STILL HELD** — one deploy carries asOf + slice A + slice B, then `/health` read-back, then the live `/supply-projection` probe.
 - **DO NOT MERGE** — awaiting founder approval.
+
+### 2026-07-25 · NAMED HAZARD — A NEW ROUTE BESIDE A GATED ONE (founder order: journal it)
+**When a new route is added near a gated one, THE GATE'S MATCH IS A THING TO RE-DERIVE, NEVER TO ASSUME.**
+- The instance: slice A gated `SUPPLY_PREFIX = '/supply-projection/'` (**with a trailing slash**). Slice B added `'/supply-projections'`. The plural **does not match the singular's prefix** — so the existing check silently did not cover the new route.
+- **THE COST IS ASYMMETRIC AND THAT IS THE POINT.** Getting this wrong **fails OPEN**, and the new route carries **more** than the one it sits beside: the single read leaks one supplier's cost structure to whoever guesses a product version id; the collection hands over **every servable offer's `basePrice` and `resellerCommission` in one unauthenticated request, with no guessing at all.** A route that carries more than its neighbour, added under an auth check written for a narrower shape.
+- **The general shape:** an auth predicate is written against the routes that existed when it was written. Adding a route does not extend it. Neither does a similar-looking name — similarity is what makes it feel covered.
+- **The move:** `isSupplyRoute()` now names both routes explicitly, and the e2e asserts the 401 on the collection specifically, so a future third route fails loudly rather than quietly opening.
+
+### 2026-07-25 · TECHNIQUE — WHEN A FROZEN BEHAVIOUR IS WRONG ON A NEW PATH, MAKE THE PATH NOT REACH IT
+Founder ruling, and worth naming as a general move rather than a one-off. `machine.ts:258` carries a **§9 FROZEN** rule: an empty product name becomes « Robe brodée bogolan ». Harmless on the seeded board; through a **real write** it would publish a real product under an invented name.
+- **The answer is NOT to edit the frozen rule.** It is to block continue on an empty name so the machine **never reaches** the fallback. The rule stays literally intact and the fabricated name becomes unreachable on the real path.
+- **Same family as `absent-from-the-bundle` rather than `unselected`** (the demo supply adapter) and as `unset resolves to null` rather than to demo: **prefer making a wrong thing unreachable over making it different.** Unreachability is provable and does not disturb what other things depend on.
+- **ACHIEVABILITY — confirmed, with the one caveat stated.** `WIZ_NEXT` at `machine.ts:251-253` already refuses to advance when `disabled.wizContinue(s)` is true, and the publish branch is only reached from `step === 4`. Adding an empty-name condition to that predicate makes the fallback unreachable **through the wizard's own footer**, which is the only dispatcher of `WIZ_NEXT` in the app (grep-verified). **CAVEAT, stated rather than buried:** the guard lives in the reducer, so it holds for any dispatcher; but the fallback line itself remains in the publish branch, so a FUTURE action that jumps straight to `step: 4` without passing the predicate would reach it again. That is why the real write must also refuse an empty name at the core (`buildCreateOffer` already returns `name_required`) — **two independent refusals, neither of which edits the frozen rule.**
+
+### 2026-07-25 · `zone` IS A SUPPLIER CONSTANT, NOT A PRODUCT FIELD (founder-approved)
+Canon §5 puts `zone` on `Product/Version` as part of **`Location {pin, zone, landmark, directions, maskedRelay}`**, and it feeds **`DeliveryFeeQuote{zoneFrom, zoneTo, …}`** — so it is **where the supplier IS**, not an attribute of the product. Asking the founder the same answer once per product is friction for nothing. Also verified: `zone` is **not** among the seven canon supply-projection fields, so it never reaches Shop+ today.
+- **It becomes a constant beside `SUPPLIER_ID`, with the same HARD GATE: a second supplier — or one supplier with two locations — makes it a real field.**
+
+### 2026-07-25 · DEPLOY — asOf + SLICE A + SLICE B, one deploy · release `76f32e3`
+- `offer-deploy` run **30136231397** on `76f32e37`, **completed success**, every step green including the provenance stamp and `wrangler deploy`.
+- **THE DEPLOY FLIPPED THE SUPPLY READ FROM OPEN TO GATED.** No live traffic to break (`SUPPLY_BASE` unset on shop's side), which is why the order was deploy → probe → set.
+- **I CANNOT PROBE FROM THIS SANDBOX AND I AM NOT CLAIMING OTHERWISE.** The agent proxy denies CONNECT to Cloudflare hosts — measured, not assumed: `workers.cloudflare.com:443` → `connect_rejected, gateway answered 403`, and every `*.workers.dev` request returns curl code `000`. **A green deploy workflow is evidence that a deploy happened, never that the wire works** — the probes are handed to the founder below.
