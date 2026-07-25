@@ -87,13 +87,24 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     expect(derivativeActions(800, 600)).toEqual([]); // never upscale
     expect(derivativeActions(4000, 3000)).toEqual(derivativeActions(4000, 3000)); // same in → same out
   });
-  it('ONLY resize exists in the action vocabulary — no enhancement, no filters, no generative anything', () => {
+  it('ONLY resize and a RECT CROP exist in the action vocabulary — no enhancement, no filters, no generative anything', () => {
     for (const a of [...derivativeActions(4000, 3000), ...metricsActions()]) {
       expect(Object.keys(a)).toEqual(['resize']);
     }
     const capture = read('src/studio/capture.ts');
     expect(capture).toMatch(/\.resize\(/);
-    expect(capture).not.toMatch(/\.rotate\(|\.flip\(|\.crop\(|\.extent\(/);
+    // COMBINED SLICE — the vocabulary grew by exactly ONE verb, deliberately:
+    // canon ProductAssets requires heroSquare AND heroVertical, which cannot
+    // exist without cropping something, and a centred rect crop is DETERMINISTIC
+    // GEOMETRY (same rect in → same pixels out; property-tested in crops.ts),
+    // not enhancement. The rect is data (`ctx.crop(rect)`) — no free-hand
+    // parameters, no filters. rotate/flip/extent and everything ML stay banned.
+    expect(capture).toMatch(/ctx\.crop\(rect\);/); // the ONE allowed call shape
+    expect(capture).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(/);
+    // and the crop verb appears nowhere else in the pipeline
+    for (const f of ['src/studio/normalization.ts', 'src/studio/guidance.ts']) {
+      expect(read(f)).not.toMatch(/\.crop\(/);
+    }
   });
   it('the B1.2 seams are identity/absent — no cleanup pipeline exists at this slice', () => {
     expect(NORMALIZATION_HOOKS_V1).toEqual({

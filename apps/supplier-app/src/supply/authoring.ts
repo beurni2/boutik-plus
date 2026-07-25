@@ -33,6 +33,8 @@ export interface AuthoringForm {
   readonly basePrice: string;
   readonly resellerCommission: string;
   readonly available: string;
+  /** His variants, his words (« S, M, L ») — optional; travels as the boutik-local NOTE. */
+  readonly variantsNote?: string;
 }
 
 /** Identity + clock the caller supplies (never invented in here). */
@@ -132,7 +134,11 @@ function parseAmount(raw: string): number | null {
  * him before a round-trip is the difference between an instant answer and a
  * network wait for a rejection.
  */
-export function buildCreateOffer(form: AuthoringForm, ctx: AuthoringContext): ValidationResult {
+export function buildCreateOffer(
+  form: AuthoringForm,
+  ctx: AuthoringContext,
+  assets?: import('./assets').ProductAssetsInput,
+): ValidationResult {
   const errors: FieldError[] = [];
   const name = form.name.trim();
   const productCode = form.productCode.trim();
@@ -186,7 +192,12 @@ export function buildCreateOffer(form: AuthoringForm, ctx: AuthoringContext): Va
       },
       available: available as number,
       asOf: ctx.now,
-      // assets ABSENT — the wire gets assetRefs: [] this slice
+      // assets present ONLY when assembly succeeded (longest-complete-prefix);
+      // otherwise absent and the wire carries the honest assetRefs: [].
+      ...(assets !== undefined ? { assets } : {}),
+      ...(form.variantsNote !== undefined && form.variantsNote.trim().length > 0
+        ? { variantsNote: form.variantsNote.trim() }
+        : {}),
     },
   };
 }
@@ -276,9 +287,10 @@ export async function publish(
   service: SupplyServicePort | null,
   form: AuthoringForm,
   ctx: AuthoringContext,
+  assets?: import('./assets').ProductAssetsInput,
 ): Promise<PublishState> {
   if (service === null) return { kind: 'not_configured' };
-  const built = buildCreateOffer(form, ctx);
+  const built = buildCreateOffer(form, ctx, assets);
   if (!built.ok) return { kind: 'invalid', errors: built.errors };
 
   const res: ServiceResult<CreateOfferOutcome> = await service.createOffer(built.command);

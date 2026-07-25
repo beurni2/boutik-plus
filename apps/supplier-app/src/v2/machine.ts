@@ -42,7 +42,13 @@ export const flowLabel = (s: OrderStatus, mode: 'A' | 'B'): string => {
 export type Tab = 'home' | 'produits' | 'commandes' | 'argent';
 export type Seg = 'traiter' | 'cours' | 'fini' | 'incidents';
 export type View = null | { s: 'product' | 'order' | 'add' | 'studio' | 'trust' | 'onboard'; id?: string };
-export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; B: number; C: number; sizes: string; stock: number; photos: boolean };
+// `code` and `zone` are ADDITIVE (combined slice): the product code (derived
+// from the name, editable) and the supplier's quartier (founder reversal
+// 2026-07-25: he chooses it per listing — a field he leaves unchanged is
+// different from a field the system decided for him). Every §4 transition and
+// §9 rule is untouched by them. `zone` NEVER travels: the supply projection
+// stays seven fields; it is boutik-side data ahead of the delivery work.
+export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; code: string; zone: string; B: number; C: number; sizes: string; stock: number; photos: boolean };
 export type Studio = { step: 0 | 1 | 2 | 3; low: boolean; proc: 0 | 1 | 2 | 3 | 4; orig: boolean };
 
 export type S = {
@@ -66,7 +72,7 @@ export type S = {
   tseq: number; // toast id sequence
 };
 
-export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', B: 10_000, C: 1_000, sizes: 'S, M, L', stock: 5, photos: false };
+export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', code: '', zone: '', B: 10_000, C: 1_000, sizes: 'S, M, L', stock: 5, photos: false };
 
 export function initialState(): S {
   return {
@@ -145,7 +151,15 @@ const NOW = '10:24'; // [DEMO] fixed clock for appended history entries (board r
 
 /** §4.4 — CTA-disable conditions, pure predicates. */
 export const disabled = {
-  wizContinue: (s: S) => s.wiz.step === 3 && !s.wiz.photos,
+  // THE EMPTY-NAME BLOCK (combined slice, founder technique: make the frozen
+  // rule UNREACHABLE, never edit it). §9.5 FROZEN turns an empty name into
+  // « Robe brodée bogolan » at the publish branch — harmless on the demo board,
+  // a fabricated product title through a REAL write. Blocking continue on step 1
+  // with an empty name means the machine can never reach that fallback through
+  // the wizard's own footer (the only WIZ_NEXT dispatcher in the app). The rule
+  // at the publish branch stays literally intact. Second, independent refusal:
+  // the real write's core returns `name_required` regardless.
+  wizContinue: (s: S) => (s.wiz.step === 1 && (s.wiz.name.trim() === '' || s.wiz.zone.trim() === '')) || (s.wiz.step === 3 && !s.wiz.photos),
   confirmReady: (s: S) => !s.readyShot,
   studioCapture: (s: S) => s.studio.low,
   stockMinus: (s: S, stock: number) => stock + s.stkDelta <= 0,

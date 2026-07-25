@@ -80,10 +80,22 @@ describe('T16 [DEMO] — walk o1 (mode B) to PAID: celebration 2200ms + Mobile-M
 });
 
 describe('T04/T18/T19 — wizard: §4.4 gates, §9.5 name fallback, moderation 6000ms', () => {
+  it('THE EMPTY-NAME BLOCK: step 1 refuses continue until a name exists — the §9.5 fallback is unreachable via the footer', () => {
+    let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' }, { t: 'WIZ_NEXT' }); // → step 1
+    expect(s.wiz.step).toBe(1);
+    expect(disabled.wizContinue(s)).toBe(true); // empty name
+    expect(reduce(s, { t: 'WIZ_NEXT' }).s.wiz.step).toBe(1); // gated — the fallback cannot be reached this way
+    expect(disabled.wizContinue(reduce(s, { t: 'WIZ_SET', patch: { name: '   ' } }).s)).toBe(true); // whitespace is not a name
+    ({ s } = run(s, { t: 'WIZ_SET', patch: { name: 'Pagne' } }));
+    expect(disabled.wizContinue(s)).toBe(true); // name alone is not enough — the ZONE is his to choose too (founder reversal)
+    ({ s } = run(s, { t: 'WIZ_SET', patch: { zone: 'Gounghin' } }));
+    expect(disabled.wizContinue(s)).toBe(false);
+  });
+
   it('step 4/5 blocks without photos; publish creates np1 mod:true then approves at +6000ms', () => {
     let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' });
     expect(s.wiz).toMatchObject({ step: 0, cat: 'Mode femme', B: 10_000, C: 1_000, stock: 5, photos: false });
-    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' })); // → step 3 (Photos)
+    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'Robe wax', zone: 'Gounghin' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' })); // → step 3 (Photos), name + zone set (the step-1 gate)
     expect(s.wiz.step).toBe(3);
     expect(disabled.wizContinue(s)).toBe(true);
     expect(reduce(s, { t: 'WIZ_NEXT' }).s.wiz.step).toBe(3); // gated
@@ -91,16 +103,27 @@ describe('T04/T18/T19 — wizard: §4.4 gates, §9.5 name fallback, moderation 6
     expect(s.wiz.photos).toBe(true);
     expect(s.toasts.at(-1)!.m).toBe('Photos canoniques prêtes — sans prix, sans contact');
     ({ s } = run(s, { t: 'WIZ_NEXT' })); // → 4 (recap)
-    const r = reduce(s, { t: 'WIZ_NEXT' }); // T19 publish (name empty → §9.5)
+    const r = reduce(s, { t: 'WIZ_NEXT' }); // T19 publish
     s = r.s;
     expect(s.tab).toBe('produits');
-    expect(s.products['np1']).toMatchObject({ name: 'Robe brodée bogolan', mod: true, B: 10_000, C: 1_000 });
+    expect(s.products['np1']).toMatchObject({ name: 'Robe wax', mod: true, B: 10_000, C: 1_000 });
     expect(s.toasts.at(-1)!.m).toBe('Envoyé en modération — catégorie, allégations, photos');
     const mod = timers(r.fx).find((t) => t.action.t === 'MOD_APPROVED');
     expect(mod?.afterMs).toBe(6000);
     const r2 = reduce(s, mod!.action);
     expect(r2.s.products['np1']!.mod).toBe(false);
     expect(r2.s.toasts.at(-1)!.m).toBe('Modération : approuvé — en ligne chez les revendeuses');
+  });
+
+  it('§9.5 STAYS LITERALLY INTACT — the fallback still fires if a future path jumps the guard (the journaled caveat, pinned)', () => {
+    // Drive the reducer to step 4 WITH a name (the lawful route), then blank the
+    // name — the exact shape of a future action that skips the step-1 predicate.
+    let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' },
+      { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'x', zone: 'z' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' });
+    ({ s } = run(s, { t: 'OPEN_STUDIO' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_APPROVE' }, { t: 'WIZ_NEXT' }));
+    s = reduce(s, { t: 'WIZ_SET', patch: { name: '' } }).s; // the guard is a FOOTER gate, not a state invariant
+    const r = reduce(s, { t: 'WIZ_NEXT' });
+    expect(r.s.products['np1']).toMatchObject({ name: 'Robe brodée bogolan' }); // §9.5, unedited — frozen
   });
 });
 

@@ -18,6 +18,7 @@ import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styl
 import { formatF, fee, net, pendingTotal, paidTotal } from './money';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
+import { t as tr } from '../i18n';
 import {
   Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChallengeCode, ChipCategory, HeaderStacked,
   Icon, IconTile, Input, MetersList, MoneyBreakdown, MoneyHero, Overline, PageTitle,
@@ -116,6 +117,21 @@ export function S20Wizard({ st, d }: { st: S; d: D }) {
             <Text style={C43.titleStep}>Détails & stock</Text>
             <View style={{ marginTop: 18 }}>
               <Input label="Nom du produit" value={w.name} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { name: t } })} />
+            </View>
+            {/* COMBINED SLICE — the product code, DERIVED from the name and
+                EDITABLE here (founder option (a)): the suggestion fills as he
+                types the name on this same step, and stops the moment he edits
+                it (the wrapper owns that logic; this is just his Input). */}
+            <View style={{ marginTop: 16 }}>
+              <Input label={tr('publier.champ_code')} value={w.code} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { code: t } })} />
+              <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr('publier.champ_code_aide')}</Text>
+            </View>
+            {/* Zone — founder reversal 2026-07-25: HE chooses it per listing.
+                His own onboarding design already collects « Quartier » as
+                boutique data; same label family here. Boutik-side only — it
+                never reaches the supply projection. */}
+            <View style={{ marginTop: 16 }}>
+              <Input label={tr('publier.champ_zone')} value={w.zone} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { zone: t } })} />
             </View>
             <View style={{ marginTop: 16 }}>
               <Input label="Variantes (tailles…)" value={w.sizes} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { sizes: t } })} />

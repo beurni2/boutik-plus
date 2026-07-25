@@ -73,6 +73,15 @@ jobs:
           # shared it is not per-supplier identity.
           EXPO_PUBLIC_OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
           EXPO_PUBLIC_OFFER_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
+          # COMBINED SLICE — the media pair, mirroring the offer pair exactly:
+          # BASE is the media-service URL, WRITE_KEY is the value of
+          # MEDIA_WRITE_SECRET. Both must be set for photographs to upload;
+          # unset resolves to null and the product publishes with the honest
+          # assetRefs: [] (completion path adds photos later). Same whitespace
+          # law: a trailing space or newline stored in the secret 401s the
+          # correct key forever.
+          EXPO_PUBLIC_MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+          EXPO_PUBLIC_MEDIA_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
         run: |
           npx eas-cli@20.5.1 init --non-interactive --force
           npx eas-cli@20.5.1 update:configure --non-interactive
