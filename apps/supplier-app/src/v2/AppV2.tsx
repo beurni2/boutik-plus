@@ -29,10 +29,11 @@ import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
 import {
-  S17ReadySheet, S19StockSheet, S26Studio, S32Argent, S33Trust,
+  S17ReadySheet, S19StockSheet, S32Argent, S33Trust,
   S34Onboard, S40Celebration,
 } from './screens2';
-import { SPublier } from './publier';
+import { SListerReal, type ListingSession } from './lister-real';
+import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
   const stRef = useRef<S | null>(null);
@@ -59,6 +60,14 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
 
   const d = useCallback(
     (a: A) => {
+      // COMBINED SLICE — a NEW listing starts clean: opening the wizard resets
+      // the shell-held session (captures, code-suggestion state). This is what
+      // makes the « cleared when a new wizard opens » claim TRUE in code, and
+      // what stops product A's captures or code state reaching product B.
+      if (a.t === 'OPEN_WIZ') {
+        captures.current = null;
+        listing.current = { codeTouched: false, suffixBytes: null };
+      }
       const out = reduce(stRef.current as S, a);
       stRef.current = out.s;
       setSt(out.s);
@@ -76,6 +85,14 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
       pending.clear();
     };
   }, [run]);
+
+  // COMBINED SLICE — the Studio's approved captures AND the listing session
+  // (code-suggestion state), owned at the SHELL: studio and wizard are sibling
+  // views, so SListerReal UNMOUNTS on every studio round-trip — refs living
+  // inside it would reset and the suggestion would overwrite his edited code
+  // (verifier finding). Both are cleared in d() when a new wizard opens.
+  const captures = useRef<CaptureSet | null>(null);
+  const listing = useRef<ListingSession>({ codeTouched: false, suffixBytes: null });
 
   const { width } = useWindowDimensions();
   const v = st.view;
@@ -104,17 +121,18 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
         ) : v.s === 'order' && order ? (
           <S11Detail st={st} d={d} order={order} />
         ) : v.s === 'add' ? (
-          // SUPPLIER-AUTHORING-1: « Lister un produit » now opens the REAL
-          // authoring screen — one product, one offer, written to the live
-          // offer-service. It replaces the S20 demo wizard, whose « publier »
-          // added a fabricated product to the seeded board and showed a toast.
-          // The machine action (OPEN_WIZ) and the view id ('add') are UNCHANGED,
-          // so §4's transition table still holds; only what renders here moved.
-          // S20Wizard itself still exists in screens2.tsx and is no longer
-          // reachable — it goes with the rest of the seeded board, not here.
-          <SPublier onBack={() => d({ t: 'BACK' })} />
+          // COMBINED SLICE (founder reversal): « Lister un produit » opens HIS
+          // five-step wizard again — the real writes run THROUGH it. SListerReal
+          // wraps the untouched S20Wizard with the real plumbing (uploads,
+          // publish, outcome states); publier.tsx is DELETED — one path, his.
+          // The machine action and the view id are unchanged.
+          <SListerReal st={st} d={d} captures={captures} session={listing} />
         ) : v.s === 'studio' ? (
-          <S26Studio st={st} d={d} />
+          // Studio is REAL: his S26 design over expo-camera + the proven strip
+          // pipeline. The demo S26Studio stays in screens2.tsx, unrouted. The
+          // capture set lives HERE (view 'studio' and view 'add' are siblings,
+          // so a set approved in one must survive the switch to the other).
+          <S26StudioReal d={d} onApproved={(set) => { captures.current = set; }} />
         ) : v.s === 'trust' ? (
           <S33Trust d={d} />
         ) : v.s === 'onboard' ? (

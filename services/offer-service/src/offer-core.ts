@@ -66,6 +66,10 @@ export interface OfferEntry {
    * have no images, and then the wire carries `[]`.
    */
   readonly assets?: ProductAssets;
+  /** The supplier's variants note, verbatim from the create command — see `CreateOfferCommand.variantsNote`. */
+  readonly variantsNote?: string;
+  /** The completion path's idempotency key — set when assets were ATTACHED after create. */
+  readonly attachCommandId?: string;
 }
 
 /**
@@ -85,6 +89,17 @@ export interface CreateOfferCommand {
   readonly asOf: string;
   /** The product's images — optional; boundary-validated and capped at create. */
   readonly assets?: ProductAssets;
+  /**
+   * The supplier's variants, IN HIS OWN WORDS (« S, M, L ») — BOUTIK-LOCAL, the
+   * `assets` precedent exactly (founder ruling 2026-07-25). It is a NOTE, not a
+   * claim: never parsed into variant ids, never mapped into canon
+   * `eligibleVariants` (whose members are Variant-record IDS — records that exist
+   * nowhere; minting ids pointing at nothing is the hubVerified shape), and never
+   * on the wire. PROMOTION PATH, journaled: real `Variant` records need
+   * catalog-service, which is a health stub today — whoever builds variants finds
+   * his typed text waiting here rather than discovering it was silently dropped.
+   */
+  readonly variantsNote?: string;
 }
 
 export type CreateOfferDecision =
@@ -102,6 +117,65 @@ export type CreateOfferDecision =
 
 export class OfferAvailableError extends Error {
   override readonly name = 'OfferAvailableError';
+}
+
+// ─── THE COMPLETION PATH (combined slice, founder ruling 2026-07-24) ─────────
+// "The product saves with what got through … build the completion path in the
+// same slice." A publish whose uploads failed on 3G lands with NO assets
+// (`assetRefs: []`); this command lets a LATER upload attach the photographs
+// without republishing — the offer, its ids and its economics are untouched.
+
+export interface AttachAssetsCommand {
+  readonly commandId: string;
+  readonly offerId: string;
+  readonly assets: ProductAssets;
+}
+
+export type AttachAssetsDecision =
+  | { readonly status: 'attached'; readonly entry: OfferEntry }
+  | { readonly status: 'idempotent'; readonly entry: OfferEntry }
+  | { readonly status: 'not_found' }
+  | {
+      readonly status: 'refused';
+      readonly reason: 'too_many_asset_refs' | 'assets_already_present';
+      readonly max?: number;
+      readonly presented?: number;
+    };
+
+/**
+ * ATTACH — one-shot, absent → present, idempotent on ITS OWN command id
+ * (`attachCommandId`, stored on the entry; a retry after a lost response answers
+ * `idempotent` with the entry that exists, exactly the create-path property).
+ *
+ * `assets_already_present` IS A DELIBERATE REFUSAL, and the safest default on an
+ * open question rather than a ruling I own: replacing existing photographs is an
+ * EDIT — a different capability with its own honesty questions (which version is
+ * live while it happens? what does the reseller see mid-swap?) — and no edit path
+ * has been ruled anywhere. Completion completes; it does not quietly become
+ * replacement. FLAGGED in the journal for the founder.
+ *
+ * The cap is the SAME `wireAssetRefs`/`ASSET_REFS_MAX` the create path applies —
+ * one cap, not two — and the array is never truncated (a refusal names both
+ * numbers; dropping a photograph silently is the demo-fallback dishonesty class).
+ */
+export function decideAttachAssets(
+  current: OfferEntry | undefined,
+  cmd: AttachAssetsCommand,
+): { decision: AttachAssetsDecision; next?: OfferEntry } {
+  if (!current) return { decision: { status: 'not_found' } };
+  if (current.attachCommandId === cmd.commandId) {
+    return { decision: { status: 'idempotent', entry: current } };
+  }
+  if (current.assets !== undefined) {
+    return { decision: { status: 'refused', reason: 'assets_already_present' } };
+  }
+  const assets = ProductAssetsSchema.parse(cmd.assets); // boundary — never trust the wire
+  const refCount = wireAssetRefs(assets).length;
+  if (refCount > ASSET_REFS_MAX) {
+    return { decision: { status: 'refused', reason: 'too_many_asset_refs', max: ASSET_REFS_MAX, presented: refCount } };
+  }
+  const next: OfferEntry = { ...current, assets, attachCommandId: cmd.commandId };
+  return { decision: { status: 'attached', entry: next }, next };
 }
 
 /**
@@ -150,6 +224,12 @@ export function decideCreateOffer(
     }
     return { decision: { status: 'refused', reason: 'publisher_not_eligible' } };
   }
+  // The variants note: HIS text, carried verbatim after a trim. A non-string is
+  // refused by absence (the wire is JSON; a malformed field must not become a
+  // stored value), and an empty/whitespace note is stored as ABSENT, not "".
+  const variantsNote = typeof cmd.variantsNote === 'string' && cmd.variantsNote.trim().length > 0
+    ? cmd.variantsNote.trim()
+    : undefined;
   const entry: OfferEntry = {
     offerId: cmd.offerId,
     product,
@@ -158,6 +238,7 @@ export function decideCreateOffer(
     asOf: cmd.asOf,
     createCommandId: cmd.commandId,
     ...(assets !== undefined ? { assets } : {}), // exactOptionalPropertyTypes: absent, never `undefined`
+    ...(variantsNote !== undefined ? { variantsNote } : {}),
   };
   return { decision: { status: 'created', entry, preview: outcome.preview }, next: entry };
 }

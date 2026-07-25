@@ -264,6 +264,65 @@ describe('combined Worker — durable offers on real workerd', () => {
     expect(res.status).toBe(401);
   });
 
+  // ── THE COMPLETION PATH, proven at the deployed entry on real workerd ───────
+
+  const ATTACH_ASSETS = {
+    masterRef: { ref: 'private/master/cap-1', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+    heroSquare: { ref: 'media/aaaaaaaa-1111-4111-8111-111111111111', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+    heroVertical: { ref: 'media/bbbbbbbb-2222-4222-8222-222222222222', sha256: 'c'.repeat(64), mimeType: 'image/jpeg' },
+    proof: { ref: 'media/cccccccc-3333-4333-8333-333333333333', sha256: 'd'.repeat(64), mimeType: 'image/jpeg' },
+    detail: [],
+    hashes: ['a'.repeat(64)],
+    processingVersion: 'premium-frame.v1',
+  };
+
+  it('ATTACH: POST /offers/assets is a WRITE — 401 without the key, before any lookup', async () => {
+    const open = await mf.dispatchFetch('http://o/offers/assets', {
+      method: 'POST',
+      body: JSON.stringify({ commandId: 'att-1', offerId: SEED.offerId, assets: ATTACH_ASSETS }),
+    });
+    expect(open.status).toBe(401);
+  });
+
+  it('ATTACH: with the key, photographs land on the SEEDED offer and the wire serves them', async () => {
+    const res = await mf.dispatchFetch('http://o/offers/assets', {
+      method: 'POST', headers: authed,
+      body: JSON.stringify({ commandId: 'att-1', offerId: SEED.offerId, assets: ATTACH_ASSETS }),
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { status: string }).status).toBe('attached');
+
+    // the wire NOW carries the refs — hero first, master never
+    const read = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { method: 'GET', headers: readAuthed });
+    const body = (await read.json()) as { value: { assetRefs: string[] } };
+    expect(body.value.assetRefs).toEqual([
+      ATTACH_ASSETS.heroSquare.ref, ATTACH_ASSETS.heroVertical.ref, ATTACH_ASSETS.proof.ref,
+    ]);
+    expect(body.value.assetRefs).not.toContain(ATTACH_ASSETS.masterRef.ref);
+  });
+
+  it('ATTACH: a replay is idempotent, and a SECOND attach (new commandId) is refused — completion is not replacement', async () => {
+    const replay = await mf.dispatchFetch('http://o/offers/assets', {
+      method: 'POST', headers: authed,
+      body: JSON.stringify({ commandId: 'att-1', offerId: SEED.offerId, assets: ATTACH_ASSETS }),
+    });
+    expect(((await replay.json()) as { status: string }).status).toBe('idempotent');
+
+    const second = await mf.dispatchFetch('http://o/offers/assets', {
+      method: 'POST', headers: authed,
+      body: JSON.stringify({ commandId: 'att-2', offerId: SEED.offerId, assets: ATTACH_ASSETS }),
+    });
+    expect((await second.json()) as object).toEqual({ status: 'refused', reason: 'assets_already_present' });
+  });
+
+  it('ATTACH: an unknown offer is not_found — the side door creates nothing', async () => {
+    const res = await mf.dispatchFetch('http://o/offers/assets', {
+      method: 'POST', headers: authed,
+      body: JSON.stringify({ commandId: 'att-3', offerId: 'offer-nope', assets: ATTACH_ASSETS }),
+    });
+    expect(((await res.json()) as { status: string }).status).toBe('not_found');
+  });
+
   it('/health stays UNGATED — it is how the deploy is verified and carries no supply data', async () => {
     const health = await mf.dispatchFetch('http://o/health', { method: 'GET' });
     expect(health.status).toBe(200);

@@ -1,4 +1,4 @@
-import { decideCreateOffer, OfferAvailableError, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
+import { decideAttachAssets, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -60,6 +60,28 @@ export class OfferDO {
       } catch (err) {
         if (err instanceof OfferAvailableError) return Response.json({ error: 'malformed' }, { status: 400 });
         throw err;
+      }
+      if (result.next) await this.state.storage.put(ENTRY_KEY, result.next);
+      return Response.json(result.decision);
+    }
+    // THE COMPLETION PATH — attach photographs to THIS offer after create.
+    // Same shape as /entry/create: parse, decide (pure), persist iff `next`.
+    // A schema violation in the assets is `malformed`, exactly as create treats
+    // a bad product — the boundary refuses, it never stores a partial.
+    if (request.method === 'POST' && pathname === '/entry/attach-assets') {
+      let cmd: AttachAssetsCommand;
+      try {
+        cmd = (await request.json()) as AttachAssetsCommand;
+      } catch {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
+      const current = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      let result: { decision: AttachAssetsDecision; next?: OfferEntry };
+      try {
+        result = decideAttachAssets(current, cmd);
+      } catch {
+        // ProductAssetsSchema refused the shape — malformed, never stored
+        return Response.json({ error: 'malformed' }, { status: 400 });
       }
       if (result.next) await this.state.storage.put(ENTRY_KEY, result.next);
       return Response.json(result.decision);
@@ -173,6 +195,22 @@ export default {
           }),
         );
       }
+      return forward(res);
+    }
+
+    // THE COMPLETION PATH at the router — POST /offers/assets, body carries the
+    // offerId (matching the create route's body-addressing; the DO name IS the
+    // offerId). Behind the SAME write gate as POST /offers (the composition root
+    // gates every non-safe method before any dispatch).
+    if (request.method === 'POST' && pathname === '/offers/assets') {
+      const cmd = (await request.clone().json().catch(() => null)) as AttachAssetsCommand | null;
+      if (cmd == null || typeof cmd.offerId !== 'string' || typeof cmd.commandId !== 'string' || cmd.assets == null) {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
+      const res = await offerStub(env, cmd.offerId).fetch(
+        new Request('https://do/entry/attach-assets', { method: 'POST', body: JSON.stringify(cmd) }),
+      );
+      // No pointer/index writes: the offer already exists; only its entry changed.
       return forward(res);
     }
 

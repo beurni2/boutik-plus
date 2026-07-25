@@ -62,8 +62,10 @@ export interface OfferDraftInput {
 
 /**
  * Mirrors `CreateOfferCommand` (services/offer-service/src/offer-core.ts).
- * `assets` is DELIBERATELY ABSENT in this slice: authoring carries no photographs
- * yet, so the wire receives `assetRefs: []` — the honest empty, never a placeholder.
+ * (This header once said `assets` was deliberately absent — true of the
+ * SUPPLIER-AUTHORING-1 slice, superseded by the combined slice: photographs now
+ * travel when their uploads got through, and `assetRefs: []` remains the honest
+ * empty when they did not.)
  */
 export interface CreateOfferInput {
   readonly commandId: string;
@@ -72,6 +74,14 @@ export interface CreateOfferInput {
   readonly draft: OfferDraftInput;
   readonly available: number;
   readonly asOf: string;
+  /**
+   * The product's photographs (combined slice) — canon `ProductAssets`, present
+   * only when EVERY required upload got through (the longest-complete-prefix
+   * rule in `assets.ts`); otherwise absent and the wire carries `assetRefs: []`.
+   */
+  readonly assets?: import('./assets').ProductAssetsInput;
+  /** His variants, his words (« S, M, L ») — a boutik-local NOTE, never canon eligibleVariants. */
+  readonly variantsNote?: string;
 }
 
 /**
@@ -124,8 +134,23 @@ export type ServiceResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly cause: FailureCause; readonly reason: string };
 
+/** Mirrors `AttachAssetsCommand` — THE COMPLETION PATH (POST /offers/assets). */
+export interface AttachAssetsInput {
+  readonly commandId: string;
+  readonly offerId: string;
+  readonly assets: import('./assets').ProductAssetsInput;
+}
+
+/** Mirrors offer-core's `AttachAssetsDecision`, statuses only + reason. */
+export interface AttachAssetsOutcome {
+  readonly status: 'attached' | 'idempotent' | 'not_found' | 'refused';
+  readonly reason?: string;
+}
+
 export interface SupplyServicePort {
   createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>>;
+  /** Attach photographs to an ALREADY-PUBLISHED offer — completion, not replacement. */
+  attachAssets(cmd: AttachAssetsInput): Promise<ServiceResult<AttachAssetsOutcome>>;
 }
 
 const DECISION_STATUSES = ['created', 'idempotent', 'collision', 'refused'] as const;
@@ -198,6 +223,42 @@ export class HttpSupplyService implements SupplyServicePort {
     }
     return { ok: true, value: outcome };
   }
+
+  async attachAssets(cmd: AttachAssetsInput): Promise<ServiceResult<AttachAssetsOutcome>> {
+    const url = `${this.base.replace(/\/+$/, '')}/offers/assets`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: this.writeKey },
+        body: JSON.stringify(cmd),
+      });
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    const text = await res.text();
+    if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    const outcome = readAttachOutcome(parsed);
+    if (outcome === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    return { ok: true, value: outcome };
+  }
+}
+
+const ATTACH_STATUSES = ['attached', 'idempotent', 'not_found', 'refused'] as const;
+
+/** Boundary-validate the attach response — same law as `readOutcome`. */
+export function readAttachOutcome(body: unknown): AttachAssetsOutcome | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as Record<string, unknown>;
+  const status = ATTACH_STATUSES.find((s) => s === b['status']);
+  if (status === undefined) return null;
+  return { status, ...(typeof b['reason'] === 'string' ? { reason: b['reason'] } : {}) };
 }
 
 /**

@@ -594,6 +594,12 @@
     "screenClass": "instruction"
   },
   {
+    "key": "studio.permission_bloquee",
+    "fr": "La caméra est bloquée pour Boutik+. Ouvrez les réglages du téléphone pour la permettre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "studio.autoriser",
     "fr": "Autoriser la caméra",
     "register": "neutral",
@@ -1308,6 +1314,48 @@
     "screenClass": "status"
   },
   {
+    "key": "publier.photos_manquantes",
+    "fr": "Le produit est en ligne, mais des photos ne sont pas parties. Renvoyez-les avant de quitter cet écran.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_non_config",
+    "fr": "Vos photos sont prêtes, mais l'envoi d'images n'est pas encore relié. Le produit est en ligne sans photo.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_action",
+    "fr": "Envoyer les photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.photos_jointes",
+    "fr": "Les photos sont jointes au produit.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_encore",
+    "fr": "Des photos manquent encore. Réessayez quand le réseau est meilleur.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.corriger",
+    "fr": "Corriger",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.echec",
+    "fr": "La photo n'a pas pu être préparée. Rien n'est gardé sans vérification.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.sans_photo",
     "fr": "Ce produit part sans photo.",
     "register": "neutral",
@@ -1369,7 +1417,7 @@
   },
   {
     "key": "publier.champ_zone",
-    "fr": "Zone",
+    "fr": "Quartier",
     "register": "neutral",
     "screenClass": "label"
   },

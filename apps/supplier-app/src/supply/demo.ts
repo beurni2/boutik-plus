@@ -1,4 +1,4 @@
-import type { CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplyServicePort } from './service.js';
+import type { AttachAssetsInput, AttachAssetsOutcome, CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplyServicePort } from './service.js';
 
 /**
  * THE DEMO ADAPTER — FOR TESTS ONLY. **No app code may import this module.**
@@ -49,5 +49,14 @@ export class DemoSupplyService implements SupplyServicePort {
   async createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>> {
     this.written.push(cmd);
     return this.answer;
+  }
+
+  /** Attach commands, recorded like creates. Fabricates nothing back. */
+  readonly attached: AttachAssetsInput[] = [];
+  attachAnswer: ServiceResult<AttachAssetsOutcome> = { ok: true, value: { status: 'attached' } };
+
+  async attachAssets(cmd: AttachAssetsInput): Promise<ServiceResult<AttachAssetsOutcome>> {
+    this.attached.push(cmd);
+    return this.attachAnswer;
   }
 }

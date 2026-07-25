@@ -58,6 +58,11 @@ export default {
     // POST /offers (the founder-seed write path) → the offer DO router.
     if (request.method === 'POST' && pathname === '/offers') return offerRouter.fetch(request, env);
 
+    // POST /offers/assets — THE COMPLETION PATH (attach photographs to an
+    // existing offer). A WRITE, so the gate above has already run; same key,
+    // same 401, no separate credential.
+    if (request.method === 'POST' && pathname === '/offers/assets') return offerRouter.fetch(request, env);
+
     // GET /offers (the founder's admin list) is a GET, so the write gate above
     // skipped it — key-gate it EXPLICITLY here with the same key before any
     // dispatch, then hand to the offer DO router (which enriches with live fields).

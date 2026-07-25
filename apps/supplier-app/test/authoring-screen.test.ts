@@ -4,210 +4,197 @@ import { describe, expect, it } from 'vitest';
 import { catalog } from '../src/i18n';
 
 /**
- * SUPPLIER-AUTHORING-1 part 2 — THE SCREEN, asserted at the source level.
+ * COMBINED SLICE — the REAL listing flow, asserted at the source level (this
+ * suite has no RN renderer; the pattern is df2-device-review.test.ts's).
  *
- * There is no RN renderer in this suite (see preview-banner.test.ts), so these
- * are source assertions in the shape df2-device-review.test.ts already uses for
- * App.tsx. They are not decoration: each one pins a property the founder ruled
- * on, and each would fail if the screen drifted back to the failure it replaces.
+ * The architecture under test, founder-ruled: HIS five-step wizard is the flow;
+ * `SListerReal` wraps the untouched `S20Wizard` with the real plumbing through
+ * an INTERCEPTED dispatcher; the Studio is his S26 design over a real camera;
+ * `publier.tsx` is DELETED — one path, his.
  */
 
 const appDir = join(import.meta.dirname, '..');
-const screen = readFileSync(join(appDir, 'src/v2/publier.tsx'), 'utf8');
+const lister = readFileSync(join(appDir, 'src/v2/lister-real.tsx'), 'utf8');
+const studio = readFileSync(join(appDir, 'src/v2/studio-real.tsx'), 'utf8');
 const shell = readFileSync(join(appDir, 'src/v2/AppV2.tsx'), 'utf8');
-const authoring = readFileSync(join(appDir, 'src/supply/authoring.ts'), 'utf8');
+const screens2 = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
+const machine = readFileSync(join(appDir, 'src/v2/machine.ts'), 'utf8');
 const keys = new Set(catalog.map((e) => e.key));
 
-describe('every user-facing string comes from the catalog (Contract §10.5)', () => {
-  it('every t(...) key the screen uses EXISTS — t() throws at runtime on a miss, so this must fail in CI first', () => {
-    const used = [...screen.matchAll(/t\('([^']+)'\)/g)].map((m) => m[1] as string);
-    expect(used.length).toBeGreaterThan(15); // the screen is string-heavy; a collapse to 0 must not pass
+describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', () => {
+  it('publier.tsx is DELETED, not left unrouted — no second publish path exists', () => {
+    expect(() => readFileSync(join(appDir, 'src/v2/publier.tsx'), 'utf8')).toThrow();
+    expect(shell).not.toMatch(/SPublier|from '\.\/publier'/);
+  });
+
+  it("view 'add' renders SListerReal, which renders HIS S20Wizard — not a new form", () => {
+    expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,600}<SListerReal st=\{st\} d=\{d\} captures=\{captures\}/);
+    expect(lister).toMatch(/return <S20Wizard st=\{st\} d=\{dd\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/);
+  });
+
+  it("view 'studio' renders the REAL studio; the demo S26Studio is unrouted but intact", () => {
+    expect(shell).toMatch(/v\.s === 'studio' \?[\s\S]{0,600}<S26StudioReal d=\{d\} onApproved=/);
+    expect(shell).not.toMatch(/<S26Studio /);
+    expect(screens2).toMatch(/export function S26Studio\(/); // the frozen demo survives, unrouted
+  });
+
+  it('the capture set AND the listing session are owned by the SHELL — studio and wizard are sibling views', () => {
+    expect(shell).toMatch(/const captures = useRef<CaptureSet \| null>\(null\);/);
+    expect(shell).toMatch(/const listing = useRef<ListingSession>/);
+    expect(shell).toMatch(/onApproved=\{\(set\) => \{ captures\.current = set; \}\}/);
+    // …and OPEN_WIZ genuinely clears both — the comment's claim is code now
+    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{\s*\n\s*captures\.current = null;\s*\n\s*listing\.current = \{ codeTouched: false, suffixBytes: null \};/);
+  });
+
+  it('ONE TAP leaves the outcome pane — never four dead taps then a destroyed completion path', () => {
+    expect(lister).toMatch(/const exitToProduits = \(\): void => d\(\{ t: 'TAB', tab: 'produits' \}\);/);
+    // the outcome pane never dispatches a raw BACK (which would step the hidden wizard four times)
+    const pane = lister.slice(lister.indexOf('── the outcome pane'), lister.indexOf("if (pub?.kind === 'sending')"));
+    expect(pane).not.toMatch(/d\(\{ t: 'BACK' \}\)/);
+  });
+
+  it('media unconfigured + photos taken is an HONEST banner, never silence under a success line', () => {
+    expect(lister).toMatch(/mediaService === null \? \(/);
+    expect(lister).toMatch(/t\('publier\.photos_non_config'\)/);
+  });
+
+  it('the step-4 aperçu shows the REAL heroSquare when one exists — demo chrome makes no claim over real photos', () => {
+    expect(lister).toMatch(/heroUri=\{captures\.current\?\.heroSquare\.uri\}/);
+    expect(screens2).toMatch(/heroUri !== undefined \? \(/);
+  });
+});
+
+describe('THE INTERCEPTOR — the real publish, and the frozen rules never reached', () => {
+  it('WIZ_NEXT at step 4 runs the REAL publish and never reaches the machine (no demo board write)', () => {
+    expect(lister).toMatch(/a\.t === 'WIZ_NEXT' && st\.wiz\.step === 4/);
+    expect(lister).toMatch(/void onPublish\(\);\s*\/\/ the REAL write/);
+  });
+
+  it('the machine still gates step 1 on an EMPTY NAME and EMPTY ZONE — §9.5 unreachable via the footer', () => {
+    expect(machine).toMatch(/s\.wiz\.step === 1 && \(s\.wiz\.name\.trim\(\) === '' \|\| s\.wiz\.zone\.trim\(\) === ''\)/);
+    // …and the frozen rule itself is UNEDITED
+    expect(machine).toMatch(/'Robe brodée bogolan'/);
+  });
+
+  it('the product code fills from the name while untouched and stops on first edit', () => {
+    expect(lister).toMatch(/a\.t === 'WIZ_SET' && 'code' in a\.patch[\s\S]{0,140}session\.current\.codeTouched = true/);
+    expect(lister).toMatch(/suggestProductCode\(name, session\.current\.suffixBytes\)/);
+    expect(lister).not.toMatch(/Math\.random/);
+  });
+
+  it('ids are minted once per attempt via retainIdentity — a retry cannot create a second product', () => {
+    expect(lister).toMatch(/identity\.current = retainIdentity\(identity\.current, mintCommandId\)/);
+    expect(lister).not.toMatch(/commandId: mintCommandId\(\)/);
+  });
+
+  it('the guard is a REF released in a finally — no dead button after a throw', () => {
+    expect(lister).toMatch(/if \(inFlight\.current\) return;/);
+    const releases = [...lister.matchAll(/inFlight\.current = false;/g)];
+    expect(releases.length).toBeGreaterThanOrEqual(2); // publish + completion, each in a finally
+    expect(lister).toMatch(/\} finally \{\s*\n\s*inFlight\.current = false;/);
+  });
+});
+
+describe('WIZARD STEP 1 — the founder-ruled fields, inside his step, no sixth step', () => {
+  it('collects the product code (derived, visible, editable) with the aide line', () => {
+    expect(screens2).toMatch(/tr\('publier\.champ_code'\)/);
+    expect(screens2).toMatch(/tr\('publier\.champ_code_aide'\)/);
+    expect(screens2).toMatch(/patch: \{ code: t \}/);
+  });
+
+  it('collects the ZONE — he chooses it per listing (founder reversal), label from his design family', () => {
+    expect(screens2).toMatch(/tr\('publier\.champ_zone'\)/);
+    expect(screens2).toMatch(/patch: \{ zone: t \}/);
+    const entry = catalog.find((e) => e.key === 'publier.champ_zone');
+    expect((entry as { fr: string }).fr).toBe('Quartier'); // the onboarding's own label family
+  });
+
+  it('the wizard still has FIVE steps — nothing grew', () => {
+    expect(screens2).toMatch(/wizardCounter=\{`\$\{w\.step \+ 1\}\/5`\}/);
+    expect(screens2).toMatch(/<ProgressDots total=\{5\} step=\{w\.step\} \/>/);
+  });
+});
+
+describe('PHOTOGRAPHS — honest all the way through', () => {
+  it('the master is HASHED FROM ITS OWN BYTES and never uploaded (open read route vs « master private »)', () => {
+    expect(lister).toMatch(/await sha256Hex\(await new File\(set\.hero\.masterUri\)\.bytes\(\)\)/);
+    expect(lister).toMatch(/private\/device\/\$\{bytes\.masterSha256\}/);
+    // the derivative is never passed off as the master
+    expect(lister).not.toMatch(/masterSha256: await sha256Hex\(derivativeBytesFromUri\(set\.hero/);
+  });
+
+  it('what uploads is what he SAW — proof/detail bytes decode from the previewed data URI', () => {
+    expect(lister).toMatch(/derivativeBytesFromUri\(set\.proof\.derivative\.uri\)/);
+    expect(lister).toMatch(/derivativeBytesFromUri\(set\.detail\.derivative\.uri\)/);
+  });
+
+  it('partial uploads publish WITHOUT assets and the outcome pane offers completion — never a truncated set', () => {
+    expect(lister).toMatch(/leftover = \{ uploads, bytes \}; \/\/ publish without photos; complete after/);
+    expect(lister).toMatch(/t\('publier\.photos_manquantes'\)/);
+    expect(lister).toMatch(/onCompletePhotos/);
+  });
+
+  it('completion retries ONLY the failed roles and attaches with a STABLE command id (idempotent)', () => {
+    expect(lister).toMatch(/u\.ok \? u : uploadRole\(mediaService, bytes\)/);
+    expect(lister).toMatch(/commandId: `\$\{identity\.current\.commandId\}-assets`/);
+  });
+
+  it('the studio crops the ONE hero into square + vertical during REAL processing — no fourth capture', () => {
+    // THE DIMENSIONS ARE THE FINDING (verifier, HIGH): a rect computed from the
+    // DERIVATIVE's dimensions but applied to the master ships an off-centre
+    // corner fragment on every real camera. The crop MUST be computed from the
+    // master's OWN dimensions — pinned to the exact argument text.
+    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(studio).not.toMatch(/heroSquareCrop\(hero\.derivative/);
+    expect(studio).toMatch(/<CameraView ref=\{camera\}/); // a REAL camera in his C39 frame
+    expect(studio).not.toMatch(/STUDIO_CAPTURE/); // the demo's simulated capture is not dispatched
+  });
+
+  it('studio approval goes through the MACHINE’s own STUDIO_APPROVE — §4 owns the transition', () => {
+    expect(studio).toMatch(/onApproved\(phase\.set\);\s*\n\s*d\(\{ t: 'STUDIO_APPROVE' \}\);/);
+  });
+});
+
+describe('every user-facing string on the new surfaces is catalog-backed', () => {
+  it('every t(...) key used by the wrapper and the studio exists in the catalog', () => {
+    const used = [
+      ...[...lister.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
+      ...[...studio.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
+    ];
+    expect(used.length).toBeGreaterThan(12);
     const missing = used.filter((k) => !keys.has(k));
-    expect(missing, `catalog keys referenced by the screen but absent: ${missing.join(', ')}`).toEqual([]);
+    expect(missing, `missing catalog keys: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it('carries NO inline French sentence — neither a JSX text node NOR a string prop', () => {
-    // The earlier version of this test matched text nodes only while its comment
-    // claimed it also covered string props — and props are the likelier leak here,
-    // since every real string on this screen is passed as one (verifier finding).
-    const code = screen.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    const jsxText = [...code.matchAll(/>\s*([A-Za-zÀ-ÿ][^<>{}\n]{6,})\s*</g)].map((m) => m[1] as string);
-    // string props: label="…", title='…' etc. Two+ words with a letter each, i.e.
-    // a sentence rather than an identifier like "number-pad" or "supplier-founder-001".
-    const props = [...code.matchAll(/\b[a-zA-Z]+=("|')([^"'\n]{6,})\1/g)]
-      .map((m) => m[2] as string)
-      .filter((v) => /^[A-Za-zÀ-ÿ]/.test(v) && /[A-Za-zÀ-ÿ]\s+[A-Za-zÀ-ÿ]/.test(v));
-    const found = [...jsxText, ...props];
-    expect(found, `inline copy found (must live in the catalog): ${found.join(' | ')}`).toEqual([]);
-  });
-});
-
-describe('the typed refusals all reach a designed French string', () => {
-  it('EVERY FieldError in the union has a catalog key in ERROR_KEY — none can render blank', () => {
-    // the union, parsed from the source of record rather than restated here
-    const block = authoring.slice(authoring.indexOf('export type FieldError'), authoring.indexOf('/** The category floor'));
-    const union = [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string);
-    expect(union).toContain('base_price_below_floor');
-    expect(union.length).toBe(8);
-
-    const mapBlock = screen.slice(screen.indexOf('const ERROR_KEY'), screen.indexOf('};', screen.indexOf('const ERROR_KEY')));
-    for (const member of union) {
+  it('every FieldError maps to a real catalog string', () => {
+    const mapBlock = lister.slice(lister.indexOf('const ERROR_KEY'), lister.indexOf('};', lister.indexOf('const ERROR_KEY')));
+    for (const member of ['name_required', 'product_code_required', 'category_required', 'zone_required', 'base_price_invalid', 'base_price_below_floor', 'commission_invalid', 'available_invalid']) {
       const m = new RegExp(`${member}:\\s*'([^']+)'`).exec(mapBlock);
-      expect(m, `FieldError '${member}' has no ERROR_KEY entry`).not.toBeNull();
-      expect(keys.has((m as RegExpExecArray)[1] as string), `ERROR_KEY['${member}'] points at a missing catalog key`).toBe(true);
+      expect(m, member).not.toBeNull();
+      expect(keys.has((m as RegExpExecArray)[1] as string), member).toBe(true);
     }
   });
-});
 
-describe('« non configuré » is a CONDITION, never an error (founder ruling)', () => {
-  it('the unconfigured notice renders with the INFO tone — not danger, not warn', () => {
-    expect(screen).toMatch(/<Banner tone="info">\{t\('publier\.non_configure'\)\}<\/Banner>/);
-    expect(screen).not.toMatch(/tone="danger">\{t\('publier\.non_configure'\)/);
-    expect(screen).not.toMatch(/tone="warn">\{t\('publier\.non_configure'\)/);
+  it('only the http cause claims the service answered; network and device get their own designed states', () => {
+    expect(lister).toMatch(/pub\.cause === 'network' \?[\s\S]{0,120}t\('publier\.echec_reseau'\)/);
+    expect(lister).toMatch(/pub\.cause === 'device' \?[\s\S]{0,120}t\('publier\.echec_appareil'\)/);
+    expect(lister).toMatch(/pub\.cause === 'http' \? 'publier\.echec' : 'publier\.echec_illisible'/);
   });
 
-  it('the string itself neither blames nor promises — no « erreur », no draft-keeping claim', () => {
-    const entry = catalog.find((e) => e.key === 'publier.non_configure');
-    expect(entry).toBeDefined();
-    const fr = (entry as { fr: string }).fr;
-    expect(fr).not.toMatch(/erreur|échec|impossible|désolé/i);
-    // it must not promise that what he typed is kept — nothing persists a draft yet
-    expect(fr).not.toMatch(/gardé|conservé|enregistré|sauvegardé/i);
-    // and it must say plainly that nothing was sent, so it cannot read as success
-    expect(fr).toMatch(/envoyé/i);
+  it('an idempotent answer does NOT render the plain success line', () => {
+    expect(lister).toMatch(/pub\.alreadyRegistered \?[\s\S]{0,160}t\('publier\.deja_enregistre'\)/);
+    expect([...lister.matchAll(/t\('publier\.publie'\)/g)]).toHaveLength(1);
   });
 
-  it('the primary action is DISABLED when the service is null — he never taps into a dead end', () => {
-    expect(screen).toMatch(/disabled=\{service === null \|\| sending\}/);
+  it('« non configuré » is a CONDITION shown before he types, tone info, with a way back', () => {
+    expect(lister).toMatch(/if \(offerService === null\) \{[\s\S]{0,700}<Banner tone="info">\{t\('publier\.non_configure'\)\}<\/Banner>/);
   });
 });
 
-describe('nothing on this screen can look like success without being one', () => {
-  it('the success wording exists in EXACTLY ONE place, inside the published branch', () => {
-    // The earlier version asserted only that the `if` existed, which says nothing
-    // about ONLY — a second success-rendering path elsewhere would have kept it
-    // green (verifier finding). This pins the count and the location.
-    expect(screen).toMatch(/if \(state\?\.kind === 'published'\)/);
-    const successUses = [...screen.matchAll(/t\('publier\.publie'\)/g)];
-    expect(successUses).toHaveLength(1);
-    const branch = screen.slice(screen.indexOf("if (state?.kind === 'published')"), screen.indexOf('// ── THE FORM'));
-    expect(branch).toContain("t('publier.publie')"); // …and it is inside that branch
-  });
-
-  it('an IDEMPOTENT answer does NOT render the plain success wording', () => {
-    // idempotent means an EARLIER attempt is what is live; the form stayed
-    // editable in between, so « c'est publié » alone could be false about his money.
-    expect(screen).toMatch(/state\.alreadyRegistered \?[\s\S]{0,160}t\('publier\.deja_enregistre'\)/);
-  });
-
-  it('the seller net rendered is the SERVICE’s figure, and is omitted when absent', () => {
-    // rendered only under the presence check — never a local computation
-    expect(screen).toMatch(/state\.sellerNetFcfa !== undefined &&/);
-    expect(screen).toMatch(/formatF\(state\.sellerNetFcfa\)/);
-    // the screen must not compute money: no fee()/net() from the demo money helpers
-    expect(screen).not.toMatch(/\b(fee|net)\(/);
-  });
-
-  it('the offer reference is shown — it is his only way to check the product afterwards', () => {
-    expect(screen).toMatch(/t\('publier\.reference'\)/);
-    expect(screen).toMatch(/\{state\.offerId\}/);
-  });
-
-  it('a refusal renders the SERVICE’s own words verbatim', () => {
-    expect(screen).toMatch(/t\('publier\.refuse'\)\}\\n\$\{state\.reason\}/);
-  });
-
-  it('only the `http` cause may claim the service answered — network and device get their own words', () => {
-    // « voici ce que le service a répondu » over an offline error is a falsehood,
-    // and offline is the likely failure on a phone in Ouagadougou.
-    expect(screen).toMatch(/state\.cause === 'network' \?[\s\S]{0,120}t\('publier\.echec_reseau'\)/);
-    expect(screen).toMatch(/state\.cause === 'device' \?[\s\S]{0,120}t\('publier\.echec_appareil'\)/);
-    expect(screen).toMatch(/state\.cause === 'http' \? 'publier\.echec' : 'publier\.echec_illisible'/);
-    // the offline state is NOT a red alert wall — the doctrine's designed state
-    expect(screen).not.toMatch(/tone="danger">\{t\('publier\.echec_reseau'\)/);
-  });
-
-  it('the in-flight guard is released even if publish THROWS — no permanently dead button', () => {
-    // there is no error boundary in this app; without the finally the guard would
-    // latch and the primary action would be dead for the rest of the mount.
-    expect(screen).toMatch(/\} finally \{\s*\n\s*inFlight\.current = false;\s*\n\s*\}/);
-  });
-});
-
-describe('the failure strings say only what is true', () => {
-  it('the network string does NOT claim the service answered', () => {
-    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
-    expect(fr('publier.echec_reseau')).not.toMatch(/répondu|réponse|service/i);
-    expect(fr('publier.echec_appareil')).not.toMatch(/répondu|réponse|service/i);
-    // …and both state plainly that nothing was sent
-    expect(fr('publier.echec_reseau')).toMatch(/rien n'a été envoyé/i);
-    expect(fr('publier.echec_appareil')).toMatch(/rien n'a été envoyé/i);
-  });
-
-  it('no string promises an ability the app does not have (there is no edit path)', () => {
-    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
-    // « Vous pourrez en ajouter plus tard » promised photo editing that exists nowhere:
-    // decideCreateOffer answers `collision` for a second command, and no update route exists.
-    expect(fr('publier.sans_photo')).not.toMatch(/plus tard|pourrez|modifier/i);
-  });
-
-  it('« Terminer » does not promise a products list — the board is still seeded fiction', () => {
-    const fr = (k: string) => (catalog.find((e) => e.key === k) as { fr: string }).fr;
-    expect(fr('publier.retour')).not.toMatch(/produits/i);
-  });
-});
-
-describe('the screen writes through the seam, and the demo adapter is not in reach', () => {
-  it('it resolves the REAL service and imports no demo module', () => {
-    expect(screen).toMatch(/resolveSupplyService/);
-    expect(screen).not.toMatch(/from '\.\.\/supply\/demo'/);
-    expect(screen).not.toMatch(/DemoSupplyService/);
-  });
-
-  it('ids are minted from the OS CSPRNG path, never Math.random', () => {
-    // the mint function handed to retainIdentity IS the canon command-id mint
-    // (expo-crypto → globalThis.crypto.randomUUID); there is no other id source.
-    expect(screen).toMatch(/import \{ mintCommandId \} from '\.\.\/offline\/commandId'/);
-    expect(screen).toMatch(/retainIdentity\([^)]*,\s*mintCommandId\)/);
-    expect(screen).not.toMatch(/Math\.random/);
-  });
-
-  it('a CSPRNG failure becomes an honest failed state, never a weaker id', () => {
-    expect(screen).toMatch(/catch \(err\)[\s\S]{0,250}setState\(\{ kind: 'failed'/);
-  });
-
-  it('the double-tap guard is a REF, not the async `sending` state — two taps cannot both fire', () => {
-    // `setState` is asynchronous: a guard reading `state` sees the pre-render
-    // value on a stalled JS thread, and two taps become two products.
-    expect(screen).toMatch(/if \(inFlight\.current\) return;\s*\n\s*inFlight\.current = true;/);
-    expect(screen).not.toMatch(/if \(state\?\.kind === 'sending'\) return;/);
-    // and it is released on BOTH exits, or the button is dead forever
-    const guardReleases = [...screen.matchAll(/inFlight\.current = false;/g)];
-    expect(guardReleases).toHaveLength(2); // the CSPRNG-failure path and the answered path
-  });
-
-  it('a RETRY reuses the attempt’s identity — the commandId is not re-minted per tap', () => {
-    expect(screen).toMatch(/identity\.current = retainIdentity\(identity\.current, mintCommandId\)/);
-    // the three ids are spread from the retained identity, never minted inline
-    expect(screen).toMatch(/\.\.\.identity\.current,/);
-    expect(screen).not.toMatch(/commandId: mintCommandId\(\)/);
-  });
-});
-
-describe('the shell routes « Lister un produit » to the REAL screen', () => {
-  it('view `add` renders SPublier — the S20 demo wizard is no longer rendered anywhere', () => {
-    expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,700}<SPublier onBack=/);
-    expect(shell).not.toMatch(/<S20Wizard/);
-    expect(shell).not.toMatch(/S20Wizard,/); // and it is not imported
-  });
-});
-
-describe('the FCFA fields open a number pad (a 1GB Android in sunlight, not a laptop)', () => {
-  it('base price, commission and stock all request number-pad', () => {
-    const numeric = [...screen.matchAll(/keyboardType="number-pad"/g)];
-    expect(numeric).toHaveLength(3);
-    for (const field of ['champ_prix', 'champ_commission', 'champ_stock']) {
-      expect(screen).toMatch(new RegExp(`${field}'\\)[^\\n]*keyboardType="number-pad"`));
-    }
+describe('the demo adapter stays out of reach', () => {
+  it('neither new surface imports the demo module', () => {
+    expect(lister).not.toMatch(/from '\.\.\/supply\/demo'|DemoSupplyService/);
+    expect(studio).not.toMatch(/from '\.\.\/supply\/demo'|DemoSupplyService/);
   });
 });

@@ -26,8 +26,17 @@ import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance
  */
 
 export interface CaptureResult {
-  /** Private master — the untouched original (never published, never previewed). */
+  /** Private master — the untouched original. Never published, never uploaded;
+   * shown ON-DEVICE to its author (the Studio's avant/après) and nowhere else. */
   masterUri: string;
+  /**
+   * The master's OWN pixel dimensions (combined-slice verifier finding, HIGH):
+   * a crop rect computed from the DERIVATIVE's dimensions but applied to the
+   * master selects an off-centre corner fragment on every camera above 1280px —
+   * silently, because the smaller rect is always in bounds. Any geometry aimed
+   * at the master MUST be computed from these.
+   */
+  master: { width: number; height: number };
   /** The ONE derivative — the STRIPPED bytes as a data URI, previewed AND stored. */
   derivative: { uri: string; width: number; height: number };
   /** Guidance from the downscaled metrics frame. */
@@ -73,6 +82,7 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
 
   return {
     masterUri: photo.uri,
+    master: { width: photo.width, height: photo.height },
     // The data URI IS the stripped artifact: previewed and stored alike —
     // the file at derivative.uri (which the founder's device proved can
     // carry EXIF) never ships.
@@ -83,4 +93,55 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
     },
     guidance: guidanceFor(metrics),
   };
+}
+
+// ─── COMBINED SLICE — the hero's TWO CROPS (square + vertical) ───────────────
+
+/** One stripped, upload-ready derivative: the exact bytes AND their preview URI. */
+export interface StrippedDerivative {
+  readonly bytes: Uint8Array;
+  readonly uri: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Render one crop of a master through the SAME honesty pipeline as every other
+ * derivative: crop → bounded resize → STRIP (our own segment rewriter) →
+ * `assertExifFree` as a post-condition on the exact bytes that ship. A crop is
+ * a derivative like any other — there is no second, laxer path for it.
+ */
+export async function renderCropDerivative(
+  masterUri: string,
+  rect: { originX: number; originY: number; width: number; height: number },
+): Promise<StrippedDerivative> {
+  const ctx = ImageManipulator.manipulate(masterUri);
+  ctx.crop(rect);
+  for (const action of derivativeActions(rect.width, rect.height)) ctx.resize(action.resize);
+  const image = await ctx.renderAsync();
+  const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
+  const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
+  assertExifFree(stripped); // fail-closed — a crop that cannot be proven clean does not exist
+  return {
+    bytes: stripped,
+    uri: `data:image/jpeg;base64,${bytesToBase64(stripped)}`,
+    width: saved.width,
+    height: saved.height,
+  };
+}
+
+/**
+ * The upload-ready bytes of an already-captured shot: `captureShot` previews a
+ * data URI built from the stripped bytes, and THIS decodes that same URI back —
+ * so what uploads is byte-identical to what the founder SAW. No re-render, no
+ * second encode, no window for divergence between preview and upload.
+ */
+export function derivativeBytesFromUri(dataUri: string): Uint8Array {
+  const comma = dataUri.indexOf(',');
+  if (!dataUri.startsWith('data:image/jpeg;base64,') || comma < 0) {
+    throw new Error('derivative URI is not the stripped data URI this app produces');
+  }
+  const bytes = base64ToBytes(dataUri.slice(comma + 1));
+  assertExifFree(bytes); // the post-condition holds on the decode too — belt and braces
+  return bytes;
 }
