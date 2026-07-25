@@ -1395,3 +1395,43 @@ Verifier ran everything itself: it checked the zero-crossing at **seven** B valu
 - **LOW — `netLineRefusal`'s doc listed 2 of its 4 return values**, omitting `base_price_invalid` / `commission_invalid` (live on the screen path, unreachable from the steppers). Listed in full. **And the `Number.isSafeInteger` guard is now explicitly named as NOT an overflow guard** — canon throws above ~`MAX_SAFE_INTEGER / 5`, which this does not pre-empt; ~1.8e13 taps away, pre-existing, but the guard should not read as wider cover than it gives.
 - **THE GATE CAUGHT MY PROSE A FOURTH TIME, on the same word.** `no-seller-debit` fired on « fine » inside the comment I was writing to FIX a different honesty defect. Reworded to « too ». Four times in one session, every time correctly.
 - **Green after repairs:** typecheck 13/13 · supplier-app **360** tests (33 files) · ALL GATES GREEN · copy-lint 249 entries, 0 violations. **And the papercut held: after a full 33-file suite run, `git status` shows no artifact churn.**
+
+### 2026-07-25 · MERGE — THE COMMISSION AXIS landed · release `5d5c8f6`
+Founder: "APPROVED: merge 76d974d into main." Guarded merge: branch head verified as approved `76d974d` → `--no-ff` → **tree diff vs approved EMPTY** → re-proved green from repo root (typecheck 13/13 · supplier-app 360 · ALL GATES GREEN) → pushed → **ancestry read-back: `76d974d` IS an ancestor of `origin/main`; `git diff origin/main 76d974d` empty.**
+
+### 2026-07-25 · FOUNDER RULING — the commission string STANDS AS WRITTEN
+**`publier.err_commission_net` · register `money` · screenClass `status`:**
+> « Avec cette commission, il ne vous reste rien sur la vente. Baissez-la, ou augmentez le prix de base. »
+
+**No change.** Ruled 2026-07-25. **The reasoning, recorded as ordered:** its sibling `publier.err_prix_plancher` states a rule with ONE fix; **this one has TWO — lower the commission or raise the base price — and he cannot infer them from the rule alone.** Stating the cause and then both ways out is what the trust test asks for, and is why this string is longer than its sibling rather than matching it.
+
+### 2026-07-25 · COUNTING CORRECTION — one proof, not two (founder)
+The `every FieldError maps to a real catalog string` repair added **two** checks; only one earns its place.
+- **REDUNDANT with the compiler:** the union-versus-map half. `ERROR_KEY` is `Record<FieldError, string>`, so TypeScript **already** forces exhaustiveness — I said exactly that in my own report and then asserted it again anyway. Its real and much narrower value is **pinning that guarantee if anyone ever loosens the annotation** (to `Partial<>`, or to a plain object literal). Kept on those terms, not as coverage.
+- **LOAD-BEARING:** that every mapped VALUE resolves in the catalog. The compiler cannot check a string against the i18n data, and **that was the actual defect** — a typo'd key passing while `t()` would throw at render.
+- **The general form, worth keeping:** when a repair produces two assertions, ask which one the compiler already makes. Redundant assertions are not free — they make a suite look stronger than it is, which is the same family as the tautology and the cached freshness check.
+
+### 2026-07-25 · ⏳ GAP 1 (NAMED, NOT BUILT) — THE COMMISSION AXIS STOPS AT THE APP
+**The price floor is refused in THREE places; the commission axis in TWO.** Verified in the service source at this release, not assumed:
+- **The two service call sites that check the floor:** `services/offer-service/src/offer.ts:60` (`OfferBook.create`) and `services/offer-service/src/offer.ts:86` (`OfferBook.revise`) — both `if (basePrice < CATEGORY_FLOOR_FCFA) return { ok:false, reason:'below_category_floor' }`.
+- **Neither checks the net.** Grep for a non-positive-net refusal across `services/offer-service/src/` returns **nothing**.
+- **MEASURED, not argued:** `computeWaterfall({B:5000, C:4800})` → `sellerNet = -50`, and **`assertQuoteReconciles` PASSES it.** Reconciling is not the same as positive — the identities hold perfectly for a negative net. The floor check also passes, because B is exactly at the floor.
+- **So offer-service will still mint an offer whose seller net is −50** if any client other than this app's wizard calls it. Today the only writer is the app, which now refuses twice — but the service is the durable boundary and it does not know the rule.
+- **BUILD NONE OF IT.** Its own slice, report-before-build.
+
+### 2026-07-25 · ⏳ GAP 2 (NAMED, NOT BUILT) — PRODUITS HAS NEVER READ THE SERVICE, AND HE CAN NOW SEE IT
+**The founder published a REAL product from his phone today — offer `e6b2a527-b14a-423b-9fc4-52b4f23532a7`, seller net 8 700 FCFA. His Produits tab does not show it.** Verified in app source:
+- App state initialises `products` from **`SEED_PRODUCTS`** (`machine.ts:87`) — **four hardcoded mocks** (`seed.ts:66-71`: Robe brodée bogolan · Sac cuir artisanal · Foulard Faso Dan Fani · Chemise Faso Dan Fani). *(My first count said nine; that grep was catching orders too. Corrected before writing — the founder's four is right.)*
+- **`exitToProduits` only switches tab** (`lister-real.tsx:165`, `d({ t:'TAB', tab:'produits' })`). Nothing appends a published offer to state.
+- **No read of offer-service for a product list exists anywhere in app code.** Grep for `listOffers|getOffers|'/offers'|supply-projections|fetchProducts` outside the demo adapter: **nothing.**
+- **THE PUBLISH PATH IS WRITE-ONLY.** Harmless while nothing was real. Today **the app shows him four products that do not exist and hides the one that does** — the silent-disappearance family, now on his own screen.
+- **THE READ-BACK NEEDS A NEW SUPPLIER-FACING ROUTE, and this is the constraint that makes it a slice rather than a patch:** offer-service serves `/offers` for WRITES, and `/supply-projection/:pv` + `/supply-projections` for READS. **Both readers are gated by `SUPPLY_READ_SECRET` and carry reseller-facing cost data (`basePrice`, `resellerCommission`) — the app must NEVER hold that key.** A supplier-facing list is a different audience with a different secret and a different shape.
+- **BUILD NONE OF IT.** Its own slice, report-before-build.
+
+### 2026-07-25 · ⏳ GAP 3 (NAMED, NOT BUILT) — THE 365-DAY WINDOW'S PRECONDITION HAS FIRED
+My own journal ratified `OFFER_VALIDITY_DAYS = 365` with **two fixes required BEFORE REAL SUPPLY DEPENDED ON IT: a visible expiry, and a renewal path. Real supply now exists — so the precondition is MET and both remain OPEN.** Verified:
+- An offer authored today stores an expiry of **2027-07-25**, and `expiry` appears in app source at exactly one place — `lister-real.tsx:205`, where it is WRITTEN into the command. **It is rendered nowhere he can read.**
+- **No extension is possible from the app:** `decideCreateOffer` answers **`collision`** on a second command for an existing offer (`offer-core.ts:200`), and there is no revise path in the app at all.
+- **When it lapses it goes dark silently:** `projection.ts:83` — `if (nowIso < offer.effective || nowIso > offer.expiry) return { ok:false, reason:'offer_not_effective' }` — and the product simply stops being served to Shop+, with no error anywhere and nothing on his screen.
+- **THE CHEAP HALF IS CHEAP NOW AND STOPS BEING CHEAP LATER:** printing the real date on the publish screen and in Produits is small at one offer and is not small at fifty, when he has to reason about a staggered set he has never been shown.
+- **BUILD NONE OF IT.** Its own slice, report-before-build.
