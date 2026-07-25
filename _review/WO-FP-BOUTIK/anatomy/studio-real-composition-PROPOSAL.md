@@ -1,5 +1,25 @@
 # COMPOSITION PROPOSAL — Boutik+ Studio (S26StudioReal), fill-the-width viewfinder
 
+> ## ⛔ SUPERSEDED 2026-07-25 — THE SLICE WAS RESHAPED, NOT DEFERRED
+>
+> **The founder cancelled the guided viewfinder.** Most product pictures come from the
+> gallery, not the camera, so **the crop guides move off the live preview and onto the
+> chosen picture**, in a review step that serves both sources. A chosen image's dimensions
+> are KNOWN, so the aspect assumption in §6-E stops being a problem to solve and becomes
+> the reason not to draw guides on a live camera at all.
+>
+> **Dead here:** the §2 budget arithmetic (there is no 480 px camera pane to fit around),
+> and decisions **A**, **B** and **C** — all three were about a live viewfinder. **C
+> re-emerges on the review screen and is ruled: BOTH GUIDES, nesting concentrically.**
+>
+> **Live and carried forward:** the §1 anatomy table and its planche line citations, the
+> divergence list in §6, and the ruling that the footer honesty note (planche 495) belongs
+> on the review surface. **The camera preview still gets bigger — fill the width, no
+> guides, no derived geometry, no aspect assumption.** It was only ever hard because of
+> the guides.
+>
+> The replacement proposal is the REVIEW SCREEN composition, which follows the picker seam.
+
 **STATUS: PROPOSAL. NOTHING BUILT FROM IT.** The founder ruled the layout is his
 (*"THE LAYOUT IS A FOUNDER RULING, NOT YOURS OR MINE… Propose the composition against D17 and
 let him rule it"*). This derives the anatomy from the planche with cited lines, states the
