@@ -1347,3 +1347,40 @@ The verifier found the ruling closed the **B** axis but not the **class**, and t
 - **Pre-existing** (identical on `origin/main`) and outside the ruling's literal wording ("below the publish floor"), so not introduced here. Reachability is real but deliberate — about 38 `+100` taps from the default.
 - **The founder's own words apply unchanged:** "a negative net in green is arithmetically true and commercially meaningless, and green is the colour this app uses for money he receives."
 - **Recommendation:** the same shape as his B-axis ruling — when `C` would make the net non-positive, state no net and block continue with a refusal. It needs ONE new string (there is no existing « commission trop élevée » copy), which is why it is his call and not a safest-default I can apply.
+
+### 2026-07-25 · MERGE — THE STEPPER-FLOOR RULING landed · release `cac2002`
+Founder: "FLOOR RULING APPROVED — merge 9604931." Guarded merge: branch head verified as approved → `--no-ff` → **tree diff vs approved EMPTY** → re-proved green from repo root (typecheck 13/13 · supplier-app 353 · ALL GATES GREEN) → pushed → **ancestry read-back: `9604931` IS an ancestor of `origin/main`; tree diff empty.**
+- **The founder's own summary of why the build beat the ruling, kept because it names the principle:** the absence living in the TYPE "is construction rather than care"; deciding the refusal in the wrapper and keeping the block in the footer are "both the right side of the frozen line"; zero new copy "is the detail that shows you looked before writing."
+
+### 2026-07-25 · THE PIXEL ARTIFACT PAPERCUT — closed (founder order, folded into the slice)
+`test/pixel-property-diff.test.ts`'s `afterAll` wrote `generatedAt: new Date().toISOString()` into a **committed** file, so every test run left the tree dirty with a one-line diff that meant nothing — **and I had been reverting it by hand all session.** Founder: *"Quiet manual reversion is how a real dirty-tree signal gets ignored on the day it matters."* He is right, and it nearly happened: I misread a `grep` for `ALL GATES` as green earlier today while a gate was genuinely failing.
+- **THE FIX: stop stamping the timestamp**, rather than moving the file to a temp path. The artifact is PRIMARY EVIDENCE for the pixel gate and is worth reviewing in a diff, so it stays committed — what changes is that it is now **deterministic**, and `git status` after a run is a true signal again. Nothing read `generatedAt` (grep-verified); the run's date is in the commit anyway.
+- **PROVEN, not assumed:** the file is byte-identical across two consecutive runs (`sha256` `b33a1461…` both times), and the only diff to the committed artifact is the removal of the one line.
+
+### 2026-07-25 · THE COMMISSION AXIS — BOTH REFUSALS (founder ruling)
+Founder ruling on the gap the verifier found: *"on the B axis the core refused independently, so the screen was the second line of defence. Here there is NO second line… So: BOTH REFUSALS, not one."* And explicitly: **"non-positive, not negative. A net of exactly zero is as meaningless to publish as minus fifty and it would slip through a strictly-negative test."**
+
+**THE REFUSAL REASON — proposed from the existing vocabulary, as ordered:** `commission_leaves_no_net`.
+- The `FieldError` union's shape is `{field}_{condition}`; this sits on the same `commission_` prefix as `commission_invalid`. It names the **consequence**, not a threshold, because **there is no fixed ceiling** — a commission that is harmless at B = 50 000 ruins the sale at B = 5 000. `commission_too_high` would imply a ceiling that does not exist.
+
+**THE ONE NEW STRING — proposed, lint-clean, and it is the founder's to approve or replace:**
+- key `publier.err_commission_net` · register `money` · screenClass `status`
+- « **Avec cette commission, il ne vous reste rien sur la vente. Baissez-la, ou augmentez le prix de base.** »
+- **copy-lint: 249 entries, 0 violations.** Money register, plain, ~6th grade, no administrative French, no banned token. It states the CAUSE and then the TWO ways out — its sibling `publier.err_prix_plancher` states only the rule, and the founder's own trust test asks for what-happens-next. **The diff is six lines; no reformatting of the catalog.**
+
+**HOW IT IS BUILT — one law, one home, two enforcement points:**
+- **`netLineRefusal(B, C)` in `authoring.ts`** is the single predicate behind both refusals: below the floor, or a NON-POSITIVE net (`<= 0`). The net comes from the CANON waterfall, so the threshold is applied to the same franc the seller is shown.
+- **The screen** calls it and renders the refusal; **`buildCreateOffer` calls the same function** so the core refuses with no screen involved. That is not a duplicated rule — it is the price-floor pattern (a shared constant, two enforcement points) that the founder has already ratified twice.
+- **`money` became a UNION, `SellerNetLine`,** replacing `SellerPreview | null`. Null carried the absence, which was enough while ONE rule could cause it. Two rules with different words means **the reason must travel beside the absence** rather than be inferred at the render site — the screen now states the key it is handed and hardcodes no refusal of its own (asserted).
+- **The reason maps through the EXISTING `ERROR_KEY` table**, which is `Record<FieldError, string>` — so adding the member **forced** the new mapping at compile time. No second mapping, no invented shape.
+- **ONE CAUSE IS NEVER REPORTED TWICE:** at B = 500 both rules are true; the floor wins and the net rule does not also fire — the price is what he must fix. Asserted.
+- **RED-PROVEN, three ways, each naming the founder's own words:** slipping `<= 0` to `< 0` fails two tests at the exact zero-crossings (C = 4 750 and C = 9 500) — *the defect he predicted*; removing the core's refusal fails three tests, restoring the single-line-of-defence state; the shape and wiring pins fail on any drift.
+- **A GATE CAUGHT MY PROSE FOR THE THIRD TIME TODAY, and again it was right.** `no-seller-debit` fired on « fine » next to money — which in the money sense means a penalty (B+I-12: seller consequences are access-based, never money). Reworded to « harmless » / « passes ». **The gate reads my words as carefully as the product's, three times in one session; that is the gate working, not the gate being noisy.**
+- **Green:** typecheck 13/13 · supplier-app **359** tests (33 files) · ALL GATES GREEN · copy-lint 249 entries, 0 violations.
+
+### 2026-07-25 · THE MEDIA SECRETS WERE SET BEFORE THE 02:24 UTC PUBLISH
+Founder confirmed the timing. The preview published from the merge — update group `477a6388-ae57-4b8e-a01e-0f5aeb2dc5bb`, `main@8933f4c7 root=v2`, EAS publish at **02:25 UTC** — therefore carries both `EXPO_PUBLIC_MEDIA_*` values inlined. **The honest banner should NOT be what he sees.** His first capture-and-publish is the R2 proof, and `env.BUCKET.put` has still never executed against real R2 — if it fails now, the secrets are no longer the likely cause and **the typed failure reason the seam surfaces is the diagnostic.**
+
+### 2026-07-25 · A SHARED ERROR, NAMED BY THE FOUNDER — the check that cannot fail
+Founder, unprompted, on his own tooling the same day: *"I offered a freshness check that returns cached values, so it cannot distinguish a stale deploy from a fresh one. Same family, same day. It is not a lane failing; it is what this class of error looks like when everyone is moving."*
+- Worth keeping beside the red-proof rule, because it generalises past tests: **an instrument that returns the same answer whatever the world does is not an instrument.** The tautological boundary assertion, the cached freshness probe, and my `grep` for `ALL GATES` that silently matched nothing are three faces of it in one day.

@@ -890,12 +890,23 @@ describe('FINAL PASS — the mismatch table must be empty', () => {
 });
 
 // ─── artifact: the property-diff table (primary evidence) ─────────────────────
+//
+// NO TIMESTAMP (founder order 2026-07-25). This afterAll writes a COMMITTED
+// file, and it used to stamp `generatedAt: new Date().toISOString()` — so every
+// test run left the working tree dirty with a one-line diff that meant nothing.
+// It was being reverted by hand, all session, which is exactly how a REAL
+// dirty-tree signal gets ignored on the day it matters.
+//
+// The artifact stays committed, because it is the primary evidence for this
+// gate and is worth reviewing in a diff. What changes is that it is now
+// DETERMINISTIC: the file moves only when the property table itself moves, so
+// `git status` after a test run is a true signal rather than noise. Nothing
+// read `generatedAt` (grep-verified); the run's date is in the commit anyway.
 afterAll(() => {
   const out = join(appDir, '../../_review/WO-FP-PIXEL');
   mkdirSync(out, { recursive: true });
   const summary = {
     $note: 'WO-FP-PIXEL PRIMARY GATE — property-for-property diff of V2 style data vs the Phase-0 computed values table. Deterministic; no render. FROZEN rows cite their §9 ruling.',
-    generatedAt: new Date().toISOString(),
     cases: [...new Set(rows.map((r) => r.case))].map((c) => ({
       case: c,
       total: rows.filter((r) => r.case === c).length,
