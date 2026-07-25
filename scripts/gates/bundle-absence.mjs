@@ -56,7 +56,22 @@ const SECONDARY = ['DemoSupplyService'];
  * above is meaningless. ASCII, and from code that is unquestionably shipped: the
  * authoring screen's supplier id and one of its catalog strings.
  */
-const REQUIRED = ['supplier-founder-001', 'Ce produit part sans photo'];
+const REQUIRED = [
+  'supplier-founder-001',
+  'Ce produit part sans photo',
+  // THE CANON MONEY LAW SHIPS (founder rounding ruling, 2026-07-25). This is
+  // `assertIntegerFcfa`'s message from @platform/contracts money/rounding-law —
+  // ASCII, a data literal, and present in the measured artifact (verified before
+  // being added here, not assumed).
+  //
+  // WHAT IT PROVES: the pinned canon waterfall — the FLOOR fee, the
+  // by-subtraction nets — is inside the real Metro/Hermes bundle, so the app's
+  // money code is canon's, not a local re-implementation.
+  // WHAT IT DOES NOT PROVE: which screen calls it. The wizard's floor behaviour
+  // is asserted by VALUE in apps/supplier-app/test/preview-rounding.test.ts;
+  // this control only keeps the canon module from silently leaving the bundle.
+  'must be an integer FCFA amount, got',
+];
 
 const out = mkdtempSync(join(tmpdir(), 'boutik-bundle-'));
 let artifacts = [];
