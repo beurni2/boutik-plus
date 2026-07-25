@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { DERIVATIVE_SPEC_V1, type ResizeAction } from './normalization';
 import type { ImageSourcePort } from './pick';
@@ -15,7 +14,32 @@ import type { ImageSourcePort } from './pick';
  * can only describe"*). So `pick.ts` holds the orchestration and every decision
  * and imports nothing native; this file holds three native calls and no
  * branching at all, and is deliberately the untested part.
+ *
+ * **`expo-image-picker` IS REQUIRED LAZILY, AND THAT IS A CORRECTNESS RULE, NOT
+ * A PERFORMANCE ONE** (device incident 2026-07-25, white screen at boot).
+ *
+ * The preview channel ships **JS-only OTA updates** (`eas update`). A native
+ * module reaches a phone ONLY in a new binary. `expo-image-picker` entered
+ * `package.json` in a JS-only slice, so it is **absent from every already-
+ * installed build** — and the moment a top-level `import` of it entered the boot
+ * graph (`AppV2 → studio-real → pick-native`), the bundle threw before React
+ * mounted anything. **A white screen, on the device-pass build, from an import
+ * line.**
+ *
+ * Requiring it inside the call keeps it off the boot path entirely: the app
+ * starts, and only tapping « Choisir une photo du téléphone » touches it. On a
+ * binary that lacks the module that tap lands in the Studio's designed `failed`
+ * state instead of killing the app. **The real fix is a new native build; this
+ * is what makes the app usable until he installs one.**
  */
+type PickerModule = typeof import('expo-image-picker');
+declare const require: (id: string) => unknown;
+let pickerModule: PickerModule | null = null;
+/** Loaded on first use, never at import. The cache keeps it to one resolve. */
+function imagePicker(): PickerModule {
+  pickerModule ??= require('expo-image-picker') as PickerModule;
+  return pickerModule;
+}
 
 /**
  * The real port. Thin by design — every decision worth testing was lifted out
@@ -33,7 +57,7 @@ import type { ImageSourcePort } from './pick';
  */
 export const nativeImageSource: ImageSourcePort = {
   async pickFromLibrary() {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await imagePicker().launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: false,
     });
