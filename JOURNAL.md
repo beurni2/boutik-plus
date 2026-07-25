@@ -1491,3 +1491,36 @@ Recorded separately so it is findable without reading a slice entry.
 - **Nil today (one supplier). Real the day there are two**, and the same day the `SUPPLIER_ID` constant becomes a real field.
 - **The fix is not more filtering — it is binding the scope to the credential** (a per-supplier key, or a token carrying the supplier id). That is its own slice and it is NOT started.
 - **It belongs to the same HARD GATE as `SUPPLIER_ID`, `moderationState: 'approved'` at authoring, and `zone`** — everything that is correct only because there is exactly one supplier.
+
+### 2026-07-25 · MERGE — PRODUITS READS THE SERVICE · release `6acc125`
+Founder: "APPROVED: merge 0cddaa2 into main." Guarded merge: branch head verified as approved → `--no-ff` → **tree diff vs approved EMPTY** → re-proved green from repo root (typecheck 13/13 · supplier-app 389 · offer-service 115 · ALL GATES GREEN) → pushed → **ancestry read-back: `0cddaa2` IS an ancestor of `origin/main`; tree diff empty.**
+- **MERGED WITH A KNOWN OPEN HAZARD, and the founder's reasoning is the part to keep:** *"the route previously took NO scope at all and returned every supplier's offers to any key holder without even a parameter. This slice narrows the exposure. Refusing to merge would leave the wider version deployed."* **A partial fix that strictly narrows an existing exposure ships; withholding it protects nothing.**
+
+### 2026-07-25 · 🔒 BLOCKING PRECONDITION ON SUPPLIER #2 — CREDENTIAL BINDING LANDS FIRST
+**Its own entry, findable without reading a slice log. This is NOT a backlog item.**
+
+**THE TRIGGER, named explicitly:** the day a second supplier is onboarded — **which is the same event as `SUPPLIER_ID` ceasing to be a constant** (`apps/supplier-app/src/supply/service.ts`). Either one firing means both have fired.
+
+**WHAT MUST LAND FIRST:** the credential-binding slice. **`GET /offers?supplierId=X` returns X's offers to ANY holder of the bundle-shipped write key** — the id comes from the query string (`offer-do.ts:233`) and the composition-root gate authorizes the KEY, with nothing binding the two. Demonstrated against **real workerd** by the fresh-context verifier (seed two suppliers, ask for the other one's, receive their `basePrice` and `resellerCommission`), and independently confirmed in the bytes by the founder. `supplier-founder-001` is a guessable template, and `service.ts` documents the key as shipping inside the published bundle — it "stops scanners, not attackers".
+
+**THE FIX IS NOT MORE FILTERING — IT IS BINDING THE SCOPE TO THE CREDENTIAL:** a per-supplier key, or a token carrying the supplier id. **Founder ruling: do NOT build it now.** Residual is nil at one supplier, and it is *the same identity work as the second-reseller gate, which is also still a device-stored constant* — **building it twice is waste.**
+
+**IT JOINS THE ONE-SUPPLIER HARD-GATE FAMILY**, everything that is correct only because there is exactly one of him: `SUPPLIER_ID` · `moderationState: 'approved'` set at authoring (self-approval) · `zone` · and now the list scope.
+
+### 2026-07-25 · ERROR LEDGER — A CTO RULING MADE ON AN UNVERIFIED PREMISE (mine, not the lane's)
+Recorded at the founder's instruction, against him, in his own words: *"I ruled key reuse on the premise that a supplier reads 'his own offers,' and never asked what enforces 'his own.' Nothing does. That is a CTO ruling on an unverified premise, and it belongs in the error ledger as mine."*
+- **The generalisable form:** a ruling that turns on a property ("his own", "only he can", "just this one") is a ruling that needs the enforcing mechanism NAMED before it is made. The premise was plausible, the reasoning from it was sound, and the conclusion was still unsafe — because nothing in the system implemented the word the premise rested on.
+- **What caught it:** a fresh-context verifier that went to real workerd instead of reading the argument. **And what made it useful was reporting it against an already-merged claim of my own** — my test name said « the fail-open hazard, closed » and it was not closed. Founder: *"correcting that in your own test name is the behaviour that makes this lane trustworthy."*
+
+### 2026-07-25 · STANDING PRECEDENT — A DECISION THAT RENDERS DIFFERENTLY IS A FUNCTION THAT RETURNS A VALUE
+Founder, on my structural test sleeping through its own planted defect: *"that is the third instance of the same class in this program in one day, and yours is the only one caught by its own author before merge. The pure decision function is the right fix and the right precedent — **a decision that renders differently should be a function that returns a value, not a shape a test can only describe.**"*
+- Applied three times in this slice: `produitsView` (which state gets which sentence), `hiddenSentence` (which refusal reason gets which sentence), `photoSlot` (photograph / honest absence / unfetchable). Each was JSX before, and each was untestable-by-value before.
+- **The tell that you need one:** you are about to assert the ORDER of branches, or the PRESENCE of a string, in a source file.
+
+### 2026-07-25 · TWO GAPS ACCEPTED AS STATED, NEITHER TO BE FILLED
+Founder-accepted, left open deliberately:
+1. **Tiles are not tappable** — there is no fiche for a real offer, and `st.products` holds no entry for one, so a tap would land on the id-miss guard. *"A dead tap is worse than no tap."*
+2. **`resellerCommission` travels to the app and nothing renders it.** *"An unrendered field is not a defect."*
+
+### 2026-07-25 · STUDIO — HELD, NOT STARTED
+Two founder rulings outstanding before the order is written: **gallery-per-role** (my recommendation: camera-only for the PROOF role, gallery for hero and details), and **what happens about prices burned into gallery images** — which my price-overlay finding raised and which the founder has named a **commercial decision, not a technical one**. `premium-frame-assets.mjs` reads a declared `overlayText` field, not pixels; Law 5 forbids the OCR that would be needed to detect it, so this cannot be closed by a better gate. **Do not start.**
