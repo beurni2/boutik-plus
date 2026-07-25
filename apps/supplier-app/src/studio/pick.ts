@@ -151,9 +151,9 @@ export interface ImageSourcePort {
  * image whose bytes cannot be proven clean must fail closed exactly as it does
  * on the camera path — that error class already has its designed state.
  */
-export async function pickShot(port: ImageSourcePort, asset?: PickedAsset): Promise<PickOutcome> {
-  const picked = asset ?? (await port.pickFromLibrary());
-  if (picked === null || picked === undefined) return { kind: 'cancelled' };
+export async function pickShot(port: ImageSourcePort): Promise<PickOutcome> {
+  const picked = await port.pickFromLibrary();
+  if (picked === null) return { kind: 'cancelled' };
 
   let decoded: { image: unknown; width: number; height: number };
   let encoded: { base64: string; width: number; height: number };
