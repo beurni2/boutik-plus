@@ -8,14 +8,27 @@ import { buildSupplyProjection, wireAssetRefs } from './projection.js';
  * file exists rather than another branch inside `supply-endpoint.ts`:
  *   · `/supply-projection*` answers SHOP+ — a service, over `SUPPLY_READ_SECRET`,
  *     carrying reseller-facing cost data. The app must never hold that key.
- *   · this answers THE SUPPLIER about HIS OWN offers, over the shared write key
- *     that already ships in his bundle. Reading his own offers is strictly less
- *     sensitive than creating them, which that key already authorises.
+ *   · this answers A SUPPLIER about the offers he NAMES, over the shared write
+ *     key that already ships in his bundle.
  *
- * ONE ROTATION NOW KILLS BOTH PUBLISHING AND THE PRODUCT LIST. That is correct
- * for a bundle-shipped key — a leak should close both doors — but it is written
- * down here and in JOURNAL.md so the next rotation does not surprise anyone with
- * a blank Produits tab.
+ * **THE SCOPE IS A FILTER, NOT AN AUTHORIZATION — and the difference is not
+ * cosmetic** (verifier finding, demonstrated against real workerd). The caller
+ * supplies `supplierId`; nothing binds it to the credential. So ANY holder of
+ * the bundle-shipped write key can read ANY supplier's `basePrice` and
+ * `resellerCommission` by naming their id, and `supplier-founder-001` is a
+ * guessable template. `worker/index.ts` says this same class of data on
+ * `/supply-projections` must be gated **more** carefully, by a secret that never
+ * leaves two Workers — so the two routes disagree about how sensitive it is.
+ *
+ * **RESIDUAL TODAY: NIL — there is exactly one supplier. THE DAY THERE ARE TWO
+ * IT IS REAL, and it is journaled as an OPEN hazard, not a closed one.** The
+ * credential reuse is a founder ruling and stands; what is corrected here is the
+ * CLAIM, which previously read "reading his own offers is strictly less
+ * sensitive than creating them". The route does not enforce "his own".
+ *
+ * ONE ROTATION KILLS BOTH PUBLISHING AND THE PRODUCT LIST. Correct for a
+ * bundle-shipped key — a leak should close both doors — written down here and in
+ * JOURNAL.md so the next rotation does not surprise anyone with a blank tab.
  */
 
 /** What a supplier sees for ONE of his offers. */

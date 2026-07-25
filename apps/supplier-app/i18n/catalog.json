@@ -1512,8 +1512,14 @@
     "screenClass": "status"
   },
   {
-    "key": "produits.expiree",
-    "fr": "Cette offre a dépassé sa date. Les revendeuses ne la voient plus.",
+    "key": "produits.hors_fenetre",
+    "fr": "Les revendeuses ne voient pas cette offre en ce moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.photo_non_configure",
+    "fr": "Photo indisponible",
     "register": "neutral",
     "screenClass": "status"
   },

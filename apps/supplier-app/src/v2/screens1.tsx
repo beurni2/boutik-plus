@@ -15,10 +15,11 @@ import { flowOf, flowLabel, OFF_FLOW, SEG_OF, disabled, type S, type A, type Seg
 import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
+import { hiddenSentence, photoSlot, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
   EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, MoneyBreakdown, Overline, PageTitle,
-  OfferTile, ProductPill, ProductTile, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
+  OfferTile, ProductPill, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
 } from './components';
 
 type D = (a: A) => void;
@@ -164,12 +165,8 @@ export function S03Produits({ rows, mediaBase, d, header }: {
           priceF={formatF(r.basePrice)}
           stock={r.available}
           variants={r.variantsNote}
-          photoUri={mediaBase !== null && r.assetRefs[0] !== undefined ? `${mediaBase}/${r.assetRefs[0]}` : null}
-          hiddenNote={
-            r.hiddenReason === undefined
-              ? undefined
-              : tr(r.hiddenReason === 'offer_not_effective' ? 'produits.expiree' : 'produits.retiree')
-          }
+          photo={photoSlot(r.assetRefs, mediaBase)}
+          hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
           style={{ width: (GEO.frame.w - GEO.screenPad.side * 2 - GEO.gap.grid) / 2 }}
         />
       ))}

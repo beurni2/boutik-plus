@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readSupplierOfferList, type SupplierOfferRow } from '../src/supply/service';
-import { produitsView, type ProduitsRead } from '../src/supply/produits-view';
+import { readSupplierOfferList, HIDDEN_REASONS, type SupplierOfferRow } from '../src/supply/service';
+import { produitsView, hiddenSentence, photoSlot, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
 import { catalog } from '../src/i18n';
 
 /**
@@ -36,6 +36,22 @@ describe('THE BOUNDARY READER — validated, never cast (money and stock cross h
     expect(out?.items[0]?.assetRefs).toEqual([]);
     expect('variantsNote' in (out!.items[0] as object)).toBe(false);
     expect('hiddenReason' in (out!.items[0] as object)).toBe(false);
+  });
+
+  it('an UNKNOWN hiddenReason is DROPPED, not rendered as a confident wrong cause', () => {
+    for (const bad of ['', 'offer_exploded', 'OFFER_NOT_EFFECTIVE']) {
+      const out = readSupplierOfferList({
+        asOf: '2026-07-25T08:00:00.000Z', items: [row({ hiddenReason: bad })],
+      });
+      expect('hiddenReason' in (out!.items[0] as object), bad).toBe(false);
+    }
+    // the four real ones survive
+    for (const good of HIDDEN_REASONS) {
+      const out = readSupplierOfferList({
+        asOf: '2026-07-25T08:00:00.000Z', items: [row({ hiddenReason: good })],
+      });
+      expect(out!.items[0]!.hiddenReason, good).toBe(good);
+    }
   });
 
   it('carries variantsNote and hiddenReason through VERBATIM when present', () => {
@@ -183,28 +199,26 @@ describe('THE TILE DROPPED EVERY FIELD WITH NO REAL SOURCE [source-text check]',
     for (const dead of ['glyph', 'bg:', 'paused', 'mod']) {
       expect(body, `OfferTile must not take ${dead}`).not.toContain(dead);
     }
-    // the demo tile is left exactly as it was
-    expect(components).toMatch(/export function ProductTile\(\{ bg, glyph, name, priceF, stock, paused, mod, onPress, style \}/);
+    // ProductTile survives untouched but has ZERO call sites — assert THAT,
+    // rather than pinning the signature of code nothing calls (verifier finding)
+    expect(components).toContain('export function ProductTile(');
+    const callers = readFileSync(join(appDir, 'src/v2/screens1.tsx'), 'utf8')
+      + readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
+    expect(callers).not.toMatch(/<ProductTile\b/);
   });
 
-  it('a photograph-less offer says « Sans photo » — never a decorative glyph', () => {
+  it('the tile renders the SLOT it is handed — it decides no photo sentence itself', () => {
     const components = readFileSync(join(appDir, 'src/v2/components.tsx'), 'utf8');
     const start = components.indexOf('export function OfferTile');
     const body = components.slice(start, components.indexOf('export function', start + 10));
     expect(body.length, 'the sliced body must contain the whole component').toBeGreaterThan(500);
-    expect(body).toContain("tr('produits.sans_photo')");
-    expect(body).toMatch(/photoUri !== null \?/);
+    // no hardcoded key: it states `photo.message`, chosen by `photoSlot`
+    expect(body).toMatch(/tr\(photo\.kind === 'photo' \? 'produits\.photo_non_configure' : photo\.message\)/);
+    expect(body).not.toMatch(/tr\('produits\.sans_photo'\)/);
+    // and a broken fetch lands on the designed state, not an empty box
+    expect(body).toContain('onError={() => setBroken(true)}');
   });
 
-  it('the lapsed sentence PROMISES NOTHING — there is no renewal path to promise', () => {
-    const expiree = catalog.find((e) => e.key === 'produits.expiree');
-    expect(expiree).toBeDefined();
-    expect(expiree!.fr).toBe('Cette offre a dépassé sa date. Les revendeuses ne la voient plus.');
-    // no remedy verb: he cannot extend the window from the app (decideCreateOffer
-    // answers `collision`), so offering one would be a promise the platform
-    // cannot keep.
-    expect(expiree!.fr).not.toMatch(/renouvel|prolong|réactiv|relanc/i);
-  });
 });
 
 describe('THE CACHE IS IN MEMORY ONLY [source-text check]', () => {
@@ -213,5 +227,84 @@ describe('THE CACHE IS IN MEMORY ONLY [source-text check]', () => {
     for (const persist of ['AsyncStorage', 'SecureStore', 'expoDocumentStore', 'DurableQueue', 'writeAsStringAsync']) {
       expect(produits, `the cache must not be persisted via ${persist}`).not.toContain(persist);
     }
+  });
+});
+
+describe('THE HIDDEN SENTENCE — mapped PURELY, and true of every reason it answers', () => {
+  /**
+   * Verifier finding: nothing asserted this mapping, so swapping the two
+   * sentences would have left all 377 tests green — and `t()` THROWS on a
+   * missing key, so a typo is a blank screen for a seller whose offer just went
+   * dark. Now the mapping is a pure function and every key it can emit is
+   * asserted to resolve.
+   */
+  it('every ladder reason maps to a key that RESOLVES — t() throws on a miss', () => {
+    const reasons: HiddenReason[] = [
+      'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective',
+    ];
+    for (const r of reasons) {
+      const key = hiddenSentence(r);
+      expect(keys.has(key), `${r} -> ${key}`).toBe(true);
+    }
+  });
+
+  it('THE WINDOW SENTENCE IS TRUE OF BOTH HALVES — it must not claim the date has PASSED', () => {
+    // `projection.ts` gives `offer_not_effective` for `now < effective` TOO —
+    // the clock-skew case authoring.ts backdates for. A « dépassé sa date »
+    // sentence would be the inverse of the fact for a seller on a fast phone.
+    const fr = catalog.find((e) => e.key === hiddenSentence('offer_not_effective'))!.fr;
+    expect(fr).toBe('Les revendeuses ne voient pas cette offre en ce moment.');
+    expect(fr).not.toMatch(/dépass|expir|périmé/i);       // no false past-tense claim
+    expect(fr).not.toMatch(/renouvel|prolong|réactiv/i);  // and still no remedy promised
+  });
+
+  it('the three taken-down reasons share ONE sentence, and it promises nothing either', () => {
+    for (const r of ['product_not_active', 'product_not_approved', 'offer_not_active'] as HiddenReason[]) {
+      expect(hiddenSentence(r)).toBe('produits.retiree');
+    }
+    const fr = catalog.find((e) => e.key === 'produits.retiree')!.fr;
+    expect(fr).toBe("Cette offre n'est plus en ligne.");
+    expect(fr).not.toMatch(/renouvel|prolong|réactiv|relanc/i);
+  });
+});
+
+describe('THE PHOTO SLOT — three facts, three answers (never « Sans photo » for a config failure)', () => {
+  it('no refs is an honest absence, WHATEVER the config', () => {
+    for (const base of [null, 'https://media.example']) {
+      expect(photoSlot([], base)).toEqual({ kind: 'none', message: 'produits.sans_photo' });
+      expect(photoSlot([''], base)).toEqual({ kind: 'none', message: 'produits.sans_photo' });
+      expect(photoSlot(['   '], base)).toEqual({ kind: 'none', message: 'produits.sans_photo' });
+    }
+  });
+
+  it('HE HAS PHOTOGRAPHS AND WE CANNOT FETCH THEM is a DIFFERENT sentence', () => {
+    const out = photoSlot(['media/hero'], null);
+    expect(out).toEqual({ kind: 'unavailable', message: 'produits.photo_non_configure' });
+    // the two must never be the same claim
+    expect(out.kind).not.toBe('none');
+    expect((out as { message: string }).message).not.toBe('produits.sans_photo');
+  });
+
+  it('a real ref with a real base builds the URL, with exactly one separator', () => {
+    expect(photoSlot(['media/hero'], 'https://media.example')).toEqual({
+      kind: 'photo', uri: 'https://media.example/media/hero',
+    });
+  });
+
+  it('both photo-slot messages resolve in the catalog', () => {
+    for (const k of ['produits.sans_photo', 'produits.photo_non_configure']) expect(keys.has(k), k).toBe(true);
+  });
+});
+
+describe('EVERY KEY THIS SLICE CAN EMIT RESOLVES — t() throws, so a typo is a blank screen', () => {
+  it('all of them, enumerated', () => {
+    const emitted = [
+      'produits.chargement', 'produits.non_configure', 'produits.lecture_echec',
+      'produits.lecture_echec_cache', 'produits.vide', 'produits.reessayer',
+      'produits.sans_photo', 'produits.photo_non_configure', 'produits.hors_fenetre', 'produits.retiree',
+    ];
+    for (const k of emitted) expect(keys.has(k), k).toBe(true);
+    // and the retired sentence is GONE, not left to be picked up again
+    expect(keys.has('produits.expiree')).toBe(false);
   });
 });

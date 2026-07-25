@@ -171,7 +171,12 @@ describe('combined Worker — durable offers on real workerd', () => {
     const body = (await res.json()) as { asOf: string; items: { offerId: string; productVersionId: string; available: number; basePrice: number; resellerCommission: number; name: string; category: string; assetRefs: string[] }[] };
     // the ENVELOPE, with a SERVE clock — seconds old, not the write time
     expect(Number.isFinite(Date.parse(body.asOf))).toBe(true);
-    expect(Date.now() - Date.parse(body.asOf)).toBeLessThan(60_000);
+    // BOUNDED ON BOTH SIDES (verifier finding): the one-sided version passed for
+    // an asOf an hour in the FUTURE, which is exactly the clock defect the asOf
+    // reversal exists to catch.
+    const skew = Date.now() - Date.parse(body.asOf);
+    expect(skew).toBeLessThan(60_000);
+    expect(skew).toBeGreaterThan(-1_000);
     const rows = body.items;
     const byOffer = Object.fromEntries(rows.map((r) => [r.offerId, r]));
     // founder-#001 — LIVE fields read off the entry
@@ -182,7 +187,7 @@ describe('combined Worker — durable offers on real workerd', () => {
       basePrice: 10_000,
       resellerCommission: 1_000,
       name: 'Pagne tissé Faso (démo)',
-      category: byOffer['offer-founder-001']!.category,
+      category: 'textile',
       assetRefs: [],
     });
     // the second offer, its own live values

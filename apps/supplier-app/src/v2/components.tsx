@@ -5,7 +5,7 @@
  * (the RN mapping §1.8). Motion (§7) is wired in a later slice — value match
  * first (founder order 2026-07-17).
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Rect, Stop, Circle } from 'react-native-svg';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
@@ -16,6 +16,7 @@ import {
   C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM,
 } from '../ui/v2/styles';
 import { t as tr } from '../i18n';
+import type { PhotoSlot } from '../supply/produits-view';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { C07BtnPrimary } from '../ui/v2/components/C07BtnPrimary';
 import type { OrderStatus } from './seed';
@@ -326,8 +327,13 @@ export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPre
 
 /**
  * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT `ProductTile`: that one
- * takes `bg` / `glyph` / `paused`, three fields with no real source, and it is
- * left untouched for the Commandes demo board.
+ * takes `bg` / `glyph` / `paused`, three fields with no real source.
+ *
+ * `ProductTile` IS LEFT IN PLACE BUT IT NOW HAS ZERO CALL SITES — corrected
+ * after a verifier finding, because the comment here used to say it was "left
+ * untouched for the Commandes demo board" and Commandes never used it (it uses
+ * IconTile and ProductPill). It is kept rather than deleted under the
+ * no-unrequested-tidying rule; what is fixed is the CLAIM about why.
  *
  * THE PHOTOGRAPH: `assetRefs[0]` is the heroSquare by construction (wire order,
  * master excluded). Media reads are UNAUTHENTICATED — the media Worker's write
@@ -339,23 +345,38 @@ export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPre
  * no entry for one, so a tap would land on the id-miss guard. A dead tap is
  * worse than no tap.
  */
-export function OfferTile({ name, priceF, stock, variants, photoUri, hiddenNote, style }: {
+export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, style }: {
   name: string;
   priceF: string;
   stock: number;
   variants?: string | undefined;
-  photoUri: string | null;
+  /** THREE facts, not two — a photograph, an honest absence, or « we cannot
+   * fetch it ». Decided purely in `supply/produits-view.ts`. */
+  photo: PhotoSlot;
   /** Present ⇒ Shop+ is not showing this offer, and this is the sentence for why. */
   hiddenNote?: string | undefined;
   style?: StyleProp<ViewStyle>;
 }) {
+  const [broken, setBroken] = useState(false);
   return (
     <View style={[s.tile, style]}>
-      {photoUri !== null ? (
-        <Image source={{ uri: photoUri }} style={{ width: '100%', height: C21.produitImg.h }} resizeMode="cover" />
+      {photo.kind === 'photo' && !broken ? (
+        <Image
+          source={{ uri: photo.uri }}
+          style={{ width: '100%', height: C21.produitImg.h }}
+          resizeMode="cover"
+          // A ref that 404s (wrong base, purged object) must land on the SAME
+          // designed state as an unfetchable one — never an empty box.
+          onError={() => setBroken(true)}
+        />
       ) : (
         <View style={[s.tileNoPhoto, { height: C21.produitImg.h }]}>
-          <Text style={s.tileNoPhotoTxt}>{tr('produits.sans_photo')}</Text>
+          {/* A ref that was fetchable in principle but 404'd lands HERE, on the
+              same designed state as one we cannot fetch at all — « Photo
+              indisponible », never « Sans photo », because he DID upload one. */}
+          <Text style={s.tileNoPhotoTxt}>
+            {tr(photo.kind === 'photo' ? 'produits.photo_non_configure' : photo.message)}
+          </Text>
         </View>
       )}
       <View style={s.tileBody}>

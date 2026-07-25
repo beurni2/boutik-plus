@@ -70,7 +70,14 @@ function entry(over: {
   return decision.entry;
 }
 
-describe('THE SCOPE IS REAL — one supplier never sees another (the fail-open hazard, closed)', () => {
+/**
+ * THE SCOPE FILTERS. IT DOES NOT AUTHORIZE — the name of this block says so
+ * (verifier finding). What is proven below is that the BUILDER returns only the
+ * NAMED supplier's rows. What is NOT proven, and is not true, is that a caller
+ * cannot name someone else: the id comes from the query string, not from the
+ * credential. Journaled as an OPEN hazard; nil today at one supplier.
+ */
+describe('THE SCOPE FILTERS BY THE NAMED SUPPLIER (a filter, NOT an authorization)', () => {
   it('returns only the requested supplier’s offers, never everyone’s', () => {
     const mine = entry({ supplierId: 'supplier-founder-001', offerId: 'o-mine', pv: 'pv-mine' });
     const theirs = entry({ supplierId: 'supplier-other-002', offerId: 'o-theirs', pv: 'pv-theirs', name: 'Pagne' });

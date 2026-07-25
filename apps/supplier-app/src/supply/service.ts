@@ -147,6 +147,12 @@ export interface AttachAssetsOutcome {
   readonly reason?: string;
 }
 
+/** The four reasons the wire's refusal ladder can give — mirrors `supplier-list.ts`. */
+export const HIDDEN_REASONS = [
+  'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective',
+] as const;
+export type HiddenReason = (typeof HIDDEN_REASONS)[number];
+
 /**
  * PRODUITS-READ-1 — one of HIS offers, as the supplier list serves it. Mirrors
  * `services/offer-service/src/supplier-list.ts` `SupplierOfferRow`.
@@ -163,8 +169,14 @@ export interface SupplierOfferRow {
   readonly assetRefs: readonly string[];
   /** His typed words, verbatim. Absent when he typed none. */
   readonly variantsNote?: string;
-  /** Present ⇒ Shop+ is NOT showing this offer, and this is the ladder's own reason. */
-  readonly hiddenReason?: string;
+  /**
+   * Present ⇒ Shop+ is NOT showing this offer, and this is the ladder's own
+   * reason. TYPED AS THE UNION, not `string` (verifier finding): the loose type
+   * let an unknown reason — or `''` from a broken server — type-check and render
+   * a confident wrong cause, with the compiler unable to flag the unhandled
+   * case. The reader below refuses anything outside the union.
+   */
+  readonly hiddenReason?: HiddenReason;
 }
 
 /** The envelope — SERVE clock, matching the supply collection. */
@@ -205,11 +217,23 @@ export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
       offerId, productVersionId, name, category, basePrice, resellerCommission, available,
       assetRefs: r['assetRefs'] as string[],
       ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
-      ...(typeof r['hiddenReason'] === 'string' ? { hiddenReason: r['hiddenReason'] } : {}),
+      ...(HIDDEN_REASONS.includes(r['hiddenReason'] as HiddenReason)
+        ? { hiddenReason: r['hiddenReason'] as HiddenReason }
+        : {}),
     });
   }
   return { asOf: o.asOf, items };
 }
+
+/**
+ * THE ONE SUPPLIER ID (HARD GATE: there is one supplier). It lived in TWO files
+ * — `lister-real.tsx` (the write) and `AppV2.tsx` (the read) — kept in step by a
+ * comment. Verifier finding: if they ever drifted, the read would return
+ * `items: []`, a SUCCESSFUL read, and the app would say « vous n'avez pas encore
+ * de produit » about a shop that has products — this slice's own bug, recreated,
+ * with nothing to catch it. One constant instead of a promise.
+ */
+export const SUPPLIER_ID = 'supplier-founder-001';
 
 export interface SupplyServicePort {
   createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>>;

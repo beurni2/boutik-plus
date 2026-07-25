@@ -26,8 +26,6 @@ import {
 } from './machine';
 import { SEED_DEFAULTS } from './seed';
 
-/** The founder's supplier id — the ONE supplier (HARD GATE, mirrors lister-real). */
-const SUPPLIER_ID = 'supplier-founder-001';
 import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
@@ -37,6 +35,7 @@ import {
 } from './screens2';
 import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
+import { SUPPLIER_ID } from '../supply/service';
 import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
