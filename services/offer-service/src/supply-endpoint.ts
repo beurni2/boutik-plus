@@ -163,6 +163,71 @@ export function serveProjection(service: string, entry: OfferEntry | undefined, 
   return { ok: true, status: 200, body: { version: entry.offer.version, asOf: nowIso, value } };
 }
 
+/**
+ * THE DISCOVERY COLLECTION (SLICE B) — what a reseller browses.
+ *
+ * SHAPE, founder-approved and relayed to the shop lane so both halves are built
+ * to ONE written spec: `{ asOf, items: [ {version, asOf, value}, … ] }`, where
+ * **each item is a COMPLETE canon envelope**, byte-identical in shape to what the
+ * single read returns. That is the whole design argument: shop's certified
+ * `consumeSupplyProjection` runs **per item, completely unchanged** — same schema,
+ * same freshness bound, same identity sweep, no new parser on the consumer side.
+ * The last wire between these two services disagreed on path, envelope AND
+ * freshness simultaneously; a shape needing no new parsing code is worth its one
+ * redundancy, and the redundancy is the feature: an item lifted out of the list is
+ * still independently verifiable.
+ *
+ * WHY NOT ONE FLAT ENVELOPE: `version` is PER-OFFER (`entry.offer.version`), so a
+ * single top-level version is not expressible. That is the shape the data has,
+ * not a preference.
+ *
+ * THE OUTER `asOf` IS KEPT (founder ruling) so a consumer can make ONE freshness
+ * decision about the whole response without iterating. It is free: every item
+ * shares the serve clock by construction — see below.
+ */
+export interface SupplyCollection {
+  readonly asOf: string;
+  readonly items: readonly SupplyReadModel[];
+}
+
+/**
+ * The collection core — a FILTER over `serveProjection`, never a second ladder.
+ *
+ * HOW THE REFUSAL LADDER IS ENFORCED, and this is the property that matters most:
+ * every entry goes through the SAME `serveProjection` the single read calls, and
+ * only `ok: true` outcomes are kept. So the collection cannot reach around the
+ * single read — there is exactly one function that decides what is servable, and
+ * this is a filter over its answers. `serveProjection` composes MORE than the
+ * ladder: `buildSupplyProjection` (product active · approved · offer active ·
+ * effective) **plus** `assertServableValue` (the strict canon parse and the
+ * supplier-identity out-guard). All of it is inherited here, and any check added
+ * to it later is inherited automatically, with no second site to remember.
+ * **An unapproved product cannot become browsable.**
+ *
+ * FRESHNESS IS INHERITED, NOT REDEFINED. Every item is computed in ONE request
+ * from ONE `nowIso`, and since the asOf reversal `asOf` IS that serve clock — so a
+ * single value describes every item truthfully. The corollary is the useful half:
+ * the effectivity check inside the ladder uses that SAME clock, so an offer that
+ * expires between two reads simply drops out of the next one. Envelope freshness
+ * and offer effectivity are keyed to one instant. A second freshness notion would
+ * be inventing a distinction the code does not have.
+ *
+ * A REFUSED ENTRY IS OMITTED, NOT REPORTED. The typed reason stays available on
+ * the single read (409 with `product_not_approved` etc.); leaking per-item
+ * refusal reasons into a browse response would tell an authenticated caller which
+ * product version ids exist but are unapproved — an existence signal the single
+ * read's gate is designed to keep back.
+ */
+export function serveProjections(service: string, entries: readonly OfferEntry[], nowIso: string): SupplyCollection {
+  const items: SupplyReadModel[] = [];
+  for (const entry of entries) {
+    const outcome = serveProjection(service, entry, nowIso);
+    if (outcome.ok) items.push(outcome.body);
+  }
+  return { asOf: nowIso, items };
+}
+
+const SUPPLY_COLLECTION_ROUTE = '/supply-projections';
 const SUPPLY_ROUTE = /^\/supply-projection\/([^/]+)$/;
 
 /**
@@ -179,8 +244,9 @@ export function makeSupplyFetch(
 ): (request: Request) => Promise<Response> {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
+    const isCollection = url.pathname === SUPPLY_COLLECTION_ROUTE;
     const match = SUPPLY_ROUTE.exec(url.pathname);
-    if (!match) return fallback(request);
+    if (!match && !isCollection) return fallback(request);
 
     const correlationId = correlationIdFrom(request);
     const headers = { [CORRELATION_HEADER]: correlationId };
@@ -190,7 +256,13 @@ export function makeSupplyFetch(
         { status: 405, headers },
       );
     }
-    const productVersionId = decodeURIComponent(match[1]!);
+
+    // DISCOVERY — every servable offer, one serve clock for all of them.
+    if (isCollection) {
+      const entries = await store.listEntries();
+      return Response.json(serveProjections(service, entries, now()), { status: 200, headers });
+    }
+    const productVersionId = decodeURIComponent(match![1]!);
     const entry = await store.getEntryByProductVersion(productVersionId);
     const outcome = serveProjection(service, entry, now());
     return Response.json(outcome.body, { status: outcome.status, headers });

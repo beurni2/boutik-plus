@@ -232,6 +232,38 @@ describe('combined Worker — durable offers on real workerd', () => {
     expect(attempt.status).toBe(401);
   });
 
+  // ── SLICE B · DISCOVERY, proven on real workerd over the DURABLE store ──────
+
+  it('DISCOVERY: GET /supply-projections returns the collection envelope from durable state', async () => {
+    const res = await mf.dispatchFetch('http://o/supply-projections', { method: 'GET', headers: readAuthed });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { asOf: string; items: { version: number; asOf: string; value: { productVersionId: string; basePrice: number } }[] };
+    expect(body.items.length).toBeGreaterThanOrEqual(1);
+    const seeded = body.items.find((i) => i.value.productVersionId === PV);
+    expect(seeded).toBeDefined();
+    expect(seeded!.value.basePrice).toBe(10_000);
+    // each item is a COMPLETE envelope — shop's certified consumer runs per item unchanged
+    expect(Object.keys(seeded!).sort()).toEqual(['asOf', 'value', 'version']);
+    // …sharing the collection's serve clock by construction
+    expect(seeded!.asOf).toBe(body.asOf);
+    expect(Date.parse(body.asOf)).toBeGreaterThan(Date.parse(T0));
+  });
+
+  it('THE COLLECTION IS GATED TOO — and it leaks MORE than the single read, so this must never fail open', async () => {
+    const open = await mf.dispatchFetch('http://o/supply-projections', { method: 'GET' });
+    expect(open.status).toBe(401);
+    // the plural route does not start with the singular prefix; a sloppy match would have failed OPEN
+    expect(await open.text()).not.toMatch(/basePrice|resellerCommission|10000|Pagne/);
+  });
+
+  it('the collection refuses the WRITE key too — one credential per wire', async () => {
+    const res = await mf.dispatchFetch('http://o/supply-projections', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${WRITE_SECRET}` },
+    });
+    expect(res.status).toBe(401);
+  });
+
   it('/health stays UNGATED — it is how the deploy is verified and carries no supply data', async () => {
     const health = await mf.dispatchFetch('http://o/health', { method: 'GET' });
     expect(health.status).toBe(200);

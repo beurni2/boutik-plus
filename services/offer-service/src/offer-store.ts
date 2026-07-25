@@ -23,6 +23,20 @@ export interface OfferStore {
   create(cmd: CreateOfferCommand): Promise<CreateOfferDecision>;
   /** THE READ PATH: productVersionId → the durable supply entry, or undefined = honest not-found. */
   getEntryByProductVersion(productVersionId: string): Promise<OfferEntry | undefined>;
+  /**
+   * DISCOVERY (SLICE B): every supply entry, unfiltered and unjudged.
+   *
+   * It returns RAW entries on purpose — this port does no eligibility thinking.
+   * The refusal ladder (product active · approved · offer active · effective) is
+   * applied ABOVE, by the same `serveProjection` the single read uses, so the
+   * collection cannot reach around it. A store that pre-filtered would be a second
+   * place for that judgement to live and drift.
+   *
+   * UNBOUNDED BY DESIGN AT THIS SCALE — see the pagination ceiling journaled with
+   * this slice. One supplier, a handful of offers; a cursor would be speculative
+   * flexibility today and a real obligation forever.
+   */
+  listEntries(): Promise<OfferEntry[]>;
 }
 
 /** The in-memory substrate: the offer registry + the productVersionId→offerId pointer. */
@@ -44,6 +58,11 @@ export class InMemoryOfferStore implements OfferStore {
   async getEntryByProductVersion(productVersionId: string): Promise<OfferEntry | undefined> {
     const offerId = this.pvToOffer.get(productVersionId);
     return offerId === undefined ? undefined : this.offers.get(offerId);
+  }
+
+  /** Insertion order — the Map preserves it, which keeps CI output deterministic. */
+  async listEntries(): Promise<OfferEntry[]> {
+    return [...this.offers.values()];
   }
 }
 
@@ -83,6 +102,19 @@ export class DurableOfferStore implements OfferStore {
     );
     if (res.status === 404) return undefined;
     return (await res.json()) as OfferEntry;
+  }
+
+  /**
+   * Every entry, via the router's `/supply-entries` — the collection analogue of
+   * `/supply-entry/:pv`, symmetric on purpose so this adapter stays a thin client
+   * with no DO addressing of its own. The router walks the write-once index and
+   * honestly SKIPS orphaned rows (an index row whose offer is gone), exactly as
+   * the admin list already does.
+   */
+  async listEntries(): Promise<OfferEntry[]> {
+    const res = await this.worker.fetch(new Request('https://offer-do/supply-entries'));
+    if (!res.ok) return [];
+    return (await res.json()) as OfferEntry[];
   }
 }
 

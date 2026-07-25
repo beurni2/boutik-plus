@@ -207,6 +207,26 @@ export default {
       return Response.json(out);
     }
 
+    // DISCOVERY (SLICE B) — every supply entry, RAW. The collection analogue of
+    // `/supply-entry/:pv` below, deliberately symmetric so `DurableOfferStore`
+    // stays a thin client with no DO addressing of its own.
+    //
+    // IT JUDGES NOTHING. No eligibility filtering happens here: the refusal ladder
+    // is applied above by the SAME `serveProjection` the single read uses. An
+    // orphaned index row (offer gone) is honestly SKIPPED, exactly as the admin
+    // list already does — a 404 for one offer must not fail the whole collection.
+    if (request.method === 'GET' && pathname === '/supply-entries') {
+      const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
+      const rows = (await idxRes.json()) as IndexRow[];
+      const entries: OfferEntry[] = [];
+      for (const r of rows) {
+        const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
+        if (eRes.status !== 200) continue;
+        entries.push((await eRes.json()) as OfferEntry);
+      }
+      return Response.json(entries);
+    }
+
     const m = /^\/supply-entry\/([^/]+)$/.exec(pathname);
     if (m && request.method === 'GET') {
       const productVersionId = decodeURIComponent(m[1]!);
