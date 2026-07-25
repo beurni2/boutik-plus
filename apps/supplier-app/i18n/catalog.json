@@ -1092,6 +1092,12 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.chargement",
+    "fr": "Chargement de vos produits…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "produits.vide",
     "fr": "Aucun produit pour l'instant. Ajoutez votre premier produit.",
     "register": "neutral",
@@ -1480,6 +1486,48 @@
     "fr": "Avec cette commission, il ne vous reste rien sur la vente. Baissez-la, ou augmentez le prix de base.",
     "register": "money",
     "screenClass": "status"
+  },
+  {
+    "key": "produits.lecture_echec",
+    "fr": "Vos produits ne s'affichent pas pour le moment. Réessayez dans un instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.lecture_echec_cache",
+    "fr": "Liste enregistrée plus tôt. Elle peut avoir changé depuis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.non_configure",
+    "fr": "La liste de vos produits n'est pas encore reliée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.sans_photo",
+    "fr": "Sans photo",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.expiree",
+    "fr": "Cette offre a dépassé sa date. Les revendeuses ne la voient plus.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.retiree",
+    "fr": "Cette offre n'est plus en ligne.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "label"
   },
   {
     "key": "publier.err_commission",

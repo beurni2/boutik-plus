@@ -87,6 +87,19 @@ export class HttpMediaService implements MediaServicePort {
  * babel-preset-expo inlines at bundle time; bracket access would survive to a
  * runtime lookup that is always undefined in a release bundle.
  */
+/**
+ * THE READ BASE ONLY (PRODUITS-READ-1). Media READS are UNAUTHENTICATED — the
+ * media Worker's write gate short-circuits GETs, so `${base}/${ref}` renders a
+ * product photograph with NO key. This deliberately does not touch the write
+ * key: displaying an image must never require the credential that uploads one.
+ * `null` when unset ⇒ the tile shows its « Sans photo » placeholder rather than
+ * a broken image.
+ */
+export function resolveMediaBase(): string | null {
+  const base = process.env.EXPO_PUBLIC_MEDIA_BASE;
+  return typeof base === 'string' && base.trim() !== '' ? base.replace(/\/+$/, '') : null;
+}
+
 export function resolveMediaService(): MediaServicePort | null {
   const base = process.env.EXPO_PUBLIC_MEDIA_BASE;
   const key = process.env.EXPO_PUBLIC_MEDIA_WRITE_KEY;

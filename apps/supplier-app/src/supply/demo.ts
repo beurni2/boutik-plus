@@ -1,4 +1,4 @@
-import type { AttachAssetsInput, AttachAssetsOutcome, CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplyServicePort } from './service.js';
+import type { AttachAssetsInput, AttachAssetsOutcome, CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplierOfferList, SupplyServicePort } from './service.js';
 
 /**
  * THE DEMO ADAPTER — FOR TESTS ONLY. **No app code may import this module.**
@@ -58,5 +58,16 @@ export class DemoSupplyService implements SupplyServicePort {
   async attachAssets(cmd: AttachAssetsInput): Promise<ServiceResult<AttachAssetsOutcome>> {
     this.attached.push(cmd);
     return this.attachAnswer;
+  }
+
+  /** List calls, recorded. FABRICATES NOTHING: the default answer is an EMPTY
+   * list, never invented products — a demo adapter that answered with plausible
+   * offers is exactly the mock that makes integration look healthier than it is. */
+  readonly listed: string[] = [];
+  listAnswer: ServiceResult<SupplierOfferList> = { ok: true, value: { asOf: '1970-01-01T00:00:00.000Z', items: [] } };
+
+  async listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>> {
+    this.listed.push(supplierId);
+    return this.listAnswer;
   }
 }

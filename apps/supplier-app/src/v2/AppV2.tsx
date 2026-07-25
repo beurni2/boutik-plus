@@ -25,6 +25,9 @@ import {
   type A, type Effect, type S, type Tab, type View as MachineView,
 } from './machine';
 import { SEED_DEFAULTS } from './seed';
+
+/** The founder's supplier id — the ONE supplier (HARD GATE, mirrors lister-real). */
+const SUPPLIER_ID = 'supplier-founder-001';
 import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
@@ -33,6 +36,7 @@ import {
   S34Onboard, S40Celebration,
 } from './screens2';
 import { SListerReal, type ListingSession } from './lister-real';
+import { SProduitsReal, type ProduitsCache } from './produits-real';
 import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
@@ -93,6 +97,11 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // (verifier finding). Both are cleared in d() when a new wizard opens.
   const captures = useRef<CaptureSet | null>(null);
   const listing = useRef<ListingSession>({ codeTouched: false, suffixBytes: null });
+  // PRODUITS-READ-1 — the last successful list, held at the SHELL so it survives
+  // the tab switch that unmounts SProduitsReal. A ref, so it dies with the
+  // process: a list of offers that no longer exist is a fabrication with a
+  // timestamp, and there is no invalidation signal to make persistence safe.
+  const produits = useRef<ProduitsCache>({ rows: null, asOf: null });
 
   const { width } = useWindowDimensions();
   const v = st.view;
@@ -110,7 +119,10 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           st.tab === 'home' ? (
             <S02Accueil st={st} d={d} shopName={SEED_DEFAULTS.shopName} ownerName={SEED_DEFAULTS.ownerName} />
           ) : st.tab === 'produits' ? (
-            <S03Produits st={st} d={d} />
+            // PRODUITS-READ-1 — REAL offers, read from the service. The four
+            // SEED_PRODUCTS still exist for the Commandes board and are now
+            // unreachable from this screen: S03Produits has no binding to them.
+            <SProduitsReal st={st} d={d} supplierId={SUPPLIER_ID} cache={produits} />
           ) : st.tab === 'commandes' ? (
             <S07Commandes st={st} d={d} />
           ) : (
