@@ -1202,3 +1202,13 @@ Canon §5 puts `zone` on `Product/Version` as part of **`Location {pin, zone, la
 - `offer-deploy` run **30136231397** on `76f32e37`, **completed success**, every step green including the provenance stamp and `wrangler deploy`.
 - **THE DEPLOY FLIPPED THE SUPPLY READ FROM OPEN TO GATED.** No live traffic to break (`SUPPLY_BASE` unset on shop's side), which is why the order was deploy → probe → set.
 - **I CANNOT PROBE FROM THIS SANDBOX AND I AM NOT CLAIMING OTHERWISE.** The agent proxy denies CONNECT to Cloudflare hosts — measured, not assumed: `workers.cloudflare.com:443` → `connect_rejected, gateway answered 403`, and every `*.workers.dev` request returns curl code `000`. **A green deploy workflow is evidence that a deploy happened, never that the wire works** — the probes are handed to the founder below.
+
+### 2026-07-25 · LIVE VERIFICATION — all four probes PASS. The wire is real.
+Run against the deployed Worker (release `76f32e3`), by the CTO (probe 1) and the founder (probes 2–4). **Literal responses, not workflow conclusions.**
+1. **`/health`** → `service offer-service · status ok · release 76f32e37… · canon 2.0.0`. The live build is the merged release — the provenance stamp doing exactly what it was built for.
+2. **`/supply-projection/pv-founder-001` WITH bearer** → **404 `unknown_product_version`**. A PASS for the gate (the bearer got past the 401) and an HONEST 404: the founder-seed was never run against the live DO, so the seeded pv does not exist there. Nothing to fix.
+3. **The same WITHOUT the header** → **401**. The open→gated flip is live.
+4. **`/supply-projections` WITH bearer** → **200**, fresh `asOf` (seconds old), **one real item**: `productName "Bazin" · basePrice 10 000 · resellerCommission 750 · available 10 · assetRefs [] · productVersionId` a minted UUID. **That is the product the founder authored from his phone**, served over the gated wire in the canon envelope, outer and per-item `asOf` matching exactly as designed.
+- **What this proves, named:** the asOf reversal live (a product authored earlier is FRESH at serve time — under the old rule this item would already have vanished) · slice A live (401/pass-through) · slice B live against REAL DATA rather than a fixture · the authoring screen's write path live end-to-end (phone → POST /offers → durable DO → gated collection).
+- **`assetRefs: []` is the honest empty** — the product has no photographs yet. That is the combined slice's job.
+- **UNBLOCKED: the founder may now set `SUPPLY_BASE` on shop's Worker.** The ordered sequence — deploy → probe → set — is complete through step two.
