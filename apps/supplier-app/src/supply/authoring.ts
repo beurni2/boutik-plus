@@ -76,9 +76,22 @@ export const CATEGORY_FLOOR_FCFA = 5_000;
  * CAN THIS (B, C) HAVE A STATED SELLER NET? — the one predicate behind BOTH
  * refusals (founder ruling 2026-07-25: "BOTH REFUSALS, not one").
  *
- * Returns the refusal reason, or `null` when a figure may be stated.
+ * Returns the refusal reason, or `null` when a figure may be stated. ALL FOUR
+ * it can return, listed because the next caller reads this and an earlier draft
+ * named only the last two (verifier finding):
+ *   · `base_price_invalid` — B not a non-negative safe integer.
+ *   · `commission_invalid` — C not a non-negative safe integer.
  *   · `base_price_below_floor` — B under the publish floor; no offer can exist.
  *   · `commission_leaves_no_net` — the commission eats the whole sale.
+ * The first two are unreachable from the steppers (integers by construction)
+ * but live on the screen path, where they map through `ERROR_KEY` to a real
+ * banner rather than to nothing.
+ *
+ * THE SAFE-INTEGER GUARD IS NOT AN OVERFLOW GUARD, and it should not be read as
+ * one: canon's own fee computation throws above roughly `MAX_SAFE_INTEGER / 5`,
+ * which this does not pre-empt. That bound is ~1.8e13 stepper taps away and is
+ * pre-existing; it is named here so the guard is not mistaken for wider cover
+ * than it gives.
  *
  * **NON-POSITIVE, NOT NEGATIVE** (founder, explicitly): a net of exactly zero
  * is as meaningless to publish as −50, and a strictly-negative test would let

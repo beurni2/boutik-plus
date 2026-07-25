@@ -134,12 +134,18 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
   // `netLineRefusal`), so this frozen screen learns no product rule and no
   // threshold — it renders what it is handed and states the key it is given.
   //
-  // TWO SPELLINGS OF ONE CONDITION, ON PURPOSE (verifier finding, LOW): the
-  // footer reads `noNet`, the two money sites read `money.kind === 'refused'`
-  // directly. That is not drift — TypeScript narrows the union only from the
-  // direct comparison, so the render sites must use it or they cannot touch
-  // `money.net` at all. `noNet` IS that comparison, defined on this line, so
-  // the two cannot diverge without editing it.
+  // TWO SPELLINGS OF ONE CONDITION — and the honest reason (CORRECTED after a
+  // second verifier run). An earlier version of this comment claimed the render
+  // sites MUST use the direct comparison because TypeScript narrows only from
+  // it. That is false: TS 4.4+ aliased-condition narrowing handles `noNet` too
+  // — measured with `tsc --strict`, not assumed.
+  //
+  // The real reason is readability at the point of use: the JSX branches read
+  // better naming the case they render (`money.kind === 'refused'`), while the
+  // footer reads better naming the state it disables on. `noNet` IS that same
+  // comparison, defined on this line, so they cannot diverge without editing
+  // it — and if the union ever grows a third case, the compiler will force
+  // every direct comparison to be revisited while a boolean alias would not.
   const noNet = money.kind === 'refused';
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (

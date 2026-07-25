@@ -175,13 +175,33 @@ describe('every user-facing string on the new surfaces is catalog-backed', () =>
     expect(missing, `missing catalog keys: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it('every FieldError maps to a real catalog string', () => {
+  /**
+   * DERIVED, NOT RESTATED (verifier finding, MEDIUM). This used to enumerate the
+   * FieldError members as a hardcoded list — so when the commission ruling added
+   * a ninth, the list silently covered 8 of 9 and a typo'd catalog key on the new
+   * member would have passed. That matters: `t()` THROWS on a missing key
+   * (`src/i18n.ts`), and there is no error boundary, so the failure is a blank
+   * screen mid-listing rather than a wrong word.
+   *
+   * Now every member is read out of `ERROR_KEY` itself, and the union's own size
+   * is pinned separately — so adding a member without a string, or with a bad
+   * string, fails here rather than on his phone.
+   */
+  it('every FieldError maps to a real catalog string — members derived from the map, not restated', () => {
     const mapBlock = lister.slice(lister.indexOf('const ERROR_KEY'), lister.indexOf('};', lister.indexOf('const ERROR_KEY')));
-    for (const member of ['name_required', 'product_code_required', 'category_required', 'zone_required', 'base_price_invalid', 'base_price_below_floor', 'commission_invalid', 'available_invalid']) {
-      const m = new RegExp(`${member}:\\s*'([^']+)'`).exec(mapBlock);
-      expect(m, member).not.toBeNull();
-      expect(keys.has((m as RegExpExecArray)[1] as string), member).toBe(true);
+    const pairs = [...mapBlock.matchAll(/^\s*(\w+):\s*'([^']+)',/gm)].map((m) => [m[1] as string, m[2] as string] as const);
+    expect(pairs.length, 'ERROR_KEY entries found').toBeGreaterThan(0);
+    for (const [member, key] of pairs) {
+      expect(keys.has(key), `${member} -> ${key}`).toBe(true);
     }
+    // and the map is EXHAUSTIVE over the union — the count is read from the
+    // source of truth, so a member added to FieldError without a mapping fails
+    const union = readFileSync(join(appDir, 'src/supply/authoring.ts'), 'utf8');
+    const unionStart = union.indexOf('export type FieldError');
+    const unionBlock = union.slice(unionStart, union.indexOf(';', unionStart));
+    const members = [...unionBlock.matchAll(/^\s*\|\s*'(\w+)'/gm)].map((m) => m[1] as string);
+    expect(members.length, 'FieldError members').toBeGreaterThan(1);
+    expect(pairs.map(([m]) => m).sort()).toEqual(members.sort());
   });
 
   it('only the http cause claims the service answered; network and device get their own designed states', () => {

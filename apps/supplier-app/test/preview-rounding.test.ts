@@ -328,6 +328,23 @@ describe('THE COMMISSION AXIS — both refusals, and the threshold is NON-POSITI
       expect(core.errors).toContain('base_price_below_floor');
       // the net rule does NOT also fire — the price is the cause he must fix
       expect(core.errors).not.toContain('commission_leaves_no_net');
+      // AND NO CAUSE APPEARS TWICE (verifier finding: the test name promised
+      // this and nothing checked it — a mutant that pushed the predicate's
+      // answer unconditionally produced ['base_price_below_floor',
+      // 'base_price_below_floor'] with the whole suite still green. The pane
+      // joins errors with '\n', so that prints the same sentence twice).
+      expect(new Set(core.errors).size, core.errors.join(' | ')).toBe(core.errors.length);
+    }
+  });
+
+  it('no cause is duplicated on ANY refused combination the steppers can reach', () => {
+    for (const B of [500, 1_000, 4_500, 5_000, 10_000]) {
+      for (const C of [0, 1_000, 4_750, 4_800, 9_500, 20_000]) {
+        const r = priced(B, C);
+        if (r.ok === false) {
+          expect(new Set(r.errors).size, `B=${B} C=${C}: ${r.errors.join(' | ')}`).toBe(r.errors.length);
+        }
+      }
     }
   });
 
