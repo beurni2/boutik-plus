@@ -53,6 +53,21 @@ export interface SellerPreview {
   readonly sellerPlatformFeeFcfa: number;
 }
 
+/**
+ * WHAT THE WIZARD IS HANDED FOR THE SELLER-NET LINE — a figure, or a refusal
+ * that names its own reason.
+ *
+ * This replaces the earlier `SellerPreview | null`. Null carried the ABSENCE,
+ * which was enough while only one rule could cause it (below the price floor).
+ * The commission ruling (2026-07-25) adds a second, with different words, so
+ * the reason travels beside the absence rather than being inferred at the
+ * render site.
+ */
+export type SellerNetLine =
+  | { readonly kind: 'figure'; readonly net: SellerPreview }
+  /** `reasonKey` is an i18n catalog key — the screen states it, never invents it. */
+  | { readonly kind: 'refused'; readonly reasonKey: string };
+
 export function previewSellerNet(basePrice: number, resellerCommission: number): SellerPreview {
   // Markup and delivery belong to other domains; zero here isolates the
   // seller-side figures without this app doing any money arithmetic of its own.

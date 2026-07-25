@@ -46,7 +46,7 @@ import { resolveSupplyService, type AttachAssetsOutcome, type ServiceResult, typ
 import { resolveMediaService, sha256Hex, type MediaServicePort } from '../supply/media';
 import { assembleAssets, type AssemblyInput, type ProductAssetsInput, type RoleUpload } from '../supply/assets';
 import {
-  CATEGORY_FLOOR_FCFA,
+  netLineRefusal,
   offerWindow,
   publish,
   retainIdentity,
@@ -57,7 +57,7 @@ import {
   type PublishState,
 } from '../supply/authoring';
 import { randomSuffixBytes, suggestProductCode } from '../supply/product-code';
-import { previewSellerNet } from '../supply/preview';
+import { previewSellerNet, type SellerNetLine } from '../supply/preview';
 import { derivativeBytesFromUri } from '../studio/capture';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
@@ -78,6 +78,7 @@ const ERROR_KEY: Record<FieldError, string> = {
   base_price_invalid: 'publier.err_prix',
   base_price_below_floor: 'publier.err_prix_plancher',
   commission_invalid: 'publier.err_commission',
+  commission_leaves_no_net: 'publier.err_commission_net',
   available_invalid: 'publier.err_stock',
 };
 
@@ -451,14 +452,20 @@ export function SListerReal({ st, d, captures, session }: {
   // wizard does no money arithmetic; `v2/money.ts` §3.4 stays frozen and unused
   // by this path.
   //
-  // BELOW THE PUBLISH FLOOR, NO FIGURE TRAVELS (founder ruling 2026-07-25). The
-  // stepper reaches B = 500; `buildCreateOffer` refuses anything under
-  // CATEGORY_FLOOR_FCFA (5 000) with `base_price_below_floor`. Nine reachable
-  // positions therefore describe an offer that cannot exist, and canon would
-  // still hand back a number for them — a negative one at the default C for the
-  // lowest two. The refusal is decided HERE because this wrapper is the layer
-  // that owns the publish rules; the wizard renders the absence it is handed.
-  const money = st.wiz.B < CATEGORY_FLOOR_FCFA ? null : previewSellerNet(st.wiz.B, st.wiz.C);
+  // WHEN NO NET MAY BE STATED, THE REASON TRAVELS WITH THE REFUSAL (founder
+  // rulings 2026-07-25, both axes). `netLineRefusal` is the single predicate:
+  // below the publish floor, or a commission that leaves a NON-POSITIVE net.
+  // The same function backs the core's own refusal in `buildCreateOffer`, so
+  // the screen and the publish can never disagree about a given pair.
+  //
+  // The reason is mapped through the EXISTING `ERROR_KEY` table — the same
+  // typed vocabulary the publish failures already use, so this adds no second
+  // mapping and no invented shape.
+  const refusal = netLineRefusal(st.wiz.B, st.wiz.C);
+  const money: SellerNetLine =
+    refusal === null
+      ? { kind: 'figure', net: previewSellerNet(st.wiz.B, st.wiz.C) }
+      : { kind: 'refused', reasonKey: ERROR_KEY[refusal] };
   return <S20Wizard st={st} d={dd} money={money} heroUri={captures.current?.heroSquare.uri} />;
 }
 

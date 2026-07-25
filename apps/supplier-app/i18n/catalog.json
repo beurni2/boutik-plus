@@ -1476,6 +1476,12 @@
     "screenClass": "status"
   },
   {
+    "key": "publier.err_commission_net",
+    "fr": "Avec cette commission, il ne vous reste rien sur la vente. Baissez-la, ou augmentez le prix de base.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.err_commission",
     "fr": "La commission doit être un nombre entier.",
     "register": "money",

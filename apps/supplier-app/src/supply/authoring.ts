@@ -1,5 +1,6 @@
 import type { CreateOfferInput, FailureCause, ServiceResult, SupplyServicePort } from './service';
 import type { CreateOfferOutcome } from './service';
+import { previewSellerNet } from './preview';
 
 /**
  * SUPPLIER-AUTHORING-1 part 2 — the AUTHORING CORE. Pure: form values in, a
@@ -58,10 +59,60 @@ export type FieldError =
   | 'base_price_invalid'
   | 'base_price_below_floor'
   | 'commission_invalid'
+  /**
+   * THE COMMISSION LEAVES HIM NOTHING (founder ruling 2026-07-25). Named from
+   * the existing vocabulary — `{field}_{condition}`, on the same `commission_`
+   * prefix as `commission_invalid` — and it states the CONSEQUENCE rather than
+   * a threshold, because there is no fixed ceiling: a commission that is
+   * harmless at B = 50 000 ruins the sale at B = 5 000.
+   */
+  | 'commission_leaves_no_net'
   | 'available_invalid';
 
 /** The category floor mirrored from services/offer-service/src/offer.ts (B4.1: ≥ 5 000). */
 export const CATEGORY_FLOOR_FCFA = 5_000;
+
+/**
+ * CAN THIS (B, C) HAVE A STATED SELLER NET? — the one predicate behind BOTH
+ * refusals (founder ruling 2026-07-25: "BOTH REFUSALS, not one").
+ *
+ * Returns the refusal reason, or `null` when a figure may be stated. ALL FOUR
+ * it can return, listed because the next caller reads this and an earlier draft
+ * named only the last two (verifier finding):
+ *   · `base_price_invalid` — B not a non-negative safe integer.
+ *   · `commission_invalid` — C not a non-negative safe integer.
+ *   · `base_price_below_floor` — B under the publish floor; no offer can exist.
+ *   · `commission_leaves_no_net` — the commission eats the whole sale.
+ * The first two are unreachable from the steppers (integers by construction)
+ * but live on the screen path, where they map through `ERROR_KEY` to a real
+ * banner rather than to nothing.
+ *
+ * THE SAFE-INTEGER GUARD IS NOT AN OVERFLOW GUARD, and it should not be read as
+ * one: canon's own fee computation throws above roughly `MAX_SAFE_INTEGER / 5`,
+ * which this does not pre-empt. That bound is ~1.8e13 stepper taps away and is
+ * pre-existing; it is named here so the guard is not mistaken for wider cover
+ * than it gives.
+ *
+ * **NON-POSITIVE, NOT NEGATIVE** (founder, explicitly): a net of exactly zero
+ * is as meaningless to publish as −50, and a strictly-negative test would let
+ * it through. The comparison is `<= 0`.
+ *
+ * ONE LAW, ONE HOME, TWO ENFORCEMENT POINTS. The wizard calls this to decide
+ * what to render and whether to let him continue; `buildCreateOffer` below
+ * calls it so the core refuses independently of any screen. That is the same
+ * shape as the price floor — a shared constant, not a duplicated rule — and it
+ * is why the two can never disagree about a given pair.
+ *
+ * The net itself comes from the CANON waterfall, never local arithmetic, so
+ * the threshold is applied to the same franc the seller is shown.
+ */
+export function netLineRefusal(basePrice: number, resellerCommission: number): FieldError | null {
+  if (!Number.isSafeInteger(basePrice) || basePrice < 0) return 'base_price_invalid';
+  if (!Number.isSafeInteger(resellerCommission) || resellerCommission < 0) return 'commission_invalid';
+  if (basePrice < CATEGORY_FLOOR_FCFA) return 'base_price_below_floor';
+  if (previewSellerNet(basePrice, resellerCommission).sellerNetFcfa <= 0) return 'commission_leaves_no_net';
+  return null;
+}
 
 /**
  * THE OFFER WINDOW — a FOURTH field a supplier cannot honestly state, found while
@@ -156,6 +207,20 @@ export function buildCreateOffer(
 
   const commission = parseAmount(form.resellerCommission);
   if (commission === null) errors.push('commission_invalid');
+
+  // THE CORE'S OWN REFUSAL ON THE COMMISSION AXIS (founder ruling 2026-07-25).
+  // Until now the screen was the ONLY thing standing between a commission that
+  // eats the whole sale and a published offer: `disabled.wizC` bounds C from
+  // below only, and there is no commission ceiling anywhere. So B = 5 000 with
+  // C = 4 800 published a real offer whose seller net was −50.
+  //
+  // The floor rule already had two independent refusals; this one had one. Now
+  // it has two. Reported here only when the NET is the problem — the floor and
+  // the parse failures are reported by their own checks above, so a single
+  // cause never appears twice.
+  if (basePrice !== null && commission !== null && netLineRefusal(basePrice, commission) === 'commission_leaves_no_net') {
+    errors.push('commission_leaves_no_net');
+  }
 
   const available = parseAmount(form.available);
   if (available === null) errors.push('available_invalid');

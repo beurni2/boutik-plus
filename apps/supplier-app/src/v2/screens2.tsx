@@ -16,7 +16,7 @@ import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { formatF, pendingTotal, paidTotal } from './money';
-import type { SellerPreview } from '../supply/preview';
+import type { SellerNetLine } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
 import { t as tr } from '../i18n';
@@ -108,32 +108,45 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // product and order figures). Named precisely because a looser version of this
 // line said "seed, machine, screens1" and was wrong: machine.ts imports
 // fee/net but uses only formatF, and screens1 never imported them at all.
-// `money` IS NULL BELOW THE PUBLISH FLOOR (founder ruling 2026-07-25, and it was
-// neither option offered). The B stepper keeps its FULL designed range down to
-// 500 — his chrome is not changed — but the app's publish floor is 5 000, so the
-// nine positions beneath it describe an offer that cannot exist. Rendering a net
-// there was arithmetically true and commercially meaningless, and at the default
-// C = 1 000 the two lowest positions printed a NEGATIVE « Vous recevez » in the
-// large green type this app reserves for money he receives.
+// `money` CARRIES EITHER A FIGURE OR A NAMED REFUSAL (founder rulings
+// 2026-07-25, two axes, neither of them an option I had offered).
 //
-// The rule: below the floor, STATE NO FIGURE — show the refusal that already
-// exists (`publier.err_prix_plancher`) and block continue. Not a fabricated
-// value, not a hidden control: a refusal to say something confidently that is
-// not true of any publishable offer. `null` rather than a number is how that
-// absence is carried, so a screen cannot accidentally print one.
-export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerPreview | null; heroUri?: string | undefined }) {
+// AXIS ONE — the price floor. The B stepper keeps its FULL designed range down
+// to 500; his chrome is not changed. But the publish floor is 5 000, so the
+// nine positions beneath it describe an offer that cannot exist.
+//
+// AXIS TWO — the commission. C is unbounded above and there is no ceiling
+// anywhere, so B = 5 000 with C = 4 800 left a seller net of −50. The threshold
+// is NON-POSITIVE, not negative (founder, explicitly): a net of exactly zero is
+// as meaningless to publish as −50 and would slip a strictly-negative test.
+//
+// Both printed a net in the large green type this app reserves for money he
+// RECEIVES — arithmetically true, commercially meaningless.
+//
+// The rule, one sentence: when no net may be stated, STATE NONE, show the
+// reason, and block continue. Not a fabricated value, not a hidden control.
+// The union rather than a number is how the absence is carried, so a screen
+// cannot accidentally print one — and the reason travels with it, so this
+// screen never has to assume which rule refused.
+export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined }) {
   const w = st.wiz;
-  // BELOW THE FLOOR the caller passes null — the wrapper owns the publish rules
-  // and the constant (`supply/authoring.ts` CATEGORY_FLOOR_FCFA), so this frozen
-  // screen does not learn a product rule, it just renders what it is handed.
+  // The wrapper owns the publish rules AND the predicate (`authoring.ts`
+  // `netLineRefusal`), so this frozen screen learns no product rule and no
+  // threshold — it renders what it is handed and states the key it is given.
   //
-  // TWO SPELLINGS OF ONE CONDITION, ON PURPOSE (verifier finding, LOW): the
-  // footer reads `belowFloor`, the two money sites read `money === null`
-  // directly. That is not drift — TypeScript narrows `money` to non-null only
-  // from the direct comparison, so the render sites must use it or they cannot
-  // touch the fields at all. `belowFloor` IS that comparison, defined on this
-  // line, so the two cannot diverge without editing it.
-  const belowFloor = money === null;
+  // TWO SPELLINGS OF ONE CONDITION — and the honest reason (CORRECTED after a
+  // second verifier run). An earlier version of this comment claimed the render
+  // sites MUST use the direct comparison because TypeScript narrows only from
+  // it. That is false: TS 4.4+ aliased-condition narrowing handles `noNet` too
+  // — measured with `tsc --strict`, not assumed.
+  //
+  // The real reason is readability at the point of use: the JSX branches read
+  // better naming the case they render (`money.kind === 'refused'`), while the
+  // footer reads better naming the state it disables on. `noNet` IS that same
+  // comparison, defined on this line, so they cannot diverge without editing
+  // it — and if the union ever grows a third case, the compiler will force
+  // every direct comparison to be revisited while a boolean alias would not.
+  const noNet = money.kind === 'refused';
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>
@@ -206,18 +219,20 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
               />
             </View>
             <View style={{ marginTop: 16 }}>
-              {money === null ? (
+              {money.kind === 'refused' ? (
                 // The refusal takes the card's place rather than emptying it: a
                 // breakdown with B and C but no fee and no total would be a
                 // half-statement about an offer that cannot exist. C19
                 // MoneyBreakdown is untouched — it is simply not rendered here.
-                <Banner tone="warn">{tr('publier.err_prix_plancher')}</Banner>
+                // The reason comes from the wrapper, so this screen states which
+                // rule refused rather than assuming there is only one.
+                <Banner tone="warn">{tr(money.reasonKey)}</Banner>
               ) : (
                 <MoneyBreakdown
                   B={formatF(w.B)}
                   C={formatF(w.C)}
-                  feeV={formatF(money.sellerPlatformFeeFcfa)}
-                  netV={formatF(money.sellerNetFcfa)}
+                  feeV={formatF(money.net.sellerPlatformFeeFcfa)}
+                  netV={formatF(money.net.sellerNetFcfa)}
                   netSize="XL"
                 />
               )}
@@ -256,15 +271,15 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
                 {`${w.cat} · variantes ${w.sizes} · stock ${w.stock}`}
               </Text>
               <View style={{ height: 1, backgroundColor: P.borderCard, marginVertical: 13 }} />
-              {/* Unreachable below the floor — continue is blocked on step 2 —
-                  but the type makes the case explicit rather than letting a
-                  number be printed for an offer that cannot exist. */}
-              {money === null ? (
-                <Banner tone="warn">{tr('publier.err_prix_plancher')}</Banner>
+              {/* Unreachable when no net may be stated — continue is blocked on
+                  step 2 — but the type makes the case explicit rather than
+                  letting a number be printed for an offer that cannot exist. */}
+              {money.kind === 'refused' ? (
+                <Banner tone="warn">{tr(money.reasonKey)}</Banner>
               ) : (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
                   <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>Vous recevez / vente</Text>
-                  <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(money.sellerNetFcfa)}</Text>
+                  <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(money.net.sellerNetFcfa)}</Text>
                 </View>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
@@ -308,7 +323,7 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
             less, not more. */}
         <C07BtnPrimary
           label={footerLabel}
-          disabled={disabled.wizContinue(st) || (w.step === 2 && belowFloor)}
+          disabled={disabled.wizContinue(st) || (w.step === 2 && noNet)}
           onPress={() => d({ t: 'WIZ_NEXT' })}
         />
       </WizardFooter>
