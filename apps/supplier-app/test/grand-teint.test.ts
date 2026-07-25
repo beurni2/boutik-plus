@@ -76,14 +76,18 @@ describe('the Faso Premium typeface roots — data only, loads nothing', () => {
   });
 });
 
-describe('the approved dependencies (founder rulings) — this slice adds NONE', () => {
-  it('react-native-svg + expo-haptics + expo-font + expo-file-system + expo-crypto, and no other new dep', () => {
+describe('the approved dependencies — every one traceable to a founder ruling', () => {
+  it('the approved set, and NO other runtime dep', () => {
     const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
     expect(pkg.dependencies['react-native-svg']).toBe('15.12.1');
     expect(pkg.dependencies['expo-haptics']).toBe('~15.0.8');
     expect(pkg.dependencies['expo-font']).toBe('~14.0.12');
     expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
     expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
+    // STUDIO-GALLERY-1 (founder ruling 2026-07-25): « HE WANTS TO UPLOAD FROM HIS
+    // DEVICE, not only capture » — gallery for hero and details, camera-only for
+    // the PROOF role. The picker is the only way to obtain a library URI.
+    expect(pkg.dependencies['expo-image-picker']).toBeDefined();
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
@@ -94,6 +98,8 @@ describe('the approved dependencies (founder rulings) — this slice adds NONE',
     // deps (react-dom/react-native-web) were REMOVED with the visual pipeline —
     // fidelity is VALUE MATCH ONLY (founder order 2026-07-17): the property
     // gate compares style data to the Phase-0 table; nothing renders.
-    expect(added.sort()).toEqual(['expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'react-native-svg']);
+    expect(added.sort()).toEqual([
+      'expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'expo-image-picker', 'react-native-svg',
+    ]);
   });
 });

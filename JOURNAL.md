@@ -1491,3 +1491,85 @@ Recorded separately so it is findable without reading a slice entry.
 - **Nil today (one supplier). Real the day there are two**, and the same day the `SUPPLIER_ID` constant becomes a real field.
 - **The fix is not more filtering — it is binding the scope to the credential** (a per-supplier key, or a token carrying the supplier id). That is its own slice and it is NOT started.
 - **It belongs to the same HARD GATE as `SUPPLIER_ID`, `moderationState: 'approved'` at authoring, and `zone`** — everything that is correct only because there is exactly one supplier.
+
+### 2026-07-25 · MERGE — PRODUITS READS THE SERVICE · release `6acc125`
+Founder: "APPROVED: merge 0cddaa2 into main." Guarded merge: branch head verified as approved → `--no-ff` → **tree diff vs approved EMPTY** → re-proved green from repo root (typecheck 13/13 · supplier-app 389 · offer-service 115 · ALL GATES GREEN) → pushed → **ancestry read-back: `0cddaa2` IS an ancestor of `origin/main`; tree diff empty.**
+- **MERGED WITH A KNOWN OPEN HAZARD, and the founder's reasoning is the part to keep:** *"the route previously took NO scope at all and returned every supplier's offers to any key holder without even a parameter. This slice narrows the exposure. Refusing to merge would leave the wider version deployed."* **A partial fix that strictly narrows an existing exposure ships; withholding it protects nothing.**
+
+### 2026-07-25 · 🔒 BLOCKING PRECONDITION ON SUPPLIER #2 — CREDENTIAL BINDING LANDS FIRST
+**Its own entry, findable without reading a slice log. This is NOT a backlog item.**
+
+**THE TRIGGER, named explicitly:** the day a second supplier is onboarded — **which is the same event as `SUPPLIER_ID` ceasing to be a constant** (`apps/supplier-app/src/supply/service.ts`). Either one firing means both have fired.
+
+**WHAT MUST LAND FIRST:** the credential-binding slice. **`GET /offers?supplierId=X` returns X's offers to ANY holder of the bundle-shipped write key** — the id comes from the query string (`offer-do.ts:233`) and the composition-root gate authorizes the KEY, with nothing binding the two. Demonstrated against **real workerd** by the fresh-context verifier (seed two suppliers, ask for the other one's, receive their `basePrice` and `resellerCommission`), and independently confirmed in the bytes by the founder. `supplier-founder-001` is a guessable template, and `service.ts` documents the key as shipping inside the published bundle — it "stops scanners, not attackers".
+
+**THE FIX IS NOT MORE FILTERING — IT IS BINDING THE SCOPE TO THE CREDENTIAL:** a per-supplier key, or a token carrying the supplier id. **Founder ruling: do NOT build it now.** Residual is nil at one supplier, and it is *the same identity work as the second-reseller gate, which is also still a device-stored constant* — **building it twice is waste.**
+
+**IT JOINS THE ONE-SUPPLIER HARD-GATE FAMILY**, everything that is correct only because there is exactly one of him: `SUPPLIER_ID` · `moderationState: 'approved'` set at authoring (self-approval) · `zone` · and now the list scope.
+
+### 2026-07-25 · ERROR LEDGER — A CTO RULING MADE ON AN UNVERIFIED PREMISE (mine, not the lane's)
+Recorded at the founder's instruction, against him, in his own words: *"I ruled key reuse on the premise that a supplier reads 'his own offers,' and never asked what enforces 'his own.' Nothing does. That is a CTO ruling on an unverified premise, and it belongs in the error ledger as mine."*
+- **The generalisable form:** a ruling that turns on a property ("his own", "only he can", "just this one") is a ruling that needs the enforcing mechanism NAMED before it is made. The premise was plausible, the reasoning from it was sound, and the conclusion was still unsafe — because nothing in the system implemented the word the premise rested on.
+- **What caught it:** a fresh-context verifier that went to real workerd instead of reading the argument. **And what made it useful was reporting it against an already-merged claim of my own** — my test name said « the fail-open hazard, closed » and it was not closed. Founder: *"correcting that in your own test name is the behaviour that makes this lane trustworthy."*
+
+### 2026-07-25 · STANDING PRECEDENT — A DECISION THAT RENDERS DIFFERENTLY IS A FUNCTION THAT RETURNS A VALUE
+Founder, on my structural test sleeping through its own planted defect: *"that is the third instance of the same class in this program in one day, and yours is the only one caught by its own author before merge. The pure decision function is the right fix and the right precedent — **a decision that renders differently should be a function that returns a value, not a shape a test can only describe.**"*
+- Applied three times in this slice: `produitsView` (which state gets which sentence), `hiddenSentence` (which refusal reason gets which sentence), `photoSlot` (photograph / honest absence / unfetchable). Each was JSX before, and each was untestable-by-value before.
+- **The tell that you need one:** you are about to assert the ORDER of branches, or the PRESENCE of a string, in a source file.
+
+### 2026-07-25 · TWO GAPS ACCEPTED AS STATED, NEITHER TO BE FILLED
+Founder-accepted, left open deliberately:
+1. **Tiles are not tappable** — there is no fiche for a real offer, and `st.products` holds no entry for one, so a tap would land on the id-miss guard. *"A dead tap is worse than no tap."*
+2. **`resellerCommission` travels to the app and nothing renders it.** *"An unrendered field is not a defect."*
+
+### 2026-07-25 · STUDIO — HELD, NOT STARTED
+Two founder rulings outstanding before the order is written: **gallery-per-role** (my recommendation: camera-only for the PROOF role, gallery for hero and details), and **what happens about prices burned into gallery images** — which my price-overlay finding raised and which the founder has named a **commercial decision, not a technical one**. `premium-frame-assets.mjs` reads a declared `overlayText` field, not pixels; Law 5 forbids the OCR that would be needed to detect it, so this cannot be closed by a better gate. **Do not start.**
+
+### 2026-07-25 · ITEM 3 VERIFIED FIRST, AS ORDERED — AND THE GUARANTEE COMES FROM SOMEWHERE ELSE
+Founder ordered: establish whether `expo-image-picker` can GUARANTEE JPEG output, in the bytes, before writing anything else; report immediately if it fails.
+- **IT DOES NOT NEED TO, AND THE QUESTION HAS A BETTER ANSWER. Verified in our own code and in the native sources of an already-installed dependency, not from documentation.**
+- **Our three strip sites never see picker output.** `capture.ts:52`, `:59`, `:122` all call `saveAsync({ format: SaveFormat.JPEG })`. `stripJpegMetadata` receives **manipulator output**, which is JPEG by construction.
+- **The manipulator decodes to a platform bitmap before re-encoding**, so the input format is irrelevant to the strip. Read in the native sources of `expo-image-manipulator@14.0.8`:
+  - **iOS** `ios/ImageManipulatorUtils.swift:10` — `loadImage(atUrl:)` returns a **`UIImage`** by three routes: `data:` → `UIImage(data:)`; **`ph://`/`assets-library://` → `PHImageManager.requestImage`** (that IS the gallery route); otherwise Expo's shared image loader. Save at `:70` is `image.jpegData(compressionQuality:)`.
+  - **Android** `ImageManipulatorArguments.kt:76` — `Bitmap.CompressFormat.JPEG`.
+- **So HEIC is a DECODE question, not a format-guarantee question**, and on iOS the gallery route is `PHImageManager`, which hands back a decoded image whatever the file on disk is. **The founder's iPhone concern is answered by the platform, not by a picker option.**
+- **WHAT I COULD NOT VERIFY, STATED PLAINLY: I have no iPhone and cannot run the picker.** But the SAFETY does not depend on the answer — if a decode ever fails, `renderAsync()` throws and the seam surfaces a typed reason. **What depends on the answer is whether the happy path works, not whether a bad image slips through.** The typed, format-naming refusal the founder ordered is therefore still required, and is still owed.
+
+### 2026-07-25 · ⚠️ ITEM 4 — THE PICKER'S OWN TYPES SAY ITS DIMENSIONS CAN BE ZERO
+`expo-image-picker@57.0.6`, `build/ImagePicker.types.d.ts:248-254`, verbatim: **« Width of the image or video. Can be `0` if the system did not provide the width. »** Same for height.
+- **This is directly load-bearing on the crop-space discipline.** `heroSquareCrop(0, 0)` is a degenerate rect, and the whole point of the crop-space fix was that crops must come from the master's OWN dimensions.
+- **THE GALLERY PATH MUST NOT TRUST THE PICKER'S DIMENSIONS.** The reliable source is the manipulator's own decode: `saveAsync` returns `width`/`height` of the actual decoded image. Same lesson as the original defect — **take the dimensions from the thing you are operating on, not from the convenient source.**
+- Also noted from the same file: `assetId` may be null, and `type` may be null "with some Android ContentProviders". Nothing in that shape is safe to assume.
+
+### 2026-07-25 · ITEM 2 BUILT — THE EXIF POST-CONDITION NOW COVERS WHAT THE STRIP REMOVES
+`jpegCarriesExif` matched ONLY `APP1` carrying the literal `Exif\0\0`, while `stripJpegMetadata` is an allow-list that drops every APPn. **The proof was strictly narrower than the strip.** Widened to **any APP1 (EXIF *and* XMP) and any APP13 (IPTC)** — identifier-independent, so a vendor's own APP1 flavour cannot slip past on the identifier.
+- **XMP is APP1 with a different identifier and carries GPS; gallery apps rewrite it routinely.** Theoretical for camera output, not for gallery — which is why the widening landed WITH the gallery ruling rather than after it.
+- **THE SUITE PASSED 389/389 WITH THE WIDENED DETECTOR BEFORE ANY NEW TEST — i.e. nothing planted XMP or IPTC.** Exactly the founder's condition: *a widened matcher that never fires is not a widened matcher.* Four assertions added: XMP detected, IPTC detected, an unknown-identifier vendor APP1 detected, **and the widening did NOT become "everything is metadata"** — APP0/JFIF and APP2/ICC still pass, because they are cleanliness not privacy, and a guard that fails on every JPEG is noise.
+- **RED-PROVEN:** reverting to the narrow identifier check fails three tests.
+- **Scope stated rather than implied:** the detector asserts APP1/APP13 only. APP0, APP2, APP14 and post-EOI payloads are still *removed* by the strip and are *not* asserted — they carry no user-identifying data.
+
+### 2026-07-25 · ITEM 6 BUILT — THE CROP GUIDE, AND A MEASUREMENT THAT MAY CHANGE THE DESIGN
+`src/studio/viewfinder.ts` — master-space crop IN, preview-space rect OUT, through the same cover transform the preview itself uses. **Asserted BY VALUE across sensor/screen aspect pairs**, never by call structure.
+- **THE MEASURED CONSEQUENCE, AND IT IS THE PART THE FOUNDER SHOULD SEE. On D17 (360×800) the full-bleed preview shows only about a THIRD of a 4:3 sensor's width** (scale 0.2667, visible region 1350×3000 of 4000×3000). Mapping the real crops into that preview:
+
+  | sensor | square hero | 4:5 vertical hero | screen |
+  |---|---|---|---|
+  | 4000×3000 | **800 px** | **640 px** | 360 px |
+  | 3000×4000 | **600 px** | **600 px** | 360 px |
+  | 4032×3024 | **800 px** | **640 px** | 360 px |
+  | 1080×2400 (matched) | 360 px | 360 px | 360 px |
+
+- **BOTH crops overhang on BOTH sensor orientations.** A full-bleed viewfinder on the reference device **cannot show the whole hero region at all** — the crop keeps pixels the viewfinder never displayed. `guideForCrop` returns `fitsInPreview: false` rather than clamping, because **a clipped guide silently claims the crop stops where the screen does.**
+- **I EXPECTED THE PORTRAIT CASE TO FIT AND IT DOES NOT.** My first test asserted it would; the measured numbers corrected me and the test now records reality with that noted in the comment.
+- **The only shape that fits is a sensor whose aspect already matches the screen** — pinned as its own test and NAMED, so nobody later "simplifies" the mapping on the strength of the one case where preview-space and master-space happen to agree.
+- **RED-PROVEN:** deriving the guide from the preview's own rect (the defect this exists to prevent) fails four tests, including one asserting that the same crop maps DIFFERENTLY for different sensors — which a fixed decorative inset cannot do. `C39.inset` today is exactly such a fixed 20pt rect.
+
+### 2026-07-25 · ITEM 5 — THE `useWindowDimensions()` EXCEPTION, SCOPED AND JOURNALED
+Founder ruling: the viewfinder computes from the real window, **not** from `GEO.frame` 402×874. **Scoped to the viewfinder ONLY**, and the reasoning is what stops it becoming precedent: **a crop guide is a physical claim about the sensor, not a design token.** Every other V2 screen keeps the design frame. **This entry exists so the exception is not later read as a licence to abandon `GEO.frame` elsewhere.**
+
+### 2026-07-25 · 🔒 SECOND BLOCKING PRECONDITION ON SUPPLIER #2 — BURNED-IN PRICES (CTO ruling, accepted, NOT fixed)
+**THE SUPPLIER-#2 GATE NOW CARRIES TWO ITEMS.** This one and the credential-binding hazard, same trigger, same entry family.
+- **Nothing detects a price painted into a gallery image.** `scripts/gates/premium-frame-assets.mjs` is 40 lines and reads a **declared `overlayText` field** — it never touches a pixel. **Law 5 forbids the only technique that could** (OCR is inference). **Provenance is the only real control**, which is why the camera-only ruling on the PROOF role matters beyond that one slot.
+- **THE CONSEQUENCE, STATED PLAINLY:** a hero with a price burned into it **lands on a reseller's vitrine beside the price SHE set** — two different numbers for the same item, one of them unremovable — **and the platform has no way to know.**
+- **Residual is nil while the founder is the only supplier**, because he will not sabotage his own listing. It becomes real with a supplier who has marketing images.
+- **⚠️ GATE SIZE WATCH (founder instruction): the supplier-#2 gate is at TWO items. If a third arrives, it gets reported in the next message rather than added quietly — a gate that grows without being sized becomes a launch blocker nobody planned for.**
