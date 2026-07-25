@@ -57,6 +57,52 @@ describe('WO-6.5 B1.3 — the stripper rewrites the stream by ALLOW-LIST', () =>
     expect(() => assertExifFree(out)).not.toThrow();
   });
 
+  /**
+   * THE POST-CONDITION NOW COVERS WHAT THE STRIP REMOVES (founder ruling
+   * 2026-07-25, gallery slice). The STRIP already dropped XMP and IPTC — that
+   * was proven. The DETECTOR did not see them: it matched only APP1 carrying
+   * the literal `Exif\0\0`, so `assertExifFree` proved strictly less than
+   * `stripJpegMetadata` removed. On camera output that gap was theoretical; a
+   * gallery image is where it bites, because phone gallery apps rewrite XMP and
+   * XMP carries GPS.
+   *
+   * These are the assertions the widening exists for. Without them the widened
+   * matcher would never fire in the suite, and a matcher that never fires is
+   * not a matcher.
+   */
+  it('WIDENED — an XMP-bearing APP1 is DETECTED as metadata, not only dropped', () => {
+    const xmpOnly = jpeg(SOI, APP1_XMP, DQT, SOS_HEADER, ENTROPY, EOI);
+    expect(jpegCarriesExif(xmpOnly)).toBe(true);               // the old detector said false
+    expect(() => assertExifFree(xmpOnly)).toThrow(ExifLeakError);
+    // and the post-condition holds on the stripped bytes
+    expect(jpegCarriesExif(stripJpegMetadata(xmpOnly))).toBe(false);
+  });
+
+  it('WIDENED — an IPTC-bearing APP13 is DETECTED as metadata', () => {
+    const iptcOnly = jpeg(SOI, APP13_IPTC, DQT, SOS_HEADER, ENTROPY, EOI);
+    expect(jpegCarriesExif(iptcOnly)).toBe(true);              // the old detector said false
+    expect(() => assertExifFree(iptcOnly)).toThrow(ExifLeakError);
+    expect(jpegCarriesExif(stripJpegMetadata(iptcOnly))).toBe(false);
+  });
+
+  it('WIDENED — a vendor APP1 with an UNKNOWN identifier cannot slip past on the identifier', () => {
+    // the whole point of dropping the identifier check: a flavour we have never
+    // seen is still an APP1, and APP1 is a metadata carrier
+    const vendor = seg(0xe1, [...'com.vendor.private\0GPS 12.37 -1.53'].map((c) => c.charCodeAt(0)));
+    const dirty = jpeg(SOI, vendor, DQT, SOS_HEADER, ENTROPY, EOI);
+    expect(jpegCarriesExif(dirty)).toBe(true);
+    expect(jpegCarriesExif(stripJpegMetadata(dirty))).toBe(false);
+  });
+
+  it('THE WIDENING DID NOT BECOME "everything is metadata" — the rendering segments still pass', () => {
+    // APP2/ICC and APP0/JFIF are dropped by the strip but are NOT privacy
+    // carriers, so the DETECTOR must not claim they are — otherwise every
+    // untouched JPEG would fail the post-condition and the guard would be noise.
+    expect(jpegCarriesExif(CLEAN)).toBe(false);          // carries APP0/JFIF + APP2/ICC
+    expect(jpegCarriesExif(CLEAN_ALLOWLISTED)).toBe(false);
+    expect(() => assertExifFree(CLEAN)).not.toThrow();
+  });
+
   it('an XMP-bearing APP1 (no Exif identifier) is dropped — the whole APP1 class is a metadata carrier', () => {
     const out = stripJpegMetadata(jpeg(SOI, APP1_XMP, DQT, SOS_HEADER, ENTROPY, EOI));
     expect(out).toEqual(jpeg(SOI, DQT, SOS_HEADER, ENTROPY, EOI));

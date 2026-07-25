@@ -1524,3 +1524,52 @@ Founder-accepted, left open deliberately:
 
 ### 2026-07-25 · STUDIO — HELD, NOT STARTED
 Two founder rulings outstanding before the order is written: **gallery-per-role** (my recommendation: camera-only for the PROOF role, gallery for hero and details), and **what happens about prices burned into gallery images** — which my price-overlay finding raised and which the founder has named a **commercial decision, not a technical one**. `premium-frame-assets.mjs` reads a declared `overlayText` field, not pixels; Law 5 forbids the OCR that would be needed to detect it, so this cannot be closed by a better gate. **Do not start.**
+
+### 2026-07-25 · ITEM 3 VERIFIED FIRST, AS ORDERED — AND THE GUARANTEE COMES FROM SOMEWHERE ELSE
+Founder ordered: establish whether `expo-image-picker` can GUARANTEE JPEG output, in the bytes, before writing anything else; report immediately if it fails.
+- **IT DOES NOT NEED TO, AND THE QUESTION HAS A BETTER ANSWER. Verified in our own code and in the native sources of an already-installed dependency, not from documentation.**
+- **Our three strip sites never see picker output.** `capture.ts:52`, `:59`, `:122` all call `saveAsync({ format: SaveFormat.JPEG })`. `stripJpegMetadata` receives **manipulator output**, which is JPEG by construction.
+- **The manipulator decodes to a platform bitmap before re-encoding**, so the input format is irrelevant to the strip. Read in the native sources of `expo-image-manipulator@14.0.8`:
+  - **iOS** `ios/ImageManipulatorUtils.swift:10` — `loadImage(atUrl:)` returns a **`UIImage`** by three routes: `data:` → `UIImage(data:)`; **`ph://`/`assets-library://` → `PHImageManager.requestImage`** (that IS the gallery route); otherwise Expo's shared image loader. Save at `:70` is `image.jpegData(compressionQuality:)`.
+  - **Android** `ImageManipulatorArguments.kt:76` — `Bitmap.CompressFormat.JPEG`.
+- **So HEIC is a DECODE question, not a format-guarantee question**, and on iOS the gallery route is `PHImageManager`, which hands back a decoded image whatever the file on disk is. **The founder's iPhone concern is answered by the platform, not by a picker option.**
+- **WHAT I COULD NOT VERIFY, STATED PLAINLY: I have no iPhone and cannot run the picker.** But the SAFETY does not depend on the answer — if a decode ever fails, `renderAsync()` throws and the seam surfaces a typed reason. **What depends on the answer is whether the happy path works, not whether a bad image slips through.** The typed, format-naming refusal the founder ordered is therefore still required, and is still owed.
+
+### 2026-07-25 · ⚠️ ITEM 4 — THE PICKER'S OWN TYPES SAY ITS DIMENSIONS CAN BE ZERO
+`expo-image-picker@57.0.6`, `build/ImagePicker.types.d.ts:248-254`, verbatim: **« Width of the image or video. Can be `0` if the system did not provide the width. »** Same for height.
+- **This is directly load-bearing on the crop-space discipline.** `heroSquareCrop(0, 0)` is a degenerate rect, and the whole point of the crop-space fix was that crops must come from the master's OWN dimensions.
+- **THE GALLERY PATH MUST NOT TRUST THE PICKER'S DIMENSIONS.** The reliable source is the manipulator's own decode: `saveAsync` returns `width`/`height` of the actual decoded image. Same lesson as the original defect — **take the dimensions from the thing you are operating on, not from the convenient source.**
+- Also noted from the same file: `assetId` may be null, and `type` may be null "with some Android ContentProviders". Nothing in that shape is safe to assume.
+
+### 2026-07-25 · ITEM 2 BUILT — THE EXIF POST-CONDITION NOW COVERS WHAT THE STRIP REMOVES
+`jpegCarriesExif` matched ONLY `APP1` carrying the literal `Exif\0\0`, while `stripJpegMetadata` is an allow-list that drops every APPn. **The proof was strictly narrower than the strip.** Widened to **any APP1 (EXIF *and* XMP) and any APP13 (IPTC)** — identifier-independent, so a vendor's own APP1 flavour cannot slip past on the identifier.
+- **XMP is APP1 with a different identifier and carries GPS; gallery apps rewrite it routinely.** Theoretical for camera output, not for gallery — which is why the widening landed WITH the gallery ruling rather than after it.
+- **THE SUITE PASSED 389/389 WITH THE WIDENED DETECTOR BEFORE ANY NEW TEST — i.e. nothing planted XMP or IPTC.** Exactly the founder's condition: *a widened matcher that never fires is not a widened matcher.* Four assertions added: XMP detected, IPTC detected, an unknown-identifier vendor APP1 detected, **and the widening did NOT become "everything is metadata"** — APP0/JFIF and APP2/ICC still pass, because they are cleanliness not privacy, and a guard that fails on every JPEG is noise.
+- **RED-PROVEN:** reverting to the narrow identifier check fails three tests.
+- **Scope stated rather than implied:** the detector asserts APP1/APP13 only. APP0, APP2, APP14 and post-EOI payloads are still *removed* by the strip and are *not* asserted — they carry no user-identifying data.
+
+### 2026-07-25 · ITEM 6 BUILT — THE CROP GUIDE, AND A MEASUREMENT THAT MAY CHANGE THE DESIGN
+`src/studio/viewfinder.ts` — master-space crop IN, preview-space rect OUT, through the same cover transform the preview itself uses. **Asserted BY VALUE across sensor/screen aspect pairs**, never by call structure.
+- **THE MEASURED CONSEQUENCE, AND IT IS THE PART THE FOUNDER SHOULD SEE. On D17 (360×800) the full-bleed preview shows only about a THIRD of a 4:3 sensor's width** (scale 0.2667, visible region 1350×3000 of 4000×3000). Mapping the real crops into that preview:
+
+  | sensor | square hero | 4:5 vertical hero | screen |
+  |---|---|---|---|
+  | 4000×3000 | **800 px** | **640 px** | 360 px |
+  | 3000×4000 | **600 px** | **600 px** | 360 px |
+  | 4032×3024 | **800 px** | **640 px** | 360 px |
+  | 1080×2400 (matched) | 360 px | 360 px | 360 px |
+
+- **BOTH crops overhang on BOTH sensor orientations.** A full-bleed viewfinder on the reference device **cannot show the whole hero region at all** — the crop keeps pixels the viewfinder never displayed. `guideForCrop` returns `fitsInPreview: false` rather than clamping, because **a clipped guide silently claims the crop stops where the screen does.**
+- **I EXPECTED THE PORTRAIT CASE TO FIT AND IT DOES NOT.** My first test asserted it would; the measured numbers corrected me and the test now records reality with that noted in the comment.
+- **The only shape that fits is a sensor whose aspect already matches the screen** — pinned as its own test and NAMED, so nobody later "simplifies" the mapping on the strength of the one case where preview-space and master-space happen to agree.
+- **RED-PROVEN:** deriving the guide from the preview's own rect (the defect this exists to prevent) fails four tests, including one asserting that the same crop maps DIFFERENTLY for different sensors — which a fixed decorative inset cannot do. `C39.inset` today is exactly such a fixed 20pt rect.
+
+### 2026-07-25 · ITEM 5 — THE `useWindowDimensions()` EXCEPTION, SCOPED AND JOURNALED
+Founder ruling: the viewfinder computes from the real window, **not** from `GEO.frame` 402×874. **Scoped to the viewfinder ONLY**, and the reasoning is what stops it becoming precedent: **a crop guide is a physical claim about the sensor, not a design token.** Every other V2 screen keeps the design frame. **This entry exists so the exception is not later read as a licence to abandon `GEO.frame` elsewhere.**
+
+### 2026-07-25 · 🔒 SECOND BLOCKING PRECONDITION ON SUPPLIER #2 — BURNED-IN PRICES (CTO ruling, accepted, NOT fixed)
+**THE SUPPLIER-#2 GATE NOW CARRIES TWO ITEMS.** This one and the credential-binding hazard, same trigger, same entry family.
+- **Nothing detects a price painted into a gallery image.** `scripts/gates/premium-frame-assets.mjs` is 40 lines and reads a **declared `overlayText` field** — it never touches a pixel. **Law 5 forbids the only technique that could** (OCR is inference). **Provenance is the only real control**, which is why the camera-only ruling on the PROOF role matters beyond that one slot.
+- **THE CONSEQUENCE, STATED PLAINLY:** a hero with a price burned into it **lands on a reseller's vitrine beside the price SHE set** — two different numbers for the same item, one of them unremovable — **and the platform has no way to know.**
+- **Residual is nil while the founder is the only supplier**, because he will not sabotage his own listing. It becomes real with a supplier who has marketing images.
+- **⚠️ GATE SIZE WATCH (founder instruction): the supplier-#2 gate is at TWO items. If a third arrives, it gets reported in the next message rather than added quietly — a gate that grows without being sized becomes a launch blocker nobody planned for.**

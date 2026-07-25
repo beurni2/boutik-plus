@@ -104,6 +104,29 @@ export function failureDetailOf(error: unknown): CaptureFailureDetail {
   return 'capture_failed';
 }
 
+/**
+ * THE POST-CONDITION MUST COVER WHAT THE STRIP REMOVES (founder ruling
+ * 2026-07-25, from a gap I found while reporting on gallery upload).
+ *
+ * `stripJpegMetadata` is an ALLOW-LIST — it drops every APPn by default. This
+ * detector used to match ONLY `APP1` carrying the literal `Exif\0\0`
+ * identifier, so it proved strictly LESS than the strip removed:
+ *   · **XMP is APP1 with a DIFFERENT identifier** (`http://ns.adobe.com/xap/1.0/\0`)
+ *     — and XMP carries GPS. Phone gallery apps rewrite it routinely.
+ *   · **IPTC is APP13** (`Photoshop 3.0\0`) — captions, locations, credits.
+ * Mostly theoretical for camera output. **Not theoretical for a gallery image**,
+ * which is why the widening landed with the gallery path rather than after it.
+ *
+ * NOW: ANY `APP1` and ANY `APP13` counts as metadata. That is deliberately
+ * broader than "EXIF" — the name is kept because the ERROR is the same fact
+ * (the shipped bytes carry a metadata segment they must not), and every caller
+ * treats it identically: fail closed, the derivative does not exist.
+ *
+ * Everything else the strip drops (APP0/JFIF, APP2/ICC, APP14, post-EOI
+ * payloads) is NOT asserted here, and that is stated rather than implied:
+ * those carry no user-identifying data, so their absence is a cleanliness
+ * property, not a privacy one. The strip still removes them.
+ */
 export function jpegCarriesExif(bytes: Uint8Array): boolean {
   // JPEG: SOI (FFD8) then segments FF <marker> <len_hi> <len_lo> <payload…>
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return false;
@@ -113,19 +136,10 @@ export function jpegCarriesExif(bytes: Uint8Array): boolean {
     const marker = bytes[i + 1]!;
     if (marker === 0xda || marker === 0xd9) break; // start-of-scan / EOI: header segments over
     const len = ((bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
-    if (marker === 0xe1 && i + 10 <= bytes.length) {
-      // APP1: "Exif\0\0" identifier?
-      if (
-        bytes[i + 4] === 0x45 && // E
-        bytes[i + 5] === 0x78 && // x
-        bytes[i + 6] === 0x69 && // i
-        bytes[i + 7] === 0x66 && // f
-        bytes[i + 8] === 0x00 &&
-        bytes[i + 9] === 0x00
-      ) {
-        return true;
-      }
-    }
+    if (len < 2) break; // a malformed length cannot be walked; the strip refuses it separately
+    // APP1 (EXIF **and** XMP) or APP13 (IPTC) — identifier-independent, so a
+    // vendor writing its own APP1 flavour cannot slip past on the identifier.
+    if (marker === 0xe1 || marker === 0xed) return true;
     i += 2 + len;
   }
   return false;
