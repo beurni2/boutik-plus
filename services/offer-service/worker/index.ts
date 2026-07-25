@@ -26,8 +26,25 @@ interface Env extends WriteAuthEnv, SupplyReadAuthEnv {
   OFFER: DurableObjectNamespace;
 }
 
-/** The gated service-to-service read. Matches `SUPPLY_ROUTE` in supply-endpoint.ts. */
+/**
+ * The gated service-to-service reads. Both supply routes in supply-endpoint.ts:
+ * the single read (`/supply-projection/:pv`) and the DISCOVERY COLLECTION
+ * (`/supply-projections`).
+ *
+ * THE COLLECTION MUST BE GATED **MORE** CAREFULLY, NOT LESS: the single read
+ * leaks one supplier's cost structure to whoever guesses one product version id;
+ * the collection hands over EVERY servable offer's basePrice and
+ * resellerCommission in one unauthenticated request, with no guessing at all.
+ *
+ * Note the plural route does NOT start with the singular prefix (the trailing
+ * slash), so it needs its own match — a `startsWith('/supply-projection')`
+ * without the slash would have silently covered both and been fragile. Stated
+ * because getting this wrong fails OPEN.
+ */
 const SUPPLY_PREFIX = '/supply-projection/';
+const SUPPLY_COLLECTION = '/supply-projections';
+const isSupplyRoute = (pathname: string): boolean =>
+  pathname.startsWith(SUPPLY_PREFIX) || pathname === SUPPLY_COLLECTION;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -63,7 +80,7 @@ export default {
     // `/health` and unknown routes fall through UNGATED, deliberately: the health
     // door is how the deploy is verified and it carries no supply data.
     const { pathname: p } = new URL(request.url);
-    if (p.startsWith(SUPPLY_PREFIX)) {
+    if (isSupplyRoute(p)) {
       const refused = await rejectUnauthorizedSupplyRead(request, env);
       if (refused) return refused;
     }
