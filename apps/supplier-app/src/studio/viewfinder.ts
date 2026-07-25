@@ -96,3 +96,46 @@ export function guideForCrop(crop: CropRect, master: Size, preview: Size): Guide
     originY + height <= preview.height + E;
   return { originX, originY, width, height, fitsInPreview };
 }
+
+/**
+ * FILL THE WIDTH — the founder's ruling (2026-07-25). The preview takes the
+ * FULL SCREEN WIDTH at **the sensor's own aspect**: 360×480 for a 4:3 sensor on
+ * D17. Not edge-to-edge.
+ *
+ * WHY THIS IS THE HONEST SHAPE, and it is a structural guarantee rather than a
+ * lucky number: at this size the cover scale is the SAME in both dimensions
+ * (`screenWidth / master.width`), so the preview shows **the entire sensor**.
+ * And once the whole sensor is visible at uniform scale, **any crop inside the
+ * sensor maps inside the preview — trivially, for every aspect.** The hero crops
+ * are inside the sensor by construction (property-tested in
+ * `assets-assembly.test.ts`), so no guide can overhang. That is why this holds
+ * for sensors we have never seen, and why the test beside it is a property over
+ * a RANGE of aspects rather than a table of the devices we happen to own.
+ *
+ * It also more than doubles the old 230pt viewfinder card at full width, which
+ * is what the founder was asking for when he said the frame was small.
+ */
+export function fullWidthPreviewSize(master: Size, screenWidth: number): Size {
+  if (master.width <= 0 || master.height <= 0 || screenWidth <= 0) return { width: 0, height: 0 };
+  return { width: screenWidth, height: (screenWidth * master.height) / master.width };
+}
+
+/**
+ * DOES THE 4:5 VERTICAL CROP SPAN THE SENSOR'S FULL WIDTH?
+ *
+ * TRUE iff the sensor is at least 5:4 tall (`height/width >= 1.25`). 4:3
+ * (1.333) and 16:9 (1.778) clear it; 5:4 is the exact boundary.
+ *
+ * **THIS IS NOT A FITTING QUESTION — CORRECTED FROM THE ORDER, WITH THE
+ * MEASUREMENT.** A sensor flatter than 5:4 does NOT make the guide overhang:
+ * under fill-the-width nothing can overhang (see above). What happens instead is
+ * that the vertical guide becomes NARROWER than the preview and sits centred
+ * inside it — 288px of 360 at 1:1, 346 of 360 at 1.2. The screen therefore has
+ * a real state to design, but it is « this guide is inset », not « this guide
+ * runs off the edge ».
+ */
+export const VERTICAL_SPAN_MIN_ASPECT = 5 / 4;
+export function verticalCropSpansWidth(master: Size): boolean {
+  if (master.width <= 0 || master.height <= 0) return false;
+  return master.height / master.width >= VERTICAL_SPAN_MIN_ASPECT;
+}
