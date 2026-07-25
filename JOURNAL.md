@@ -1707,3 +1707,28 @@ The review screen has a call site. `S26StudioReal` restructured from four phases
 - **The per-role flow makes that requirement visible for the first time**: he can now abandon after two photographs and see what happens, where the old flow simply refused to leave the shooting screen.
 - **NOT CHANGED — reported, not filled.** Making the detail optional is a product decision about what a listing must carry, not a wiring change.
 - **What an abandon does today:** nothing is banked until he taps « Garder cette photo », and `onApproved` fires only after the third keep. So abandoning mid-sequence hands the publish path **nothing at all** — the product publishes with `assetRefs: []`, the honest empty, and the wizard shows `publier.sans_photo`. **Two kept photographs travel no further than zero kept photographs**, which is exactly what the finding above is about.
+
+### 2026-07-25 · STUDIO-WIRE-1 MERGED — main `8359e55` · THIS PREVIEW IS THE DEVICE-PASS BUILD
+Guarded merge: remote heads verified → `--no-ff` → **tree diff vs the approved `e015feb` EMPTY** → re-proved green from the repo root (typecheck 11/11 · supplier-app 459/459 · ALL GATES GREEN) → pushed → **ancestry read-back: `e015feb` IS an ancestor of `origin/main`; tree diff empty.**
+- **The phase sequence is approved as reported**, and the founder has the before/after in his own terms — *"the avant/après card's departure is named to him rather than discovered."*
+- **Founder on the crop-render answer:** *"You were asked what the restructure cost and the honest answer was nothing — you established that rather than estimating it."*
+- **`studio.depuis_telephone` « Choisir une photo du téléphone » — APPROVED.** *"Plain, true, no jargon."*
+- **`studio.role_hero` still with the founder:** « Photo héro » or « Photo principale ». Not blocking.
+- **THE STUDIO IS NOW UNPROVEN ON HARDWARE AND THAT IS THE POINT.** `pick-native.ts` — three native calls — has never executed. The device pass is the gate.
+
+### 2026-07-25 · ⏳ DETAIL OPTIONAL — CTO RECOMMENDATION LODGED, FOUNDER RULING PENDING
+**My recommendation is AGAINST the app.** `assets.ts` makes `heroSquare`, `heroVertical` and `proof` REQUIRED; details are *"as many as arrived"*, and a failed detail *"drops only the suffix from that detail on"*. **The longest-complete-prefix law — his own ratified law — already treats a detail as droppable. The app requiring three contradicts it.**
+- **Two kept photographs travelling no further than zero is the defect. The per-role flow is what exposed it, not what caused it.**
+- **DO NOT BUILD UNTIL HE RULES.** And when it is built, this line goes in the entry: **the flow change did not create this divergence, it revealed one that predates it.**
+
+### 2026-07-25 · ⚖️ STANDING LAW — A TEST THAT BREAKS ON A RENAME IS TELLING YOU WHICH LAYER THE PROPERTY BELONGS IN
+Ratified by the founder as a law in its own right, from the `authoring-screen.test.ts` repair.
+- The regex asserted a literal call pair (`onApproved(phase.set); d({t:'STUDIO_APPROVE'})`) and went red on a RENAME rather than a defect — the exact shape already ruled against.
+- **The fix was not to loosen it.** The transition is a VALUE and lives in the reducer, so it is asserted there; the screen is left asserted only for an **absence** (it dispatches, and never writes `wiz` or `photos: true` itself).
+- **Founder:** *"Loosening the regex would have been faster and would have left a test that cannot fail."*
+- **The tell, stated for the next reader:** when a test breaks and the behaviour did not change, the test is in the wrong layer.
+
+### 2026-07-25 · 🔧 PRACTICE NOTE — NEVER `git checkout` A FILE YOU ARE MID-REWRITE ON
+Recorded at the founder's instruction after I did exactly this cleaning up a red proof: `git checkout apps/supplier-app/src/v2/studio-real.tsx` reverted **the entire rewrite**, not the one planted line. Caught on the next `git diff`; nothing was pushed in that state; the file was rewritten and the machine file verified restored by grep before the green run.
+- **Use `git stash` or a backup copy.** The command silently discards work that exists nowhere else — **and a red proof is precisely the moment the working tree holds something undescribed.**
+- **Founder on the report of it:** *"the temptation to quietly redo the work and say nothing is exactly the temptation the journal exists to defeat."*
