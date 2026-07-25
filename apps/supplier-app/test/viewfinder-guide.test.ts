@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverScale, guideForCrop, visibleMasterRegion } from '../src/studio/viewfinder';
+import { coverScale, fullWidthPreviewSize, guideForCrop, verticalCropSpansWidth, visibleMasterRegion } from '../src/studio/viewfinder';
 import { heroSquareCrop, heroVerticalCrop } from '../src/studio/crops';
 
 /**
@@ -133,5 +133,103 @@ describe('THE GUIDE IS THE CROP, MAPPED — not the preview’s own rect', () =>
         }
       }
     }
+  });
+});
+
+describe('FILL THE WIDTH — asserted as PROPERTIES over a range of aspects, not a device table', () => {
+  /**
+   * Founder ruling + founder instruction: « A property that holds for every
+   * portrait sensor is worth more than three passing rows, and it tells the next
+   * reader why rather than that. »
+   *
+   * The aspects below are swept, not enumerated from devices we own: 1.00 (square)
+   * through 2.00 (tall 18:9), in steps, so the 5:4 boundary is crossed from both
+   * sides by cases nobody chose by hand.
+   */
+  const SCREEN_W = 360;
+  const ASPECTS: number[] = [];
+  for (let a = 1.0; a <= 2.0001; a += 0.02) ASPECTS.push(Number(a.toFixed(4)));
+  const sensorAt = (aspect: number) => ({ width: 3000, height: Math.round(3000 * aspect) });
+
+  it('PROPERTY — the preview shows the ENTIRE sensor: the scale is uniform in both dimensions', () => {
+    for (const a of ASPECTS) {
+      const m = sensorAt(a);
+      const p = fullWidthPreviewSize(m, SCREEN_W);
+      // both candidate scales agree, so `cover` crops nothing
+      expect(p.width / m.width, `aspect ${a}`).toBeCloseTo(p.height / m.height, 9);
+      expect(coverScale(m, p), `aspect ${a}`).toBeCloseTo(SCREEN_W / m.width, 9);
+      const visible = visibleMasterRegion(m, p);
+      expect(visible.width, `aspect ${a}`).toBeCloseTo(m.width, 6);
+      expect(visible.height, `aspect ${a}`).toBeCloseTo(m.height, 6);
+      expect(visible.originX, `aspect ${a}`).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('PROPERTY — the SQUARE hero guide is EXACTLY the screen width, for every portrait sensor', () => {
+    // BY CONSTRUCTION, and this is the reason: for a portrait sensor the square
+    // crop's side IS the sensor width, so scaling the sensor to the screen width
+    // scales the crop to the screen width too. Nothing about 4:3 is involved.
+    for (const a of ASPECTS) {
+      const m = sensorAt(a);
+      const p = fullWidthPreviewSize(m, SCREEN_W);
+      const g = guideForCrop(heroSquareCrop(m.width, m.height), m, p);
+      expect(g.width, `aspect ${a}`).toBeCloseTo(SCREEN_W, 6);
+      expect(g.originX, `aspect ${a}`).toBeCloseTo(0, 6);
+      expect(g.fitsInPreview, `aspect ${a}`).toBe(true);
+    }
+  });
+
+  it('PROPERTY — NOTHING OVERHANGS at any aspect: a crop inside the sensor maps inside the preview', () => {
+    // the structural guarantee, and it is stronger than either hero crop:
+    // whole sensor visible at uniform scale ⇒ any in-bounds crop is in-bounds.
+    for (const a of ASPECTS) {
+      const m = sensorAt(a);
+      const p = fullWidthPreviewSize(m, SCREEN_W);
+      for (const crop of [heroSquareCrop(m.width, m.height), heroVerticalCrop(m.width, m.height)]) {
+        expect(guideForCrop(crop, m, p).fitsInPreview, `aspect ${a} crop ${crop.width}x${crop.height}`).toBe(true);
+      }
+      // and an arbitrary in-bounds rect, not just the two hero crops
+      const arbitrary = { originX: 10, originY: 20, width: m.width - 20, height: m.height - 40 };
+      expect(guideForCrop(arbitrary, m, p).fitsInPreview, `aspect ${a} arbitrary`).toBe(true);
+    }
+  });
+
+  it('THE 5:4 BOUNDARY GOVERNS SPANNING, NOT FITTING — corrected from the order, with the numbers', () => {
+    for (const a of ASPECTS) {
+      const m = sensorAt(a);
+      const p = fullWidthPreviewSize(m, SCREEN_W);
+      const g = guideForCrop(heroVerticalCrop(m.width, m.height), m, p);
+      const spans = verticalCropSpansWidth(m);
+      expect(spans, `aspect ${a}`).toBe(a >= 1.25 - 1e-9);
+      // it ALWAYS fits …
+      expect(g.fitsInPreview, `aspect ${a}`).toBe(true);
+      // … and SPANS only at or above 5:4. Below it the guide is inset, never off-edge.
+      if (spans) expect(g.width, `aspect ${a}`).toBeCloseTo(SCREEN_W, 0);
+      else expect(g.width, `aspect ${a}`).toBeLessThan(SCREEN_W);
+    }
+  });
+
+  it('the measured inset below the boundary — the state the screen must design for', () => {
+    const cases: [number, number][] = [[1.0, 288], [1.0667, 307.2], [1.2, 345.6]];
+    for (const [aspect, expected] of cases) {
+      const m = { width: 3000, height: Math.round(3000 * aspect) };
+      const p = fullWidthPreviewSize(m, SCREEN_W);
+      const g = guideForCrop(heroVerticalCrop(m.width, m.height), m, p);
+      expect(g.width, `aspect ${aspect}`).toBeCloseTo(expected, 0);
+      expect(g.originX, `aspect ${aspect}`).toBeGreaterThan(0); // centred, inset both sides
+    }
+  });
+
+  it('D17 + 4:3 — the ruled configuration, stated as the numbers he will see', () => {
+    const m = { width: 3000, height: 4000 }; // 4:3 portrait
+    const p = fullWidthPreviewSize(m, SCREEN_W);
+    expect(p).toEqual({ width: 360, height: 480 });          // the ruled preview
+    const sq = guideForCrop(heroSquareCrop(m.width, m.height), m, p);
+    const vt = guideForCrop(heroVerticalCrop(m.width, m.height), m, p);
+    expect([sq.width, sq.height]).toEqual([360, 360]);
+    expect([vt.width, vt.height]).toEqual([360, 450]);
+    expect(sq.fitsInPreview && vt.fitsInPreview).toBe(true);
+    // and it more than doubles the old card: C21.viseur.h was 230
+    expect(p.height).toBeGreaterThan(230 * 2);
   });
 });

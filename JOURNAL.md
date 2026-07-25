@@ -1573,3 +1573,53 @@ Founder ruling: the viewfinder computes from the real window, **not** from `GEO.
 - **THE CONSEQUENCE, STATED PLAINLY:** a hero with a price burned into it **lands on a reseller's vitrine beside the price SHE set** — two different numbers for the same item, one of them unremovable — **and the platform has no way to know.**
 - **Residual is nil while the founder is the only supplier**, because he will not sabotage his own listing. It becomes real with a supplier who has marketing images.
 - **⚠️ GATE SIZE WATCH (founder instruction): the supplier-#2 gate is at TWO items. If a third arrives, it gets reported in the next message rather than added quietly — a gate that grows without being sized becomes a launch blocker nobody planned for.**
+
+### 2026-07-25 · ITEM 5 GEOMETRY BUILT — FILL THE WIDTH, AND A CORRECTION TO THE ORDER'S SECOND STATEMENT
+Founder ruling: *"The preview is the full screen WIDTH at the sensor's own aspect — 360×480 for a 4:3 sensor on D17"*, and *"ASSERT THE INVARIANT, NOT A DEVICE TABLE"*. Built as `fullWidthPreviewSize` · `VERTICAL_SPAN_MIN_ASPECT` · `verticalCropSpansWidth` in `src/studio/viewfinder.ts`, proved as **properties swept over sensor aspects 1.00 → 2.00 in 0.02 steps**, not a device table.
+
+- **HIS STATEMENT (a) IS CONFIRMED, AND IT IS STRONGER THAN A MEASUREMENT.** For every portrait sensor the square hero guide is **exactly the screen width** — 360.0 at every swept aspect. Not a coincidence of 4:3: at full width the cover scale is `screenWidth / master.width` in **both** dimensions, so the preview shows the **whole sensor** at uniform scale. Once the whole sensor is visible, **any crop inside the sensor maps inside the preview, trivially, for every aspect.**
+- **HIS STATEMENT (b) IS CORRECTED, WITH THE NUMBERS. « A sensor flatter than 5:4 makes the vertical guide overhang » is not what happens.** Under fill-the-width **nothing can overhang** — `fitsInPreview` is `true` at every swept aspect, including 1.00. What the 5:4 boundary actually governs is whether the vertical crop **SPANS** the full width, not whether it **FITS**. Below it the guide is **inset and centred**: 288 px of 360 at 1:1 · 307 at 1.067 · 346 at 1.2 · 360 (spanning) from 1.25 up.
+- **SO THE BELOW-BOUNDARY STATE NEEDS NO SPECIAL DESIGN**, which is the honest answer to *"say what the screen does below the boundary"*: the guide is drawn truthfully at its real width and sits narrower than the preview. Nothing is clamped, nothing is wrong, nothing is hidden.
+- **AND `fitsInPreview` BECOMES A TRIPWIRE RATHER THAN A LIVE STATE.** It can only go false if the preview stops being derived from `fullWidthPreviewSize` — i.e. if someone later restores an edge-to-edge viewfinder. Kept for exactly that reason, and asserted unreachable under the full-width sizing.
+- **RED-PROVEN:** planting edge-to-edge sizing (`height: 800`, ignoring the sensor) fails 4 tests — e.g. `aspect 1: expected 800 to be close to 360`.
+- **VERIFIED STATE:** typecheck 13/13 · `viewfinder-guide.test.ts` 15/15.
+
+### 2026-07-25 · ⚠️ THE PREVIEW ASPECT IS NOT KNOWN BEFORE THE FIRST SHOT — GAP, REPORTED NOT FILLED
+The fill-the-width geometry is exact **given the master's dimensions**. At shot time there is no master, and the two aspects involved are not the same thing:
+- `CameraView`'s `ratio` prop (`'4:3' | '16:9' | '1:1'`) is **`@platform android`** only (`expo-camera@17.0.10`, `build/Camera.types.d.ts:406-411`) and sets the **preview** aspect; its own doc says setting it *"will change the scaleType of the camera preview from `FILL` to `FIT`"*.
+- `pictureSize` sets the **still** size and, verbatim at `:362`, *"will cause the `ratio` prop to be ignored"*. We set neither.
+- There is no API that reports the still's dimensions before one is taken. `photo.width/height` (`capture.ts:85`) is the first honest source, and it arrives after shot 1.
+
+**Consequence, stated plainly: the guide drawn on the LIVE viewfinder is drawn over an ASSUMED aspect, and my 4:3 assumption is unverified.** If the assumption is wrong the guide is the wrong size relative to what the camera shows — the exact class of lie item 6 exists to prevent. Not filled; it needs the founder's ruling on the screen first.
+
+### 2026-07-25 · THE LANDSCAPE-MASTER CASE — THE 480 NUMBER DEPENDS ON AN ORIENTATION NOBODY HAS PINNED
+`360 × 480` holds for a **portrait-delivered** 4:3 master (3000×4000). A **landscape-delivered** one (4000×3000) gives `360 × 270` — barely more than today's fixed 230 card, and it makes my own doc-comment claim that full width *"more than doubles the old 230pt viewfinder"* true only in the portrait case. Measured, both directions:
+
+| master | aspect | preview at 360 wide | remaining of 800 |
+|---|---|---|---|
+| 4000×3000 | 0.750 | 360×270 | 530 |
+| 3000×4000 | 1.333 | **360×480** | **320** |
+| 1920×1080 | 0.563 | 360×202 | 597 |
+| 1080×1920 | 1.778 | 360×640 | **160** |
+| 1080×1080 | 1.000 | 360×360 | 440 |
+
+The geometry is correct in every row — `fullWidthPreviewSize` takes the master's real dimensions. What changes per row is the **layout budget**, which is why the composition cannot hardcode 480.
+
+### 2026-07-25 · THE TWO OWED STRINGS — PROPOSED, LINT-CLEAN, NOT ADDED TO THE CATALOG
+Founder ordered both as proposals. Probed against the real `copy-lint` in a scratch catalog copy — **261 entries, 0 violations** — and deliberately **not** written into `apps/supplier-app/i18n/catalog.json`, because the wording is his to rule.
+
+1. **`studio.image_illisible`** · `neutral` · `status` — « Cette image n'a pas pu être ouverte ({format}). Choisissez-en une autre, ou prenez la photo maintenant. »
+   States the cause and **both** ways out, the shape he ratified for `publier.err_commission_net`.
+2. **`studio.format_inconnu`** · `neutral` · `label` — « format inconnu »
+   **Needed because the format cannot always be named.** The picker's own types say `type` may be null "with some Android ContentProviders", and a `ph://` URI carries no extension. A placeholder that renders « () » is the defect this second entry prevents.
+3. **`studio.preuve_appareil_seul`** · `selling` · `instruction` — « La photo preuve se prend maintenant, avec l'appareil. C'est elle qui montre que le produit est bien chez vous. »
+   The camera-only refusal on the PROOF role, **stated in words rather than by a missing button**. It gives the reason, which is the only thing that makes a removed affordance feel like care instead of a bug.
+
+**POSITIVE CONTROL RUN, because a lint that never sees the new key proves nothing:** planting « Veuillez sélectionner un fichier dont le format est conforme. » under `studio.image_illisible` fails the gate — `[banned_register_token] … « veuillez »`. The keys are genuinely read.
+
+### 2026-07-25 · PACKAGING RECOMMENDATION — SPLIT, SEAM FIRST (founder to rule)
+He asked whether items 1 and 4-wiring should land as one slice with the screen. **Recommendation: no — build the picker SEAM as its own slice, and let the screen slice wire it.**
+- **The gallery control is a NEW element on a screen whose budget has no slot for it.** Today's composition already overflows D17 by 14–54 px once the guidance banner is up (measured, `_review/WO-FP-BOUTIK/anatomy/studio-real-composition-PROPOSAL.md` §2). Wiring the control into that composition means placing a control I would then move — and *where it goes* is the same founder ruling the rebuild is already waiting on.
+- **Splitting means no file is touched twice**, and the seam (`src/studio/picker.ts` + tests: dimensions taken from the manipulator's decode, never the picker's; typed format-naming refusal; camera-only PROOF role) is testable entirely by value, with no layout decision inside it.
+- **The cost, stated: the gallery path is unreachable from the UI until the screen slice lands.** A module with tests and no call site yet — journaled here so it is not later mistaken for dead code.
+- **What is NOT a reason to split:** diff size alone. The seam and the screen are separate files and would have been reviewable together.
