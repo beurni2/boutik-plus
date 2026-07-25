@@ -26,11 +26,25 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
  * the wrong way on a real listing. `money.ts` is untouched; the demo board
  * still uses it.
  *
- * NO try/catch: `computeWaterfall` throws only on non-integer or negative
- * inputs, and the wizard's steppers are bounded to non-negative integers
- * (machine.ts `disabled.wizB` B ≥ 500, `disabled.wizC` C ≥ 0). Swallowing a
- * money-law violation to keep a screen alive would hide exactly the class of
- * bug this call exists to catch.
+ * NO try/catch — and the reason stated precisely, because a loose version of
+ * this sentence was wrong (verifier finding, MEDIUM). `computeWaterfall` throws
+ * `RangeError` on non-integer or negative inputs. Today no such input is
+ * reachable: `WIZ_SET` is dispatched for B/C at exactly two places
+ * (`screens2.tsx` steps 2 minus-handlers), and BOTH are wrapped in
+ * `!disabled.wizB(w)` / `!disabled.wizC(w)`, so B floors at 500 and C at 0.
+ *
+ * **THE BOUND IS ENFORCED AT THOSE CALL SITES, NOT IN THE REDUCER.**
+ * `machine.ts` declares `disabled.wizB`/`wizC` as predicates but its `WIZ_SET`
+ * case is a plain spread with no validation. So the guarantee is a property of
+ * the current dispatchers, not of the state machine — a future dispatcher that
+ * omits the guard reintroduces it.
+ *
+ * THAT MATTERS BECAUSE THIS CALL CHANGES THE FAILURE MODE: before, a negative B
+ * rendered a wrong number; now it throws during render, and the app has no
+ * error boundary, so it would be a blank screen mid-listing. Swallowing it in a
+ * catch is still the wrong trade — it would hide exactly the money-law
+ * violation this call exists to surface — but the risk is named here rather
+ * than argued away, and is flagged to the founder as its own decision.
  */
 export interface SellerPreview {
   /** « Vous recevez / vente » — B − C − fee, canon. */

@@ -103,8 +103,11 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // required rather than defaulted so that a caller which forgets it FAILS TO
 // COMPILE instead of silently falling back to the frozen demo `Math.round`
 // math — a silent fallback to non-canon rounding on a money screen is precisely
-// the divergence this ruling closes. `v2/money.ts` §3.4 is untouched and still
-// serves the demo board (seed, machine, screens1).
+// the divergence this ruling closes. `v2/money.ts` §3.4 is untouched; its
+// `fee`/`net` now have exactly ONE consumer left, `seed.ts` (the demo board's
+// product and order figures). Named precisely because a looser version of this
+// line said "seed, machine, screens1" and was wrong: machine.ts imports
+// fee/net but uses only formatF, and screens1 never imported them at all.
 export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerPreview; heroUri?: string | undefined }) {
   const w = st.wiz;
   const feeV = money.sellerPlatformFeeFcfa;

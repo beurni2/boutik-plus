@@ -64,12 +64,14 @@ const REQUIRED = [
   // ASCII, a data literal, and present in the measured artifact (verified before
   // being added here, not assumed).
   //
-  // WHAT IT PROVES: the pinned canon waterfall — the FLOOR fee, the
-  // by-subtraction nets — is inside the real Metro/Hermes bundle, so the app's
-  // money code is canon's, not a local re-implementation.
-  // WHAT IT DOES NOT PROVE: which screen calls it. The wizard's floor behaviour
-  // is asserted by VALUE in apps/supplier-app/test/preview-rounding.test.ts;
-  // this control only keeps the canon module from silently leaving the bundle.
+  // WHAT IT PROVES, and no more: the pinned canon waterfall — the FLOOR fee,
+  // the by-subtraction nets — IS INSIDE the real Metro/Hermes bundle. That is
+  // all. It does NOT prove the app's money is exclusively canon's: the demo
+  // board's `Math.round(B * 0.05)` (v2/money.ts §3.4, frozen) ships in the very
+  // same bundle via seed.ts, and is supposed to.
+  // NOR does it prove which screen calls which. The wizard's floor behaviour is
+  // asserted by VALUE in apps/supplier-app/test/preview-rounding.test.ts; this
+  // control only keeps the canon module from silently leaving the bundle.
   'must be an integer FCFA amount, got',
 ];
 

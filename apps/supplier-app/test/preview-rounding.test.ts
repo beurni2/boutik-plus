@@ -13,9 +13,18 @@ import { fee, net } from '../src/v2/money';
  * by subtraction. « floor » means the fraction of a franc stays with the
  * participant, never the platform.
  *
- * These assertions are about NUMBERS THAT COME OUT, not about which function
- * was called — the standing red-proof rule (JOURNAL 2026-07-25): a proof about
- * call structure cannot catch a defect about arguments.
+ * WHICH ASSERTIONS ARE WHICH — stated because a looser version of this header
+ * claimed the whole file was value-based, and the second describe is not
+ * (verifier finding, MEDIUM):
+ *   · describe #1 IS value-based: real numbers in, real francs out. It is what
+ *     discriminates floor from round.
+ *   · describe #2 is SOURCE-TEXT ONLY — capability-absence checks. They are
+ *     honest substitutes for a render assertion this repo cannot make (no RN
+ *     renderer in vitest), and each says so at its own site.
+ *
+ * The standing red-proof rule (JOURNAL 2026-07-25): a proof about call
+ * structure cannot catch a defect about arguments. Which is exactly why the
+ * two kinds are labelled apart instead of averaged into one claim.
  */
 
 const appDir = join(import.meta.dirname, '..');
@@ -41,8 +50,13 @@ describe('the real flow floors — RoundingLaw v1, to the franc', () => {
     // remainder class is assumed rather than checked.
     for (let B = 10_000; B < 10_020; B += 1) {
       const f = previewSellerNet(B, 0).sellerPlatformFeeFcfa;
-      expect(f, `B=${B}`).toBe(Math.floor((B * 5) / 100));
-      expect(f * 100, `B=${B} fee never exceeds 5% of B`).toBeLessThanOrEqual(B * 5);
+      // CHARACTERISED, NOT RESTATED (verifier finding): asserting
+      // `f === Math.floor(B*5/100)` would just re-type canon's own arithmetic
+      // and pass for that reason. These two bounds define floor independently —
+      // f is the LARGEST integer whose fee does not exceed 5% of B. `Math.round`
+      // fails the upper bound on every B where 0.05*B has fraction >= .5.
+      expect(f * 100, `B=${B}: fee must never exceed 5% of B`).toBeLessThanOrEqual(B * 5);
+      expect((f + 1) * 100, `B=${B}: fee must be the largest such integer`).toBeGreaterThan(B * 5);
     }
   });
 
@@ -74,7 +88,12 @@ describe('the real flow floors — RoundingLaw v1, to the franc', () => {
 });
 
 describe('the wizard cannot fall back to the demo math — the capability is gone, not just unused', () => {
-  it('screens2.tsx no longer imports fee/net at all, so no S## in it can compute non-canon money', () => {
+  // SOURCE-TEXT CHECK, not a behavioural one (verifier finding: this title used
+  // to assert the consequence while the body only read the file). What it
+  // actually asserts: screens2.tsx holds no BINDING to the demo math. The
+  // consequence — that no S## in it can render non-canon money — follows from
+  // that absence, but is not observed here.
+  it('screens2.tsx holds no fee/net binding [source-text check]', () => {
     const src = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
     const moneyImport = /^import \{([^}]*)\} from '\.\/money';/m.exec(src);
     expect(moneyImport, 'screens2 still imports from ./money').not.toBeNull();
