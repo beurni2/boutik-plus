@@ -1647,3 +1647,30 @@ Founder: *"Seam approved."* Guarded merge: remote heads verified → `--no-ff` �
 - **« Reprendre » and « Choisir une autre photo » are BOTH kept, one per source** — « Reprendre » on a library photo asks him to re-take something he did not take.
 - **ONE ELEMENT HAS NO PLANCHE LINE BEHIND IT AND IS NAMED AS SUCH (D-1):** the vertical guide. The planche had one decorative inset because it had one mock viewfinder; the second rect is required by the ruling and is composed from the first's vocabulary at 1.5 px continuous. Named rather than smuggled into the table.
 - **THE FOOTER HONESTY NOTE LANDS HERE (planche 495)** — « votre photo d'origine est gardée, jamais remplacée » — as ordered, journaled as a MOVE with its reason: there was no room beside a 480 px camera pane, and the review surface is where a person is actually deciding about his original.
+
+### 2026-07-25 · STUDIO-REVIEW-1 BUILT — THE PANE IS DERIVED, NOT BUDGETED
+Founder ruling, verbatim: *"DERIVE THE PANE FROM THE REMAINING SPACE AFTER CHROME, CAPPED AT THE IMAGE'S NATURAL SIZE, CONTAINED FOR TALL SENSORS."* Built as `reviewPaneSize` in `src/studio/review.ts`; the screen is `src/v2/studio-review.tsx`.
+- **ONE MECHANISM CLOSED BOTH ITEMS, and it was the right call within the hour.** I corrected my own chrome number while building: I had budgeted the secondary at the planche's 40 px pill, but the kit's docketed ghost (`C09`) is **46**, and §5 says screens compose kit components. Chrome is 317, not 311. **The 4:3 portrait margin is 3 px, not 9.** A screen budgeted at a fixed 480 would have been three pixels from scrolling and nobody would have known until a device.
+- **THE SCREEN CONTAINS NO 480.** The pane region is `flex: 1`, so the layout engine measures the real remainder — including a footer that wrapped to a fourth line on this device's metrics — and `reviewPaneSize` caps and contains inside it.
+- **THE NO-OVERHANG GUARANTEE IS A CONSEQUENCE, NOT A DEFENDED PROPERTY** (founder). Proved by the red proof: replacing CONTAIN with a height CLAMP (keep full width, cut the height) breaks the uniform scale and **three tests fail, one of them the guide-fit property** — nothing in the guide code changed. That is the guarantee failing *through* its cause, exactly as described.
+- **RED-PROVEN, four planted defects:** a fixed 480 pane — **the defect he named — fails 8 tests** · no cap, stretch into spare room (4) · clamp instead of contain (3) · guides on every role (2).
+- **THE GUIDES ARE NAMED, NOT INDEXED** — `reviewGuides` returns `{kind:'square'|'vertical'}`, so the screen picks its border weight from a value.
+- **VERIFIED:** typecheck 11/11 · supplier-app **453/453 (37 files)** · copy-lint 265 entries, 0 violations · ALL GATES GREEN.
+
+### 2026-07-25 · THE GUIDES ARE ON THE HERO ONLY — A CTO CORRECTION OF A FOUNDER RULING, ACCEPTED
+Founder: *"I ruled 'both guides' without distinguishing the roles, and canon settles it… A guide on a proof would claim a cropping that does not happen — the exact lie this entire body of work exists to remove, and it would have shipped inside my own ruling."*
+- The mechanism: canon `ProductAssets` carries `heroSquare`, `heroVertical`, `proof`, `detail[]`, and `studio-real.tsx` runs `renderCropDerivative` **twice on the hero master alone**. Proof and detail upload whole.
+- `reviewGuides(role, …)` returns `[]` for `preuve` and `detail`, and the test that proves it also proves the hero still gets two — **an accidental empty would otherwise read as a pass**.
+
+### 2026-07-25 · D-1 — WHY THE PLANCHE HAS ONLY ONE GUIDE (recorded so it is not read as drift)
+**The planche had ONE mock viewfinder, so it had ONE decorative inset** (line 446). The review screen needs TWO rects because the hero has two crops. The second is composed rather than grepped, and `C39G.vertical` **derives its cream and radius FROM `C39.inset` by reference** — a hand-copied value would drift the day the first one moves. It differs only in weight (1.5 vs 2.5) and style (solid vs dashed), asserted by test. **The only element on this screen with no planche line behind it.**
+
+### 2026-07-25 · THE FOOTER HONESTY NOTE — MOVED, NOT DELETED
+« Cette photo prouve l'accès au produit, pas l'authenticité. Votre photo d'origine est gardée, jamais remplacée. » (planche 495, catalog `studio.honnete_original`). **Founder read it and ruled it: two sentences, both true, neither promising anything the platform cannot keep.**
+- **The reason for the move, recorded as the entry rather than as a footnote:** there was no room for it beside a 480 px live-camera pane, and the review surface is where a person is actually deciding about his original. It was ABSENT from `studio-real.tsx` before this slice — so this is the first time it reaches a screen in the V2 app at all.
+
+### 2026-07-25 · THE FOUR STRINGS ARE IN THE CATALOG, TEXT HELD FOR THE FOUNDER'S RULING
+`t()` throws on a missing key, so a screen built "with the keys" cannot run until the text exists. Founder: *"Build with the keys; the text can be ruled into the catalog after, since that is a copy edit and not a layout change."* So the proposed text is in, the screen runs, and **the TEXT remains his to rule** — each is a one-line copy edit that changes no layout.
+- **265 entries, 0 violations.** `studio.role_hero` « Photo héro » · `studio.role_preuve` « Photo preuve » · `studio.role_detail` « Photo détail » (all neutral/label) · `studio.choisir_autre` « Choisir une autre photo » (neutral/general).
+- **AND THE REPORTING GAP IS MINE:** the French text was in the proposal file's §0-C table all along, but my message to him carried only the keys. He looked in the catalog — correct for an unbuilt slice — and found nothing. **A proposal he has to go hunting for is a proposal I did not send.**
+- **His standard, recorded because it outranks the linter:** *"Lint-clean is necessary and not sufficient — the linter cannot tell whether a sentence is TRUE, which is the half that has mattered most in this program."*

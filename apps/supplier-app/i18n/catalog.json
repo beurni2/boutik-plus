@@ -1564,5 +1564,29 @@
     "fr": "La photo preuve se prend maintenant, avec l'appareil. C'est elle qui montre que le produit est bien chez vous.",
     "register": "selling",
     "screenClass": "instruction"
+  },
+  {
+    "key": "studio.role_hero",
+    "fr": "Photo héro",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.role_preuve",
+    "fr": "Photo preuve",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.role_detail",
+    "fr": "Photo détail",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.choisir_autre",
+    "fr": "Choisir une autre photo",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

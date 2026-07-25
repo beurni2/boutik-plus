@@ -1,6 +1,11 @@
 # COMPOSITION PROPOSAL — the Studio REVIEW screen (real image · both guides · keep-or-choose-another)
 
-**STATUS: PROPOSAL. NOTHING BUILT FROM IT.** The founder ruled the layout is his.
+> **STATUS: APPROVED AND BUILT 2026-07-25**, subject to the founder's pane ruling —
+> *"DERIVE THE PANE FROM THE REMAINING SPACE AFTER CHROME, CAPPED AT THE IMAGE'S NATURAL SIZE,
+> CONTAINED FOR TALL SENSORS"* — which replaces §2's fixed-budget reading and closes §3 with one
+> mechanism. §2's arithmetic is kept as the DERIVATION'S INPUT and as the record of why the
+> mechanism was needed; it is no longer a number the code contains.
+> Built: `src/studio/review.ts` (pure) · `src/v2/studio-review.tsx` (screen) · `C39G` (guide styles).
 
 **Planche:** `design-reference/handoff_redesign/Boutik Plus - Redesign.dc.html`,
 `data-screen-label="Boutik+ Studio"` — lines **432–497**. Every row below is grepped from that
@@ -108,23 +113,30 @@ Fixed heights are planche bytes. The footer height is an **estimate** (~0.5 em a
  12   gap
  54   « Garder cette photo »                       (492)
  10   gap
- 40   « Choisir une autre photo » / « Reprendre »  (461 ghost pill)
+ 46   « Choisir une autre photo » / « Reprendre »  (461 → kit C09 BtnGhost, 46)
  14   gap
  58   « … votre photo d'origine est gardée, jamais remplacée. »   (495, 3 lines)
  16   bottom safe area
 ```
 
-**Chrome without the pane: 311. Pane budget: 489.**
+**Chrome without the pane: 317. Pane budget: 483.**
+
+**CORRECTED FROM MY OWN FIRST NUMBER:** I budgeted the secondary at the planche's 40 px pill.
+The kit's docketed ghost (`C09`) is **46**, and §5 says screens compose kit components rather than
+grow snowflakes — so the kit value wins and the chrome is 6 px heavier than I first reported.
+That takes the 4:3 portrait margin from 9 px to **3**, which is the best argument for the derivation
+the founder ruled: a screen budgeted at a fixed 480 would have been three pixels from scrolling and
+nobody would have known until a device.
 
 | master | aspect | pane at 360 wide | fits 489? |
 |---|---|---|---|
-| 4000×3000 · 4032×3024 (4:3 landscape) | 0.750 | 360×270 | yes, 219 spare |
-| **3000×4000 · 3024×4032 (4:3 portrait)** | 1.333 | **360×480** | **yes, 9 spare** |
+| 4000×3000 · 4032×3024 (4:3 landscape) | 0.750 | 360×270 | yes, 213 spare |
+| **3000×4000 · 3024×4032 (4:3 portrait)** | 1.333 | **360×480** | **yes, 3 spare** |
 | 1080×1080 | 1.000 | 360×360 | yes |
 | 1920×1080 | 0.563 | 360×203 | yes |
 | 1080×1920 (16:9 portrait) | 1.778 | 360×640 | **no — contains to 275×489** |
 
-**The 4:3 portrait case fits with 9 px to spare.** That is thin enough to be honest about: a footer
+**The 4:3 portrait case fits with 3 px to spare.** That is thin enough to be honest about: a footer
 that wraps to four lines on a device with wider metrics pushes it over, and the screen scrolls.
 A scrolling review is not the failure a scrolling live camera was — the image is static — but it is
 worth knowing before it is built.
@@ -144,7 +156,7 @@ merged and swept.
 
 ## 3. Decision A — the tall-sensor cap (the only decision left in this screen)
 
-A 16:9-portrait image wants 640 px and 489 are available. Same two options as before, same
+A 16:9-portrait image wants 640 px and 483 are available. Same two options as before, same
 recommendation:
 
 1. **Contain.** The pane is the largest rect with the image's aspect fitting `360 × 489`. **4:3

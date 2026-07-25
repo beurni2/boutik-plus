@@ -422,6 +422,30 @@ export const C39 = {
   caption: { ...role({ f: 'IS', w: 700, s: 12, lsEm: 0.02 }, P.creamCaption), position: 'absolute' as const, bottom: 30, left: 30, right: 30, textAlign: 'center' as const },
   CAPTION: "Placez l'article dans le cadre",
 } as const;
+/**
+ * STUDIO-REVIEW-1 — the two crop guides drawn on a reviewed HERO image.
+ *
+ * `square` reuses `C39.inset`'s border VERBATIM (planche 446) — only the rect
+ * changes, from a fixed 20pt decoration to a derived crop rectangle.
+ * `vertical` has NO planche line behind it (listed divergence D-1: the planche
+ * had one mock viewfinder, so it had one inset). It is composed from its
+ * sibling — same cream, same radius, DERIVED not retyped — and differs only in
+ * weight and style, so the pair reads as primary + secondary.
+ */
+export const C39G = {
+  square: {
+    borderWidth: C39.inset.borderWidth,
+    borderColor: C39.inset.borderColor,
+    borderStyle: C39.inset.borderStyle,
+    borderRadius: C39.inset.borderRadius,
+  },
+  vertical: {
+    borderWidth: 1.5,
+    borderColor: C39.inset.borderColor,
+    borderStyle: 'solid' as const,
+    borderRadius: C39.inset.borderRadius,
+  },
+} as const;
 export const C40 = {
   grid: { marginTop: 12, flexDirection: 'row' as const, gap: 12, alignItems: 'flex-start' as const },
   col: { flex: 1 },
