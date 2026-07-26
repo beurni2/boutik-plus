@@ -355,3 +355,57 @@ describe('combined Worker — durable offers on real workerd', () => {
   // READ_NOW is referenced so a future edit that needs the read clock has it wired.
   void READ_NOW;
 });
+
+/**
+ * DEVICE INCIDENT 2026-07-26 — a product the founder published was invisible in
+ * Produits. The index and the entry live in DIFFERENT DOs with no transaction
+ * across them, so a router that dies between /entry/create and /index/add
+ * leaves an ORPHAN: an honestly-published entry no list can ever see, because
+ * name-addressed DOs cannot be enumerated — the index IS the enumeration.
+ *
+ * The old router wrote the index on 'created' ONLY, so the one command that
+ * could repair the orphan — the same create, replayed — walked past it.
+ *
+ * THE ORPHAN HERE IS FABRICATED THE WAY PRODUCTION MAKES THEM: the entry is
+ * created directly in its own DO (the first half of the router's work), and the
+ * index write never happens (the half that died).
+ */
+describe('AN ORPHANED ENTRY IS REPAIRED BY REPLAYING ITS CREATE (idempotent writes the index too)', () => {
+  const ORPHAN = {
+    ...SEED,
+    commandId: 'orphan-cmd-001',
+    offerId: 'offer-orphan-001',
+    product: { ...SEED.product, id: 'pv-orphan-001' },
+    draft: { ...SEED.draft, productVersionId: 'pv-orphan-001' },
+  };
+
+  it('the orphan exists and the list CANNOT see it — the incident, reproduced', async () => {
+    // half a create: the entry DO commits, the index write never runs
+    const ns = await mf.getDurableObjectNamespace('OFFER');
+    const stub = ns.get(ns.idFromName(ORPHAN.offerId));
+    const created = await stub.fetch('https://do/entry/create', { method: 'POST', body: JSON.stringify(ORPHAN) });
+    expect(((await created.json()) as { status: string }).status).toBe('created');
+
+    const list = await mf.dispatchFetch('http://o/offers?supplierId=supplier-founder-001', { headers: authed });
+    const body = (await list.json()) as { items: { offerId: string }[] };
+    expect(body.items.map((i) => i.offerId)).not.toContain(ORPHAN.offerId); // published, invisible
+  });
+
+  it('replaying the SAME create through the router answers idempotent AND heals the index', async () => {
+    const replay = await mf.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(ORPHAN) });
+    expect(replay.status).toBe(200);
+    expect(((await replay.json()) as { status: string }).status).toBe('idempotent');
+
+    const list = await mf.dispatchFetch('http://o/offers?supplierId=supplier-founder-001', { headers: authed });
+    const body = (await list.json()) as { items: { offerId: string }[] };
+    expect(body.items.map((i) => i.offerId)).toContain(ORPHAN.offerId); // visible — the retry repaired it
+  });
+
+  it('and the dedup HOLDS — a replay of a HEALTHY offer does not double its row', async () => {
+    const replay = await mf.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(SEED) });
+    expect(((await replay.json()) as { status: string }).status).toBe('idempotent');
+    const list = await mf.dispatchFetch('http://o/offers?supplierId=supplier-founder-001', { headers: authed });
+    const body = (await list.json()) as { items: { offerId: string }[] };
+    expect(body.items.filter((i) => i.offerId === SEED.offerId)).toHaveLength(1);
+  });
+});

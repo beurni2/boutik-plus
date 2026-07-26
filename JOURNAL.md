@@ -1813,3 +1813,22 @@ Founder, from his phone. Items 2–5 built; **item 1 needs one answer from him**
 **I read the whole path and could not find the defect, so I am not guessing at a fix.** `AppV2` passes the same `SUPPLIER_ID` the publish writes; `SProduitsReal` reads once per mount, so a tab switch re-reads; `buildSupplierList` **shows lapsed and un-approved offers MARKED rather than hiding them**, so even a refused offer should appear.
 - **`produitsView` has a designed state for every case** — `not_configured` · `loading` · `failed` (with the stale list, labelled) · `empty` · `list`. **So he is seeing one of five specific screens, and which one he sees discriminates between every remaining hypothesis at once.**
 - **THE QUESTION, ASKED RATHER THAN GUESSED AT:** what does the Produits tab actually show — the empty state, a red « lecture échouée » banner, « non configuré », or a spinner? **Firing changes at this blind would be the shotgun the last three device defects each punished.**
+
+### 2026-07-26 · 🚨 LIVE DEFECT #4 DIAGNOSED — « PUBLIÉ » BUT INVISIBLE IN PRODUITS: THE DEPLOYED SERVICE IS EIGHT HOURS BEHIND THE APP
+Founder's discriminating answer: the Produits tab shows the EMPTY state. Diagnosis from bytes and deploy records, not the symptom:
+
+**THE TIMELINE, EVIDENCE-BACKED:**
+- offer-deploy is **MANUAL ONLY** (`workflow_dispatch` — his own ruling: *"a deploy is a deliberate act"*). Three runs ever; the last: **2026-07-25 00:25 UTC at `76f32e3`**.
+- **PRODUITS-READ-1 merged 08:07 the same day — eight hours AFTER that deploy.** The deployed `GET /offers` is the previous generation, read in its own bytes at `76f32e3`: the scope-less admin list returning a **BARE ARRAY** — no `asOf`, no envelope, no `category`, no `assetRefs`.
+- The current app's `readSupplierOfferList` refuses that shape whole (asOf missing → `null` → 'unreadable'), **exactly as designed** — the boundary validator did its job against a wire from the past.
+- **THE APP MOVED; THE SERVICE DID NOT; NOTHING TOLD ANYONE.** OTA ships the app in minutes; the service ships only when he dispatches it.
+
+**AN HONEST WRINKLE, RECORDED RATHER THAN SMOOTHED:** the deployed bytes predict the FAILED banner (unreadable → red), while he reports the EMPTY state. Either the screens collapsed in recall, or a deploy ran outside Actions (local wrangler). **The action is identical in every branch — dispatch offer-deploy — so the wrinkle changes nothing he must do**, and `/health` settles it: the SERVICE-PROVENANCE-1 stamp answers `release` + `canon` in a browser. *"A stamp, not a guarantee, and something must read it"* — **this is the incident that sentence was written for, and still nothing reads it.**
+
+**A REAL ORPHAN-MAKER FOUND UNDER THE SAME STONE, FIXED (fast path, service-side):** the router wrote the pv pointer + index row on `'created'` ONLY. The entry and the index live in DIFFERENT DOs with no transaction across them; a router dying between the two writes leaves an **honestly-published entry no list can ever see** — name-addressed DOs cannot be enumerated; **the index IS the enumeration**. And `'created'`-only meant every retry SKIPPED the repair. Now `'idempotent'` writes both too (both targets already dedup-safe) — **every replay is a repair**.
+- **PROVEN ON REAL WORKERD with the orphan fabricated the way production makes them**: entry created directly in its DO (the half that committed), no index write (the half that died) → list cannot see it → replay through the router → `idempotent` → **visible**. Dedup asserted on a healthy replay. **RED-PROVEN:** the shipped condition fails the healing test.
+- offer-service **118/118** · typecheck 11/11 · supplier-app 476/476 · ALL GATES GREEN.
+
+**⚠️ NAMED GAP, REPORTED NOT FILLED — VERSION SKEW HAS NO DETECTOR:** the app pins its canon version and the service serves its own at `/health`, and no one compares them. An app-side check on the Produits read path (« service à mettre à jour » instead of a wrong honest-empty) is a real slice needing a founder ruling on wording; it is NOT smuggled into this fix.
+
+**⚠️ THE EMPTY STATE'S OWN LESSON:** « Vous n'avez pas encore de produit » was designed to be unmistakable — and this incident shows its blind spot: it is only as honest as the wire under it. An empty answered by the WRONG GENERATION of a service is a confident falsehood.

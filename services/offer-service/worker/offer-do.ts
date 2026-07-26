@@ -184,8 +184,18 @@ export default {
         new Request('https://do/entry/create', { method: 'POST', body: JSON.stringify(cmd) }),
       );
       const decision = (await res.clone().json()) as CreateOfferDecision;
-      // write-once: the pv pointer + the immutable index row land on the REAL create only.
-      if (decision.status === 'created') {
+      // THE POINTER AND THE INDEX ROW LAND ON 'created' **AND** 'idempotent'
+      // (device incident 2026-07-26 — a published product invisible in
+      // Produits). These are TWO writes to TWO DOs with no transaction across
+      // them: a router that dies between /entry/create and /index/add leaves an
+      // ORPHAN — an honestly-published entry no list can ever see, because the
+      // index IS the enumeration (name-addressed DOs cannot be listed). The old
+      // 'created'-only condition made every retry SKIP the repair: the entry
+      // already existed, so the one command that could have healed the index
+      // walked past it. Both target writes are dedup-safe (/index/add checks
+      // `some(offerId)`; the pointer PUT rewrites the same value), so replaying
+      // them is free — every idempotent replay is now a repair.
+      if (decision.status === 'created' || decision.status === 'idempotent') {
         await pvStub(env, decision.entry.product.id).fetch(
           new Request('https://do/pointer', { method: 'PUT', body: JSON.stringify({ offerId: cmd.offerId }) }),
         );
