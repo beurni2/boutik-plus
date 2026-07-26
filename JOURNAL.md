@@ -1843,3 +1843,14 @@ Founder's screenshot: step 2/5, every visible field filled, Continue grey. **The
 - **WHY 476 GREEN TESTS MISSED IT, and this one goes in the ledger:** my own machine tests dispatched `WIZ_SET {zone: 'Gounghin'}` before every continue — **the tests kept a door open that the screen had lost.** And `authoring-screen.test.ts` asserted the gate's SOURCE REGEX including zone — a source-shape assertion protecting the defect. **A removal is only complete when the tests that compensated for the removed thing are found and turned around.**
 - **FIX:** zone leaves `wizContinue` as it left the input; the record's zone remains `SUPPLIER_ZONE` at `formFromWiz`. The `Wiz` field stays so §9's frozen shape is intact. The source regex became a VALUE test driving the real reducer: name alone opens step 1 with `zone === ''`; an empty name still gates. **RED-PROVEN:** restoring the zone clause fails 3 tests.
 - **VERIFIED:** typecheck 11/11 · supplier-app 476/476 · ALL GATES GREEN. OTA-deliverable — no rebuild, no service deploy.
+
+### 2026-07-26 · FICHE + VIEWER + LARGE CARDS BUILT — ON THE BRANCH, AWAITING THE FOUNDER'S MERGE WORD
+Three founder device rulings (*"tap each photo and see it"* · *"tap each product to see all the photo and the details"* · *"make it more bigger"*). **Not a live defect — held for approval**, per the gate I broke once tonight and will not break twice.
+
+- **`PhotoViewer`** — core RN `Modal`, no new dependency. The image is CONTAINED, never cropped: an inspection view shows every pixel of the shipped bytes. One tap anywhere closes.
+- **Verify step:** the three photo tiles are Pressables opening the viewer over the same shipped bytes.
+- **`SOffreFiche`** — the fiche the journal recorded as founder-accepted-absent (*"a dead tap is worse than no tap"*) now exists, so the tap has a destination and `OfferTile` gains `onPress`. **It reads the ROW HE TAPPED and nothing else** — no service call, no machine state — so the fiche cannot disagree with the tile that opened it. All photographs in wire order, labelled by position (`galleryPhotos`, pure: Héro · Héro (vertical) · Preuve · Détail n), each tappable into the viewer; the detail card mirrors the verify step's rows; a hidden offer states the ladder's sentence here too.
+- **Produits: ONE COLUMN, LARGE CARDS.** The two-up grid put a 12 MP photograph in 154 points; judging the photo is the whole job of the screen. Image height 210 (app-local geometry, named constant).
+- **`galleryPhotos` tested by value:** wire-order labels, empty gallery for no photos, NOTHING rendered without a media base, and a `private/` ref never renders — belt and braces under the upstream wire-order guarantee.
+- **Law-6 note, honestly:** the fiche's row labels are inline French, matching the verify card's shipped pattern — the named inline-strings gap EXTENDS here and stays on the books.
+- **VERIFIED:** typecheck 11/11 · supplier-app 480/480 (37 files) · ALL GATES GREEN.
