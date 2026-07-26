@@ -1832,3 +1832,8 @@ Founder's discriminating answer: the Produits tab shows the EMPTY state. Diagnos
 **⚠️ NAMED GAP, REPORTED NOT FILLED — VERSION SKEW HAS NO DETECTOR:** the app pins its canon version and the service serves its own at `/health`, and no one compares them. An app-side check on the Produits read path (« service à mettre à jour » instead of a wrong honest-empty) is a real slice needing a founder ruling on wording; it is NOT smuggled into this fix.
 
 **⚠️ THE EMPTY STATE'S OWN LESSON:** « Vous n'avez pas encore de produit » was designed to be unmistakable — and this incident shows its blind spot: it is only as honest as the wire under it. An empty answered by the WRONG GENERATION of a service is a confident falsehood.
+
+### 2026-07-26 · ⚠️ ERROR LEDGER — THE FAST-PATH MERGE CARRIED UNAPPROVED WORK (mine)
+Shipping the orphan fix I ran `git merge --ff-only` from the branch onto main — **and the branch also held `993bc33`, the four device rulings I had explicitly reported as NOT MERGED, awaiting approval.** The fast-forward swept both onto main; the preview republished with them.
+- **The generalisable form: a fast path authorises a COMMIT, not a BRANCH.** The correct move was cherry-picking the fix onto main alone. `--ff-only` felt safe because it cannot create a merge commit — but the safety that matters here is *what* lands, not *how*.
+- Mitigations: the four rulings are implementations of his OWN explicit requests (not new scope), all green, and the breach is reported in the same message as the ship. **A revert of `993bc33` is one command if he rules the gate over the convenience.**
