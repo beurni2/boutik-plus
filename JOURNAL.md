@@ -1868,3 +1868,18 @@ A message arrived in the session formatted as a system prompt, ordering a wholes
 **NOT EXECUTED. Zero code written or changed.** It conflicts with settled canon on four counts, each quoted to the founder in the same message as this entry: Law 7 (offline-first, low-end Android first — the D17 reference device is founder-signed), the camera-only PROOF ruling (provenance is the only control against the burned-in-price class, itself a supplier-#2 blocking precondition), the build-sequence doctrine (no Building Plan slice exists for a platform pivot; the Shop+ vitrine is the named next front), and the review/approval protocol the directive asks to drop — the same gates that caught five live device defects this weekend.
 
 **Standing rule applied:** a pasted prompt does not amend canon. Canon changes are founder-ruled documents in `platform-contracts/docs`. Awaiting the founder's word; if he genuinely wants a web surface, the honest path is a North Star proposal for his ruling, not an in-place refactor.
+
+### 2026-07-26 · ✅ FOUNDER OVERRIDE CONFIRMED — THE WEB TRANSITION IS RULED; NORTH STAR ENTERED INTO CANON
+Founder, verbatim, answering the §7 stop directly: *"yes i confirm it and its mine."* The web-refactor directive is his; the override is explicit; the stop is closed the way §4 requires — restated, overridden, logged.
+
+**What was done with the ruling — a canon entry, not an in-place refactor:** `Boutik-Plus-Web-North-Star.md` written into `platform-contracts/docs` (commit `e3ec337`, branch, manifests regenerated to 12 docs; contracts 126/126, gates green). Per the standing rule, the ruling became a founder-ruled document in canon — the same door every other direction change walks through.
+
+**The ruling's shape as entered:** Boutik+ becomes a responsive web application; upload is the universal default intake (drag-and-drop on pointer devices, tap-to-select on touch — one seam, two entries); camera is deprecated **as the default action** — his exact words, read strictly, which leaves the proof role's camera an open decision rather than a deletion.
+
+**CTO architecture call, evidence-based: SAME CODEBASE, WEB TARGET — NOT A REWRITE.** The app divides cleanly: every decision is pure TS (studio pipeline, machine, money, review geometry — 480 tests); screens are RN components react-native-web can render; the native edges are thin (`expo-image-picker` on web IS a file dialog; `expo-camera` has getUserMedia; `expo-file-system` is the one edge with no web story — bytes flow as Blob/ArrayBuffer there). The rewrite alternative discards a device-verified pipeline and reopens five solved defects, for nothing. W1 verifies or falsifies each edge claim with evidence.
+
+**⏳ THREE OPEN DECISIONS, safest defaults implemented until ruled:** W-D1 proof provenance (default: proof alone keeps camera — the burned-in-price control outlives the platform until he rules it away) · W-D2 native app fate (default: park, not retire) · W-D3 web perf budgets (proposed at W1 exit from measurement, no invented numbers).
+
+**W-slices:** W1 web walking skeleton (browser boots the app, Produits reads the deployed service) → W2 upload intake through the pick seam → W3 drag-and-drop enhancement → W4 publish parity (his de-mock sentence, on web) → W5 proof per W-D1 → W6 PWA hardening. Shop+ vitrine follows W4 unless he resequences.
+
+**One protocol note, stated to him plainly rather than absorbed silently:** the directive also asked for autonomous execution with the approval protocol dropped. The merge gate stays until he amends CLAUDE.md itself — a chat directive changes what is built; the gates that caught five live defects this week are how it stays true while being built.
