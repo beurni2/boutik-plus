@@ -192,6 +192,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     <StudioShoot
       shotRole={ROLES[slot]!}
       banner={phase.banner}
+      busy={busy}
       onPick={() => { void pickPhoto(slot); }}
       onShot={(shot) => toReview(slot, shot, 'camera')}
       onFailed={(reason) => setPhase({ kind: 'failed', reason })}

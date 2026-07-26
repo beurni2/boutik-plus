@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
@@ -29,6 +29,11 @@ import { noPhotoSentenceKey, roleTitleKey } from '../studio/review';
 export interface StudioShootProps {
   readonly shotRole: StudioRole;
   readonly banner: ShootBanner | null;
+  /** THE ONE BUSY GUARD, owned by studio-real (W2 verifier, Deviation A): the
+   * old file serialized capture AND pick through a single ref, so tapping the
+   * gallery mid-capture no-op'd. Splitting the screen must not split the
+   * guard — both intakes still exclude each other through THIS ref. */
+  readonly busy: MutableRefObject<boolean>;
   /** The shared pick funnel (studio-real owns it — one funnel, both platforms). */
   readonly onPick: () => void;
   /** A camera capture to review. Web never calls this (no camera exists there). */
@@ -38,10 +43,28 @@ export interface StudioShootProps {
   readonly onBack: () => void;
 }
 
-export function StudioShoot({ shotRole, banner, onPick, onShot, onFailed, onBack }: StudioShootProps) {
+/**
+ * BRIDGES THE PERMISSION FLASH (W2 verifier, Deviation B — blocking). This
+ * screen unmounts on every review/processing phase and remounts on return, and
+ * `useCameraPermissions` starts each mount at `null` (its state is per-hook,
+ * fetched post-commit) — so without a bridge the « Autoriser » gate paints for
+ * a frame between EVERY kept photograph and the next viewfinder, on exactly
+ * the low-end hardware the doctrine names. Old behaviour (hook in the parent,
+ * mounted for the whole session): the gate showed once, at entry.
+ *
+ * The cache bridges ONLY the `null` (not-yet-answered) frame after a grant has
+ * been seen. A REAL denial (`permission.granted === false`) still gates, every
+ * time — the two honest states are untouched.
+ */
+let cameraGrantedOnce = false;
+
+export function StudioShoot({ shotRole, banner, busy, onPick, onShot, onFailed, onBack }: StudioShootProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView | null>(null);
-  const busy = useRef(false);
+
+  useEffect(() => {
+    if (permission?.granted) cameraGrantedOnce = true;
+  }, [permission]);
 
   const takePhoto = async () => {
     if (busy.current || camera.current === null) return;
@@ -57,7 +80,10 @@ export function StudioShoot({ shotRole, banner, onPick, onShot, onFailed, onBack
     }
   };
 
-  if (!permission?.granted) {
+  // `null` = the hook hasn't answered THIS mount yet; a seen grant bridges that
+  // frame (see cameraGrantedOnce above). An ANSWERED non-grant always gates.
+  const gateVisible = permission === null ? !cameraGrantedOnce : !permission.granted;
+  if (gateVisible) {
     // TWO honest states, not one: « pas encore demandé » offers the request;
     // « bloqué » (denied, cannot re-ask) says so and points at the phone
     // settings — a button that silently no-ops forever is the dead-input family.

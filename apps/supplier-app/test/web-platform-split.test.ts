@@ -71,6 +71,21 @@ describe('every .web module has its native sibling — a missing base file break
   });
 });
 
+describe('the W2 verifier deviations stay fixed (source tripwires — a comment could fool them, a rewrite cannot)', () => {
+  it('ONE busy guard: the native shoot screen takes the parent ref and declares none of its own — a second ref lets a gallery tap race a mid-flight capture', () => {
+    const shoot = read('src/v2/studio-shoot.tsx');
+    expect(shoot).not.toMatch(/const busy = useRef/);
+    expect(shoot).toMatch(/busy\.current/);
+    expect(read('src/v2/studio-real.tsx')).toMatch(/busy=\{busy\}/);
+  });
+
+  it('the permission gate bridges the null frame after a seen grant — without it the « Autoriser » screen flashes between every kept photo and the next viewfinder', () => {
+    const shoot = read('src/v2/studio-shoot.tsx');
+    expect(shoot).toMatch(/cameraGrantedOnce/);
+    expect(shoot).toMatch(/permission === null \? !cameraGrantedOnce : !permission\.granted/);
+  });
+});
+
 describe('bytesFromUri (web) — the master-hash feeder, by value', () => {
   it('reads a data: URI back to the exact bytes', async () => {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x03]);
