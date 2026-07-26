@@ -6,6 +6,7 @@
  * Composition only; every style from styles.ts; §3.6 amounts rendered from the
  * order's FROZEN fields, never recomputed.
  */
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO, TEXTURE } from '../ui/v2/tokens';
@@ -15,11 +16,11 @@ import { flowOf, flowLabel, OFF_FLOW, SEG_OF, disabled, type S, type A, type Seg
 import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
-import { hiddenSentence, photoSlot, type HiddenReason } from '../supply/produits-view';
+import { galleryPhotos, hiddenSentence, photoSlot, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
   EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, MoneyBreakdown, Overline, PageTitle,
-  OfferTile, ProductPill, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
+  OfferTile, PhotoViewer, ProductPill, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
 } from './components';
 
 type D = (a: A) => void;
@@ -149,15 +150,21 @@ export function S02Accueil({ st, d, shopName, ownerName }: { st: S; d: D; shopNa
  * `st.products` holds no entry for one, so a tap would land on the id-miss
  * guard. A dead tap is worse than no tap; the detail screen is its own slice.
  */
-export function S03Produits({ rows, mediaBase, d, header }: {
+export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
   rows: readonly SupplierOfferRow[];
   mediaBase: string | null;
   d: D;
   header?: boolean;
+  /** Opens the offer's fiche (founder device ruling 2026-07-26). */
+  onOpen?: ((r: SupplierOfferRow) => void) | undefined;
 }) {
   const live = rows.filter((r) => r.hiddenReason === undefined).length;
+  // ONE COLUMN, LARGE CARDS (founder device ruling 2026-07-26: « make it more
+  // bigger so I can see clearly the photo and the description »). The two-up
+  // grid put a 12MP photograph in 154 points; judging a product photo is the
+  // whole job of this screen.
   const body = (
-    <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: GEO.gap.grid }}>
+    <View style={{ marginTop: 14, gap: GEO.gap.grid }}>
       {rows.map((r) => (
         <OfferTile
           key={r.offerId}
@@ -167,7 +174,8 @@ export function S03Produits({ rows, mediaBase, d, header }: {
           variants={r.variantsNote}
           photo={photoSlot(r.assetRefs, mediaBase)}
           hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
-          style={{ width: (GEO.frame.w - GEO.screenPad.side * 2 - GEO.gap.grid) / 2 }}
+          large
+          {...(onOpen === undefined ? {} : { onPress: () => onOpen(r) })}
         />
       ))}
     </View>
@@ -183,6 +191,67 @@ export function S03Produits({ rows, mediaBase, d, header }: {
         <BtnSoft label="Lister un produit — gratuit" icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
       </View>
       {body}
+    </ScrollView>
+  );
+}
+
+/**
+ * THE FICHE OF A REAL OFFER (founder device ruling 2026-07-26: « tap each
+ * product to see all the photo of the product and the details »).
+ *
+ * READS THE ROW HE TAPPED, nothing else — no service call, no machine state:
+ * the list already holds every field the supplier list serves, so the fiche
+ * cannot disagree with the tile that opened it. Photographs are the SHIPPED
+ * refs in wire order, labelled by position (`galleryPhotos`, pure); tapping one
+ * opens the full-screen viewer. A hidden offer states the ladder's own reason
+ * here too — same sentence as the tile, same source.
+ */
+export function SOffreFiche({ row, mediaBase, onBack }: {
+  row: SupplierOfferRow;
+  mediaBase: string | null;
+  onBack: () => void;
+}) {
+  const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
+  const photos = galleryPhotos(row.assetRefs, mediaBase);
+  return (
+    <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
+      <HeaderStacked title={row.name} onBack={onBack} />
+      {row.hiddenReason !== undefined && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="warn">{tr(hiddenSentence(row.hiddenReason as HiddenReason))}</Banner>
+        </View>
+      )}
+      {photos.length === 0 ? (
+        <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.sub), { marginTop: 14 }]}>
+          {tr('produits.sans_photo')}
+        </Text>
+      ) : (
+        photos.map((ph) => (
+          <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button" style={{ marginTop: 14 }}>
+            <Image
+              source={{ uri: ph.uri }}
+              style={{ width: '100%', aspectRatio: 1, borderRadius: GEO.r.iconTile }}
+              resizeMode="cover"
+            />
+            <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{ph.label}</Text>
+          </Pressable>
+        ))
+      )}
+      <Card style={{ marginTop: 16 }}>
+        {([
+          ['Catégorie', row.category],
+          ['Variantes', row.variantsNote ?? '—'],
+          ['Stock disponible', `${row.available}`],
+          ['Prix de base', formatF(row.basePrice)],
+          ['Commission revendeuse', formatF(row.resellerCommission)],
+        ] as const).map(([label, value]) => (
+          <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>
+            <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.ink), TNUM, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{value}</Text>
+          </View>
+        ))}
+      </Card>
+      <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
     </ScrollView>
   );
 }

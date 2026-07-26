@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readSupplierOfferList, HIDDEN_REASONS, type SupplierOfferRow } from '../src/supply/service';
-import { produitsView, hiddenSentence, photoSlot, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
+import { galleryPhotos, produitsView, hiddenSentence, photoSlot, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
 import { catalog } from '../src/i18n';
 
 /**
@@ -306,5 +306,29 @@ describe('EVERY KEY THIS SLICE CAN EMIT RESOLVES — t() throws, so a typo is a 
     for (const k of emitted) expect(keys.has(k), k).toBe(true);
     // and the retired sentence is GONE, not left to be picked up again
     expect(keys.has('produits.expiree')).toBe(false);
+  });
+});
+
+describe('THE FICHE GALLERY — wire order, labelled by position, master never rendered', () => {
+  const REFS = ['media/hero-sq', 'media/hero-vert', 'media/proof', 'media/d1', 'media/d2'];
+
+  it('maps every ref in wire order with its role label', () => {
+    const out = galleryPhotos(REFS, 'https://m.example');
+    expect(out.map((p) => p.label)).toEqual(['Héro', 'Héro (vertical)', 'Preuve', 'Détail 1', 'Détail 2']);
+    expect(out[0]!.uri).toBe('https://m.example/media/hero-sq');
+  });
+
+  it('no photographs is an EMPTY gallery — never placeholder tiles', () => {
+    expect(galleryPhotos([], 'https://m.example')).toEqual([]);
+  });
+
+  it('no configured media base renders NOTHING rather than broken images', () => {
+    expect(galleryPhotos(REFS, null)).toEqual([]);
+  });
+
+  it('a private/ ref NEVER renders — belt and braces under the wire-order guarantee', () => {
+    const out = galleryPhotos(['private/device/abc', 'media/hero-sq'], 'https://m.example');
+    expect(out.map((p) => p.uri)).toEqual(['https://m.example/media/hero-sq']);
+    expect(JSON.stringify(out)).not.toContain('private/');
   });
 });

@@ -11,6 +11,7 @@
  *    « Ma Boutique » is a RETIRED name; canon is Shop+.
  *  · S28/S29 glyphs U+1F933/U+1F3F7 as escapes (chrome gate scans literals).
  */
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -21,7 +22,7 @@ import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
 import { t as tr } from '../i18n';
 import {
-  Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChallengeCode, ChipCategory, HeaderStacked,
+  Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChallengeCode, ChipCategory, HeaderStacked, PhotoViewer,
   Icon, IconTile, Input, MetersList, MoneyBreakdown, MoneyHero, Overline, PageTitle,
   ProcessingList, ProgressDots, RowMoney, RowReleve, Sheet, Stepper, Timeline, TrustCard,
   Weave, WizardFooter,
@@ -147,6 +148,8 @@ export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; mone
   // it — and if the union ever grows a third case, the compiler will force
   // every direct comparison to be revisited while a boolean alias would not.
   const noNet = money.kind === 'refused';
+  /** The verify step's full-screen photo inspection (founder ruling 2026-07-26). */
+  const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>
@@ -310,11 +313,14 @@ export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; mone
               <Card style={{ marginTop: 12, padding: 16 }}>
                 <Overline level="card">Vos photos</Overline>
                 <View style={{ marginTop: 11, flexDirection: 'row', gap: 10 }}>
+                  {/* TAPPABLE (founder device ruling 2026-07-26): a 100-point
+                      thumbnail cannot be judged; the tap opens the full-screen
+                      viewer over the SAME shipped bytes. */}
                   {photos.map((p) => (
-                    <View key={p.label} style={{ flex: 1 }}>
+                    <Pressable key={p.label} style={{ flex: 1 }} onPress={() => setViewing({ uri: p.uri, label: p.label })} accessibilityRole="button">
                       <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: C21.preview.r }} resizeMode="cover" />
                       <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{p.label}</Text>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               </Card>
@@ -340,6 +346,7 @@ export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; mone
           </>
         )}
       </ScrollView>
+      <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
       <WizardFooter>
         {/* THE BLOCK LIVES HERE, NOT IN THE REDUCER. `disabled.wizContinue` is
             the machine's own §4 predicate and stays untouched: the floor is a

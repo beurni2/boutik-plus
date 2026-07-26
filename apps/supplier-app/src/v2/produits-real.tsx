@@ -4,7 +4,7 @@ import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
-import { S03Produits } from './screens1';
+import { S03Produits, SOffreFiche } from './screens1';
 import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { resolveMediaBase } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
@@ -52,6 +52,11 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   const [read, setRead] = useState<ProduitsRead>(() =>
     service === null ? { kind: 'not_configured' } : { kind: 'loading' },
   );
+  /** The open fiche (founder device ruling 2026-07-26: tap a product, see all
+   * its photographs and details). Local to the tab: a tab switch unmounts it,
+   * and the machine's demo `view: 'product'` route is never involved — a real
+   * offer has no entry in `st.products`, and the id-miss guard is not a fiche. */
+  const [openOffer, setOpenOffer] = useState<SupplierOfferRow | null>(null);
   const inFlight = useRef(false);
 
   const load = async (): Promise<void> => {
@@ -83,7 +88,11 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // OUT, instead of asserting the ORDER of branches in this file.
   const view = produitsView(read, cache.current.rows);
 
-  if (view.kind === 'list') return <S03Produits rows={view.rows} mediaBase={mediaBase} d={d} header />;
+  if (openOffer !== null) {
+    return <SOffreFiche row={openOffer} mediaBase={mediaBase} onBack={() => setOpenOffer(null)} />;
+  }
+
+  if (view.kind === 'list') return <S03Produits rows={view.rows} mediaBase={mediaBase} d={d} header onOpen={setOpenOffer} />;
 
   if (view.kind === 'failed') {
     return (
@@ -99,7 +108,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
             <View style={{ marginTop: 16 }}>
               <Banner tone="info">{t(view.staleMessage)}</Banner>
             </View>
-            <S03Produits rows={view.staleRows} mediaBase={mediaBase} d={d} />
+            <S03Produits rows={view.staleRows} mediaBase={mediaBase} d={d} onOpen={setOpenOffer} />
           </>
         )}
       </Shell>

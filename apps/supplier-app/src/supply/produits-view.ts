@@ -115,3 +115,28 @@ export function photoSlot(assetRefs: readonly string[], mediaBase: string | null
   if (mediaBase === null) return { kind: 'unavailable', message: 'produits.photo_non_configure' };
   return { kind: 'photo', uri: `${mediaBase}/${ref}` };
 }
+
+/**
+ * THE FICHE'S PHOTO GALLERY (founder device ruling 2026-07-26: tap a product,
+ * see ALL its photographs). Pure — refs in, labelled URIs out.
+ *
+ * `assetRefs` is WIRE ORDER by construction: [heroSquare, heroVertical, proof,
+ * ...detail]. The labels follow that order and never guess: a list longer than
+ * three numbers its details, a list shorter simply has fewer photographs. The
+ * master is excluded UPSTREAM by `wireAssetRefs`; the guard here is
+ * belt-and-braces so a service regression cannot render a private ref.
+ */
+export interface GalleryPhoto {
+  readonly label: string;
+  readonly uri: string;
+}
+const GALLERY_LABELS = ['Héro', 'Héro (vertical)', 'Preuve'] as const;
+export function galleryPhotos(assetRefs: readonly string[], mediaBase: string | null): readonly GalleryPhoto[] {
+  if (mediaBase === null) return [];
+  return assetRefs
+    .filter((ref) => ref.trim() !== '' && !ref.startsWith('private/'))
+    .map((ref, i) => ({
+      label: GALLERY_LABELS[i] ?? `Détail ${i - GALLERY_LABELS.length + 1}`,
+      uri: `${mediaBase}/${ref}`,
+    }));
+}

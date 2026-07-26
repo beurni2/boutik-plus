@@ -6,14 +6,14 @@
  * first (founder order 2026-07-17).
  */
 import { useState, type ReactNode } from 'react';
-import { Image, Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Image, Modal, Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Rect, Stop, Circle } from 'react-native-svg';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO, GLYPH_SHADOW, PRESSED, TEXTURE } from '../ui/v2/tokens';
 import {
   C03, C04, C05, C06, C08, C09, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C20, C21,
   C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C34, C36, C37, C38, C41, C43, C44,
-  C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM,
+  C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM, role,
 } from '../ui/v2/styles';
 import { t as tr } from '../i18n';
 import type { PhotoSlot } from '../supply/produits-view';
@@ -347,6 +347,28 @@ export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPre
 
 
 /**
+ * FULL-SCREEN PHOTO VIEWER (founder device ruling 2026-07-26: tap a photo, see
+ * it). Core RN `Modal` — no new dependency. The image is CONTAINED, never
+ * cropped: this is the inspection view, so every pixel of the shipped bytes is
+ * on screen. One tap anywhere closes — the 5-second rule for an overlay is
+ * that leaving it must need no instructions.
+ */
+export function PhotoViewer({ photo, onClose }: { photo: { uri: string; label: string } | null; onClose: () => void }) {
+  return (
+    <Modal visible={photo !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={s.viewerFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={photo?.label ?? ''}>
+        {photo !== null && (
+          <>
+            <Image source={{ uri: photo.uri }} style={s.viewerImg} resizeMode="contain" />
+            <Text style={s.viewerLabel}>{photo.label}</Text>
+          </>
+        )}
+      </Pressable>
+    </Modal>
+  );
+}
+
+/**
  * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT `ProductTile`: that one
  * takes `bg` / `glyph` / `paused`, three fields with no real source.
  *
@@ -366,7 +388,10 @@ export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPre
  * no entry for one, so a tap would land on the id-miss guard. A dead tap is
  * worse than no tap.
  */
-export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, style }: {
+/** Full-width card image height (founder: « more bigger so I can see clearly »). App-local geometry. */
+const OFFER_IMG_LARGE = 210;
+
+export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, style, onPress, large }: {
   name: string;
   priceF: string;
   stock: number;
@@ -377,21 +402,27 @@ export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, st
   /** Present ⇒ Shop+ is not showing this offer, and this is the sentence for why. */
   hiddenNote?: string | undefined;
   style?: StyleProp<ViewStyle>;
+  /** The fiche exists now (2026-07-26) — a tap with a real destination. Absent = not pressable, as before. */
+  onPress?: (() => void) | undefined;
+  /** Founder device ruling 2026-07-26: full-width card, photograph tall enough to judge. */
+  large?: boolean | undefined;
 }) {
   const [broken, setBroken] = useState(false);
+  const imgH = large === true ? OFFER_IMG_LARGE : C21.produitImg.h;
+  const Wrap = onPress === undefined ? View : Pressable;
   return (
-    <View style={[s.tile, style]}>
+    <Wrap style={[s.tile, style]} {...(onPress === undefined ? {} : { onPress, accessibilityRole: 'button' as const })}>
       {photo.kind === 'photo' && !broken ? (
         <Image
           source={{ uri: photo.uri }}
-          style={{ width: '100%', height: C21.produitImg.h }}
+          style={{ width: '100%', height: imgH }}
           resizeMode="cover"
           // A ref that 404s (wrong base, purged object) must land on the SAME
           // designed state as an unfetchable one — never an empty box.
           onError={() => setBroken(true)}
         />
       ) : (
-        <View style={[s.tileNoPhoto, { height: C21.produitImg.h }]}>
+        <View style={[s.tileNoPhoto, { height: imgH }]}>
           {/* A ref that was fetchable in principle but 404'd lands HERE, on the
               same designed state as one we cannot fetch at all — « Photo
               indisponible », never « Sans photo », because he DID upload one. */}
@@ -409,7 +440,7 @@ export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, st
         {variants !== undefined && <Text style={s.tileVariants} numberOfLines={1}>{variants}</Text>}
         {hiddenNote !== undefined && <Text style={s.tileHidden}>{hiddenNote}</Text>}
       </View>
-    </View>
+    </Wrap>
   );
 }
 
@@ -597,6 +628,11 @@ const s = StyleSheet.create({
   releveRow: C25.row, releveWeek: C25.week, releveSub: C25.sub, releveTotal: C25.total,
   tile: C26.tile, tileBody: C26.body, tileName: C26.name, tilePriceRow: C26.priceRow, tilePrice: C26.price, tileStock: C26.stock, tileStockLow: C26.stockLow,
   tileNoPhoto: C26.noPhoto, tileNoPhotoTxt: C26.noPhotoTxt, tileVariants: C26.variants, tileHidden: C26.hidden,
+  // PhotoViewer — an inspection overlay; near-black so the photograph is the
+  // only light on screen. rgba, not a palette tone: this is a scrim, not a surface.
+  viewerFill: { flex: 1, backgroundColor: 'rgba(10,8,6,0.96)', alignItems: 'center' as const, justifyContent: 'center' as const },
+  viewerImg: { width: '100%' as const, height: '80%' as const },
+  viewerLabel: { ...role({ f: 'IS', w: 700, s: 13 }, P.cream), marginTop: 14 },
   tileBadge: C26.badge, tileBadgeTxt: C26.badgeTxt, tileBadgePause: C26.badgePause, tileBadgeMod: C26.badgeMod, tileBadgeModTxt: C26.badgeModTxt,
   banner: C27.banner, bannerTxt: C27.txt, bannerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   empty: C28.box, emptyTxt: C28.txt,
