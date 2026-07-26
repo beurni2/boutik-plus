@@ -175,3 +175,52 @@ describe('WO-4.2E — the encoder is the decoder\'s true inverse (the data URI s
     expect(base64ToBytes(uri.slice('data:image/jpeg;base64,'.length))).toEqual(stripped);
   });
 });
+
+/**
+ * DEVICE INCIDENT 2026-07-26 — the founder's captured photograph rendered as a
+ * strip of real image over flat grey. That is what a JPEG looks like when the
+ * decoder stops part-way, and the stripper was the only thing rewriting those
+ * bytes.
+ *
+ * THE CAUSE: `nextEntropyMarker` walks PAST `RST0`–`RST7`, so the code already
+ * knew restart markers occur in these streams — while the allow-list DROPPED
+ * `DRI`, the segment that declares the restart interval. A decoder that meets a
+ * restart marker it was never told about stops there.
+ *
+ * EVERY FIXTURE ABOVE HAS A HAND-BUILT ENTROPY STREAM WITH NO RESTART INTERVAL,
+ * which is exactly why 460 green tests said nothing about it.
+ */
+const DRI = seg(0xdd, [0x00, 0x08]); // restart interval = 8 MCUs
+const ENTROPY_WITH_RESTARTS = [
+  0x12, 0x34, 0xff, 0x00, 0x56, // stuffed FF00
+  0xff, 0xd0, 0x9a, 0xbc,       // RST0 then more entropy
+  0xff, 0xd1, 0xde, 0xf0,       // RST1 then more entropy
+];
+const RESTART_JPEG = jpeg(SOI, APP1_EXIF, DQT, DRI, SOF0, DHT, SOS_HEADER, ENTROPY_WITH_RESTARTS, EOI);
+
+describe('RESTART INTERVALS SURVIVE THE STRIP — the grey-photograph defect', () => {
+  it('DRI is KEPT, so a stream carrying restart markers is still decodable', () => {
+    const out = stripJpegMetadata(RESTART_JPEG);
+    // the DRI segment is present, byte for byte
+    expect([...out].join(',')).toContain([...DRI].join(','));
+  });
+
+  it('and the ENTROPY past each restart marker survives — truncation is the actual failure', () => {
+    const out = stripJpegMetadata(RESTART_JPEG);
+    // every entropy byte after RST0 and RST1 must still be there
+    expect([...out].join(',')).toContain([...ENTROPY_WITH_RESTARTS].join(','));
+    expect(out[out.length - 2]).toBe(0xff);
+    expect(out[out.length - 1]).toBe(0xd9); // still terminated at a real EOI
+  });
+
+  it('the privacy property is UNCHANGED by admitting DRI — EXIF still goes', () => {
+    const out = stripJpegMetadata(RESTART_JPEG);
+    expect(jpegCarriesExif(out)).toBe(false);
+    expect(() => assertExifFree(out)).not.toThrow();
+  });
+
+  it('DRI carries no user data — it is two bytes of restart count, nothing else', () => {
+    expect(DRI).toHaveLength(6); // FF DD len_hi len_lo + 2 payload bytes
+    expect(DRI.slice(4)).toEqual([0x00, 0x08]);
+  });
+});

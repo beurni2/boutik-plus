@@ -249,9 +249,33 @@ function isSofMarker(marker: number): boolean {
   return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
 }
 
-/** The allow-list: the ONLY header segments copied into the shipped JPEG. */
+/**
+ * The allow-list: the ONLY header segments copied into the shipped JPEG.
+ *
+ * **DRI (0xDD) IS HERE BECAUSE DROPPING IT CORRUPTED REAL PHOTOGRAPHS** (device
+ * incident 2026-07-26 — the founder's capture rendered as a strip of image over
+ * flat grey, the signature of a decode that stops part-way).
+ *
+ * DRI declares the RESTART INTERVAL. When an encoder uses restart markers it
+ * writes `RSTn` bytes into the entropy stream every N MCUs, and a decoder can
+ * only interpret them if DRI told it N. **This stripper already walks PAST
+ * `RST0`–`RST7` in `nextEntropyMarker` — it knew the markers were there — while
+ * the allow-list deleted the one segment that explains them.** The stream then
+ * decodes until the first restart and stops: real rows at the top, nothing
+ * below. Every fixture in the test suite had a hand-built entropy stream with no
+ * restart interval, so nothing caught it.
+ *
+ * DRI carries a single 2-byte count. It is rendering structure, exactly like
+ * DQT/DHT/SOF, and holds no user-identifying data — so admitting it costs the
+ * privacy allow-list nothing.
+ */
 function isAllowedHeaderSegment(marker: number): boolean {
-  return marker === 0xdb /* DQT */ || marker === 0xc4 /* DHT */ || isSofMarker(marker);
+  return (
+    marker === 0xdb /* DQT */ ||
+    marker === 0xc4 /* DHT */ ||
+    marker === 0xdd /* DRI — restart interval; see above */ ||
+    isSofMarker(marker)
+  );
 }
 
 /** Refuse a SOF whose declared dimensions are zero or beyond the ceiling
@@ -352,7 +376,7 @@ export function stripJpegMetadata(bytes: Uint8Array): Uint8Array {
       o += 2 + len;
     }
     // else: DROPPED by default — APPn (incl. APP0/JFIF, APP2/ICC, APP14),
-    // COM, DRI, DNL, and every reserved marker leave no bytes in the output.
+    // COM, DNL, and every reserved marker leave no bytes in the output.
     i += 2 + len;
   }
   throw new ExifLeakError('JPEG stream ended before EOI — refusing the capture', 'strip_failed');

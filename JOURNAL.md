@@ -1774,3 +1774,22 @@ Founder: *"I chose that option and tap it doesn't take me to my gallery."* **No 
 Two incidents, one shape: **every gate in this repo reasoned about the SOURCE, and none reasoned about what is actually installed on his phone.** The white screen was a native module absent from the binary; the dead button was a permission string absent from the manifest. Both were green in typecheck, in 459 tests, and in every invariant gate.
 - **A green suite says nothing about whether the app opens, or whether a button does anything.**
 - **The device pass found both in two taps.** It is not a formality at the end of a slice; it is the only instrument that reaches this class.
+
+### 2026-07-26 · 🚨 LIVE DEFECT #3 — THE STRIPPER WAS CORRUPTING REAL PHOTOGRAPHS (fast path)
+Founder's screenshot: his captured photo rendered as **a strip of real image over flat grey**. That is what a JPEG looks like when the decoder **stops part-way**, and `stripJpegMetadata` is the only thing rewriting those bytes.
+
+**THE CAUSE, AND IT IS A CONTRADICTION INSIDE ONE FILE:**
+- `nextEntropyMarker` deliberately walks **past `RST0`–`RST7`** (`normalization.ts:286`) — **the code already knew restart markers occur in these streams.**
+- `isAllowedHeaderSegment` **dropped `DRI` (0xDD)** — the segment that declares the restart interval — and the old comment listed DRI among the things deleted **by name**.
+- A decoder meeting a restart marker it was never told about **stops there.** Real rows above, nothing below. Exactly the screenshot.
+
+**THIS IS NOT A PREVIEW BUG. IT IS THE SHIPPED BYTES.** The preview URI is built from the stripped bytes precisely so that what he sees is what uploads — so the same truncation was going into `heroSquare`, `heroVertical`, `proof` and `detail`, and on to Shop+. **The WYSIWYG law is what made the corruption visible; without it this would have reached a vitrine.**
+
+**WHY 460 GREEN TESTS SAID NOTHING:** every fixture in `exif-strip.test.ts` has a **hand-built entropy stream with no restart interval**. The stripper was only ever tested against JPEGs we wrote ourselves, and we never wrote one the way a phone encoder does. **A fixture that shares the author's assumptions cannot falsify them.**
+
+**FIX:** `DRI` admitted to the allow-list. It carries a single 2-byte restart count — rendering structure exactly like DQT/DHT/SOF, no user-identifying data — so the privacy allow-list loses nothing, asserted by a test that re-checks `jpegCarriesExif` on the same stream. **RED-PROVEN:** removing the one line fails « DRI is KEPT, so a stream carrying restart markers is still decodable ».
+
+**⚠️ WHAT I STILL CANNOT PROVE, STATED PLAINLY:** I have **no real JPEG encoder in this environment** — no PIL, no sharp, no committed `.jpg`. So the fix is verified against a **synthetic stream that now contains restart markers**, not against a photograph from his phone. **The proof is his next capture rendering whole.** If it still greys, the cause is elsewhere and I will have been wrong about which segment.
+- **THE REAL GAP THIS EXPOSES:** the imaging path has never been tested against **one real camera JPEG**. Every proof is against bytes we authored. **Committing a real device JPEG as a fixture is the missing gate**, and I am naming it rather than building it.
+
+**A SECOND OBSERVATION FROM THE SAME SCREENSHOT, NOT YET DIAGNOSED:** the in-frame caption « Ce que l'acheteur verra » appears **clipped at the pane's bottom edge**. `C39.caption` sits at `bottom: 30` inside an `overflow: 'hidden'` container. Reported, not fixed — I do not want to move a planche-derived value on the strength of one screenshot.
