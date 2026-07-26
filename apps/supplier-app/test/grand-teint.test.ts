@@ -86,8 +86,16 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
     // STUDIO-GALLERY-1 (founder ruling 2026-07-25): « HE WANTS TO UPLOAD FROM HIS
     // DEVICE, not only capture » — gallery for hero and details, camera-only for
-    // the PROOF role. The picker is the only way to obtain a library URI.
-    expect(pkg.dependencies['expo-image-picker']).toBeDefined();
+    // the PROOF role on native. The picker is the only way to obtain a library URI.
+    //
+    // PINNED EXACTLY after BOUTIK-WEB-W2 caught the cost of not pinning: this
+    // entry was the gate's one `toBeDefined()`, and it let `^57.0.6` — the NEXT
+    // SDK's line — ship against SDK 54 (`bundledNativeModules.json` says
+    // ~17.0.11). The web target exploded at require (`createPermissionHook is
+    // not a function`); the next NATIVE build would have paired mismatched
+    // native code with the SDK 54 runtime. A gate that only checks presence
+    // cannot catch a wrong generation.
+    expect(pkg.dependencies['expo-image-picker']).toBe('~17.0.11');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',

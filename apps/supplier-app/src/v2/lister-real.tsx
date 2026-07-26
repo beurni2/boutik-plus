@@ -32,7 +32,7 @@
  * the completion path (`attachAssets`), no republish, same offer.
  */
 import { useMemo, useRef, useState } from 'react';
-import { File } from 'expo-file-system';
+import { bytesFromUri } from '../supply/uri-bytes';
 import { ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -221,7 +221,7 @@ export function SListerReal({ st, d, captures, session }: {
           // master would be a false record — the exact fabrication class this
           // project refuses. If the file cannot be read, the master is honestly
           // missing and the whole set stays absent (prefix rule).
-          masterSha256: await sha256Hex(await new File(set.hero.masterUri).bytes()),
+          masterSha256: await sha256Hex(await bytesFromUri(set.hero.masterUri)),
         };
         const uploads: AssemblyInput = {
           master: {

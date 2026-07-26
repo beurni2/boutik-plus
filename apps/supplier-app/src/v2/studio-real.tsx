@@ -1,25 +1,16 @@
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { P, TILE_GRADIENT } from '../ui/v2/palette';
-import { GEO, SHADOW } from '../ui/v2/tokens';
-import { C21, role } from '../ui/v2/styles';
-import { SCROLL } from '../ui/v2/styles';
+import { ScrollView, Text, View } from 'react-native';
+import { P } from '../ui/v2/palette';
+import { role, SCROLL } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, IconTile, MetersList, ProcessingList } from './components';
+import { Banner, C07BtnPrimary, HeaderStacked, ProcessingList } from './components';
 import { S26StudioReview } from './studio-review';
-import { captureShot, renderCropDerivative, type StrippedDerivative } from '../studio/capture';
+import { renderCropDerivative, type StrippedDerivative } from '../studio/capture';
 import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
-import {
-  decodeRefusalSentence,
-  galleryRefusalKey,
-  pickShot,
-  type DecodeRefusal,
-  type StudioRole,
-  type StudioShot,
-} from '../studio/pick';
+import { pickShot, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
-import { keptAfter, noPhotoSentenceKey, roleTitleKey, type ShotSource } from '../studio/review';
+import { keptAfter, type ShotSource } from '../studio/review';
+import { StudioShoot } from './studio-shoot';
 import type { A } from './machine';
 
 /**
@@ -49,6 +40,13 @@ import type { A } from './machine';
  * publish, not here) and dispatches the machine's own `STUDIO_APPROVE`, so
  * `wiz.photos` and the return-to-wizard transition stay §4's, not a parallel
  * copy. The demo `S26Studio` stays in screens2.tsx, untouched and unrouted.
+ *
+ * **BOUTIK-WEB-W2: the SHOOTING SCREEN is platform-resolved** (`./studio-shoot`
+ * → `.web.tsx` in a web bundle), so this file — the phase machine, the pick
+ * funnel, the crop render — is platform-free and `expo-camera` never enters
+ * the web import graph. One funnel, both platforms: `pickPhoto` below is the
+ * only intake on web (W-D1 founder ruling: uploads for all roles there) and
+ * the gallery secondary on native.
  */
 
 /** Everything the publish path needs from one Studio session. */
@@ -60,16 +58,14 @@ export interface CaptureSet {
   readonly detail: StudioShot;
 }
 
-/** His three photographs, in order. The PROOF role is camera-only (standing ruling). */
+/** His three photographs, in order. The PROOF role is camera-only ON NATIVE
+ * (standing ruling); on web, uploads serve all three roles (W-D1, 2026-07-26). */
 const ROLES: readonly StudioRole[] = ['hero', 'preuve', 'detail'];
 
 /** The processing rows — the names of REAL work, in the order it runs. */
 const PROC_ROWS = ['Métadonnées retirées (preuve à l\'appui)', 'Cadrage carré du héro', 'Cadrage vertical du héro', 'Vérification finale'];
 
 type Slot = 0 | 1 | 2;
-
-/** What the shooting screen has to say, if anything, after the last attempt. */
-type ShootBanner = { kind: 'decode'; refusal: DecodeRefusal } | { kind: 'no_photo' };
 
 type Phase =
   | { kind: 'shooting'; slot: Slot; banner: ShootBanner | null }
@@ -78,30 +74,16 @@ type Phase =
   | { kind: 'failed'; reason: string };
 
 export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved: (set: CaptureSet) => void }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const camera = useRef<CameraView | null>(null);
   /** The photographs he has KEPT, in role order. Never holds an unreviewed shot. */
   const kept = useRef<StudioShot[]>([]);
   const [phase, setPhase] = useState<Phase>({ kind: 'shooting', slot: 0, banner: null });
   const busy = useRef(false);
 
-  /** Both sources land here: one photograph to review, its origin remembered. */
+  /** Both sources land here: one photograph to review, its origin remembered.
+   * The camera source lives inside the NATIVE shoot screen (it owns the ref);
+   * its outcome arrives through `onShot` below. */
   const toReview = (slot: Slot, shot: StudioShot, source: ShotSource) =>
     setPhase({ kind: 'reviewing', slot, shot, source });
-
-  const takePhoto = async (slot: Slot) => {
-    if (busy.current || camera.current === null) return;
-    busy.current = true;
-    try {
-      toReview(slot, await captureShot(camera.current), 'camera');
-    } catch (err) {
-      // A capture that cannot be PROVEN clean does not exist (assertExifFree
-      // throws) — an honest failed state, never an unstripped byte kept.
-      setPhase({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
-    } finally {
-      busy.current = false;
-    }
-  };
 
   const pickPhoto = async (slot: Slot) => {
     if (busy.current) return;
@@ -155,27 +137,8 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     }
   };
 
-  if (!permission?.granted) {
-    // TWO honest states, not one: « pas encore demandé » offers the request;
-    // « bloqué » (denied, cannot re-ask) says so and points at the phone
-    // settings — a button that silently no-ops forever is the dead-input family.
-    const blocked = permission !== null && !permission.canAskAgain && permission.status === 'denied';
-    return (
-      <View style={{ flex: 1 }}>
-        <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
-        </View>
-        <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Banner tone={blocked ? 'warn' : 'info'}>{t(blocked ? 'studio.permission_bloquee' : 'studio.permission')}</Banner>
-          {!blocked && (
-            <View style={{ marginTop: 16 }}>
-              <C07BtnPrimary label={t('studio.autoriser')} icon="camera" onPress={() => { void requestPermission(); }} />
-            </View>
-          )}
-        </ScrollView>
-      </View>
-    );
-  }
+  // The camera-permission gate lives in the NATIVE shoot screen now (it owns
+  // the camera); web needs none — a file input asks nothing up front.
 
   if (phase.kind === 'reviewing') {
     const slot = phase.slot;
@@ -222,58 +185,17 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     );
   }
 
-  // ── SHOOTING: the live camera, full width, NO guides ──────────────────────
+  // ── SHOOTING: the platform's own intake screen (camera on native, upload on
+  //    web — Metro resolves `./studio-shoot` per platform) ────────────────────
   const slot = phase.slot;
-  const shotRole = ROLES[slot]!;
-  const galleryRefusal = galleryRefusalKey(shotRole);
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
-        <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
-        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t(roleTitleKey(shotRole))}</Text>
-      </View>
-
-      {/* The viewfinder takes the room that is left — the SAME flex:1 region the
-          review pane uses, so the two screens share one skeleton and the frame
-          does not jump when he keeps a photograph. */}
-      <View style={{ flex: 1, marginTop: 13 }}>
-        <View style={{ flex: 1, borderRadius: C21.viseur.r, overflow: 'hidden', boxShadow: SHADOW.heroStudio }}>
-          <CameraView ref={camera} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-        </View>
-      </View>
-
-      <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
-        {phase.banner !== null && (
-          <Banner tone={phase.banner.kind === 'decode' ? 'warn' : 'info'} style={{ marginTop: 12 }}>
-            {phase.banner.kind === 'decode' ? decodeRefusalSentence(phase.banner.refusal) : t(noPhotoSentenceKey())}
-          </Banner>
-        )}
-        <View style={{ marginTop: 12 }}>
-          <C07BtnPrimary label={t('studio.capture')} icon="camera" onPress={() => { void takePhoto(slot); }} />
-        </View>
-        {galleryRefusal === null ? (
-          <BtnGhost
-            label={t('studio.depuis_telephone')}
-            onPress={() => { void pickPhoto(slot); }}
-            style={{ marginTop: 10 }}
-          />
-        ) : (
-          // CAMERA-ONLY, STATED IN WORDS rather than by a missing button — a
-          // control that silently is not there reads as a bug.
-          <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-            {t(galleryRefusal)}
-          </Text>
-        )}
-      </View>
-
-      {/* the demo's simulate-low toggle and fake meters live on only in the
-          unrouted S26Studio; light is judged from the REAL metrics frame */}
-      <View style={{ height: 0, opacity: 0 }} pointerEvents="none">
-        <IconTile bg={TILE_GRADIENT.p1} glyph="" size={0} radius={0} glyphSize={0} />
-        <MetersList rows={[]} />
-        <Pressable onPress={() => {}} accessibilityRole="button"><Text>{''}</Text></Pressable>
-      </View>
-    </View>
+    <StudioShoot
+      shotRole={ROLES[slot]!}
+      banner={phase.banner}
+      onPick={() => { void pickPhoto(slot); }}
+      onShot={(shot) => toReview(slot, shot, 'camera')}
+      onFailed={(reason) => setPhase({ kind: 'failed', reason })}
+      onBack={() => d({ t: 'BACK' })}
+    />
   );
 }

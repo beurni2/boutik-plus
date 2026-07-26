@@ -18,6 +18,8 @@ import { catalog } from '../src/i18n';
 const appDir = join(import.meta.dirname, '..');
 const lister = readFileSync(join(appDir, 'src/v2/lister-real.tsx'), 'utf8');
 const studio = readFileSync(join(appDir, 'src/v2/studio-real.tsx'), 'utf8');
+const shootNative = readFileSync(join(appDir, 'src/v2/studio-shoot.tsx'), 'utf8');
+const shootWeb = readFileSync(join(appDir, 'src/v2/studio-shoot.web.tsx'), 'utf8');
 const shell = readFileSync(join(appDir, 'src/v2/AppV2.tsx'), 'utf8');
 const screens2 = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
 const machine = readFileSync(join(appDir, 'src/v2/machine.ts'), 'utf8');
@@ -176,7 +178,9 @@ describe('WIZARD STEP 1 — the founder-ruled fields, inside his step, no sixth 
 
 describe('PHOTOGRAPHS — honest all the way through', () => {
   it('the master is HASHED FROM ITS OWN BYTES and never uploaded (open read route vs « master private »)', () => {
-    expect(lister).toMatch(/await sha256Hex\(await new File\(set\.hero\.masterUri\)\.bytes\(\)\)/);
+    // BOUTIK-WEB-W2: the read goes through the platform seam (`uri-bytes.ts` /
+    // `.web.ts`) — same bytes, read by the platform's own reader.
+    expect(lister).toMatch(/await sha256Hex\(await bytesFromUri\(set\.hero\.masterUri\)\)/);
     expect(lister).toMatch(/private\/device\/\$\{bytes\.masterSha256\}/);
     // the derivative is never passed off as the master
     expect(lister).not.toMatch(/masterSha256: await sha256Hex\(derivativeBytesFromUri\(set\.hero/);
@@ -206,7 +210,10 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
     expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(hero\.master\.width, hero\.master\.height\)\)/);
     expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(hero\.master\.width, hero\.master\.height\)\)/);
     expect(studio).not.toMatch(/heroSquareCrop\(hero\.derivative/);
-    expect(studio).toMatch(/<CameraView ref=\{camera\}/); // a REAL camera in his C39 frame
+    // BOUTIK-WEB-W2: the camera moved WITH its screen into the NATIVE shoot
+    // file — the assertion moved with it, not away (the removal-turnaround law
+    // applies to moves too).
+    expect(shootNative).toMatch(/<CameraView ref=\{camera\}/); // a REAL camera in his C39 frame
     expect(studio).not.toMatch(/STUDIO_CAPTURE/); // the demo's simulated capture is not dispatched
   });
 
@@ -241,6 +248,10 @@ describe('every user-facing string on the new surfaces is catalog-backed', () =>
     const used = [
       ...[...lister.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
       ...[...studio.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
+      // BOUTIK-WEB-W2: the shooting screen split per platform — BOTH halves
+      // stay under the catalog scan, or the web surface drifts out of Law 6.
+      ...[...shootNative.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
+      ...[...shootWeb.matchAll(/[^r]t\('([^']+)'\)/g)].map((m) => m[1] as string),
     ];
     expect(used.length).toBeGreaterThan(12);
     const missing = used.filter((k) => !keys.has(k));
