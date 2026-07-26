@@ -46,8 +46,48 @@ const SUPPLY_COLLECTION = '/supply-projections';
 const isSupplyRoute = (pathname: string): boolean =>
   pathname.startsWith(SUPPLY_PREFIX) || pathname === SUPPLY_COLLECTION;
 
+/**
+ * BOUTIK-WEB-W1 — CORS at the one deployed entry (Boutik-Plus-Web North Star,
+ * founder-ruled 2026-07-26). The supplier surface now also runs in browsers,
+ * and a browser is the one client that asks permission before sending: a GET
+ * carrying `X-Write-Key` is not a "simple request", so the browser sends a
+ * bare OPTIONS preflight first and refuses to hand the page any response that
+ * lacks `Access-Control-Allow-Origin`. Without this block the web app cannot
+ * read this service at all — not as a 401, as a browser-side wall.
+ *
+ * `*` is deliberate and safe HERE, and only here: this worker holds no cookie
+ * and no ambient credential — every write and the admin read are gated by an
+ * explicit header a page must knowingly attach, and the supply routes by a
+ * Bearer secret — so allowing all origins grants an attacker's page nothing it
+ * would not still need the key for. THE TRIPWIRE: the moment any cookie or
+ * session state enters this worker, `*` stops being safe and this comment is
+ * the review flag.
+ *
+ * The preflight answers before the write gate ON PURPOSE: OPTIONS carries no
+ * key (browsers strip custom headers from preflights), grants nothing, and
+ * must succeed for the authed request behind it to even be attempted.
+ */
+const CORS_HEADERS: Readonly<Record<string, string>> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key',
+  'Access-Control-Max-Age': '86400',
+};
+
+function withCors(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  return new Response(res.body, { status: res.status, headers });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return withCors(await handle(request, env));
+  },
+};
+
+async function handle(request: Request, env: Env): Promise<Response> {
     // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any
     // dispatch or existence lookup (so the 401 is never an existence oracle).
     // Reads pass straight through; a Worker with no secret configured fails closed.
@@ -95,5 +135,4 @@ export default {
     // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
     return makeSupplyFetch(store)(request);
-  },
-};
+}

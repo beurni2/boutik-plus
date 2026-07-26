@@ -24,9 +24,12 @@
     "expo-image-picker": "^57.0.6",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.18",
+    "@expo/metro-runtime": "~6.1.2",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-svg": "15.12.1"
+    "react-native-svg": "15.12.1",
+    "react-native-web": "~0.21.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

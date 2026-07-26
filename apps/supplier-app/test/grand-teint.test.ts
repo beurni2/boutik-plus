@@ -98,8 +98,17 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     // deps (react-dom/react-native-web) were REMOVED with the visual pipeline —
     // fidelity is VALUE MATCH ONLY (founder order 2026-07-17): the property
     // gate compares style data to the Phase-0 table; nothing renders.
+    //
+    // BOUTIK-WEB-W1 (Boutik-Plus-Web North Star, founder-confirmed 2026-07-26):
+    // react-native-web and react-dom RETURN — under a different authority than
+    // the one that removed them. Then they were a test harness (still removed;
+    // fidelity stays value-match); now they are the PRODUCT's web platform:
+    // Boutik+ ships a web target from this same codebase. @expo/metro-runtime
+    // is the metro web entry those two need.
     expect(added.sort()).toEqual([
-      'expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'expo-image-picker', 'react-native-svg',
+      '@expo/metro-runtime',
+      'expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'expo-image-picker',
+      'react-dom', 'react-native-svg', 'react-native-web',
     ]);
   });
 });

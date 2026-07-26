@@ -8,10 +8,16 @@
     "backgroundColor": "#F4EFE6",
     "platforms": [
       "android",
-      "ios"
+      "ios",
+      "web"
     ],
     "android": {
       "package": "bf.boutikplus.supplier"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "backgroundColor": "#F4EFE6"
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
