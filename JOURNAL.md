@@ -1854,3 +1854,10 @@ Three founder device rulings (*"tap each photo and see it"* · *"tap each produc
 - **`galleryPhotos` tested by value:** wire-order labels, empty gallery for no photos, NOTHING rendered without a media base, and a `private/` ref never renders — belt and braces under the upstream wire-order guarantee.
 - **Law-6 note, honestly:** the fiche's row labels are inline French, matching the verify card's shipped pattern — the named inline-strings gap EXTENDS here and stays on the books.
 - **VERIFIED:** typecheck 11/11 · supplier-app 480/480 (37 files) · ALL GATES GREEN.
+
+### 2026-07-26 · ✅ THE DE-MOCK LOOP IS CLOSED — CONFIRMED ON THE FOUNDER'S DEVICE
+Founder, verbatim: *"yes its now shows in produits."* **« Pagne jolie » — photographed on his phone, stripped, uploaded, published through his five-step wizard, served by the deployed offer service, and read back into Produits with its photos.** This is the sentence the whole APPS lane was pointed at: *"de-mock completely boutik+ so i photo capture real products and publish it and they will show in shop+ with all the data that i will put in."* The Boutik+ half of that sentence is now TRUE on hardware. The Shop+ half (the vitrine reading the same projection) is the standing next front.
+- The chain that had to hold, and held: capture/pick → strip (DRI intact) → review → publish (zone from the seller) → offer DO + index → deployed list route → boundary validation → tile → fiche.
+
+### 2026-07-26 · FICHE + VIEWER + LARGE CARDS — APPROVED AND MERGED
+Founder: *"this one is approved and merge it."* Guarded merge of `c0d8d2d` follows: heads verified → `--no-ff` → tree diff vs approved EMPTY → re-proved green → push → ancestry read-back.
