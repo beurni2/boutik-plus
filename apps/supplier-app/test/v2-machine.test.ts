@@ -87,15 +87,15 @@ describe('T04/T18/T19 — wizard: §4.4 gates, §9.5 name fallback, moderation 6
     expect(reduce(s, { t: 'WIZ_NEXT' }).s.wiz.step).toBe(1); // gated — the fallback cannot be reached this way
     expect(disabled.wizContinue(reduce(s, { t: 'WIZ_SET', patch: { name: '   ' } }).s)).toBe(true); // whitespace is not a name
     ({ s } = run(s, { t: 'WIZ_SET', patch: { name: 'Pagne' } }));
-    expect(disabled.wizContinue(s)).toBe(true); // name alone is not enough — the ZONE is his to choose too (founder reversal)
-    ({ s } = run(s, { t: 'WIZ_SET', patch: { zone: 'Gounghin' } }));
+    // NAME ALONE OPENS THE STEP (founder ruling 2026-07-26 — Quartier left the
+    // listing flow, so it left this gate; the record's zone is the seller's).
     expect(disabled.wizContinue(s)).toBe(false);
   });
 
   it('step 4/5 blocks without photos; publish creates np1 mod:true then approves at +6000ms', () => {
     let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' });
     expect(s.wiz).toMatchObject({ step: 0, cat: 'Mode femme', B: 10_000, C: 1_000, stock: 5, photos: false });
-    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'Robe wax', zone: 'Gounghin' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' })); // → step 3 (Photos), name + zone set (the step-1 gate)
+    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'Robe wax' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' })); // → step 3 (Photos), name set (the step-1 gate)
     expect(s.wiz.step).toBe(3);
     expect(disabled.wizContinue(s)).toBe(true);
     expect(reduce(s, { t: 'WIZ_NEXT' }).s.wiz.step).toBe(3); // gated
@@ -119,7 +119,7 @@ describe('T04/T18/T19 — wizard: §4.4 gates, §9.5 name fallback, moderation 6
     // Drive the reducer to step 4 WITH a name (the lawful route), then blank the
     // name — the exact shape of a future action that skips the step-1 predicate.
     let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' },
-      { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'x', zone: 'z' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' });
+      { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'x' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' });
     ({ s } = run(s, { t: 'OPEN_STUDIO' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_CAPTURE' }, { t: 'STUDIO_APPROVE' }, { t: 'WIZ_NEXT' }));
     s = reduce(s, { t: 'WIZ_SET', patch: { name: '' } }).s; // the guard is a FOOTER gate, not a state invariant
     const r = reduce(s, { t: 'WIZ_NEXT' });

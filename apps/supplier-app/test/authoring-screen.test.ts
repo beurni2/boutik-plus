@@ -106,7 +106,22 @@ describe('THE INTERCEPTOR — the real publish, and the frozen rules never reach
   });
 
   it('the machine still gates step 1 on an EMPTY NAME and EMPTY ZONE — §9.5 unreachable via the footer', () => {
-    expect(machine).toMatch(/s\.wiz\.step === 1 && \(s\.wiz\.name\.trim\(\) === '' \|\| s\.wiz\.zone\.trim\(\) === ''\)/);
+    // BY VALUE, not by source shape (device incident 2026-07-26: the old
+    // source regex asserted zone INSIDE the gate while the screen had lost the
+    // only way to fill it — a Continue that could never enable, green in CI).
+    // Drive the real reducer: name alone must open step 1; no zone anywhere.
+    let s = reduce(initialState(), { t: 'OPEN_WIZ' }).s;
+    s = reduce(s, { t: 'WIZ_NEXT' }).s; // step 0 → 1 (category has a default)
+    expect(s.wiz.step).toBe(1);
+    s = reduce(s, { t: 'WIZ_SET', patch: { name: 'Pagne jolie' } }).s;
+    expect(s.wiz.zone.trim()).toBe(''); // the screen can no longer set it
+    s = reduce(s, { t: 'WIZ_NEXT' }).s;
+    expect(s.wiz.step).toBe(2); // Continue works WITHOUT a zone
+    // and the name requirement still gates: an empty name stays on step 1
+    let bare = reduce(initialState(), { t: 'OPEN_WIZ' }).s;
+    bare = reduce(bare, { t: 'WIZ_NEXT' }).s;
+    bare = reduce(bare, { t: 'WIZ_NEXT' }).s;
+    expect(bare.wiz.step).toBe(1);
     // …and the frozen rule itself is UNEDITED
     expect(machine).toMatch(/'Robe brodée bogolan'/);
   });

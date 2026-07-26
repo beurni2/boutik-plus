@@ -159,7 +159,12 @@ export const disabled = {
   // the wizard's own footer (the only WIZ_NEXT dispatcher in the app). The rule
   // at the publish branch stays literally intact. Second, independent refusal:
   // the real write's core returns `name_required` regardless.
-  wizContinue: (s: S) => (s.wiz.step === 1 && (s.wiz.name.trim() === '' || s.wiz.zone.trim() === '')) || (s.wiz.step === 3 && !s.wiz.photos),
+  // ZONE LEFT THE STEP GATE WITH THE INPUT (founder ruling 2026-07-26 —
+  // Quartier is boutique data, out of the listing flow; device incident: the
+  // input was removed while this gate still demanded it, so Continue could
+  // never enable). The published record's zone comes from SUPPLIER_ZONE at
+  // formFromWiz; the Wiz field stays, unused, so §9's frozen shape is intact.
+  wizContinue: (s: S) => (s.wiz.step === 1 && s.wiz.name.trim() === '') || (s.wiz.step === 3 && !s.wiz.photos),
   confirmReady: (s: S) => !s.readyShot,
   studioCapture: (s: S) => s.studio.low,
   stockMinus: (s: S, stock: number) => stock + s.stkDelta <= 0,
