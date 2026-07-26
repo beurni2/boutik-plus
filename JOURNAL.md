@@ -1883,3 +1883,23 @@ Founder, verbatim, answering the §7 stop directly: *"yes i confirm it and its m
 **W-slices:** W1 web walking skeleton (browser boots the app, Produits reads the deployed service) → W2 upload intake through the pick seam → W3 drag-and-drop enhancement → W4 publish parity (his de-mock sentence, on web) → W5 proof per W-D1 → W6 PWA hardening. Shop+ vitrine follows W4 unless he resequences.
 
 **One protocol note, stated to him plainly rather than absorbed silently:** the directive also asked for autonomous execution with the approval protocol dropped. The merge gate stays until he amends CLAUDE.md itself — a chat directive changes what is built; the gates that caught five live defects this week are how it stays true while being built.
+
+### 2026-07-26 · 🕸️ W1 BUILT ON THE BRANCH — BOUTIK+ BOOTS IN A BROWSER AND PRODUITS READS THE REAL SERVICE (awaiting founder merge word)
+First slice of the founder-ruled web transition (North Star `Boutik-Plus-Web-North-Star.md`, platform-contracts `e3ec337`). Commit `119a05f`, branch only — the merge gate stands.
+
+**PROVEN IN A REAL BROWSER, not asserted:** the exported web bundle (Chromium 390×844, served on one port) read a REAL workerd offer service (Miniflare, other port) **cross-origin through the new CORS preflight** and rendered « Pagne tissé Faso (démo) · 10 000 FCFA · stock 5 » in the large-card Produits layout, honest « Sans photo » state, Faso Premium faces live. The seeded preview reconciled: net 8 500 = 10 000 − 500 (5%·B) − 1 000. Screenshots in the founder message.
+
+- **Same codebase, no rewrite:** web target added via react-native-web/react-dom/@expo/metro-runtime at the SDK's own pinned versions; `platforms += web`. The screens he device-verified are the screens the browser renders.
+- **CORS at the worker's one entry, auth untouched:** bare OPTIONS answered 204 with grants; every response stamped `Access-Control-Allow-Origin: *` — safe HERE because no cookie/ambient credential exists on this worker (tripwire comment in place). Three e2e tests on real workerd, **red-proven** (pre-change worker fails all 3); the unkeyed GET stays 401 and the 401 is stamped so the browser app can render its designed failed state.
+- **Web fonts:** the config plugin embeds nothing on web → `src/ui/web-fonts.ts` loads the six faces at runtime, never gating a render (cold-start law). Static require map **welded to FP_FACES** by a four-assertion suite (both directions, per-family file, on-disk, root mounts the hook).
+- **The approved-deps gate caught the new packages** — as designed. react-native-web/react-dom return under a DIFFERENT authority than removed them (then: test harness, removed with the value-match ruling; now: the product's web platform). The gate comment carries both rulings.
+
+**NAMED FINDINGS, REPORTED NOT FILLED:**
+1. **expo-camera web pulls jsQR from a CDN at import** (`useWebQRScanner.js` top-level Worker) — console error offline, external fetch on boot. Contained: gates nothing. The fix belongs to W5's lazy camera import, same OTA-safety pattern as the picker.
+2. **FCFA truncates in S02 money tiles on web** (« 18 700 FC… ») — money must never truncate; web text metrics differ from native. Needs its own look before any web surface reaches him.
+3. **Day ticker bleeds behind the dock on web** — no safe-area insets in a browser.
+4. favicon 404 (none exported) — W6 cosmetics.
+5. **Metro caches EXPO_PUBLIC_* inlining** — an env change without `--clear` ships the OLD values silently. The deploy pipeline must always export cold. (Cost one debugging round tonight.)
+6. **No web deploy pipeline exists and the hosting target is undecided** (⏳ founder: Cloudflare Pages sits next to the workers — recommendation, not a ruling). The deployed worker also needs an offer-deploy dispatch to serve CORS before any hosted web app can read it.
+
+**Fresh-context verifier dispatched** on the slice (CORS/auth adversarial pass + native-unbroken + test honesty); verdict lands in the next entry.
