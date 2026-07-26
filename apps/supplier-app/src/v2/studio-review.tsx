@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Image, Text, View, type LayoutChangeEvent } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO, SHADOW } from '../ui/v2/tokens';
-import { C21, C39, C39G, role } from '../ui/v2/styles';
+import { C21, C39G, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { BtnGhost, C07BtnPrimary, HeaderStacked } from './components';
 import { reviewGuides, reviewPaneSize, roleTitleKey, secondaryActionKey, type ShotSource } from '../studio/review';
@@ -109,8 +109,11 @@ export function S26StudioReview({
                 ]}
               />
             ))}
-            {/* planche 448's caption slot, carrying the reused `studio.apercu` */}
-            <Text style={C39.caption}>{t('studio.apercu')}</Text>
+            {/* THE CAPTION IS GONE (founder device ruling 2026-07-26). The
+                planche's slot (448) held « Ce que l'acheteur verra »; on a real
+                photograph the two guide rectangles already say where the crops
+                fall, and his own standing instruction is that a rule stated by
+                the picture does not also get a sentence. */}
           </View>
         )}
       </View>

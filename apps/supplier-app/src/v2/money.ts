@@ -39,3 +39,24 @@ export function pendingTotal(orders: readonly { status: OrderStatus; net: number
 export function paidTotal(orders: readonly { status: OrderStatus; net: number }[]): number {
   return orders.filter((o) => o.status === 'PAID').reduce((s, o) => s + o.net, 0);
 }
+
+/**
+ * WHAT HE TYPED INTO A MONEY BOX, AS AN AMOUNT (founder device ruling
+ * 2026-07-26 — the price and commission boxes are editable, not just − / +).
+ *
+ * **DIGITS ONLY, AND AN EMPTY BOX IS ZERO, NOT NaN.** A number-pad on Android
+ * still admits separators and a leading minus on some keyboards; every
+ * non-digit is dropped rather than parsed, so the field cannot produce a
+ * negative, a fraction or a NaN — the three values the money core would have to
+ * refuse downstream. Clearing the box gives `0`, which the publish floor then
+ * refuses in words he can read.
+ *
+ * The cap keeps a mistyped run of digits inside a safe integer; `Number.MAX_SAFE_INTEGER`
+ * is not a design token, it is the point past which arithmetic stops being exact.
+ */
+export function digitsToAmount(text: string): number {
+  const digits = text.replace(/[^0-9]/g, '');
+  if (digits === '') return 0;
+  const value = Number(digits.slice(0, 15));
+  return Number.isSafeInteger(value) ? value : 0;
+}

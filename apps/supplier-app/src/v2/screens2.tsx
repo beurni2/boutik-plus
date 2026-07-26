@@ -15,7 +15,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
-import { formatF, pendingTotal, paidTotal } from './money';
+import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
 import type { SellerNetLine } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
@@ -128,7 +128,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string }[] | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -179,13 +179,12 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
               <Input label={tr('publier.champ_code')} value={w.code} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { code: t } })} />
               <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr('publier.champ_code_aide')}</Text>
             </View>
-            {/* Zone — founder reversal 2026-07-25: HE chooses it per listing.
-                His own onboarding design already collects « Quartier » as
-                boutique data; same label family here. Boutik-side only — it
-                never reaches the supply projection. */}
-            <View style={{ marginTop: 16 }}>
-              <Input label={tr('publier.champ_zone')} value={w.zone} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { zone: t } })} />
-            </View>
+            {/* QUARTIER REMOVED FROM THE LISTING FLOW (founder device ruling
+                2026-07-26). It is a property of his BOUTIQUE, not of each
+                product, and asking it once per listing was a tax on every
+                product he adds. Canon still requires a zone on the
+                ProductVersion, so the wrapper now supplies the seller-level
+                value — see `SUPPLIER_ZONE` in `supply/service.ts`. */}
             <View style={{ marginTop: 16 }}>
               <Input label="Variantes (tailles…)" value={w.sizes} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { sizes: t } })} />
             </View>
@@ -205,7 +204,8 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
             <Overline style={{ marginTop: 18 }}>Prix de base (ce que vaut le produit)</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
-                value={formatF(w.B)}
+                value={String(w.B)}
+                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { B: digitsToAmount(text) } })}
                 onMinus={() => !disabled.wizB(w) && d({ t: 'WIZ_SET', patch: { B: w.B - 500 } })}
                 onPlus={() => d({ t: 'WIZ_SET', patch: { B: w.B + 500 } })}
               />
@@ -213,7 +213,8 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
             <Overline style={{ marginTop: 16 }}>Commission revendeuse (vous la financez)</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
-                value={formatF(w.C)}
+                value={String(w.C)}
+                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { C: digitsToAmount(text) } })}
                 onMinus={() => !disabled.wizC(w) && d({ t: 'WIZ_SET', patch: { C: w.C - 100 } })}
                 onPlus={() => d({ t: 'WIZ_SET', patch: { C: w.C + 100 } })}
               />
@@ -265,11 +266,24 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
         {w.step === 4 && (
           <>
             <Text style={C43.titleStep}>Vérifiez, puis publiez</Text>
+            {/* EVERYTHING WELL DETAILED (founder device ruling 2026-07-26).
+                Every value he typed, on its own labelled row, so the last thing
+                before publishing is a full statement rather than a summary. */}
             <Card style={{ marginTop: 16 }}>
               <Text style={role({ f: 'BG', w: 700, s: 16 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
-              <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 3 }]}>
-                {`${w.cat} · variantes ${w.sizes} · stock ${w.stock}`}
-              </Text>
+              <View style={{ height: 1, backgroundColor: P.borderCard, marginVertical: 13 }} />
+              {([
+                ['Catégorie', w.cat],
+                ['Code produit', w.code.trim() === '' ? '—' : w.code],
+                ['Variantes', w.sizes.trim() === '' ? '—' : w.sizes],
+                ['Stock disponible', `${w.stock}`],
+                ['Prix de base', formatF(w.B)],
+              ] as const).map(([label, value]) => (
+                <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
+                  <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>
+                  <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.ink), TNUM, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{value}</Text>
+                </View>
+              ))}
               <View style={{ height: 1, backgroundColor: P.borderCard, marginVertical: 13 }} />
               {/* Unreachable when no net may be stated — continue is blocked on
                   step 2 — but the type makes the case explicit rather than
@@ -287,6 +301,24 @@ export function S20Wizard({ st, d, money, heroUri }: { st: S; d: D; money: Selle
                 <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{formatF(w.C)}</Text>
               </View>
             </Card>
+            {/* ALL THREE PHOTOGRAPHS, not just the hero (founder device ruling
+                2026-07-26: *"able to see all photos taken"*). These are the
+                SHIPPED bytes — the same data URIs the Studio previewed — so
+                what he checks here is what uploads. The honest empty when the
+                Studio has not run is the placeholder tile below. */}
+            {photos !== undefined && photos.length > 0 && (
+              <Card style={{ marginTop: 12, padding: 16 }}>
+                <Overline level="card">Vos photos</Overline>
+                <View style={{ marginTop: 11, flexDirection: 'row', gap: 10 }}>
+                  {photos.map((p) => (
+                    <View key={p.label} style={{ flex: 1 }}>
+                      <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: C21.preview.r }} resizeMode="cover" />
+                      <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{p.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+            )}
             <Card style={{ marginTop: 12, padding: 16 }}>
               <Overline level="card">Aperçu — ce que verront les revendeuses</Overline>
               <View style={{ marginTop: 11, flexDirection: 'row', alignItems: 'center', gap: 12 }}>

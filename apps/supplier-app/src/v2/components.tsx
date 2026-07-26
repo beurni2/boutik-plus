@@ -187,13 +187,34 @@ export const ChipVerified = ({ onPress }: { onPress: () => void }) => (
 );
 
 // ── stepper + input ───────────────────────────────────────────────────────────
-export function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => void; onPlus: () => void }) {
+/**
+ * C15 Stepper. `onChangeText` is OPTIONAL and ADDITIVE (founder device ruling
+ * 2026-07-26: *"I want to be able to edit it inside of the box instead of just
+ * the - +"*).
+ *
+ * Without it the box is the frozen read-only text and the demo board is
+ * byte-identical. With it the SAME box becomes a numeric field — same style
+ * object, same height, same alignment — so a seller who knows his price types
+ * it instead of tapping + eighteen times.
+ */
+export function Stepper({ value, onMinus, onPlus, onChangeText }: { value: string; onMinus: () => void; onPlus: () => void; onChangeText?: (t: string) => void }) {
   return (
     <View style={s.stepperRow}>
       <Pressable onPress={onMinus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button">
         <Text style={s.stepperGlyph}>{C15.minus}</Text>
       </Pressable>
-      <Text style={[s.stepperValue, TNUM]} numberOfLines={1}>{value}</Text>
+      {onChangeText === undefined ? (
+        <Text style={[s.stepperValue, TNUM]} numberOfLines={1}>{value}</Text>
+      ) : (
+        <TextInput
+          style={[s.stepperValue, TNUM]}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="number-pad"
+          selectTextOnFocus
+          accessibilityLabel={value}
+        />
+      )}
       <Pressable onPress={onPlus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button">
         <Text style={s.stepperGlyph}>{C15.plus}</Text>
       </Pressable>

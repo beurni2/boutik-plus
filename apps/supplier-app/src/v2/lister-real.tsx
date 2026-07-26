@@ -42,7 +42,7 @@ import { formatF } from './money';
 import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, Overline } from './components';
 import { S20Wizard } from './screens2';
 import { mintCommandId } from '../offline/commandId';
-import { resolveSupplyService, SUPPLIER_ID, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
+import { resolveSupplyService, SUPPLIER_ID, SUPPLIER_ZONE, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
 import { resolveMediaService, sha256Hex, type MediaServicePort } from '../supply/media';
 import { assembleAssets, type AssemblyInput, type ProductAssetsInput, type RoleUpload } from '../supply/assets';
 import {
@@ -106,7 +106,7 @@ function formFromWiz(wiz: S['wiz']): AuthoringForm {
     name: wiz.name,
     productCode: wiz.code,
     category: wiz.cat,
-    zone: wiz.zone,
+    zone: SUPPLIER_ZONE, // his BOUTIQUE's zone — no longer asked per listing
     basePrice: String(wiz.B),
     resellerCommission: String(wiz.C),
     available: String(wiz.stock),
@@ -465,7 +465,19 @@ export function SListerReal({ st, d, captures, session }: {
     refusal === null
       ? { kind: 'figure', net: previewSellerNet(st.wiz.B, st.wiz.C) }
       : { kind: 'refused', reasonKey: ERROR_KEY[refusal] };
-  return <S20Wizard st={st} d={dd} money={money} heroUri={captures.current?.heroSquare.uri} />;
+  // ALL THREE PHOTOGRAPHS for the verify step — the SHIPPED bytes, in his
+  // shot order. `undefined` when the Studio has not run, which is the honest
+  // absence the card keys off rather than three grey squares.
+  const set = captures.current;
+  const photos =
+    set === null
+      ? undefined
+      : ([
+          { label: 'Héro', uri: set.heroSquare.uri },
+          { label: 'Preuve', uri: set.proof.derivative.uri },
+          { label: 'Détail', uri: set.detail.derivative.uri },
+        ] as const);
+  return <S20Wizard st={st} d={dd} money={money} heroUri={set?.heroSquare.uri} photos={photos} />;
 }
 
 export { type CaptureSet };

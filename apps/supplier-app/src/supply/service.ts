@@ -235,6 +235,20 @@ export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
  */
 export const SUPPLIER_ID = 'supplier-founder-001';
 
+/**
+ * THE SELLER'S ZONE — a property of his BOUTIQUE, not of each product (founder
+ * device ruling 2026-07-26: *"in the product listing flow remove the
+ * Quartier"*).
+ *
+ * Canon's `ProductVersion` still carries a zone, so it must come from
+ * somewhere; asking it once per listing was a tax on every product he adds.
+ * **THIS IS THE SAME ONE-SUPPLIER CONSTANT FAMILY AS `SUPPLIER_ID` ABOVE** —
+ * correct only because there is exactly one of him, and it joins that gate:
+ * the day a second supplier is onboarded, the zone comes from his boutique
+ * record like his id does.
+ */
+export const SUPPLIER_ZONE = 'Ouagadougou';
+
 export interface SupplyServicePort {
   createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>>;
   /** Attach photographs to an ALREADY-PUBLISHED offer — completion, not replacement. */

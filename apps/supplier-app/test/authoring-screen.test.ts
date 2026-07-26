@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { initialState, reduce } from '../src/v2/machine';
+import { SUPPLIER_ZONE } from '../src/supply/service';
 import { catalog } from '../src/i18n';
 
 /**
@@ -30,6 +31,9 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
 
   it("view 'add' renders SListerReal, which renders HIS S20Wizard — not a new form", () => {
     expect(shell).toMatch(/v\.s === 'add' \?[\s\S]{0,600}<SListerReal st=\{st\} d=\{d\} captures=\{captures\}/);
+    // `photos` joined the wizard's props under the founder device ruling
+    // (2026-07-26: "able to see all photos taken") — the verify step shows all
+    // three SHIPPED derivatives, not the hero alone.
     // `money` joined this line under the founder rounding ruling (2026-07-25):
     // the wizard's seller-net figures are computed by the wrapper through the
     // CANON waterfall, never by the wizard — and under the floor ruling
@@ -37,7 +41,7 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     // an offer that cannot exist. Both asserted by value in
     // test/preview-rounding.test.ts; asserted here as the wiring.
     expect(lister).toMatch(
-      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{captures\.current\?\.heroSquare\.uri\} \/>;/,
+      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{set\?\.heroSquare\.uri\} photos=\{photos\} \/>;/,
     );
   });
 
@@ -68,8 +72,30 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
   });
 
   it('the step-4 aperçu shows the REAL heroSquare when one exists — demo chrome makes no claim over real photos', () => {
-    expect(lister).toMatch(/heroUri=\{captures\.current\?\.heroSquare\.uri\}/);
+    expect(lister).toMatch(/heroUri=\{set\?\.heroSquare\.uri\}/);
     expect(screens2).toMatch(/heroUri !== undefined \? \(/);
+  });
+
+  /**
+   * FOUNDER DEVICE RULING 2026-07-26 — *"on vérifier et publier screen I want
+   * everything well detailed and able to see all photos taken"*.
+   */
+  it('the verify step shows ALL THREE photographs, and they are the SHIPPED bytes', () => {
+    // hero comes from the CROP that uploads, proof and detail from their own
+    // stripped derivatives — never from a master, which never leaves the phone
+    expect(lister).toMatch(/label: 'Héro', uri: set\.heroSquare\.uri/);
+    expect(lister).toMatch(/label: 'Preuve', uri: set\.proof\.derivative\.uri/);
+    expect(lister).toMatch(/label: 'Détail', uri: set\.detail\.derivative\.uri/);
+    expect(lister).not.toMatch(/uri: set\.\w+\.masterUri/);
+    // and NOTHING is claimed when the Studio has not run
+    expect(lister).toMatch(/set === null\s*\?\s*undefined/);
+    expect(screens2).toMatch(/photos !== undefined && photos\.length > 0/);
+  });
+
+  it('the verify step details every value he typed, each on its own labelled row', () => {
+    for (const label of ['Catégorie', 'Code produit', 'Variantes', 'Stock disponible', 'Prix de base']) {
+      expect(screens2, `verify row missing: ${label}`).toContain(`'${label}'`);
+    }
   });
 });
 
@@ -111,11 +137,20 @@ describe('WIZARD STEP 1 — the founder-ruled fields, inside his step, no sixth 
     expect(screens2).toMatch(/patch: \{ code: t \}/);
   });
 
-  it('collects the ZONE — he chooses it per listing (founder reversal), label from his design family', () => {
-    expect(screens2).toMatch(/tr\('publier\.champ_zone'\)/);
-    expect(screens2).toMatch(/patch: \{ zone: t \}/);
-    const entry = catalog.find((e) => e.key === 'publier.champ_zone');
-    expect((entry as { fr: string }).fr).toBe('Quartier'); // the onboarding's own label family
+  /**
+   * FOUNDER DEVICE RULING 2026-07-26 — *"in the product listing flow remove the
+   * Quartier"*. This REVERSES the 2026-07-25 reversal: the zone is a property
+   * of his BOUTIQUE, not of each product, and asking it once per listing taxed
+   * every product he adds.
+   */
+  it('does NOT ask for the Quartier — it is boutique data, not per-product data', () => {
+    expect(screens2).not.toMatch(/tr\('publier\.champ_zone'\)/);
+    expect(screens2).not.toMatch(/patch: \{ zone: t \}/);
+  });
+
+  it('and the published record still CARRIES a zone — canon requires one, so it comes from the seller', () => {
+    expect(lister).toMatch(/zone: SUPPLIER_ZONE/);
+    expect(SUPPLIER_ZONE.trim().length).toBeGreaterThan(0);
   });
 
   it('the wizard still has FIVE steps — nothing grew', () => {

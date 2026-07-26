@@ -1793,3 +1793,23 @@ Founder's screenshot: his captured photo rendered as **a strip of real image ove
 - **THE REAL GAP THIS EXPOSES:** the imaging path has never been tested against **one real camera JPEG**. Every proof is against bytes we authored. **Committing a real device JPEG as a fixture is the missing gate**, and I am naming it rather than building it.
 
 **A SECOND OBSERVATION FROM THE SAME SCREENSHOT, NOT YET DIAGNOSED:** the in-frame caption « Ce que l'acheteur verra » appears **clipped at the pane's bottom edge**. `C39.caption` sits at `bottom: 30` inside an `overflow: 'hidden'` container. Reported, not fixed — I do not want to move a planche-derived value on the strength of one screenshot.
+
+### 2026-07-26 · FOUR DEVICE RULINGS BUILT — AND ONE DEFECT I CANNOT DIAGNOSE FROM HERE
+Founder, from his phone. Items 2–5 built; **item 1 needs one answer from him**.
+
+**② QUARTIER LEAVES THE LISTING FLOW.** *"in the product listing flow remove the Quartier"* — **this REVERSES the 2026-07-25 reversal**, and the reason is better than the one it replaces: **the zone is a property of his BOUTIQUE, not of each product**, so asking it once per listing taxed every product he adds.
+- **Canon still requires a zone on `ProductVersion`**, so it must come from somewhere. `SUPPLIER_ZONE` now sits beside `SUPPLIER_ID` — **the same one-supplier constant family, and it JOINS THAT GATE**: the day a second supplier is onboarded, his zone comes from his boutique record exactly as his id does. ⏳ **The VALUE « Ouagadougou » is my safest default, not his ruling** — flagged.
+- The test that encoded the OLD ruling now encodes the new one, plus a second assertion that the published record still carries a zone. **A ruling reversed is a test rewritten, not a test deleted.**
+
+**③ THE MONEY BOXES ARE EDITABLE.** *"I want to be able to edit it inside of the box instead of just the − +"*. `Stepper` gains an **optional** `onChangeText`: without it the box is the frozen read-only text and the demo board is byte-identical; with it the SAME box becomes a numeric field, same style object, same height.
+- **`digitsToAmount` is the guard, and it is tested by value:** digits only, empty is `0`, **no negative, no fraction, no separator, never a NaN** for any input — including `'-500'`, `'12,50'`, `'1e10'`, Arabic-Indic digits. Clearing the box gives 0, which the publish floor then refuses **in words he can read** rather than in a crash. **RED-PROVEN:** dropping the strip fails the negative and fraction cases.
+
+**④ THE IN-FRAME CAPTION IS GONE.** « Ce que l'acheteur verra » removed from the review pane. **His own standing instruction decided it:** *"If a rule can be stated by the picture, do not also write a sentence about it."* On a real photograph the two guide rectangles say where the crops fall; the sentence was the chrome he warned about. `studio.apercu` stays in the catalog, now unused on this surface.
+
+**⑤ VÉRIFIER ET PUBLIER — DETAILED, AND ALL THREE PHOTOGRAPHS.** Every value he typed on its own labelled row (catégorie · code produit · variantes · stock · prix de base), then **all three photographs side by side, labelled Héro · Preuve · Détail**.
+- **THEY ARE THE SHIPPED BYTES** — `heroSquare` is the CROP that uploads, proof and detail their own stripped derivatives. **A master never appears**, asserted by a test that also forbids `masterUri` on this surface. When the Studio has not run the card is absent entirely rather than three grey squares.
+
+### 2026-07-26 · ⏳ « I LIST A PRODUCT AND I DO NOT SEE IT IN PRODUITS » — NOT DIAGNOSED, ONE QUESTION OWED
+**I read the whole path and could not find the defect, so I am not guessing at a fix.** `AppV2` passes the same `SUPPLIER_ID` the publish writes; `SProduitsReal` reads once per mount, so a tab switch re-reads; `buildSupplierList` **shows lapsed and un-approved offers MARKED rather than hiding them**, so even a refused offer should appear.
+- **`produitsView` has a designed state for every case** — `not_configured` · `loading` · `failed` (with the stale list, labelled) · `empty` · `list`. **So he is seeing one of five specific screens, and which one he sees discriminates between every remaining hypothesis at once.**
+- **THE QUESTION, ASKED RATHER THAN GUESSED AT:** what does the Produits tab actually show — the empty state, a red « lecture échouée » banner, « non configuré », or a spinner? **Firing changes at this blind would be the shotgun the last three device defects each punished.**

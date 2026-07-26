@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { money } from '@platform/ui-tokens/legacy';
-import { fee, net, formatF, pendingTotal, paidTotal } from '../src/v2/money';
+import { fee, net, formatF, pendingTotal, paidTotal, digitsToAmount } from '../src/v2/money';
 import { SEED_ORDERS, SEED_PRODUCTS, SEED_RELEVES } from '../src/v2/seed';
 
 /**
@@ -74,5 +74,37 @@ describe('§3.5 — formatting (WO-FCFA re-pin, founder order 2026-07-18: suffix
       const grouped = formatF(r.total).slice(0, -money.currencySuffix.length);
       expect(all).toContain(grouped + ' F');
     }
+  });
+});
+
+describe('WHAT HE TYPES INTO A MONEY BOX — digits only, and never a NaN', () => {
+  it('reads a plain amount', () => {
+    expect(digitsToAmount('12500')).toBe(12500);
+  });
+
+  it('an EMPTY box is zero — the publish floor then refuses it in words he can read', () => {
+    expect(digitsToAmount('')).toBe(0);
+    expect(digitsToAmount('   ')).toBe(0);
+  });
+
+  it('NO NEGATIVE can be produced, whatever the keyboard offers', () => {
+    expect(digitsToAmount('-500')).toBe(500);
+    expect(digitsToAmount('−500')).toBe(500);
+  });
+
+  it('NO FRACTION and no separator survives — FCFA is an integer currency', () => {
+    expect(digitsToAmount('12,50')).toBe(1250);
+    expect(digitsToAmount('12.50')).toBe(1250);
+    expect(digitsToAmount('12 500')).toBe(12500);
+  });
+
+  it('never returns NaN, for any input at all', () => {
+    for (const junk of ['abc', 'e5', '1e10', '+', '٣٤', 'NaN', 'Infinity', '\u0663\u0664']) {
+      expect(Number.isSafeInteger(digitsToAmount(junk)), `NaN from ${junk}`).toBe(true);
+    }
+  });
+
+  it('a mistyped run of digits stays inside a safe integer rather than losing precision', () => {
+    expect(Number.isSafeInteger(digitsToAmount('9'.repeat(40)))).toBe(true);
   });
 });
