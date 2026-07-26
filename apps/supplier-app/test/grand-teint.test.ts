@@ -86,8 +86,16 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
     // STUDIO-GALLERY-1 (founder ruling 2026-07-25): « HE WANTS TO UPLOAD FROM HIS
     // DEVICE, not only capture » — gallery for hero and details, camera-only for
-    // the PROOF role. The picker is the only way to obtain a library URI.
-    expect(pkg.dependencies['expo-image-picker']).toBeDefined();
+    // the PROOF role on native. The picker is the only way to obtain a library URI.
+    //
+    // PINNED EXACTLY after BOUTIK-WEB-W2 caught the cost of not pinning: this
+    // entry was the gate's one `toBeDefined()`, and it let `^57.0.6` — the NEXT
+    // SDK's line — ship against SDK 54 (`bundledNativeModules.json` says
+    // ~17.0.11). The web target exploded at require (`createPermissionHook is
+    // not a function`); the next NATIVE build would have paired mismatched
+    // native code with the SDK 54 runtime. A gate that only checks presence
+    // cannot catch a wrong generation.
+    expect(pkg.dependencies['expo-image-picker']).toBe('~17.0.11');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
@@ -98,8 +106,17 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     // deps (react-dom/react-native-web) were REMOVED with the visual pipeline —
     // fidelity is VALUE MATCH ONLY (founder order 2026-07-17): the property
     // gate compares style data to the Phase-0 table; nothing renders.
+    //
+    // BOUTIK-WEB-W1 (Boutik-Plus-Web North Star, founder-confirmed 2026-07-26):
+    // react-native-web and react-dom RETURN — under a different authority than
+    // the one that removed them. Then they were a test harness (still removed;
+    // fidelity stays value-match); now they are the PRODUCT's web platform:
+    // Boutik+ ships a web target from this same codebase. @expo/metro-runtime
+    // is the metro web entry those two need.
     expect(added.sort()).toEqual([
-      'expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'expo-image-picker', 'react-native-svg',
+      '@expo/metro-runtime',
+      'expo-crypto', 'expo-file-system', 'expo-font', 'expo-haptics', 'expo-image-picker',
+      'react-dom', 'react-native-svg', 'react-native-web',
     ]);
   });
 });

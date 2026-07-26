@@ -26,8 +26,8 @@ import { t } from '../i18n';
  * path it is the normal case.
  *
  * **THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER** — the rule
- * this module exists to hold. `expo-image-picker@57.0.6`
- * (`build/ImagePicker.types.d.ts:248-254`) says of `width`, verbatim:
+ * this module exists to hold. `expo-image-picker@17.0.11`
+ * (`build/ImagePicker.types.d.ts:248-252`) says of `width`, verbatim:
  * *"Can be `0` if the system did not provide the width."* Same for `height`.
  * Feeding a zero into `heroSquareCrop` yields a degenerate rect, and a wrong
  * one yields the corner-fragment defect the crop-space fix already cost us
@@ -125,6 +125,16 @@ export type PickOutcome =
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'picked'; readonly shot: StudioShot }
   | { readonly kind: 'refused'; readonly refusal: DecodeRefusal };
+
+/**
+ * What the SHOOTING SCREEN has to say, if anything, after the last attempt.
+ * Lives here (not in the screen) because both platform shoot screens render it
+ * and the phase machine stores it — the pick path's own outcome vocabulary,
+ * BOUTIK-WEB-W2.
+ */
+export type ShootBanner =
+  | { readonly kind: 'decode'; readonly refusal: DecodeRefusal }
+  | { readonly kind: 'no_photo' };
 
 /**
  * The two native operations, injected — so the ORCHESTRATION below (which is

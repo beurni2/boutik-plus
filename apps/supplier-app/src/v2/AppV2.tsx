@@ -36,9 +36,13 @@ import {
 import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
 import { SUPPLIER_ID } from '../supply/service';
+import { useWebFonts } from '../ui/web-fonts';
 import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
+  // BOUTIK-WEB-W1: on web the Faso Premium faces load at runtime (no config
+  // plugin there); never gates a render — see src/ui/web-fonts.ts.
+  useWebFonts();
   const stRef = useRef<S | null>(null);
   if (stRef.current === null) {
     const s0 = initialState();

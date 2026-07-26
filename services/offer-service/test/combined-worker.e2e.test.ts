@@ -409,3 +409,40 @@ describe('AN ORPHANED ENTRY IS REPAIRED BY REPLAYING ITS CREATE (idempotent writ
     expect(body.items.filter((i) => i.offerId === SEED.offerId)).toHaveLength(1);
   });
 });
+
+/**
+ * BOUTIK-WEB-W1 — CORS at the deployed entry (Boutik-Plus-Web North Star). The
+ * supplier surface now also runs in browsers, and a GET carrying X-Write-Key is
+ * not a "simple request": the browser preflights it with a BARE OPTIONS (custom
+ * headers stripped) and refuses to hand the page any response without
+ * Access-Control-Allow-Origin. Three properties, each load-bearing:
+ * the preflight answers, the real response is stamped, and NEITHER weakens auth.
+ */
+describe('CORS — the browser can ask, the key still gates (BOUTIK-WEB-W1)', () => {
+  it('a bare OPTIONS preflight (no key — browsers strip custom headers) is answered with the grants', async () => {
+    const res = await mf.dispatchFetch('http://o/offers', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://boutik.example',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'x-write-key',
+      },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-Write-Key');
+    expect(res.headers.get('Access-Control-Allow-Methods')).toContain('GET');
+  });
+
+  it('the authed admin list carries Access-Control-Allow-Origin — without it a browser discards the body', async () => {
+    const res = await mf.dispatchFetch('http://o/offers?supplierId=supplier-founder-001', { headers: authed });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('CORS does NOT weaken the gate: the unkeyed GET is still 401 — and the 401 is stamped too, so the app can render its designed failed state instead of an opaque network error', async () => {
+    const res = await mf.dispatchFetch('http://o/offers?supplierId=supplier-founder-001');
+    expect(res.status).toBe(401);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+});
