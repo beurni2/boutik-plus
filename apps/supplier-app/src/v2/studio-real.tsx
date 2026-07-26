@@ -19,7 +19,7 @@ import {
   type StudioShot,
 } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
-import { keptAfter, roleTitleKey, type ShotSource } from '../studio/review';
+import { keptAfter, noPhotoSentenceKey, roleTitleKey, type ShotSource } from '../studio/review';
 import type { A } from './machine';
 
 /**
@@ -68,8 +68,11 @@ const PROC_ROWS = ['Métadonnées retirées (preuve à l\'appui)', 'Cadrage carr
 
 type Slot = 0 | 1 | 2;
 
+/** What the shooting screen has to say, if anything, after the last attempt. */
+type ShootBanner = { kind: 'decode'; refusal: DecodeRefusal } | { kind: 'no_photo' };
+
 type Phase =
-  | { kind: 'shooting'; slot: Slot; refusal: DecodeRefusal | null }
+  | { kind: 'shooting'; slot: Slot; banner: ShootBanner | null }
   | { kind: 'reviewing'; slot: Slot; shot: StudioShot; source: ShotSource }
   | { kind: 'processing'; done: number }
   | { kind: 'failed'; reason: string };
@@ -79,7 +82,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
   const camera = useRef<CameraView | null>(null);
   /** The photographs he has KEPT, in role order. Never holds an unreviewed shot. */
   const kept = useRef<StudioShot[]>([]);
-  const [phase, setPhase] = useState<Phase>({ kind: 'shooting', slot: 0, refusal: null });
+  const [phase, setPhase] = useState<Phase>({ kind: 'shooting', slot: 0, banner: null });
   const busy = useRef(false);
 
   /** Both sources land here: one photograph to review, its origin remembered. */
@@ -107,7 +110,11 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
       const out = await pickShot(nativeImageSource);
       // A CANCEL is not a fault: he backed out, the screen stays where it was.
       if (out.kind === 'picked') toReview(slot, out.shot, 'gallery');
-      else if (out.kind === 'refused') setPhase({ kind: 'shooting', slot, refusal: out.refusal });
+      else if (out.kind === 'refused') setPhase({ kind: 'shooting', slot, banner: { kind: 'decode', refusal: out.refusal } });
+      // NOTHING CAME BACK. He may have backed out, or the phone may have
+      // refused to open the library at all — the picker reports both the same
+      // way. Saying so beats a button that appears dead.
+      else setPhase({ kind: 'shooting', slot, banner: { kind: 'no_photo' } });
     } catch (err) {
       // A STRIP failure reaches here, not the typed refusal — bytes that cannot
       // be proven clean fail closed, exactly as on the camera path.
@@ -122,7 +129,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     kept.current = [...keptAfter(kept.current, slot, shot)];
     const next = slot + 1;
     if (next < ROLES.length) {
-      setPhase({ kind: 'shooting', slot: next as Slot, refusal: null });
+      setPhase({ kind: 'shooting', slot: next as Slot, banner: null });
       return;
     }
     void renderHeroCrops();
@@ -179,7 +186,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
         role={ROLES[slot]!}
         source={phase.source}
         onKeep={() => keep(slot, shot)}
-        onChooseAnother={() => setPhase({ kind: 'shooting', slot, refusal: null })}
+        onChooseAnother={() => setPhase({ kind: 'shooting', slot, banner: null })}
         onBack={() => d({ t: 'BACK' })}
       />
     );
@@ -208,7 +215,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
           <C07BtnPrimary
             label={t('publier.reessayer')}
             icon="retry"
-            onPress={() => { kept.current = []; setPhase({ kind: 'shooting', slot: 0, refusal: null }); }}
+            onPress={() => { kept.current = []; setPhase({ kind: 'shooting', slot: 0, banner: null }); }}
           />
         </View>
       </ScrollView>
@@ -237,8 +244,10 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
       </View>
 
       <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
-        {phase.refusal !== null && (
-          <Banner tone="warn" style={{ marginTop: 12 }}>{decodeRefusalSentence(phase.refusal)}</Banner>
+        {phase.banner !== null && (
+          <Banner tone={phase.banner.kind === 'decode' ? 'warn' : 'info'} style={{ marginTop: 12 }}>
+            {phase.banner.kind === 'decode' ? decodeRefusalSentence(phase.banner.refusal) : t(noPhotoSentenceKey())}
+          </Banner>
         )}
         <View style={{ marginTop: 12 }}>
           <C07BtnPrimary label={t('studio.capture')} icon="camera" onPress={() => { void takePhoto(slot); }} />

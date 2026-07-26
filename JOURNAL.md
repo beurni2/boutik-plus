@@ -1751,3 +1751,26 @@ Recorded at the founder's instruction after I did exactly this cleaning up a red
 **⚠️ THE GENERALISABLE LESSON, and it is bigger than this package:** **adding a native dependency and shipping it over OTA are two different acts, and the repo had no gate on the gap between them.** Every existing gate reasoned about the SOURCE. None reasoned about **what is already installed on his phone.** The OTA-unsafe list is now the place that knowledge lives, and it must gain an entry every time a native dep is added ahead of a binary.
 
 **AND THE DEVICE PASS FOUND IT IN ONE SCREEN.** Every proof in this repo was green — typecheck, 459 tests, all gates — on a build that could not start. **A green suite says nothing about whether the app opens.**
+
+### 2026-07-26 · 🚨 LIVE DEFECT #2 — THE GALLERY BUTTON DID NOTHING (fast path)
+Founder: *"I chose that option and tap it doesn't take me to my gallery."* **No crash, no banner, nothing.**
+
+**THE CAUSE, FOUND IN THE REPO RATHER THAN GUESSED FROM THE SYMPTOM:** `app.json`'s `plugins` array contained **only `expo-font`**, and `ios.infoPlist` was empty — while `package.json` carried **`expo-camera` AND `expo-image-picker`, both of which ship config plugins that inject the iOS usage descriptions.** Read in the plugins' own bytes: `expo-image-picker/plugin/build/withImagePicker.js:50-55` sets `NSPhotoLibraryUsageDescription` and `NSCameraUsageDescription`; `expo-camera/plugin/build/withCamera.js:9-13` sets `NSCameraUsageDescription`.
+- **Autolinking pulls the NATIVE CODE in. Only the plugin supplies the PERMISSION STRINGS.** Without `NSPhotoLibraryUsageDescription`, iOS refuses to present the photo library and `launchImageLibraryAsync` resolves **`canceled: true` with no UI at all** — which is precisely a button that looks dead.
+- **AND THE CAMERA WAS ONE BUILD AWAY FROM THE SAME FATE.** `expo-camera` was equally undeclared; the next native build would have had no `NSCameraUsageDescription`. The gallery report surfaced a defect that was already sitting under the working camera.
+
+**MY OWN CODE HAD A SECOND, SEPARATE HOLE, and it is the one that made this invisible.** `pickShot` returns `{kind:'cancelled'}` both when he backs out AND when the phone never opened the picker — and `pickPhoto` had **no branch for it at all**, so the screen did not move. **That is the dead-input family this codebase warns about in its own comments, walked into by the file that warns about it.** Now a pick that brings nothing back says so, in an `info` tone rather than an error one, because backing out is a normal thing to do.
+
+**FIXES:**
+1. `app.json` — both plugins declared, with French permission sentences iOS shows verbatim. **REQUIRES A NEW NATIVE BUILD to take effect.**
+2. `studio.aucune_photo` — « Aucune photo n'est arrivée. Réessayez, ou prenez la photo maintenant. » True whichever of the two happened. **267 entries, 0 violations.** ⏳ TEXT PENDING FOUNDER RULING.
+3. **GATE:** every dependency whose plugin injects a `UsageDescription` must be declared in `app.json`, **detected from the plugin's own bytes rather than a hand-kept list**, plus an assertion that the sentences are French and carry no English. **RED-PROVEN against the exact `app.json` that shipped:** `permission-injecting plugin not in app.json: expo-camera, expo-image-picker`.
+
+**⚠️ REPORTED, NOT FILLED — two more deps ship plugins and are NOT declared:** `expo-updates` and `expo-file-system`. Neither injects a usage description, so neither is in the gate's scope. **`expo-updates` is deliberately configured by CI** (`eas update:configure`, "ephemeral — never committed"), so declaring it in `app.json` could conflict with the working update channel. **`expo-file-system` is a genuine open question I did not answer.** Named here rather than fixed blind.
+
+**THE PERMISSION SENTENCES ARE NOT IN THE i18n CATALOG, and that is a real gap in the French Voice net:** they live in `app.json` because iOS reads them from the built manifest. **The copy-lint never sees them.** The gate asserts French and no-English as a floor; it is not the copy-lint.
+
+### 2026-07-26 · ⚖️ THE PATTERN BEHIND BOTH DEVICE DEFECTS
+Two incidents, one shape: **every gate in this repo reasoned about the SOURCE, and none reasoned about what is actually installed on his phone.** The white screen was a native module absent from the binary; the dead button was a permission string absent from the manifest. Both were green in typecheck, in 459 tests, and in every invariant gate.
+- **A green suite says nothing about whether the app opens, or whether a button does anything.**
+- **The device pass found both in two taps.** It is not a formality at the end of a slice; it is the only instrument that reaches this class.

@@ -113,3 +113,20 @@ export function secondaryActionKey(source: ShotSource): string {
 export function keptAfter<T>(kept: readonly T[], slot: number, shot: T): readonly T[] {
   return [...kept.slice(0, slot), shot];
 }
+
+/**
+ * WHAT THE SHOOTING SCREEN SAYS AFTER A PICK THAT BROUGHT NOTHING BACK
+ * (device incident 2026-07-25 — *"I chose that option and tap it doesn't take
+ * me to my gallery"*).
+ *
+ * **A SILENT CANCEL IS INDISTINGUISHABLE FROM A DEAD BUTTON**, and that is the
+ * dead-input family this code warns about elsewhere and then walked into. The
+ * picker returns `canceled: true` BOTH when he backs out deliberately AND when
+ * iOS refuses to present it at all — so the screen must say something true of
+ * both rather than guess which happened.
+ *
+ * It is deliberately NOT an error tone: backing out is a normal thing to do.
+ */
+export function noPhotoSentenceKey(): string {
+  return 'studio.aucune_photo';
+}

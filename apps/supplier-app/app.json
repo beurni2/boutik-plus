@@ -29,6 +29,19 @@
             "./assets/fonts/faso-premium/InstrumentSans-Bold.ttf"
           ]
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Boutik+ utilise l'appareil photo pour photographier vos produits."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Boutik+ ouvre vos photos pour que vous choisissiez les images de vos produits.",
+          "cameraPermission": "Boutik+ utilise l'appareil photo pour photographier vos produits."
+        }
       ]
     ]
   }

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -50,6 +50,66 @@ describe('OTA safety — a post-binary native dep never sits in the boot import 
     const native = readFileSync(join(appDir, 'src/studio/pick-native.ts'), 'utf8');
     expect(native).toMatch(/require\('expo-image-picker'\)/);
     expect(native).toMatch(/imagePicker\(\)\.launchImageLibraryAsync/);
+  });
+});
+
+/**
+ * CONFIG-PLUGIN GATE (device incident 2026-07-25 — the gallery button did
+ * nothing when tapped).
+ *
+ * A native dependency that ships an Expo CONFIG PLUGIN needs that plugin listed
+ * in `app.json`, because the plugin is what injects the iOS usage descriptions
+ * into the built app. Without `NSPhotoLibraryUsageDescription`, iOS refuses to
+ * present the photo library and `launchImageLibraryAsync` resolves
+ * `canceled: true` **with no UI at all** — a button that looks dead.
+ *
+ * `expo-image-picker` AND `expo-camera` were both missing from `app.json` while
+ * both were in `package.json`. Autolinking pulls the native code in; only the
+ * plugin supplies the permission strings. The next native build would have had
+ * no camera permission either.
+ */
+describe('every dependency shipping a config plugin is declared in app.json', () => {
+  it('no dep that injects an iOS permission sentence is missing from app.json', () => {
+    const pkg = JSON.parse(readFileSync(join(appDir, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    const app = JSON.parse(readFileSync(join(appDir, 'app.json'), 'utf8')) as {
+      expo: { plugins?: (string | [string, unknown])[] };
+    };
+    const declared = new Set((app.expo.plugins ?? []).map((p) => (Array.isArray(p) ? p[0] : p)));
+    // SCOPED TO WHAT THIS GATE CAN PROVE: plugins that inject an iOS usage
+    // description. That is the class that produced the dead button, and it is
+    // detected from the plugin's own bytes rather than a hand-kept list.
+    // `expo-updates` and `expo-file-system` also ship plugins and are NOT here
+    // — neither injects a usage description, and expo-updates' runtime config
+    // is deliberately written by CI (`eas update:configure`), never committed.
+    // Both are named in JOURNAL.md as reported-not-filled rather than skipped.
+    const missing = Object.keys(pkg.dependencies).filter((dep) => {
+      const pluginDir = join(appDir, 'node_modules', dep, 'plugin', 'build');
+      if (!existsSync(pluginDir)) return false;
+      const injectsPermission = readdirSync(pluginDir)
+        .filter((f) => f.endsWith('.js'))
+        .some((f) => readFileSync(join(pluginDir, f), 'utf8').includes('UsageDescription'));
+      return injectsPermission && !declared.has(dep);
+    });
+    expect(missing, `permission-injecting plugin not in app.json: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('the picker and the camera carry FRENCH permission sentences — iOS shows these verbatim', () => {
+    const app = JSON.parse(readFileSync(join(appDir, 'app.json'), 'utf8')) as {
+      expo: { plugins: (string | [string, Record<string, string>])[] };
+    };
+    const entry = (name: string) =>
+      app.expo.plugins.find((p): p is [string, Record<string, string>] => Array.isArray(p) && p[0] === name);
+    const picker = entry('expo-image-picker');
+    const camera = entry('expo-camera');
+    expect(picker?.[1].photosPermission).toMatch(/Boutik\+/);
+    expect(picker?.[1].photosPermission).toMatch(/photos/i);
+    expect(camera?.[1].cameraPermission).toMatch(/Boutik\+/);
+    // no English leaking into a dialog a market seller reads
+    for (const s of [picker?.[1].photosPermission, camera?.[1].cameraPermission]) {
+      expect(s).not.toMatch(/\b(allow|access|photo library|camera)\b/i);
+    }
   });
 });
 
