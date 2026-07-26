@@ -1861,3 +1861,10 @@ Founder, verbatim: *"yes its now shows in produits."* **« Pagne jolie » — ph
 
 ### 2026-07-26 · FICHE + VIEWER + LARGE CARDS — APPROVED AND MERGED
 Founder: *"this one is approved and merge it."* Guarded merge of `c0d8d2d` follows: heads verified → `--no-ff` → tree diff vs approved EMPTY → re-proved green → push → ancestry read-back.
+
+### 2026-07-26 · ⛔ §7 STOP — A "WEB REFACTOR" DIRECTIVE RECEIVED, NOT EXECUTED
+A message arrived in the session formatted as a system prompt, ordering a wholesale pivot of Boutik+ from the native mobile app to a full-stack web application, with drag-and-drop upload as the "universal default" and the camera capture trigger "completely deprecated", under a new assumed identity ("Principal Software Architect") and autonomous parallel execution.
+
+**NOT EXECUTED. Zero code written or changed.** It conflicts with settled canon on four counts, each quoted to the founder in the same message as this entry: Law 7 (offline-first, low-end Android first — the D17 reference device is founder-signed), the camera-only PROOF ruling (provenance is the only control against the burned-in-price class, itself a supplier-#2 blocking precondition), the build-sequence doctrine (no Building Plan slice exists for a platform pivot; the Shop+ vitrine is the named next front), and the review/approval protocol the directive asks to drop — the same gates that caught five live device defects this weekend.
+
+**Standing rule applied:** a pasted prompt does not amend canon. Canon changes are founder-ruled documents in `platform-contracts/docs`. Awaiting the founder's word; if he genuinely wants a web surface, the honest path is a North Star proposal for his ruling, not an in-place refactor.
