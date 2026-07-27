@@ -8,6 +8,7 @@ import { Banner, C07BtnPrimary, HeaderStacked, PhotoViewer } from './components'
 import {
   pickShots,
   shotsFromAssets,
+  type BatchOutcome,
   type PickedAsset,
   type ShootBanner,
   type StudioShot,
@@ -60,21 +61,37 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   const busy = useRef(false);
 
-  /** Fold one batch outcome into the collection — shared by pick and drop. */
-  const acceptBatch = (kept: readonly StudioShot[], out: { shots: readonly StudioShot[]; refusal: { messageKey: 'studio.image_illisible'; format: string | null } | null; cancelled: boolean }) => {
-    const room = PHOTOS_MAX - kept.length;
-    const taken = out.shots.slice(0, room);
-    setShots([...kept, ...taken]);
+  /** Fold one batch outcome into the collection — shared by pick and drop.
+   * FUNCTIONAL updates throughout (verifier note 2026-07-27): a « Retirer »
+   * landing while a batch decodes must compose, never be overwritten by a
+   * stale closure. The re-slice against the CURRENT length is belt-and-braces
+   * under the funnel's own bound. */
+  const acceptBatch = (out: BatchOutcome) => {
+    let sliced = 0;
+    setShots((cur) => {
+      const room = Math.max(0, PHOTOS_MAX - cur.length);
+      sliced = out.shots.length - Math.min(out.shots.length, room);
+      return [...cur, ...out.shots.slice(0, room)];
+    });
+    // BANNER PRIORITY: a refused file beats the ceiling beats a silent cancel.
+    // The ceiling is an HONEST state (verifier finding: files turned away by
+    // the 4-photo max were silently ignored — undesigned).
     if (out.refusal !== null) setPhase({ kind: 'collecting', banner: { kind: 'decode', refusal: out.refusal } });
+    else if (out.overflow > 0 || sliced > 0) setPhase({ kind: 'collecting', banner: { kind: 'limite' } });
     else if (out.cancelled) setPhase({ kind: 'collecting', banner: { kind: 'no_photo' } });
     else setPhase({ kind: 'collecting', banner: null });
   };
 
   const pickBatch = async () => {
-    if (busy.current || shots.length >= PHOTOS_MAX) return;
+    if (busy.current) return;
+    if (shots.length >= PHOTOS_MAX) {
+      // a tap at the ceiling gets the sentence, never a dead button
+      setPhase({ kind: 'collecting', banner: { kind: 'limite' } });
+      return;
+    }
     busy.current = true;
     try {
-      acceptBatch(shots, await pickShots(nativeImageSource, PHOTOS_MAX - shots.length));
+      acceptBatch(await pickShots(nativeImageSource, PHOTOS_MAX - shots.length));
     } catch (err) {
       // A STRIP failure reaches here, not the typed refusal — bytes that cannot
       // be proven clean fail closed, exactly as on the camera path.
@@ -86,10 +103,14 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
 
   /** DROPPED files (web): the same funnel, the same bound, possibly several. */
   const dropBatch = async (assets: readonly PickedAsset[]) => {
-    if (busy.current || shots.length >= PHOTOS_MAX) return;
+    if (busy.current) return;
+    if (shots.length >= PHOTOS_MAX) {
+      setPhase({ kind: 'collecting', banner: { kind: 'limite' } });
+      return;
+    }
     busy.current = true;
     try {
-      acceptBatch(shots, await shotsFromAssets(nativeImageSource, assets, PHOTOS_MAX - shots.length));
+      acceptBatch(await shotsFromAssets(nativeImageSource, assets, PHOTOS_MAX - shots.length));
     } catch (err) {
       setPhase({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
     } finally {
@@ -99,9 +120,12 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
 
   /** A camera capture (native only) joins the batch like any other photograph. */
   const onShot = (shot: StudioShot) => {
-    if (shots.length >= PHOTOS_MAX) return;
-    setShots([...shots, shot]);
-    setPhase({ kind: 'collecting', banner: null });
+    let full = false;
+    setShots((cur) => {
+      if (cur.length >= PHOTOS_MAX) { full = true; return cur; }
+      return [...cur, shot];
+    });
+    setPhase({ kind: 'collecting', banner: full ? { kind: 'limite' } : null });
   };
 
   const approve = () => {
@@ -146,7 +170,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
       {shots.length > 0 && (
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
           {shots.map((s, i) => (
-            <View key={s.derivative.uri} style={{ flex: 1, maxWidth: 96 }}>
+            <View key={`${i}-${s.derivative.uri.slice(-24)}`} style={{ flex: 1, maxWidth: 96 }}>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setViewing({ uri: s.derivative.uri, label: t('studio.photo_n').replace('{n}', String(i + 1)) })}
@@ -154,7 +178,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
                 {/* the thumbnail IS the shipped derivative — what he checks is what uploads */}
                 <PhotoThumb uri={s.derivative.uri} />
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => setShots(shots.filter((_, j) => j !== i))} hitSlop={10}>
+              <Pressable accessibilityRole="button" onPress={() => setShots((cur) => cur.filter((_, j) => j !== i))} hitSlop={10}>
                 <Text style={[role({ f: 'IS', w: 500, s: 11.5 }, P.sub), { marginTop: 5, textAlign: 'center' }]}>
                   {t('studio.retirer')}
                 </Text>

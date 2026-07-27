@@ -147,17 +147,17 @@ describe('THE SAME STRIP FUNNEL AS CAPTURE — no laxer path for a library photo
 describe('A DECODE FAULT IS A TYPED REFUSAL THAT NAMES THE FORMAT', () => {
   it('a decode failure refuses with the format the phone reported', async () => {
     const out = await pickShots(fakePort({ failDecode: true }), 4);
-    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false });
+    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false, overflow: 0 });
   });
 
   it('an ENCODE failure refuses the same way — he cannot tell the two apart and should not have to', async () => {
     const out = await pickShots(fakePort({ failEncode: true }), 4);
-    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false });
+    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false, overflow: 0 });
   });
 
   it('backing out of the picker is a CANCEL, not a fault — no refusal sentence, nothing kept', async () => {
-    expect(await pickShots(fakePort({ assets: null }), 4)).toEqual({ shots: [], refusal: null, cancelled: true });
-    expect(await pickShots(fakePort({ assets: [] }), 4)).toEqual({ shots: [], refusal: null, cancelled: true });
+    expect(await pickShots(fakePort({ assets: null }), 4)).toEqual({ shots: [], refusal: null, cancelled: true, overflow: 0 });
+    expect(await pickShots(fakePort({ assets: [] }), 4)).toEqual({ shots: [], refusal: null, cancelled: true, overflow: 0 });
   });
 });
 
@@ -227,13 +227,24 @@ describe('THE BATCH (STUDIO-BATCH-1) — one funnel, one at a time, honest about
     expect(out.refusal).toEqual({ messageKey: 'studio.image_illisible', format: 'jpeg' });
   });
 
-  it('the MAX bound is enforced in the funnel, not trusted to the picker', async () => {
+  it('the MAX bound is enforced in the funnel, not trusted to the picker — and the turned-away count is REPORTED', async () => {
     const port = fakePort({ assets: [ASSET, A2, A3] });
     const out = await shotsFromAssets(port, [ASSET, A2, A3], 2);
     expect(out.shots).toHaveLength(2);
+    expect(out.overflow).toBe(1); // never silent — the screen owes him a sentence
     // and the pick dialog is ASKED for only the remaining room
     await pickShots(port, 1);
     expect(port.maxSeen).toEqual([1]);
+  });
+
+  it('pickShots ITSELF bounds a picker that ignores selectionLimit (verifier finding: the composition, not just the helper)', async () => {
+    // a misbehaving picker returns 3 despite being asked for 1
+    const port = fakePort({ assets: [ASSET, A2, A3] });
+    const out = await pickShots(port, 1);
+    expect(port.maxSeen).toEqual([1]); // it WAS asked for 1
+    expect(out.shots).toHaveLength(1); // over-returned files are never decoded past the bound
+    expect(out.overflow).toBe(2);
+    expect(port.actionsSeen).toHaveLength(1); // exactly ONE decode+encode ran
   });
 });
 
@@ -251,6 +262,10 @@ describe('A DROPPED FILE WALKS THE SAME FUNNEL (BOUTIK-WEB-W3 — shotFromAsset)
 
   it('pickShots IS this funnel behind the dialog — same assets in, deep-equal outcome out (no second path can drift)', async () => {
     expect(await pickShots(fakePort({ assets: [DROPPED] }), 4)).toEqual(await shotsFromAssets(fakePort(), [DROPPED]));
+  });
+
+  it("the ceiling sentence exists in the catalog — the limite banner's key resolves", () => {
+    expect(t('studio.limite')).toContain('4 photos');
   });
 
   it("a decode fault refuses naming the DROPPED file's format", async () => {

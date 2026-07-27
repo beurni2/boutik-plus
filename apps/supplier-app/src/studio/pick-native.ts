@@ -58,8 +58,10 @@ function imagePicker(): PickerModule {
 export const nativeImageSource: ImageSourcePort = {
   async pickManyFromLibrary(max: number) {
     // MULTI-SELECT (STUDIO-BATCH-1). On web this renders an <input multiple>;
-    // on native the OS sheet enforces `selectionLimit`. The funnel re-bounds
-    // the batch anyway — the limit here is UX, not the guarantee.
+    // on native the OS sheet enforces `selectionLimit`. The limit here is UX;
+    // the guarantee is `pickShots`/`shotsFromAssets` bounding the batch before
+    // any decode (verifier-corrected 2026-07-27: the pick path once forwarded
+    // the picker's answer unbounded, so this comment overclaimed).
     const result = await imagePicker().launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,

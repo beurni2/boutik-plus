@@ -256,7 +256,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint }: { st: S
               <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: P.successBg }}>
                 <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
                 <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
-                  {'Photos ajoutées et validées — vous choisirez le rôle de chaque photo à la vérification.'}
+                  {tr('publier.photos_validees')}
                 </Text>
               </View>
             ) : (

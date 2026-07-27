@@ -25,9 +25,12 @@ export type PhotoRole = 'hero' | 'preuve' | 'detail1' | 'detail2';
 
 export const ROLE_ORDER: readonly PhotoRole[] = ['hero', 'preuve', 'detail1', 'detail2'];
 
-/** How many photographs the Studio accepts. The MIN matches what assembly
- * REQUIRES (hero + proof + one detail — the pre-reshape contract); the MAX is
- * the founder's "make it 4" (a second detail; the wire cap of 6 refs already
+/** How many photographs the Studio accepts. The MIN of 3 is a STUDIO rule
+ * (the founder's flow always shipped hero + preuve + détail 1) — assembly
+ * itself requires only the hero pair and the proof, details being
+ * suffix-optional (assets.ts; verifier-corrected 2026-07-27: this comment
+ * once claimed assembly requires a detail, which it does not). The MAX is the
+ * founder's "make it 4" (a second détail; the wire cap of 6 refs already
  * accommodates it: 2 hero crops + proof + 2 details = 5). */
 export const PHOTOS_MIN = 3;
 export const PHOTOS_MAX = 4;

@@ -1678,5 +1678,17 @@
     "fr": "Reprendre",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "studio.limite",
+    "fr": "4 photos au maximum — les photos en trop n'ont pas été ajoutées.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_validees",
+    "fr": "Photos ajoutées et validées — vous choisirez le rôle de chaque photo à la vérification.",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

@@ -137,7 +137,9 @@ export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, 
       <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
         {banner !== null && (
           <Banner tone={banner.kind === 'decode' ? 'warn' : 'info'} style={{ marginTop: 12 }}>
-            {banner.kind === 'decode' ? decodeRefusalSentence(banner.refusal) : t(noPhotoSentenceKey())}
+            {banner.kind === 'decode'
+              ? decodeRefusalSentence(banner.refusal)
+              : t(banner.kind === 'limite' ? 'studio.limite' : noPhotoSentenceKey())}
           </Banner>
         )}
         <View style={{ marginTop: 12 }}>

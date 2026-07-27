@@ -140,7 +140,10 @@ export type PickOutcome =
  */
 export type ShootBanner =
   | { readonly kind: 'decode'; readonly refusal: DecodeRefusal }
-  | { readonly kind: 'no_photo' };
+  | { readonly kind: 'no_photo' }
+  /** The 4-photo ceiling turned files away — an HONEST state, never a silent
+   * one (verifier finding 2026-07-27). */
+  | { readonly kind: 'limite' };
 
 /**
  * The two native operations, injected — so the ORCHESTRATION below (which is
@@ -176,6 +179,10 @@ export interface BatchOutcome {
   readonly refusal: DecodeRefusal | null;
   /** True when the library dialog brought nothing back at all. */
   readonly cancelled: boolean;
+  /** How many files the MAX bound refused to even process — reported, never
+   * silent (verifier finding 2026-07-27: files ignored by overflow were an
+   * undesigned silent state; the screen owes him a sentence). */
+  readonly overflow: number;
 }
 
 /**
@@ -185,27 +192,34 @@ export interface BatchOutcome {
  * that reaches the screen as English. A strip fault is NOT caught here: an
  * image whose bytes cannot be proven clean must fail closed exactly as it does
  * on the camera path — that error class already has its designed state.
+ *
+ * `max` IS ENFORCED THROUGH THIS PATH TOO (verifier finding 2026-07-27: an
+ * earlier version forwarded the picker's answer unbounded, so the funnel-level
+ * guarantee held only for drops — a misbehaving picker ignoring
+ * `selectionLimit` would have decoded every over-returned file).
  */
 export async function pickShots(port: ImageSourcePort, max: number): Promise<BatchOutcome> {
   const picked = await port.pickManyFromLibrary(max);
-  if (picked === null || picked.length === 0) return { shots: [], refusal: null, cancelled: true };
-  return await shotsFromAssets(port, picked);
+  if (picked === null || picked.length === 0) return { shots: [], refusal: null, cancelled: true, overflow: 0 };
+  return await shotsFromAssets(port, picked, max);
 }
 
 /** The batch funnel over assets already in hand (drops arrive here too). The
- * `max` bound is enforced HERE, not trusted to any picker or drag source. */
+ * `max` bound is enforced HERE — overflow files are never decoded, and their
+ * count travels out so the screen can say so. */
 export async function shotsFromAssets(
   port: ImageSourcePort,
   assets: readonly PickedAsset[],
   max: number = assets.length,
 ): Promise<BatchOutcome> {
+  const overflow = Math.max(0, assets.length - max);
   const shots: StudioShot[] = [];
   for (const asset of assets.slice(0, max)) {
     const out = await shotFromAsset(port, asset);
-    if (out.kind === 'refused') return { shots, refusal: out.refusal, cancelled: false };
+    if (out.kind === 'refused') return { shots, refusal: out.refusal, cancelled: false, overflow };
     shots.push(out.shot);
   }
-  return { shots, refusal: null, cancelled: false };
+  return { shots, refusal: null, cancelled: false, overflow };
 }
 
 /**

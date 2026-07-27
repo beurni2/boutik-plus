@@ -231,6 +231,13 @@ export function SListerReal({ st, d, captures, session }: {
       let assets: ProductAssetsInput | undefined;
       let leftover: PendingPhotos | null = null;
       const order = captures.current === null ? null : publishOrder(rolesFor(captures.current));
+      if (captures.current !== null && order === null) {
+        // Unreachable through the chip UI — and REFUSED LOUDLY if ever reached
+        // (verifier finding 2026-07-27: the silent alternative published the
+        // product with no photos and no sentence saying why).
+        setPub({ kind: 'failed', cause: 'device', reason: 'attribution des rôles invalide' });
+        return;
+      }
       if (captures.current !== null && mediaService !== null && order !== null) {
         const set = captures.current;
         const hero = set.photos[order.hero]!;
