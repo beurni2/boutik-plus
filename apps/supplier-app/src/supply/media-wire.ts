@@ -42,3 +42,23 @@ export function readUploadResult(body: unknown): UploadedImage | null {
 export function hexOfDigest(digest: ArrayBuffer): string {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** What a revoke 200 carries (media worker `handleMediaRevoke`), mirrored. */
+export interface RevokedImage {
+  readonly status: 'revoked';
+  readonly ref: string;
+}
+
+/**
+ * Boundary-validate the revoke answer — same law as `readUploadResult`: a
+ * malformed body is refused, never cast. Only `revoked` exists (the route is
+ * idempotent and reports nothing else); any other status is a body this system
+ * never produced.
+ */
+export function readRevokeResult(body: unknown): RevokedImage | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as Record<string, unknown>;
+  if (b['status'] !== 'revoked') return null;
+  if (typeof b['ref'] !== 'string' || !b['ref'].startsWith('media/')) return null;
+  return { status: 'revoked', ref: b['ref'] };
+}

@@ -79,14 +79,14 @@ const edgeCache = (): Cache | undefined =>
  *
  * `origin` MUST be the same origin the read route is served on, because the cache
  * key is the request URL. A mismatched origin purges nothing and fails SILENTLY —
- * named because it is the obvious way for this to rot unnoticed.
+ * named because it is the obvious way for this to rot unnoticed. The revoke
+ * route below derives the origin from `request.url`, which IS the serving
+ * origin — the one place that cannot drift from it.
  *
- * NOT WIRED TO A DEPLOYED ROUTE YET, and that is not a claim of coverage: this
- * Worker exposes no revoke/upload route (the supplier-app write path is out of
- * scope this slice), so in production nothing calls this today. It is constructed
- * and exercised by `ProductMediaService` in tests, and the write-path slice must
- * pass it into the service when it adds the route. The bounded TTLs — not this
- * hook — are what make revocation real in the meantime.
+ * WIRED SINCE MEDIA-REVOKE-1 (2026-07-27): `handleMediaRevoke` constructs the
+ * service WITH this hook, exactly as the previous version of this comment said
+ * the write-path slice must. (History: this comment once said "NOT WIRED TO A
+ * DEPLOYED ROUTE YET" — true when written, before the upload route existed.)
  */
 export const makeEdgeCachePurge = (origin: string) => async (key: string): Promise<void> => {
   const cache = edgeCache();
@@ -190,6 +190,44 @@ export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, n
   return Response.json({ ref: key, contentType, width, height, byteLength }, { status: 201 });
 }
 
+/** The revoke route's path. Not a key read: `revoke` can never match the opaque
+ * key shape, and the method differs anyway. */
+export const REVOKE_PATH = '/media/revoke';
+
+/**
+ * MEDIA-REVOKE-1 — `POST /media/revoke`, the founder's byte cleanup after a
+ * product delete (*"continue the cleaning of the bytes after the delete"*,
+ * 2026-07-27). Body `{ ref }`; behind the SAME write gate as the upload.
+ *
+ * WHAT IT PROMISES — BOUNDED-LATENCY REVOCATION, NEVER INSTANT TAKEDOWN (the
+ * standing 2026-07-24 wording): the origin object dies now, the serving colo is
+ * best-effort purged, and every other cache holds for AT MOST its TTL (browser
+ * 5 min · edge 1 h).
+ *
+ * IDEMPOTENT BY NATURE: deleting an absent object is a no-op at every store, so
+ * a replay answers the same 200 `revoked` — "the origin object is gone now" is
+ * true both times, and the route deliberately does not distinguish (R2's delete
+ * reports nothing, and inventing an `existed` here would be a claim the store
+ * cannot back).
+ *
+ * SHAPE GATE FIRST, same law as the read route: a ref that is not exactly the
+ * opaque minted shape is a 400 before any storage touch — no traversal, no
+ * probe outside the minted namespace. The 400 names the param; it is not an
+ * existence oracle because existence never enters the answer at all.
+ */
+export async function handleMediaRevoke(request: Request, env: MediaWorkerEnv): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { ref?: unknown } | null;
+  const ref = body?.ref;
+  if (typeof ref !== 'string' || !isOpaqueMediaKey(ref)) {
+    return Response.json({ error: 'malformed', param: 'ref' }, { status: 400 });
+  }
+  // The service's own serving origin — the cache key the read route populated.
+  const origin = new URL(request.url).origin;
+  const service = new ProductMediaService(resolveMediaStore(env), makeEdgeCachePurge(origin));
+  await service.revoke(ref);
+  return Response.json({ status: 'revoked', ref });
+}
+
 /**
  * The preflight answers before the write gate ON PURPOSE (mirrors offer-service):
  * browsers strip custom headers from OPTIONS, so it can never carry the key;
@@ -229,6 +267,9 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
     const { pathname } = new URL(request.url);
     if (request.method === 'POST' && pathname === UPLOAD_PATH) {
       return handleMediaUpload(request, env);
+    }
+    if (request.method === 'POST' && pathname === REVOKE_PATH) {
+      return handleMediaRevoke(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
