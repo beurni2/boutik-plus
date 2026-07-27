@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HttpSupplyService,
   WRITE_KEY_HEADER,
+  readDeleteOutcome,
   readOutcome,
   resolveSupplyService,
-  type CreateOfferInput, SUPPLIER_ID} from '../src/supply/service';
+  type CreateOfferInput, type DeleteOfferInput, SUPPLIER_ID} from '../src/supply/service';
 import { DEMO_SUPPLY_SENTINEL, DemoSupplyService } from '../src/supply/demo';
 
 /**
@@ -234,5 +235,66 @@ describe('the RESPONSE boundary is validated — money crosses here', () => {
     const http = await new HttpSupplyService('https://o.example', 'k').createOffer(CMD);
     expect(http.ok === false && http.cause).toBe('http');
     expect(http.ok === false && http.reason).toContain('401');
+  });
+});
+
+describe('OFFER-DELETE-1 — the DESTRUCTIVE write held to the same boundary laws', () => {
+  /**
+   * Verifier finding 2026-07-27: this surface shipped with zero app-side tests
+   * while the sibling `readOutcome` had a full refusal suite. A destructive
+   * write's validator is the LAST place that debt is acceptable.
+   */
+  const DEL: DeleteOfferInput = { commandId: 'cmd-del-1', offerId: 'offer-1', productVersionId: 'pv-1' };
+
+  it('refuses a body that is not a delete decision — null, arrays, unknown or foreign statuses', () => {
+    for (const body of [null, undefined, [], 'deleted', 42, {}, { status: 'gone' }, { status: 'DELETED' }, { status: 'created' }]) {
+      expect(readDeleteOutcome(body), JSON.stringify(body) ?? 'undefined').toBeNull();
+    }
+  });
+
+  it('accepts exactly the two real statuses — and STRIPS the wire’s offerId echo, so the app reads only the decision', () => {
+    expect(readDeleteOutcome({ status: 'deleted', offerId: 'offer-1' })).toEqual({ status: 'deleted' });
+    expect(readDeleteOutcome({ status: 'idempotent', offerId: 'offer-1' })).toEqual({ status: 'idempotent' });
+  });
+
+  it('POSTs the command to /offers/delete with the write key header, verbatim', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ status: 'deleted', offerId: 'offer-1' }), { status: 200 });
+    });
+    const out = await new HttpSupplyService('https://offer.example/', 'the-key').deleteOffer(DEL); // trailing slash on purpose
+    expect(out).toEqual({ ok: true, value: { status: 'deleted' } });
+    expect(calls[0]!.url).toBe('https://offer.example/offers/delete'); // no double slash
+    expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual(DEL);
+  });
+
+  it('network, http, and unreadable each carry their OWN cause — a delete that failed must say how', async () => {
+    vi.stubGlobal('fetch', async () => { throw new Error('Network request failed'); });
+    const net = await new HttpSupplyService('https://o.example', 'k').deleteOffer(DEL);
+    expect(net.ok === false && net.cause).toBe('network');
+
+    vi.stubGlobal('fetch', async () => new Response('{"error":"unauthorized"}', { status: 401 }));
+    const http = await new HttpSupplyService('https://o.example', 'k').deleteOffer(DEL);
+    expect(http.ok === false && http.cause).toBe('http');
+    expect(http.ok === false && http.reason).toContain('401');
+
+    // a 200 whose body is not a decision is UNREADABLE — never a success the
+    // fiche would close on while the offer still stands.
+    for (const body of ['null', '<html>gateway</html>', '{"status":"created"}']) {
+      vi.stubGlobal('fetch', async () => new Response(body, { status: 200 }));
+      const bad = await new HttpSupplyService('https://o.example', 'k').deleteOffer(DEL);
+      expect(bad.ok === false && bad.cause, body).toBe('unreadable');
+    }
+  });
+
+  it('the demo adapter RECORDS the command and fabricates nothing back', async () => {
+    const demo = new DemoSupplyService();
+    const out = await demo.deleteOffer(DEL);
+    expect(out).toEqual({ ok: true, value: { status: 'deleted' } });
+    expect(demo.deleted).toEqual([DEL]); // the assertion surface
+    demo.deleteAnswer = { ok: false, cause: 'network', reason: 'réseau: coupé' };
+    expect((await demo.deleteOffer(DEL)).ok).toBe(false);
   });
 });

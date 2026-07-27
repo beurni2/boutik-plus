@@ -262,12 +262,16 @@ export default {
     //   1. pointer  — kills the single supply read first (Shop+'s per-pv wire);
     //   2. index    — kills every enumeration (admin list + supply collection);
     //   3. entry    — the record itself, LAST.
-    // Die anywhere and what remains is INVISIBLE (both list routes already skip
-    // rows whose entry answers 404, and a dangling pointer to a deleted entry
-    // reads as the same honest not-found) — and the NEXT replay finishes the
-    // job, because every removal is a no-op when its target is already gone.
-    // Deleting first would instead leave a live pointer serving a product the
-    // founder asked to remove.
+    // The partial states are NOT all invisible (verifier correction 2026-07-27
+    // — an earlier version of this comment claimed they were). Die after 1 and
+    // the offer is STILL VISIBLE on both list wires: index row and entry are
+    // intact, only the per-pv read answers 404 — visible, and re-deletable,
+    // until a replay finishes the walk. Die after 2 and the orphan entry IS
+    // unreachable on every read wire (lists enumerate the index, whose row is
+    // gone; the single read walks the pointer, gone → the same honest 404).
+    // Every removal is a no-op once its target is gone, so ANY replay
+    // converges the walk. The entry goes LAST so the deleted/idempotent answer
+    // is read off the record's real existence at the end of the walk.
     if (request.method === 'POST' && pathname === '/offers/delete') {
       const cmd = (await request.clone().json().catch(() => null)) as
         | { commandId?: unknown; offerId?: unknown; productVersionId?: unknown }

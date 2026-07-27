@@ -332,3 +332,46 @@ describe('THE FICHE GALLERY — wire order, labelled by position, master never r
     expect(JSON.stringify(out)).not.toContain('private/');
   });
 });
+
+describe('OFFER-DELETE-1 — the fiche’s confirm walk [source-text checks; house rule: no RN renderer]', () => {
+  /**
+   * Verifier finding 2026-07-27: the delete surface shipped with zero app-side
+   * tests. These are capability checks against the source, the same instrument
+   * the rest of this file uses — each asserts a guard EXISTS in the code, not
+   * that a renderer walked it.
+   */
+  it('every supprimer key the fiche cites exists in the catalog — six, both ways', () => {
+    const cited = [...screens1.matchAll(/'(produits\.supprimer[a-z_]*)'/g)].map((m) => m[1]!);
+    expect(new Set(cited).size).toBe(6);
+    for (const k of cited) expect(keys.has(k), k).toBe(true);
+    // and no orphan supprimer key sits in the catalog waiting to drift
+    const inCatalog = [...keys].filter((k) => k.startsWith('produits.supprimer'));
+    expect(new Set(inCatalog)).toEqual(new Set(cited));
+  });
+
+  it('NEVER a one-tap destruction: the first press only ARMS the confirm step', () => {
+    expect(screens1).toContain("onPress={() => setDel('confirm')}");
+    // the destructive call lives only inside runDelete, behind the pending guard
+    expect(screens1).toContain("if (onDelete === undefined || del === 'pending') return;");
+    const callsOfOnDelete = screens1.match(/await onDelete\(\)/g) ?? [];
+    expect(callsOfOnDelete).toHaveLength(1);
+  });
+
+  it('« Garder ce produit » is UNREACHABLE while pending — no cancel mid-delete', () => {
+    // the cancel button renders only under the not-pending guard
+    expect(screens1).toMatch(/del !== 'pending' && \(\s*<BtnGhost label=\{tr\('produits\.supprimer_non'\)\}/);
+  });
+
+  it('no service ⇒ NO delete UI: the fiche gates the whole block on onDelete presence', () => {
+    expect(screens1).toContain('{onDelete !== undefined && (');
+    expect(produits).toContain("{...(service === null ? {} : { onDelete: deleteOpen })}");
+  });
+
+  it('success DROPS the cache before the re-read — a deleted row never renders from memory', () => {
+    expect(produits).toContain('cache.current = { rows: null, asOf: null };');
+    // and the command is minted like every other write, with all three identifiers
+    expect(produits).toContain('commandId: mintCommandId(),');
+    expect(produits).toContain('offerId: openOffer.offerId,');
+    expect(produits).toContain('productVersionId: openOffer.productVersionId,');
+  });
+});
