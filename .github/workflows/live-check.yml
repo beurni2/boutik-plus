@@ -1,0 +1,50 @@
+# LIVE-CHECK — a read-only smoke check of the LIVE offer + media services,
+# runnable on demand when the founder wants his live state double-checked
+# (first use: 2026-07-27, "i also did some deletions and you can double check
+# it").
+#
+# PUBLIC-LOG DISCIPLINE (this repo is public, so these logs are public):
+#   · NEVER echo raw service JSON — it carries product names and prices.
+#   · NEVER print a full media ref — refs are unguessable capability tokens
+#     (the token IS the read authorization); a full ref in a public log is a
+#     leak. Only the first 8 characters of the uuid are printed.
+#   · Ids (offerId / productVersionId) are printed truncated for the same
+#     caution, though they are not capabilities.
+# WHAT IT CANNOT CHECK, stated so silence is never mistaken for coverage: the
+# Bearer-gated supply projections (SUPPLY_READ_SECRET is a worker secret, not
+# a repo secret). The admin list reads the same index the collection
+# enumerates, so a product absent here is absent from Shop+'s discovery too;
+# only the per-pv pointer wire goes unverified by this check.
+name: live-check
+on:
+  workflow_dispatch: {}
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read the live supplier list and probe each photo
+        env:
+          OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+          OFFER_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
+          MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+        run: |
+          set -euo pipefail
+          for v in OFFER_BASE OFFER_KEY MEDIA_BASE; do
+            if [ -z "${!v}" ]; then echo "::error::secret $v is empty"; exit 1; fi
+          done
+          body=$(curl -sS --fail-with-body -H "X-Write-Key: $OFFER_KEY" \
+            "${OFFER_BASE%/}/offers?supplierId=supplier-founder-001")
+          count=$(jq '.items | length' <<<"$body")
+          echo "LIVE OFFERS: $count"
+          jq -r '.items[] | [(.offerId[:12]), (.productVersionId[:12]), (.assetRefs | length | tostring)] | "offer " + .[0] + "…  pv " + .[1] + "…  photos: " + .[2]' <<<"$body"
+          echo "---- photo liveness (media read route, truncated refs) ----"
+          for ref in $(jq -r '.items[].assetRefs[]' <<<"$body"); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "${MEDIA_BASE%/}/$ref" || echo "ERR")
+            echo "media/${ref#media/}" | cut -c1-14 | tr -d '\n'
+            echo "…  HTTP $code"
+          done
+          echo "---- verdict ----"
+          echo "Every product above is what the live service still holds for the founder's supplier id."
+          echo "A deleted product would simply not appear; a photo of a kept product should be HTTP 200."
