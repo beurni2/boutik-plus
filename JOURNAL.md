@@ -2002,3 +2002,9 @@ Founder from the live site on a desktop monitor: *"Photos on produits are so big
 - **Proven at his viewport** (Chromium 1920×1080, full publish + fiche against the two-worker rig): centered phone-width column, photos photo-sized and labelled, « Catégorie » row confirmed reachable. Screenshot sent.
 - **Fast path exercised correctly this time:** fix committed on the BRANCH, --no-ff merged to main, branch fast-forwarded after. **Error ledger (mine): `git add -A` swept three rig temp files into the fix commit** — caught in the commit output, deleted from main in the immediate next commit (`dca1435`); never product code. *The generalisable form: a fast path commits with explicit paths, never `add -A`.*
 - **web-deploy run 2 (`30235821571`) — success on `dca1435`.** The fixed app is LIVE at boutik-plus-web.pages.dev.
+
+### 2026-07-27 · FOUNDER TASTE RULING — FULL-WIDTH APP RESTORED; THE PHOTOS ALONE STAY CAPPED (560, centered)
+Founder, verbatim: *"the whole webapp the way it was, was good and my issue was the photo part only. remake it the way it was and only keep this new way of displaying the photos but making a little more bigger."* The 430 whole-app frame was a correct diagnosis with an over-broad remedy — HIS eye scoped it tighter.
+- **Fix `f3c0f3b` (fast path, explicit paths only):** AppV2's frame REVERTED byte-faithfully to full browser width; `SOffreFiche` gallery photos alone capped — `width:'100%', maxWidth: FICHE_PHOTO_MAX = 560, alignSelf:'center'` (« a little more bigger » than the 430 he judged small; one word moves it). Inert on phones (screen < cap). Proven at 1920×1080 (full publish + fiche; « Catégorie » reachable). 502/502.
+- Merged `198564e`; **web-deploy run 3 dispatched** — terminal state below.
+- *The generalisable form for the design ledger: when the founder says "the way it was, was good", the remedy was wider than the defect — fix the ELEMENT he named, not the container it sits in.*
