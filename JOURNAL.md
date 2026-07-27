@@ -1987,3 +1987,11 @@ The fresh-context pass confirmed: secret handling identical to house (the sentin
 
 ### 2026-07-27 · ✅ W5 MERGED + THE THREE DEPLOYS DISPATCHED BY ME (founder word: « approved and merge and run the deploy workflows yourself »)
 Guarded merge `b1f4e09` (--no-ff of `dc2cf44`; tree diff EMPTY; gates + tests green; ancestry OK; branch fast-forwarded to the merge immediately — the standing lesson). Then, on his explicit instruction, I dispatched the deploys myself in the CORS-first order the W5 header requires: **offer-deploy** and **media-deploy** queued on main (so the LIVE workers speak CORS), **web-deploy follows their terminal state**. Terminal states of all three reported to the founder as they land.
+
+### 2026-07-27 · 🚀 ALL THREE DEPLOYS GREEN — BOUTIK+ IS ON THE WEB
+Dispatched by me on the founder's instruction, in the CORS-first order, all on the merged `b1f4e09`:
+- **offer-deploy** run `30232695109` — success. The live offer worker now answers browsers (W1 CORS + provenance stamp).
+- **media-deploy** run `30232695972` — success. The live media worker now answers browsers (W4 CORS; first deploy carrying the upload route TO PRODUCTION with CORS).
+- **web-deploy** run `30232841453` — **success on its FIRST true run**, every step green: cold export (21 s) → **the sentinel PASSED against the real secrets** (the deployed bundle verifiably carries the inlined offer base — the gate's first live firing) → Pages project created → deployed. The CLOUDFLARE_API_TOKEN had Pages permission; the named failure mode did not occur.
+- **The URL:** `https://boutik-plus-web.pages.dev` (the project's standard domain). **Honest limit:** this container's egress policy blocks pages.dev, so I could not fetch the live page myself — the workflow's own deploy step succeeding plus the sentinel is the evidence I hold; the founder's browser is the final proof, and that moment is his.
+- W5 is DONE end to end: built → verified → merged → **its first production run green**. W6 (PWA hardening, offline states, W-D3 budgets from measurement) is the remaining slice of the web arc; the Shop+ vitrine stands as the named front after it.
