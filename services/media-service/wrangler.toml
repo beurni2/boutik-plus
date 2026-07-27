@@ -19,8 +19,8 @@ compatibility_date = "2025-07-05"
 binding = "BUCKET"
 bucket_name = "beurni-boutik-product-media"
 
-# NO [vars] secret here. This slice exposes NO upload route on the Worker (the
-# supplier-app write path is out of scope), so there is no write to gate yet. When
-# the upload route lands it MUST carry the same shared-secret write gate the offer
-# service uses (worker/auth.ts), set via `wrangler secret put` — never [vars],
-# because all five repos are public.
+# NO [vars] secret here — and none may ever appear (all five repos are public).
+# The upload route (POST /media, MEDIA-UPLOAD-ROUTE-1) EXISTS and is gated by the
+# shared-secret write gate (worker/auth.ts, MEDIA_WRITE_SECRET), set via
+# `wrangler secret put` only. (This comment once said no upload route existed —
+# stale from a pre-upload slice; corrected in W5, per the W4 verifier's note.)
