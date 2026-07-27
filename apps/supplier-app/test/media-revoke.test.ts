@@ -45,7 +45,7 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
   });
 
   it('every exit is a TYPED result — network, http, and unreadable each named, reader-guarded success', () => {
-    const revokeBlock = media.slice(media.indexOf('async revokeImage'), media.indexOf('async revokeImage') + 1600);
+    const revokeBlock = media.slice(media.indexOf('async revokeImage'));
     expect(revokeBlock).toContain("cause: 'network'");
     expect(revokeBlock).toContain("cause: 'http'");
     expect(revokeBlock).toContain("cause: 'unreadable'");
@@ -54,10 +54,26 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
     expect(revokeBlock.match(/ok: true/g)).toHaveLength(1);
     expect(revokeBlock).toContain('return { ok: true, value: outcome }');
   });
+
+  it('the shell cannot THROW past the status line, and cannot HANG the delete (verifier findings 2026-07-27)', () => {
+    const revokeBlock = media.slice(media.indexOf('async revokeImage'));
+    // body-stream death: the text read is guarded, so a mid-body connection
+    // reset becomes a typed network failure, never an unhandled rejection that
+    // strands the fiche on « en cours » after a successful delete.
+    expect(revokeBlock).toContain('let text: string;');
+    expect(revokeBlock).toContain('text = await res.text();');
+    // bounded wait: the fetch aborts after the timeout, and the timer is
+    // always cleared.
+    expect(media).toContain('const REVOKE_TIMEOUT_MS = 10_000;');
+    expect(revokeBlock).toContain('signal: ctl.signal');
+    expect(revokeBlock).toContain('clearTimeout(timer);');
+  });
 });
 
 describe('the delete flow cleans the bytes [source-text checks on produits-real.tsx]', () => {
-  const deleteBlock = produits.slice(produits.indexOf('const deleteOpen'));
+  // bounded at the fiche render so code added BELOW deleteOpen can never
+  // satisfy (or break) these ordering checks by accident (verifier note).
+  const deleteBlock = produits.slice(produits.indexOf('const deleteOpen'), produits.indexOf('if (openOffer !== null)'));
 
   it('revoke fires STRICTLY AFTER the offer delete succeeded — never before, never on failure', () => {
     const deleteCall = deleteBlock.indexOf('service.deleteOffer');

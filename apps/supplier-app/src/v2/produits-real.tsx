@@ -115,10 +115,17 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     });
     if (!res.ok) return false;
     if (mediaService !== null) {
-      for (const ref of openOffer.assetRefs) {
-        // belt-and-braces prefix filter (the wire only carries media/ refs);
-        // the result is deliberately unread — see BEST-EFFORT above.
-        if (ref.startsWith('media/')) await mediaService.revokeImage(ref);
+      try {
+        for (const ref of openOffer.assetRefs) {
+          // belt-and-braces prefix filter (the wire only carries media/ refs);
+          // the result is deliberately unread — see BEST-EFFORT above.
+          if (ref.startsWith('media/')) await mediaService.revokeImage(ref);
+        }
+      } catch {
+        // revokeImage returns typed results and should never throw — but a
+        // cleanup that DID throw must never strand the fiche on 'pending'
+        // after a delete that already succeeded (verifier finding 2026-07-27).
+        // The remaining bytes orphan, same as any failed revoke.
       }
     }
     setOpenOffer(null);
