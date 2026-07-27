@@ -2080,4 +2080,4 @@ The fresh-context verifier confirmed all eight charges: zero canon touch (17 fil
 App **505/505** · tsc clean · gates green · copy-lint 282/0. **Awaiting the merge word; then web-deploy.**
 
 ### 2026-07-27 · ✅ STUDIO-BATCH-1 MERGED (founder: "approved and merge") — web-deploy dispatched
-Guarded protocol on `facd69f`: `--no-ff` of branch sha `3531cd4`, tree diff vs approved sha **0 lines**, re-greened from the merge commit (gates green · tsc clean · app 505/505), pushed, ancestry read-back confirmed, branch ff'd. web-deploy dispatched on main (app-only change — offer/media services untouched by this slice); terminal state recorded below when the watcher answers.
+Guarded protocol on `facd69f`: `--no-ff` of branch sha `3531cd4`, tree diff vs approved sha **0 lines**, re-greened from the merge commit (gates green · tsc clean · app 505/505), pushed, ancestry read-back confirmed, branch ff'd. web-deploy dispatched on main (app-only change — offer/media services untouched by this slice). **web-deploy run 8 completed success on `facd69f`** (confirmed by API poll) — the batch studio, the 4-photo ceiling, and the role chips are LIVE at boutik-plus-web.pages.dev.
