@@ -68,8 +68,23 @@ jobs:
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app
+        env:
+          OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+          OFFER_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
+          MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+          MEDIA_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
         run: |
-          if ! grep -rqF "${{ secrets.EXPO_PUBLIC_OFFER_BASE }}" dist-web/_expo/static/js/web/; then
+          # AN EMPTY SECRET IS THE SENTINEL'S OWN BLIND SPOT (W5 verifier,
+          # demonstrated): grep -F "" matches everything, so an unset secret
+          # would GREEN this gate while the app ships « non configuré » — the
+          # exact outcome the gate exists to stop. Guard all four first.
+          for v in OFFER_BASE OFFER_KEY MEDIA_BASE MEDIA_KEY; do
+            if [ -z "${!v}" ]; then
+              echo "::error::the secret behind $v is unset or empty — fix the repo secret before deploying"
+              exit 1
+            fi
+          done
+          if ! grep -rqF "$OFFER_BASE" dist-web/_expo/static/js/web/; then
             echo "::error::EXPO_PUBLIC_OFFER_BASE did not inline into the bundle — the export would ship a « non configuré » app"
             exit 1
           fi
