@@ -93,6 +93,15 @@ export class OfferDO {
       return Response.json(entry);
     }
 
+    // OFFER-DELETE-1 (founder feature 2026-07-27): remove this offer's entry.
+    // Storage-level removal — NO canon shape changes; the answer says whether
+    // anything existed so the router can report deleted vs idempotent.
+    if (request.method === 'POST' && pathname === '/entry/delete') {
+      const existed = (await this.state.storage.get<OfferEntry>(ENTRY_KEY)) !== undefined;
+      await this.state.storage.delete(ENTRY_KEY);
+      return Response.json({ existed });
+    }
+
     // ── pv-pointer-instance ops (idFromName('pv:'+productVersionId)) ─────────
     if (request.method === 'PUT' && pathname === '/pointer') {
       let ptr: PvPointer;
@@ -108,6 +117,11 @@ export class OfferDO {
       const ptr = await this.state.storage.get<PvPointer>(POINTER_KEY);
       if (!ptr) return Response.json({ error: 'not_found' }, { status: 404 });
       return Response.json(ptr);
+    }
+    // OFFER-DELETE-1: drop the pv→offer pointer (kills the single read first).
+    if (request.method === 'POST' && pathname === '/pointer/delete') {
+      await this.state.storage.delete(POINTER_KEY);
+      return Response.json({ ok: true });
     }
 
     // ── directory-index-instance ops (idFromName('index')) — the admin list ───
@@ -128,6 +142,20 @@ export class OfferDO {
     if (request.method === 'GET' && pathname === '/index') {
       const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
       return Response.json(list);
+    }
+    // OFFER-DELETE-1: remove one offer's row. Filter-and-put, dedup-safe like
+    // /index/add — removing an absent row is a no-op, so replays are free.
+    if (request.method === 'PUT' && pathname === '/index/remove') {
+      let row: { offerId: string };
+      try {
+        row = (await request.json()) as { offerId: string };
+      } catch {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
+      const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
+      const next = list.filter((r) => r.offerId !== row.offerId);
+      if (next.length !== list.length) await this.state.storage.put(INDEX_KEY, next);
+      return Response.json({ ok: true });
     }
 
     return Response.json({ error: 'not_found' }, { status: 404 });
@@ -223,6 +251,54 @@ export default {
       );
       // No pointer/index writes: the offer already exists; only its entry changed.
       return forward(res);
+    }
+
+    // OFFER-DELETE-1 (founder feature 2026-07-27: *"delete from produits and it
+    // will be removed from shop+ as well"*). The command carries all three
+    // identifiers, so the router never needs the entry to clean up — a replay
+    // against an already-deleted offer still walks every removal.
+    //
+    // THE ORDER IS THE FAIL-SAFETY (three DOs, no transaction across them):
+    //   1. pointer  — kills the single supply read first (Shop+'s per-pv wire);
+    //   2. index    — kills every enumeration (admin list + supply collection);
+    //   3. entry    — the record itself, LAST.
+    // Die anywhere and what remains is INVISIBLE (both list routes already skip
+    // rows whose entry answers 404, and a dangling pointer to a deleted entry
+    // reads as the same honest not-found) — and the NEXT replay finishes the
+    // job, because every removal is a no-op when its target is already gone.
+    // Deleting first would instead leave a live pointer serving a product the
+    // founder asked to remove.
+    if (request.method === 'POST' && pathname === '/offers/delete') {
+      const cmd = (await request.clone().json().catch(() => null)) as
+        | { commandId?: unknown; offerId?: unknown; productVersionId?: unknown }
+        | null;
+      if (
+        cmd == null ||
+        typeof cmd.commandId !== 'string' ||
+        typeof cmd.offerId !== 'string' ||
+        typeof cmd.productVersionId !== 'string'
+      ) {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
+      // GUARD: only drop the pointer if it still points at THIS offer — a pv
+      // whose pointer was since rebound to another offer must keep it.
+      const ptrRes = await pvStub(env, cmd.productVersionId).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 200) {
+        const ptr = (await ptrRes.json()) as PvPointer;
+        if (ptr.offerId === cmd.offerId) {
+          await pvStub(env, cmd.productVersionId).fetch(
+            new Request('https://do/pointer/delete', { method: 'POST' }),
+          );
+        }
+      }
+      await indexStub(env).fetch(
+        new Request('https://do/index/remove', { method: 'PUT', body: JSON.stringify({ offerId: cmd.offerId }) }),
+      );
+      const delRes = await offerStub(env, cmd.offerId).fetch(
+        new Request('https://do/entry/delete', { method: 'POST' }),
+      );
+      const { existed } = (await delRes.json()) as { existed: boolean };
+      return Response.json({ status: existed ? 'deleted' : 'idempotent', offerId: cmd.offerId });
     }
 
     // THE SUPPLIER LIST — key-gated at the composition root (a GET, so the write

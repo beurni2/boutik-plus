@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
 import { S03Produits, SOffreFiche } from './screens1';
 import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
+import { mintCommandId } from '../offline/commandId';
 import { resolveMediaBase } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
 import type { A, S } from './machine';
@@ -88,8 +89,34 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // OUT, instead of asserting the ORDER of branches in this file.
   const view = produitsView(read, cache.current.rows);
 
+  // OFFER-DELETE-1 (founder 2026-07-27): remove the open offer from EVERY wire
+  // — his list and the supply projections Shop+ reads. On success the fiche
+  // closes, the CACHE IS DROPPED (a list still carrying the deleted row is a
+  // fabrication), and a fresh read paints the honest state. On failure the
+  // fiche shows its designed sentence; nothing here guesses.
+  const deleteOpen = async (): Promise<boolean> => {
+    if (service === null || openOffer === null) return false;
+    const res = await service.deleteOffer({
+      commandId: mintCommandId(),
+      offerId: openOffer.offerId,
+      productVersionId: openOffer.productVersionId,
+    });
+    if (!res.ok) return false;
+    setOpenOffer(null);
+    cache.current = { rows: null, asOf: null };
+    void load();
+    return true;
+  };
+
   if (openOffer !== null) {
-    return <SOffreFiche row={openOffer} mediaBase={mediaBase} onBack={() => setOpenOffer(null)} />;
+    return (
+      <SOffreFiche
+        row={openOffer}
+        mediaBase={mediaBase}
+        onBack={() => setOpenOffer(null)}
+        {...(service === null ? {} : { onDelete: deleteOpen })}
+      />
+    );
   }
 
   if (view.kind === 'list') return <S03Produits rows={view.rows} mediaBase={mediaBase} d={d} header onOpen={setOpenOffer} />;

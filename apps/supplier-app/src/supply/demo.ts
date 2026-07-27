@@ -1,4 +1,4 @@
-import type { AttachAssetsInput, AttachAssetsOutcome, CreateOfferInput, CreateOfferOutcome, ServiceResult, SupplierOfferList, SupplyServicePort } from './service.js';
+import type { AttachAssetsInput, AttachAssetsOutcome, CreateOfferInput, CreateOfferOutcome, DeleteOfferInput, DeleteOfferOutcome, ServiceResult, SupplierOfferList, SupplyServicePort } from './service.js';
 
 /**
  * THE DEMO ADAPTER — FOR TESTS ONLY. **No app code may import this module.**
@@ -69,5 +69,16 @@ export class DemoSupplyService implements SupplyServicePort {
   async listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>> {
     this.listed.push(supplierId);
     return this.listAnswer;
+  }
+
+  /** Delete commands, recorded like the rest (OFFER-DELETE-1). The default
+   * answer mirrors the real route's happy path; a test that needs the failure
+   * or the idempotent branch sets `deleteAnswer` explicitly. */
+  readonly deleted: DeleteOfferInput[] = [];
+  deleteAnswer: ServiceResult<DeleteOfferOutcome> = { ok: true, value: { status: 'deleted' } };
+
+  async deleteOffer(cmd: DeleteOfferInput): Promise<ServiceResult<DeleteOfferOutcome>> {
+    this.deleted.push(cmd);
+    return this.deleteAnswer;
   }
 }
