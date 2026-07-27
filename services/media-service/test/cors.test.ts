@@ -42,7 +42,7 @@ describe('CORS — the browser can ask, the media write key still gates (BOUTIK-
         method: 'OPTIONS',
         headers: { Origin: 'https://boutik.example', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'x-write-key' },
       }),
-      {}, // NO bucket, NO secret — a preflight that needed either would throw here
+      {}, // NO bucket, NO secret — a fall-through to handle() would answer 200/404 (health), never 204, so the 204 pins the dedicated preflight path
     );
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
@@ -68,7 +68,7 @@ describe('CORS — the browser can ask, the media write key still gates (BOUTIK-
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 
-  it('the read route is stamped too — hit or miss, every exit passes the wrapper', async () => {
+  it('the read route is stamped on a cache MISS (Node has no edge cache, so this is the no-cache path)', async () => {
     const env = { MEDIA_WRITE_SECRET: SECRET, BUCKET: memoryBucket() };
     const up = await worker.fetch(
       new Request('http://m/media', { method: 'POST', headers: { 'X-Write-Key': SECRET }, body: png() }),
@@ -78,5 +78,46 @@ describe('CORS — the browser can ask, the media write key still gates (BOUTIK-
     const read = await worker.fetch(new Request(`http://m/${ref}`), env);
     expect(read.status).toBe(200);
     expect(read.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('a cache HIT is stamped too, exactly once, and the hit never re-puts — the cache stores UNSTAMPED copies and the wrapper stamps every exit (W4 verifier finding: the old test NAME claimed this without asserting it)', async () => {
+    // a caches.default fake so the edge path runs in Node — installed for this
+    // test only and removed in finally, so no other file inherits an edge cache.
+    const stored = new Map<string, Response>();
+    let putCount = 0;
+    const fakeCache = {
+      match: async (req: Request) => {
+        const hit = stored.get(req.url);
+        return hit === undefined ? undefined : hit.clone();
+      },
+      put: async (req: Request, res: Response) => {
+        putCount += 1;
+        stored.set(req.url, res);
+      },
+    };
+    const g = globalThis as { caches?: unknown };
+    g.caches = { default: fakeCache };
+    try {
+      const env = { MEDIA_WRITE_SECRET: SECRET, BUCKET: memoryBucket() };
+      const up = await worker.fetch(
+        new Request('http://m/media', { method: 'POST', headers: { 'X-Write-Key': SECRET }, body: png() }),
+        env,
+      );
+      const { ref } = (await up.json()) as { ref: string };
+
+      const miss = await worker.fetch(new Request(`http://m/${ref}`), env);
+      expect(miss.status).toBe(200);
+      expect(miss.headers.get('Access-Control-Allow-Origin')).toBe('*');
+      // THE PROPERTY: the CACHED copy is unstamped — the stamp never poisons the cache
+      expect(putCount).toBe(1);
+      expect(stored.get(`http://m/${ref}`)?.headers.get('Access-Control-Allow-Origin')).toBeNull();
+
+      const hit = await worker.fetch(new Request(`http://m/${ref}`), env);
+      expect(hit.status).toBe(200);
+      expect(hit.headers.get('Access-Control-Allow-Origin')).toBe('*'); // exactly '*', never '*, *'
+      expect(putCount).toBe(1); // the hit never re-put
+    } finally {
+      delete g.caches;
+    }
   });
 });
