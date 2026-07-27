@@ -7,7 +7,7 @@ import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
 import { S03Produits, SOffreFiche } from './screens1';
 import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { mintCommandId } from '../offline/commandId';
-import { resolveMediaBase } from '../supply/media';
+import { resolveMediaBase, resolveMediaService } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
 import type { A, S } from './machine';
 
@@ -50,6 +50,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
 }) {
   const service = useMemo<SupplyServicePort | null>(() => resolveSupplyService(), []);
   const mediaBase = useMemo(() => resolveMediaBase(), []);
+  const mediaService = useMemo(() => resolveMediaService(), []);
   const [read, setRead] = useState<ProduitsRead>(() =>
     service === null ? { kind: 'not_configured' } : { kind: 'loading' },
   );
@@ -94,6 +95,17 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // closes, the CACHE IS DROPPED (a list still carrying the deleted row is a
   // fabrication), and a fresh read paints the honest state. On failure the
   // fiche shows its designed sentence; nothing here guesses.
+  //
+  // MEDIA-REVOKE-1 (founder 2026-07-27: "continue the cleaning of the bytes
+  // after the delete"): once the offer is gone from every wire, the row's
+  // photographs are revoked too — origin object destroyed, caches drain within
+  // their TTLs (bounded-latency, the standing wording). STRICTLY AFTER the
+  // delete and STRICTLY BEST-EFFORT: a failed revoke never un-deletes the
+  // product; at worst the bytes orphan behind their 122-bit tokens, exactly as
+  // every delete before this slice left them. The refs come from the ROW, not
+  // a server echo, ON PURPOSE — on an idempotent replay (first answer lost in
+  // transit) the entry is already gone but the row still names its photos, so
+  // the retry still cleans them.
   const deleteOpen = async (): Promise<boolean> => {
     if (service === null || openOffer === null) return false;
     const res = await service.deleteOffer({
@@ -102,6 +114,20 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       productVersionId: openOffer.productVersionId,
     });
     if (!res.ok) return false;
+    if (mediaService !== null) {
+      try {
+        for (const ref of openOffer.assetRefs) {
+          // belt-and-braces prefix filter (the wire only carries media/ refs);
+          // the result is deliberately unread — see BEST-EFFORT above.
+          if (ref.startsWith('media/')) await mediaService.revokeImage(ref);
+        }
+      } catch {
+        // revokeImage returns typed results and should never throw — but a
+        // cleanup that DID throw must never strand the fiche on 'pending'
+        // after a delete that already succeeded (verifier finding 2026-07-27).
+        // The remaining bytes orphan, same as any failed revoke.
+      }
+    }
     setOpenOffer(null);
     cache.current = { rows: null, asOf: null };
     void load();

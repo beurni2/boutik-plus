@@ -289,6 +289,29 @@ describe('OFFER-DELETE-1 — the DESTRUCTIVE write held to the same boundary law
     }
   });
 
+  it('a BODY-STREAM death after the status line is a typed network failure, NEVER a throw (verifier finding 2026-07-27)', async () => {
+    // Response.text() rejects when the connection resets mid-body. Before the
+    // fix, that rejection escaped every client method into the UI — in the
+    // delete flow it stranded the fiche on « en cours » AFTER the delete had
+    // already succeeded server-side.
+    vi.stubGlobal('fetch', async () => {
+      const res = new Response('x', { status: 200 });
+      Object.defineProperty(res, 'text', { value: () => Promise.reject(new Error('body stream reset')) });
+      return res;
+    });
+    const svc = new HttpSupplyService('https://o.example', 'k');
+    for (const [name, p] of [
+      ['createOffer', svc.createOffer(CMD)],
+      ['deleteOffer', svc.deleteOffer(DEL)],
+      ['listOffers', svc.listOffers(SUPPLIER_ID)],
+    ] as const) {
+      const out = await p; // resolves — a rejection here IS the regression
+      expect(out.ok, name).toBe(false);
+      expect(out.ok === false && out.cause, name).toBe('network');
+      expect(out.ok === false && out.reason, name).toContain('body stream reset');
+    }
+  });
+
   it('the demo adapter RECORDS the command and fabricates nothing back', async () => {
     const demo = new DemoSupplyService();
     const out = await demo.deleteOffer(DEL);

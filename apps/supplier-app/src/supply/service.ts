@@ -339,7 +339,15 @@ export class HttpSupplyService implements SupplyServicePort {
       // undiagnosable from a phone in Ouagadougou. NOTHING was sent.
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
     if (!res.ok) {
       // Surface the SERVICE's own words (401 unauthorized · 400 malformed · a typed
       // refusal), never a generic failure — the status plus its body is the whole
@@ -371,7 +379,15 @@ export class HttpSupplyService implements SupplyServicePort {
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
     if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     let parsed: unknown;
     try {
@@ -396,7 +412,15 @@ export class HttpSupplyService implements SupplyServicePort {
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
     if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     let parsed: unknown;
     try {
@@ -423,7 +447,15 @@ export class HttpSupplyService implements SupplyServicePort {
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
     if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     let parsed: unknown;
     try {

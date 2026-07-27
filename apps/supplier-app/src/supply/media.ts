@@ -29,19 +29,29 @@
  * offer pair. Same key limitation, founder-accepted: it ships inside the bundle.
  */
 import * as Crypto from 'expo-crypto';
-import { hexOfDigest, MEDIA_WRITE_KEY_HEADER, readUploadResult } from './media-wire';
+import { hexOfDigest, MEDIA_WRITE_KEY_HEADER, readRevokeResult, readUploadResult, type RevokedImage } from './media-wire';
 import type { FailureCause, ServiceResult } from './service';
 import type { MediaRefInput } from './assets';
 
 export interface MediaServicePort {
   /** Upload one image's bytes; the returned MediaRef carries the ON-DEVICE sha256. */
   uploadImage(bytes: Uint8Array): Promise<ServiceResult<MediaRefInput>>;
+  /**
+   * MEDIA-REVOKE-1 (founder 2026-07-27: *"continue the cleaning of the bytes
+   * after the delete"*). Destroys a deleted product's photograph at the origin
+   * — BOUNDED-LATENCY, never instant (caches drain within their TTLs), and
+   * idempotent, so a replay after a lost answer converges.
+   */
+  revokeImage(ref: string): Promise<ServiceResult<RevokedImage>>;
 }
 
 /** The OS digest over the exact bytes — lowercase hex, canon's sha256 shape. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return hexOfDigest(await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes));
 }
+
+/** How long a fire-and-forget revoke may hold the delete flow's pending state. */
+const REVOKE_TIMEOUT_MS = 10_000;
 
 export class HttpMediaService implements MediaServicePort {
   constructor(private readonly base: string, private readonly writeKey: string) {}
@@ -63,7 +73,15 @@ export class HttpMediaService implements MediaServicePort {
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
     if (!res.ok) {
       // 401 unauthorized · 400 with the validator's typed reason — verbatim.
       return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
@@ -79,6 +97,48 @@ export class HttpMediaService implements MediaServicePort {
       return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     }
     return { ok: true, value: { ref: image.ref, sha256, mimeType: image.contentType } };
+  }
+
+  async revokeImage(ref: string): Promise<ServiceResult<RevokedImage>> {
+    // BOUNDED WAIT (verifier finding 2026-07-27): this call runs INSIDE the
+    // delete's pending state and its result is deliberately ignored — a hung
+    // media service must not hold a SUCCESSFUL delete's UI hostage for
+    // minutes. Ten seconds, then a typed network failure and the flow moves
+    // on; the bytes orphan exactly as any other failed revoke leaves them.
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), REVOKE_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(`${this.base.replace(/\/+$/, '')}/media/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
+        body: JSON.stringify({ ref }),
+        signal: ctl.signal,
+      });
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    } finally {
+      clearTimeout(timer);
+    }
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      // Response.text() rejects when the body stream dies after the status
+      // line — a TYPED network failure, never a throw into the UI (verifier
+      // finding 2026-07-27, all read-the-body sites hardened together).
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    const outcome = readRevokeResult(parsed);
+    if (outcome === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    return { ok: true, value: outcome };
   }
 }
 
