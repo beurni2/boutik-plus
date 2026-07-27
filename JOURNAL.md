@@ -2078,3 +2078,6 @@ The fresh-context verifier confirmed all eight charges: zero canon touch (17 fil
 **Named, OWED (not this slice):** **F5** — a failed détail upload publishes the prefix with NO completion path for the missing détail (assembly is ok with a cut suffix ⇒ `leftover` never set). Pre-existing since the one-detail era, now twice as likely with two détails. Follow-up slice: detail-aware completion. **F6a** — the slice commit message claimed 6 orphaned keys; the true count is 5 (a count again — the standing name-not-count rule exists for exactly this; the journal is the corrected record). **F6d** — backing out to the studio resets chosen roles to default (the safe direction; founder-visible; his call if it should persist).
 
 App **505/505** · tsc clean · gates green · copy-lint 282/0. **Awaiting the merge word; then web-deploy.**
+
+### 2026-07-27 · ✅ STUDIO-BATCH-1 MERGED (founder: "approved and merge") — web-deploy dispatched
+Guarded protocol on `facd69f`: `--no-ff` of branch sha `3531cd4`, tree diff vs approved sha **0 lines**, re-greened from the merge commit (gates green · tsc clean · app 505/505), pushed, ancestry read-back confirmed, branch ff'd. web-deploy dispatched on main (app-only change — offer/media services untouched by this slice); terminal state recorded below when the watcher answers.
