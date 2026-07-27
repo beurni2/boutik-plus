@@ -18,7 +18,10 @@
  * reachable dispatch-only via `root=e1`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
+
+/** The web frame's cap — a large phone. See the comment at its use site. */
+const APP_FRAME_MAX = 430;
 import { P } from '../ui/v2/palette';
 import {
   bootEffect, initialState, reduce,
@@ -106,13 +109,24 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // timestamp, and there is no invalidation signal to make persistence safe.
   const produits = useRef<ProduitsCache>({ rows: null, asOf: null });
 
-  const { width } = useWindowDimensions();
+  // BOUTIK-WEB — THE PHONE FRAME ON DESKTOP (founder live report 2026-07-27:
+  // *"Photos on produits are so big and filling the whole screen… couldn't see
+  // all the details at the bottom"*, from an ultrawide monitor). Every screen
+  // in this app is %-based off its container, so a phone-first layout at
+  // 2000+px renders a 2000px-square photo and shoves the fiche's rows apart
+  // and below the fold. On WEB the app renders inside a centered column capped
+  // at a large-phone width; the warm paper fills the sides. Native is
+  // untouched — there the cap equals the window. 430 is my chosen value (a
+  // large phone), adjustable by one founder word.
+  const { width: windowWidth } = useWindowDimensions();
+  const width = Platform.OS === 'web' ? Math.min(windowWidth, APP_FRAME_MAX) : windowWidth;
   const v = st.view;
   const product = v?.s === 'product' && v.id !== undefined ? st.products[v.id] : undefined;
   const order = v?.s === 'order' && v.id !== undefined ? st.orders[v.id] : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: P.bg }}>
+    <View style={{ flex: 1, backgroundColor: P.bg, alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', ...(Platform.OS === 'web' ? { maxWidth: APP_FRAME_MAX } : {}) }}>
       <StatusZone />
       <C02StripeTissee width={width} />
       <View style={{ flex: 1 }}>
@@ -162,6 +176,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
       {st.sheet === 'stock' && <S19StockSheet st={st} d={d} />}
       <ToastStack toasts={st.toasts} />
       {st.celebr !== null && <S40Celebration amount={st.celebr} onDismiss={() => d({ t: 'CELEBR_DONE' })} />}
+      </View>
     </View>
   );
 }
