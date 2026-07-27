@@ -27,7 +27,7 @@ import type { ImageSourcePort } from './pick';
  * line.**
  *
  * Requiring it inside the call keeps it off the boot path entirely: the app
- * starts, and only tapping « Choisir une photo du téléphone » touches it. On a
+ * starts, and only tapping « Choisir une photo » touches it. On a
  * binary that lacks the module that tap lands in the Studio's designed `failed`
  * state instead of killing the app. **The real fix is a new native build; this
  * is what makes the app usable until he installs one.**

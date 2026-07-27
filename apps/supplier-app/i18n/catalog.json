@@ -1591,7 +1591,7 @@
   },
   {
     "key": "studio.depuis_telephone",
-    "fr": "Choisir une photo du téléphone",
+    "fr": "Choisir une photo",
     "register": "neutral",
     "screenClass": "general"
   },
