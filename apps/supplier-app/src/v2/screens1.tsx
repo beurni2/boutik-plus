@@ -206,6 +206,10 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
  * opens the full-screen viewer. A hidden offer states the ladder's own reason
  * here too — same sentence as the tile, same source.
  */
+/** The fiche photo's cap — « a little more bigger » than the 430 frame he
+ * judged too small (founder wording ruling 2026-07-27). One word changes it. */
+const FICHE_PHOTO_MAX = 560;
+
 export function SOffreFiche({ row, mediaBase, onBack }: {
   row: SupplierOfferRow;
   mediaBase: string | null;
@@ -228,9 +232,17 @@ export function SOffreFiche({ row, mediaBase, onBack }: {
       ) : (
         photos.map((ph) => (
           <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button" style={{ marginTop: 14 }}>
+            {/* THE PHOTO CAP (founder rulings 2026-07-27, in order: the
+                screen-filling fiche photo on desktop, then — after a whole-app
+                430 frame — *"the whole webapp the way it was, was good and my
+                issue was the photo part only… keep this new way of displaying
+                the photos but making a little more bigger"*. So: the app is
+                full-width again and the PHOTO alone is capped, centered, at a
+                size above the 430 he judged too small. On a phone the cap is
+                inert — the screen is narrower than it. */}
             <Image
               source={{ uri: ph.uri }}
-              style={{ width: '100%', aspectRatio: 1, borderRadius: GEO.r.iconTile }}
+              style={{ width: '100%', maxWidth: FICHE_PHOTO_MAX, alignSelf: 'center', aspectRatio: 1, borderRadius: GEO.r.iconTile }}
               resizeMode="cover"
             />
             <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{ph.label}</Text>
