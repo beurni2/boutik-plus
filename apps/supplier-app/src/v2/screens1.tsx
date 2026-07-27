@@ -163,8 +163,11 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
   // bigger so I can see clearly the photo and the description »). The two-up
   // grid put a 12MP photograph in 154 points; judging a product photo is the
   // whole job of this screen.
+  // THE CARDS SHARE THE PHOTO COLUMN CAP (founder 2026-07-27: the produits
+  // photos were still the old big ones - the photo IS the card's top, so the
+  // card column centers at the same cap the fiche uses; inert on phones).
   const body = (
-    <View style={{ marginTop: 14, gap: GEO.gap.grid }}>
+    <View style={{ marginTop: 14, gap: GEO.gap.grid, width: '100%', maxWidth: PHOTO_COLUMN_MAX, alignSelf: 'center' }}>
       {rows.map((r) => (
         <OfferTile
           key={r.offerId}
@@ -206,9 +209,10 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
  * opens the full-screen viewer. A hidden offer states the ladder's own reason
  * here too — same sentence as the tile, same source.
  */
-/** The fiche photo's cap — « a little more bigger » than the 430 frame he
- * judged too small (founder wording ruling 2026-07-27). One word changes it. */
-const FICHE_PHOTO_MAX = 560;
+/** The photo column's cap, shared by the fiche gallery AND the Produits
+ * cards. Ruled upward twice by the founder's eye (2026-07-27): 430 « too
+ * small » → 560 → « a little more bigger again » → 680. One word changes it. */
+const PHOTO_COLUMN_MAX = 680;
 
 export function SOffreFiche({ row, mediaBase, onBack }: {
   row: SupplierOfferRow;
@@ -217,8 +221,11 @@ export function SOffreFiche({ row, mediaBase, onBack }: {
 }) {
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   const photos = galleryPhotos(row.assetRefs, mediaBase);
+  // TABS pad, not stacked: this screen lives INSIDE the Produits tab, so the
+  // dock overlays it — the 60px stacked pad hid the detail card's last rows
+  // behind the dock (founder report 2026-07-27); the 150 tabs pad clears it.
   return (
-    <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
       <HeaderStacked title={row.name} onBack={onBack} />
       {row.hiddenReason !== undefined && (
         <View style={{ marginTop: 12 }}>
@@ -242,7 +249,7 @@ export function SOffreFiche({ row, mediaBase, onBack }: {
                 inert — the screen is narrower than it. */}
             <Image
               source={{ uri: ph.uri }}
-              style={{ width: '100%', maxWidth: FICHE_PHOTO_MAX, alignSelf: 'center', aspectRatio: 1, borderRadius: GEO.r.iconTile }}
+              style={{ width: '100%', maxWidth: PHOTO_COLUMN_MAX, alignSelf: 'center', aspectRatio: 1, borderRadius: GEO.r.iconTile }}
               resizeMode="cover"
             />
             <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{ph.label}</Text>
