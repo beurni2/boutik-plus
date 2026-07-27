@@ -2008,3 +2008,11 @@ Founder, verbatim: *"the whole webapp the way it was, was good and my issue was 
 - **Fix `f3c0f3b` (fast path, explicit paths only):** AppV2's frame REVERTED byte-faithfully to full browser width; `SOffreFiche` gallery photos alone capped — `width:'100%', maxWidth: FICHE_PHOTO_MAX = 560, alignSelf:'center'` (« a little more bigger » than the 430 he judged small; one word moves it). Inert on phones (screen < cap). Proven at 1920×1080 (full publish + fiche; « Catégorie » reachable). 502/502.
 - Merged `198564e`; **web-deploy run 3 dispatched** — terminal state below.
 - *The generalisable form for the design ledger: when the founder says "the way it was, was good", the remedy was wider than the defect — fix the ELEMENT he named, not the container it sits in.*
+
+### 2026-07-27 · FOUNDER EYE, ROUND TWO — PRODUITS JOINS THE PHOTO COLUMN · FICHE 680 · DOCK-CLEARING PAD (fast path, deployed)
+Three reports from the live site, one file (`f88ad98`, merged `02cec46`, web-deploy run 4 dispatched):
+- **Produits cards** were still full-width — the photo IS the card's top, so the card column now centers at the shared `PHOTO_COLUMN_MAX`. Inert on phones.
+- **The cap steps up again by his eye: 430 → 560 → 680** — the constant is now shared by fiche gallery and produits cards; one word moves it.
+- **The hidden details had a REAL cause, not a taste cause:** `SOffreFiche` lives INSIDE the Produits tab (the dock overlays it) but scrolled with the 60px STACKED pad — the tabs pad (150) exists precisely to clear the dock. Swapped; benefits native identically. *Generalisable: a screen's scroll pad follows where it RENDERS (under a dock or not), not what kind of screen it is.*
+- Proven at 1920×1080: cards centered; fiche scrolled to end, last detail row bottoms y=907 vs dock zone ~990. 502/502.
+- Build-slip note, honestly: the first patch attempt died on shell quoting (nothing applied) and the second put a JSX comment in an invalid position (typecheck caught it immediately). Both caught in-session before any commit; the shipped diff is the third, clean form.

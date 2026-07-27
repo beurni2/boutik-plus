@@ -415,8 +415,17 @@ export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, st
       {photo.kind === 'photo' && !broken ? (
         <Image
           source={{ uri: photo.uri }}
-          style={{ width: '100%', height: imgH }}
-          resizeMode="cover"
+          // LARGE CARDS SHOW THE WHOLE PHOTOGRAPH (founder live report
+          // 2026-07-27: « the frame is not making the product show entirely »
+          // — his duffel was cropped top and bottom). A fixed 210 band with
+          // `cover` trims whatever does not fit; the large card now gives the
+          // image a square frame and CONTAINS it — every pixel visible,
+          // letterboxed on warm paper when the aspect differs. Small tiles
+          // keep the covered band (a browse thumbnail, not an inspection).
+          style={large === true
+            ? { width: '100%', aspectRatio: 1, backgroundColor: P.bg }
+            : { width: '100%', height: imgH }}
+          resizeMode={large === true ? 'contain' : 'cover'}
           // A ref that 404s (wrong base, purged object) must land on the SAME
           // designed state as an unfetchable one — never an empty box.
           onError={() => setBroken(true)}
