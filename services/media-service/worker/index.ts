@@ -165,9 +165,16 @@ export const UPLOAD_PATH = '/media';
  * storage URL, no account detail. The readable URL is the ref appended to this
  * service's own origin.
  *
- * NO CORS, deliberately: this is called by the supplier app, not a browser.
- * Adding browser origins would widen exactly the surface the write gate exists to
- * close.
+ * CORS EXISTS NOW, AND THE OLD COMMENT'S PREMISE IS WHY (BOUTIK-WEB-W4). This
+ * route once said, verbatim: *"NO CORS, deliberately: this is called by the
+ * supplier app, not a browser."* The founder's web ruling (Boutik-Plus-Web
+ * North Star, 2026-07-26) overturned exactly that premise — the supplier app
+ * IS a browser now, and a browser preflights a POST carrying `X-Write-Key`.
+ * The decision updates WITH its premise, on the record: same treatment as
+ * offer-service's entry, same `*`-is-safe argument (no cookie or ambient
+ * credential exists on this worker; the explicit key header gates every
+ * write), same tripwire — the moment a cookie or session enters this worker,
+ * `*` stops being safe and this comment is the review flag.
  */
 export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
   const store = resolveMediaStore(env);
@@ -183,8 +190,35 @@ export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, n
   return Response.json({ ref: key, contentType, width, height, byteLength }, { status: 201 });
 }
 
+/**
+ * The preflight answers before the write gate ON PURPOSE (mirrors offer-service):
+ * browsers strip custom headers from OPTIONS, so it can never carry the key;
+ * it grants nothing by itself, and must succeed for the authed POST behind it
+ * to even be attempted. The edge cache stores UNSTAMPED responses (the `put`
+ * happens inside `handleMediaRead`); every exit — hit or miss — passes through
+ * `withCors`, so the stamp is uniform without poisoning the cache with it.
+ */
+const CORS_HEADERS: Readonly<Record<string, string>> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key',
+  'Access-Control-Max-Age': '86400',
+};
+
+function withCors(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  return new Response(res.body, { status: res.status, headers });
+}
+
 export default {
   async fetch(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return withCors(await handle(request, env, ctx));
+  },
+};
+
+async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     // THE WRITE GATE, at the one deployed entry, BEFORE any dispatch or storage
     // touch — so a rejected upload never reaches R2 and the 401 is never an
     // existence oracle. Reads (GET) short-circuit through untouched: the media
@@ -201,5 +235,4 @@ export default {
       return handleMediaRead(request, decodeURIComponent(pathname.slice(1)), env, ctx);
     }
     return health(request);
-  },
-};
+}

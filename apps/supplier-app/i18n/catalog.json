@@ -1591,7 +1591,13 @@
   },
   {
     "key": "studio.depuis_telephone",
-    "fr": "Choisir une photo du téléphone",
+    "fr": "Choisir une photo",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.glisser_ici",
+    "fr": "Glissez votre photo ici",
     "register": "neutral",
     "screenClass": "general"
   },

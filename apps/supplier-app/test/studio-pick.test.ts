@@ -3,6 +3,7 @@ import {
   decodeRefusalSentence,
   galleryRefusalKey,
   pickShot,
+  shotFromAsset,
   pickedFormatLabel,
   type ImageSourcePort,
   type PickedAsset,
@@ -217,5 +218,32 @@ describe('CAMERA-ONLY FOR THE PROOF SHOT — stated in words, not by a missing b
     expect(s).toContain('chez vous'); // the reason
     // it must not claim the platform can check the photo — provenance is all we have
     expect(s).not.toMatch(/vérifi|contrôl|authentif/i);
+  });
+});
+
+describe('A DROPPED FILE WALKS THE SAME FUNNEL (BOUTIK-WEB-W3 — shotFromAsset)', () => {
+  const DROPPED: PickedAsset = { uri: 'blob:https://boutik/0f3a', mimeType: 'image/png', fileName: 'produit.png' };
+
+  it('same discipline: master from the DECODE, derivative stripped, master kept apart from it', async () => {
+    const out = await shotFromAsset(fakePort({ decodeW: 3024, decodeH: 4032 }), DROPPED);
+    if (out.kind !== 'picked') throw new Error('expected picked');
+    expect(out.shot.master).toEqual({ width: 3024, height: 4032 });
+    expect(out.shot.masterUri).toBe(DROPPED.uri);
+    const shipped = base64ToBytes(out.shot.derivative.uri.slice('data:image/jpeg;base64,'.length));
+    expect(jpegCarriesExif(shipped)).toBe(false);
+  });
+
+  it('pickShot IS this funnel behind the dialog — same asset in, deep-equal outcome out (no second path can drift)', async () => {
+    expect(await pickShot(fakePort({ asset: DROPPED }))).toEqual(await shotFromAsset(fakePort(), DROPPED));
+  });
+
+  it("a decode fault refuses naming the DROPPED file's format", async () => {
+    const out = await shotFromAsset(fakePort({ failDecode: true }), DROPPED);
+    expect(out).toEqual({ kind: 'refused', refusal: { messageKey: 'studio.image_illisible', format: 'png' } });
+  });
+
+  it('bytes that cannot be proven clean fail closed on the drop path too — no laxer entry exists', async () => {
+    const notAJpeg = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    await expect(shotFromAsset(fakePort({ bytes: notAJpeg }), DROPPED)).rejects.toBeInstanceOf(ExifLeakError);
   });
 });
