@@ -214,12 +214,26 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
  * small » → 560 → « a little more bigger again » → 680. One word changes it. */
 const PHOTO_COLUMN_MAX = 680;
 
-export function SOffreFiche({ row, mediaBase, onBack }: {
+export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
   row: SupplierOfferRow;
   mediaBase: string | null;
   onBack: () => void;
+  /** OFFER-DELETE-1 (founder 2026-07-27). Resolves true when the offer is gone
+   * (the parent closes this fiche); false surfaces the designed failure here.
+   * Absent (service unconfigured) ⇒ no delete UI at all. */
+  onDelete?: (() => Promise<boolean>) | undefined;
 }) {
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
+  // The delete walk: idle → confirm (the warning states what happens, in
+  // words) → pending → failed (retryable). NEVER a one-tap destruction.
+  const [del, setDel] = useState<'idle' | 'confirm' | 'pending' | 'failed'>('idle');
+  const runDelete = async () => {
+    if (onDelete === undefined || del === 'pending') return;
+    setDel('pending');
+    const gone = await onDelete();
+    if (!gone) setDel('failed');
+    // on success the parent unmounts this fiche — no state to set here.
+  };
   const photos = galleryPhotos(row.assetRefs, mediaBase);
   // TABS pad, not stacked: this screen lives INSIDE the Produits tab, so the
   // dock overlays it — the 60px stacked pad hid the detail card's last rows
@@ -270,6 +284,33 @@ export function SOffreFiche({ row, mediaBase, onBack }: {
           </View>
         ))}
       </Card>
+      {/* OFFER-DELETE-1 — the refusal path as dignified as the purchase path:
+          the action whispers below the facts, the warning says exactly what
+          happens and where, and confirming takes a second deliberate tap. */}
+      {onDelete !== undefined && (
+        <View style={{ marginTop: 18 }}>
+          {del === 'failed' && (
+            <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.supprimer_echec')}</Banner>
+          )}
+          {del === 'idle' || del === 'failed' ? (
+            <BtnGhost label={tr('produits.supprimer')} onPress={() => setDel('confirm')} />
+          ) : (
+            <>
+              <Banner tone="warn">{tr('produits.supprimer_avert')}</Banner>
+              <View style={{ marginTop: 10 }}>
+                <BtnSoft
+                  label={tr(del === 'pending' ? 'produits.supprimer_encours' : 'produits.supprimer_oui')}
+                  labelStyle={{ color: P.dangerFg }}
+                  onPress={() => { void runDelete(); }}
+                />
+              </View>
+              {del !== 'pending' && (
+                <BtnGhost label={tr('produits.supprimer_non')} onPress={() => setDel('idle')} style={{ marginTop: 10 }} />
+              )}
+            </>
+          )}
+        </View>
+      )}
       <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
     </ScrollView>
   );

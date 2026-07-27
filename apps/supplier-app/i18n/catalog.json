@@ -1536,6 +1536,42 @@
     "screenClass": "label"
   },
   {
+    "key": "produits.supprimer",
+    "fr": "Supprimer ce produit",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_avert",
+    "fr": "Il sera retiré de votre boutique et de Shop+. Les commandes déjà passées ne changent pas.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_oui",
+    "fr": "Oui, supprimer",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_non",
+    "fr": "Garder ce produit",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_encours",
+    "fr": "Suppression en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_echec",
+    "fr": "La suppression n’a pas abouti. Vérifiez le réseau et réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.err_commission",
     "fr": "La commission doit être un nombre entier.",
     "register": "money",

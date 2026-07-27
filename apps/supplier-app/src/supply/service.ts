@@ -258,6 +258,34 @@ export interface SupplyServicePort {
    * names it, never everyone's offers (founder ruling 2026-07-25).
    */
   listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>>;
+  /**
+   * OFFER-DELETE-1 (founder feature 2026-07-27): remove an offer from EVERY
+   * wire — his Produits list AND the supply projections Shop+ reads. The
+   * command carries all three identifiers so a retry after a mid-flight death
+   * still finishes the cleanup (the route replays idempotently).
+   */
+  deleteOffer(cmd: DeleteOfferInput): Promise<ServiceResult<DeleteOfferOutcome>>;
+}
+
+/** Mirrors the route's body — commandId minted like every other write. */
+export interface DeleteOfferInput {
+  readonly commandId: string;
+  readonly offerId: string;
+  readonly productVersionId: string;
+}
+
+/** `deleted` = it existed and is gone · `idempotent` = already gone (a replay). */
+export interface DeleteOfferOutcome {
+  readonly status: 'deleted' | 'idempotent';
+}
+
+/** Boundary validation, same law as `readOutcome`: an unknown status is
+ * `unreadable`, never a half-trusted decision. */
+export function readDeleteOutcome(body: unknown): DeleteOfferOutcome | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const status = (body as Record<string, unknown>)['status'];
+  if (status !== 'deleted' && status !== 'idempotent') return null;
+  return { status };
 }
 
 const DECISION_STATUSES = ['created', 'idempotent', 'collision', 'refused'] as const;
@@ -352,6 +380,31 @@ export class HttpSupplyService implements SupplyServicePort {
       return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
     }
     const outcome = readAttachOutcome(parsed);
+    if (outcome === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    return { ok: true, value: outcome };
+  }
+
+  async deleteOffer(cmd: DeleteOfferInput): Promise<ServiceResult<DeleteOfferOutcome>> {
+    const url = `${this.base.replace(/\/+$/, '')}/offers/delete`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: this.writeKey },
+        body: JSON.stringify(cmd),
+      });
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    const text = await res.text();
+    if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    const outcome = readDeleteOutcome(parsed);
     if (outcome === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     return { ok: true, value: outcome };
   }

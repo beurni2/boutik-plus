@@ -446,3 +446,77 @@ describe('CORS — the browser can ask, the key still gates (BOUTIK-WEB-W1)', ()
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 });
+
+/**
+ * OFFER-DELETE-1 (founder feature 2026-07-27: *"delete from produits and it
+ * will be removed from shop+ as well"*). Deletion is a WRITE walking three DOs
+ * — pointer, index row, entry — ordered so any partial failure is invisible
+ * and every replay repairs. "Removed from Shop+" means removed from the SUPPLY
+ * WIRE Shop+ reads: the single projection 404s and the collection no longer
+ * carries it.
+ */
+describe('OFFER-DELETE — gone from every wire, idempotent, still key-gated', () => {
+  const DEL = {
+    commandId: 'del-cmd-001',
+    offerId: 'offer-todelete-001',
+    product: { ...SEED.product, id: 'pv-todelete-001' },
+    draft: { ...SEED.draft, productVersionId: 'pv-todelete-001' },
+    available: 3,
+    asOf: T0,
+  };
+  const deleteCmd = { commandId: 'del-cmd-002', offerId: DEL.offerId, productVersionId: 'pv-todelete-001' };
+
+  it('an unkeyed delete is 401 BEFORE anything is touched — CORS/gate discipline unchanged for the new write', async () => {
+    const res = await mf.dispatchFetch('http://o/offers/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(deleteCmd),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('create → visible on all three wires; delete → gone from ALL THREE (admin list · supply single read · supply collection)', async () => {
+    const created = await mf.dispatchFetch('http://o/offers', { method: 'POST', headers: authed, body: JSON.stringify(DEL) });
+    expect(created.status).toBe(200);
+
+    // visible before
+    const before = (await (await mf.dispatchFetch(`http://o/offers?supplierId=${DEL.product.supplierId}`, { headers: authed })).json()) as { items: { offerId: string }[] };
+    expect(before.items.some((i) => i.offerId === DEL.offerId)).toBe(true);
+    const singleBefore = await mf.dispatchFetch(`http://o/supply-projection/pv-todelete-001`, { headers: readAuthed });
+    expect(singleBefore.status).toBe(200);
+
+    const del = await mf.dispatchFetch('http://o/offers/delete', { method: 'POST', headers: authed, body: JSON.stringify(deleteCmd) });
+    expect(del.status).toBe(200);
+    expect(((await del.json()) as { status: string }).status).toBe('deleted');
+
+    // gone after — every wire
+    const after = (await (await mf.dispatchFetch(`http://o/offers?supplierId=${DEL.product.supplierId}`, { headers: authed })).json()) as { items: { offerId: string }[] };
+    expect(after.items.some((i) => i.offerId === DEL.offerId)).toBe(false);
+    const singleAfter = await mf.dispatchFetch(`http://o/supply-projection/pv-todelete-001`, { headers: readAuthed });
+    expect(singleAfter.status).toBe(404);
+    const coll = (await (await mf.dispatchFetch('http://o/supply-projections', { headers: readAuthed })).json()) as { items?: { productVersionId: string }[] } | { productVersionId: string }[];
+    const items = Array.isArray(coll) ? coll : (coll.items ?? []);
+    expect(items.some((p) => p.productVersionId === 'pv-todelete-001')).toBe(false);
+  });
+
+  it('a REPLAY of the delete answers idempotent — a retry after a mid-flight death finishes the cleanup for free', async () => {
+    const again = await mf.dispatchFetch('http://o/offers/delete', { method: 'POST', headers: authed, body: JSON.stringify(deleteCmd) });
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as { status: string }).status).toBe('idempotent');
+  });
+
+  it('deleting one offer does NOT touch its neighbours — the founder seed is still on every wire', async () => {
+    const list = (await (await mf.dispatchFetch(`http://o/offers?supplierId=${SEED.product.supplierId}`, { headers: authed })).json()) as { items: { offerId: string }[] };
+    expect(list.items.some((i) => i.offerId === SEED.offerId)).toBe(true);
+    const single = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, { headers: readAuthed });
+    expect(single.status).toBe(200);
+  });
+
+  it('a malformed delete (missing productVersionId) is a 400 that touches nothing', async () => {
+    const res = await mf.dispatchFetch('http://o/offers/delete', {
+      method: 'POST', headers: authed,
+      body: JSON.stringify({ commandId: 'x', offerId: 'y' }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
