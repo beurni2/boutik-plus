@@ -7,7 +7,7 @@ import { C21, role, SCROLL } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, IconTile, MetersList } from './components';
 import { captureShot } from '../studio/capture';
-import { decodeRefusalSentence, galleryRefusalKey, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
+import { decodeRefusalSentence, galleryRefusalKey, type PickedAsset, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
 import { noPhotoSentenceKey, roleTitleKey } from '../studio/review';
 
 /**
@@ -36,6 +36,9 @@ export interface StudioShootProps {
   readonly busy: MutableRefObject<boolean>;
   /** The shared pick funnel (studio-real owns it — one funnel, both platforms). */
   readonly onPick: () => void;
+  /** A drag-and-dropped file (BOUTIK-WEB-W3) — same funnel, additional entry.
+   * Only the web screen calls it; drag events do not exist on the native side. */
+  readonly onDropAsset: (asset: PickedAsset) => void;
   /** A camera capture to review. Web never calls this (no camera exists there). */
   readonly onShot: (shot: StudioShot) => void;
   /** A capture that cannot be proven clean — the designed failed state. */

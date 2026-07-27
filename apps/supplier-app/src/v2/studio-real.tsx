@@ -7,7 +7,7 @@ import { Banner, C07BtnPrimary, HeaderStacked, ProcessingList } from './componen
 import { S26StudioReview } from './studio-review';
 import { renderCropDerivative, type StrippedDerivative } from '../studio/capture';
 import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
-import { pickShot, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
+import { pickShot, shotFromAsset, type PickedAsset, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
 import { keptAfter, type ShotSource } from '../studio/review';
 import { StudioShoot } from './studio-shoot';
@@ -106,6 +106,25 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
     }
   };
 
+  /** A DROPPED file (web, BOUTIK-WEB-W3): the same funnel from the asset
+   * onward — `shotFromAsset` cannot answer `cancelled` (an asset in hand is
+   * past backing out), so the outcomes here are exactly picked/refused/fault,
+   * handled identically to the pick path above. Same busy ref: a drop during
+   * a mid-flight pick no-ops rather than racing it. */
+  const dropPhoto = async (slot: Slot, asset: PickedAsset) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const out = await shotFromAsset(nativeImageSource, asset);
+      if (out.kind === 'picked') toReview(slot, out.shot, 'gallery');
+      else setPhase({ kind: 'shooting', slot, banner: { kind: 'decode', refusal: out.refusal } });
+    } catch (err) {
+      setPhase({ kind: 'failed', reason: String((err as Error)?.message ?? err) });
+    } finally {
+      busy.current = false;
+    }
+  };
+
   /** « Garder cette photo » — banked in role order; the last one starts the crops. */
   const keep = (slot: Slot, shot: StudioShot) => {
     kept.current = [...keptAfter(kept.current, slot, shot)];
@@ -194,6 +213,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
       banner={phase.banner}
       busy={busy}
       onPick={() => { void pickPhoto(slot); }}
+      onDropAsset={(asset) => { void dropPhoto(slot, asset); }}
       onShot={(shot) => toReview(slot, shot, 'camera')}
       onFailed={(reason) => setPhase({ kind: 'failed', reason })}
       onBack={() => d({ t: 'BACK' })}

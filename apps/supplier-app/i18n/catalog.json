@@ -1596,6 +1596,12 @@
     "screenClass": "general"
   },
   {
+    "key": "studio.glisser_ici",
+    "fr": "Glissez votre photo ici",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "studio.aucune_photo",
     "fr": "Aucune photo n'est arrivée. Réessayez, ou prenez la photo maintenant.",
     "register": "neutral",

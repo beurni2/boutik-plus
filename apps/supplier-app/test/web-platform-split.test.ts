@@ -86,6 +86,30 @@ describe('the W2 verifier deviations stay fixed (source tripwires — a comment 
   });
 });
 
+describe('the W3 drop container rules (source tripwires on the web shoot screen)', () => {
+  const shootWeb = read('src/v2/studio-shoot.web.tsx');
+
+  it('dragover AND drop both preventDefault — the first makes the pane a target, the second stops the browser navigating to the image', () => {
+    expect(shootWeb).toMatch(/dragover/);
+    expect([...shootWeb.matchAll(/e\.preventDefault\(\)/g)].length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('only files[0] is taken — single-selection parity with the picker', () => {
+    expect(shootWeb).toMatch(/files\?\.\[0\]/);
+    expect(shootWeb).not.toMatch(/for .*files|files\.map|files\[1\]/);
+  });
+
+  it('the object URL is NEVER revoked — it is the masterUri the publish path hashes; revoking it would turn the master hash into a false record', () => {
+    expect(shootWeb).toMatch(/URL\.createObjectURL/);
+    expect(shootWeb).not.toMatch(/revokeObjectURL/);
+  });
+
+  it('the drop feeds the SHARED funnel through onDropAsset — no decode, strip, or upload happens in the screen', () => {
+    expect(shootWeb).toMatch(/onDropAsset\(\{ uri: URL\.createObjectURL\(file\), mimeType: file\.type, fileName: file\.name \}\)/);
+    expect(shootWeb).not.toMatch(/stripJpegMetadata|assertExifFree|ImageManipulator/);
+  });
+});
+
 describe('bytesFromUri (web) — the master-hash feeder, by value', () => {
   it('reads a data: URI back to the exact bytes', async () => {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x03]);

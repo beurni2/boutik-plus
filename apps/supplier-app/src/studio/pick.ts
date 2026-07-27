@@ -164,7 +164,24 @@ export interface ImageSourcePort {
 export async function pickShot(port: ImageSourcePort): Promise<PickOutcome> {
   const picked = await port.pickFromLibrary();
   if (picked === null) return { kind: 'cancelled' };
+  return await shotFromAsset(port, picked);
+}
 
+/**
+ * THE FUNNEL ITSELF, from an asset already in hand — extracted (BOUTIK-WEB-W3)
+ * so a DRAG-AND-DROPPED file walks the EXACT code path a library pick walks:
+ * decode → actions from the DECODE's dimensions → our strip → `assertExifFree`
+ * on the shipped bytes. There is deliberately no second funnel for drops, and
+ * no branch in which unstripped bytes exist — a laxer drop path would quietly
+ * reopen everything this module closed.
+ *
+ * `cancelled` cannot come out of this half: an asset in hand is past the point
+ * of backing out. Only the library dialog above can answer `cancelled`.
+ */
+export async function shotFromAsset(
+  port: ImageSourcePort,
+  picked: PickedAsset,
+): Promise<Exclude<PickOutcome, { kind: 'cancelled' }>> {
   let decoded: { image: unknown; width: number; height: number };
   let encoded: { base64: string; width: number; height: number };
   try {
