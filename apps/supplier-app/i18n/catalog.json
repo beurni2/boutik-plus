@@ -558,12 +558,6 @@
     "screenClass": "general"
   },
   {
-    "key": "studio.reprendre",
-    "fr": "Reprendre",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "studio.confirmer",
     "fr": "Garder cette photo",
     "register": "neutral",
@@ -1596,44 +1590,14 @@
     "screenClass": "label"
   },
   {
-    "key": "studio.preuve_appareil_seul",
-    "fr": "La photo preuve se prend maintenant, avec l'appareil. C'est elle qui montre que le produit est bien chez vous.",
-    "register": "selling",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "studio.role_hero",
-    "fr": "Photo héro",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "studio.role_preuve",
-    "fr": "Photo preuve",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "studio.role_detail",
-    "fr": "Photo détail",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "studio.choisir_autre",
-    "fr": "Choisir une autre photo",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "studio.depuis_telephone",
-    "fr": "Choisir une photo",
+    "fr": "Choisir des photos",
     "register": "neutral",
     "screenClass": "general"
   },
   {
     "key": "studio.glisser_ici",
-    "fr": "Glissez votre photo ici",
+    "fr": "Glissez vos photos ici",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -1642,5 +1606,89 @@
     "fr": "Aucune photo n'est arrivée. Réessayez, ou prenez la photo maintenant.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "studio.vos_photos",
+    "fr": "Vos photos du produit",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.compteur",
+    "fr": "{n} sur {max} photos ajoutées",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "studio.photo_n",
+    "fr": "Photo {n}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.retirer",
+    "fr": "Retirer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.continuer",
+    "fr": "Continuer avec ces photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.minimum",
+    "fr": "Ajoutez au moins {min} photos pour continuer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.role_hero",
+    "fr": "Héro",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.role_preuve",
+    "fr": "Preuve",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.role_detail1",
+    "fr": "Détail 1",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.role_detail2",
+    "fr": "Détail 2",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.roles_hint",
+    "fr": "Touchez le nom sous une photo pour changer son rôle.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "studio.reprendre",
+    "fr": "Reprendre",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.limite",
+    "fr": "4 photos au maximum — les photos en trop n'ont pas été ajoutées.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.photos_validees",
+    "fr": "Photos ajoutées et validées — vous choisirez le rôle de chaque photo à la vérification.",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

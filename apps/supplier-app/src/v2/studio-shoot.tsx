@@ -7,8 +7,8 @@ import { C21, role, SCROLL } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, IconTile, MetersList } from './components';
 import { captureShot } from '../studio/capture';
-import { decodeRefusalSentence, galleryRefusalKey, type PickedAsset, type ShootBanner, type StudioRole, type StudioShot } from '../studio/pick';
-import { noPhotoSentenceKey, roleTitleKey } from '../studio/review';
+import { decodeRefusalSentence, noPhotoSentenceKey, type PickedAsset, type ShootBanner, type StudioShot } from '../studio/pick';
+import type { ReactNode } from 'react';
 
 /**
  * BOUTIK-WEB-W2 — THE NATIVE SHOOTING SCREEN, platform-split out of
@@ -27,8 +27,10 @@ import { noPhotoSentenceKey, roleTitleKey } from '../studio/review';
  * two callbacks the pick path uses.
  */
 export interface StudioShootProps {
-  readonly shotRole: StudioRole;
   readonly banner: ShootBanner | null;
+  /** The collect counter (« 2 photos sur 4 ») — assembled from the catalog by
+   * studio-real, rendered under the title. Empty string = no counter line. */
+  readonly subtitle: string;
   /** THE ONE BUSY GUARD, owned by studio-real (W2 verifier, Deviation A): the
    * old file serialized capture AND pick through a single ref, so tapping the
    * gallery mid-capture no-op'd. Splitting the screen must not split the
@@ -36,14 +38,18 @@ export interface StudioShootProps {
   readonly busy: MutableRefObject<boolean>;
   /** The shared pick funnel (studio-real owns it — one funnel, both platforms). */
   readonly onPick: () => void;
-  /** A drag-and-dropped file (BOUTIK-WEB-W3) — same funnel, additional entry.
-   * Only the web screen calls it; drag events do not exist on the native side. */
-  readonly onDropAsset: (asset: PickedAsset) => void;
+  /** Drag-and-dropped files (BOUTIK-WEB-W3, plural since STUDIO-BATCH-1) —
+   * same funnel, additional entry. Only the web screen calls it; drag events
+   * do not exist on the native side. */
+  readonly onDropAssets: (assets: readonly PickedAsset[]) => void;
   /** A camera capture to review. Web never calls this (no camera exists there). */
   readonly onShot: (shot: StudioShot) => void;
   /** A capture that cannot be proven clean — the designed failed state. */
   readonly onFailed: (reason: string) => void;
   readonly onBack: () => void;
+  /** The COLLECTION chrome (thumbnails, remove, « Continuer ») — owned by
+   * studio-real, platform-free; both screens render it below their pane. */
+  readonly children?: ReactNode;
 }
 
 /**
@@ -61,7 +67,7 @@ export interface StudioShootProps {
  */
 let cameraGrantedOnce = false;
 
-export function StudioShoot({ shotRole, banner, busy, onPick, onShot, onFailed, onBack }: StudioShootProps) {
+export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, onBack, children }: StudioShootProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView | null>(null);
 
@@ -108,13 +114,15 @@ export function StudioShoot({ shotRole, banner, busy, onPick, onShot, onFailed, 
     );
   }
 
-  const galleryRefusal = galleryRefusalKey(shotRole);
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
         <HeaderStacked title="Boutik+ Studio" onBack={onBack} />
         <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
-        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t(roleTitleKey(shotRole))}</Text>
+        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t('studio.vos_photos')}</Text>
+        {subtitle !== '' && (
+          <Text style={[role({ f: 'IS', w: 500, s: 13 }, P.sub), { marginTop: 4 }]}>{subtitle}</Text>
+        )}
       </View>
 
       {/* The viewfinder takes the room that is left — the SAME flex:1 region the
@@ -129,27 +137,25 @@ export function StudioShoot({ shotRole, banner, busy, onPick, onShot, onFailed, 
       <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
         {banner !== null && (
           <Banner tone={banner.kind === 'decode' ? 'warn' : 'info'} style={{ marginTop: 12 }}>
-            {banner.kind === 'decode' ? decodeRefusalSentence(banner.refusal) : t(noPhotoSentenceKey())}
+            {banner.kind === 'decode'
+              ? decodeRefusalSentence(banner.refusal)
+              : t(banner.kind === 'limite' ? 'studio.limite' : noPhotoSentenceKey())}
           </Banner>
         )}
         <View style={{ marginTop: 12 }}>
           <C07BtnPrimary label={t('studio.capture')} icon="camera" onPress={() => { void takePhoto(); }} />
         </View>
-        {galleryRefusal === null ? (
-          <BtnGhost
-            label={t('studio.depuis_telephone')}
-            onPress={onPick}
-            style={{ marginTop: 10 }}
-          />
-        ) : (
-          // CAMERA-ONLY, STATED IN WORDS rather than by a missing button — a
-          // control that silently is not there reads as a bug. NATIVE ONLY:
-          // the founder's W-D1 ruling scopes the upload-for-proof allowance to
-          // the web surface; the parked app keeps the standing rule.
-          <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-            {t(galleryRefusal)}
-          </Text>
-        )}
+        {/* The gallery secondary is unconditional since STUDIO-BATCH-1: roles
+            are assigned at the verify step, so the old camera-only-proof
+            refusal has no intake hook — each shot records its `source`, the
+            data a revived native app would need to re-enforce it (⏳ flagged
+            in JOURNAL.md). */}
+        <BtnGhost
+          label={t('studio.depuis_telephone')}
+          onPress={onPick}
+          style={{ marginTop: 10 }}
+        />
+        {children}
       </View>
 
       {/* the demo's simulate-low toggle and fake meters live on only in the

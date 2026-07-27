@@ -5,8 +5,7 @@ import { GEO, SHADOW } from '../ui/v2/tokens';
 import { C21, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, C07BtnPrimary, HeaderStacked } from './components';
-import { decodeRefusalSentence, type ShootBanner } from '../studio/pick';
-import { noPhotoSentenceKey, roleTitleKey } from '../studio/review';
+import { decodeRefusalSentence, noPhotoSentenceKey } from '../studio/pick';
 import type { StudioShootProps } from './studio-shoot';
 
 /**
@@ -32,8 +31,9 @@ import type { StudioShootProps } from './studio-shoot';
  * never a laxer one. `dragover.preventDefault()` is what makes the element a
  * drop target at all, and `drop.preventDefault()` is what stops the BROWSER
  * navigating away to render the image — each is load-bearing, neither is
- * ceremony. Only `files[0]` is taken: single-selection parity with the picker
- * (`allowsMultipleSelection: false`).
+ * ceremony. EVERY dropped file is taken (STUDIO-BATCH-1 — multi-selection
+ * parity with the picker's `allowsMultipleSelection: true`); the funnel
+ * re-bounds the batch to the room that remains, never this screen.
  *
  * THE OBJECT URL IS DELIBERATELY NEVER REVOKED: it is the shot's `masterUri`,
  * and the publish path reads the master's own bytes back through `fetch(uri)`
@@ -63,7 +63,7 @@ interface DomEventTarget {
 declare const window: { matchMedia?: (query: string) => { matches: boolean } } | undefined;
 declare const URL: { createObjectURL(file: DomFile): string };
 
-export function StudioShoot({ shotRole, banner, onPick, onDropAsset, onBack }: StudioShootProps) {
+export function StudioShoot({ banner, subtitle, onPick, onDropAssets, onBack, children }: StudioShootProps) {
   const paneRef = useRef<View | null>(null);
   const [hover, setHover] = useState(false);
 
@@ -86,9 +86,14 @@ export function StudioShoot({ shotRole, banner, onPick, onDropAsset, onBack }: S
     const drop = (e: DomDragEvent) => {
       e.preventDefault(); // without this the browser navigates to the image
       setHover(false);
-      const file = e.dataTransfer?.files?.[0];
-      if (file === undefined) return; // a text/link drag — nothing to take
-      onDropAsset({ uri: URL.createObjectURL(file), mimeType: file.type, fileName: file.name });
+      const files = e.dataTransfer?.files;
+      if (files === undefined || files === null) return; // a text/link drag — nothing to take
+      const assets = [];
+      for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        if (file !== undefined) assets.push({ uri: URL.createObjectURL(file), mimeType: file.type, fileName: file.name });
+      }
+      if (assets.length > 0) onDropAssets(assets);
     };
     node.addEventListener('dragover', over);
     node.addEventListener('dragleave', leave);
@@ -98,14 +103,17 @@ export function StudioShoot({ shotRole, banner, onPick, onDropAsset, onBack }: S
       node.removeEventListener('dragleave', leave);
       node.removeEventListener('drop', drop);
     };
-  }, [onDropAsset]);
+  }, [onDropAssets]);
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
         <HeaderStacked title="Boutik+ Studio" onBack={onBack} />
         <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
-        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t(roleTitleKey(shotRole))}</Text>
+        <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t('studio.vos_photos')}</Text>
+        {subtitle !== '' && (
+          <Text style={[role({ f: 'IS', w: 500, s: 13 }, P.sub), { marginTop: 4 }]}>{subtitle}</Text>
+        )}
       </View>
 
       {/* the pane: same region the review pane and the native viewfinder use.
@@ -142,12 +150,17 @@ export function StudioShoot({ shotRole, banner, onPick, onDropAsset, onBack }: S
       <View style={{ paddingHorizontal: GEO.screenPad.side, paddingBottom: GEO.screenPad.top }}>
         {banner !== null && (
           <Banner tone={banner.kind === 'decode' ? 'warn' : 'info'} style={{ marginTop: 12 }}>
-            {banner.kind === 'decode' ? decodeRefusalSentence(banner.refusal) : t(noPhotoSentenceKey())}
+            {banner.kind === 'decode'
+              ? decodeRefusalSentence(banner.refusal)
+              : t(banner.kind === 'limite' ? 'studio.limite' : noPhotoSentenceKey())}
           </Banner>
         )}
         <View style={{ marginTop: 12 }}>
           <C07BtnPrimary label={t('studio.depuis_telephone')} onPress={onPick} />
         </View>
+        {/* the COLLECTION — thumbnails, remove, and « Continuer » — rendered by
+            studio-real (platform-free); this screen only gives it the floor. */}
+        {children}
       </View>
     </View>
   );

@@ -58,7 +58,9 @@ import {
 } from '../supply/authoring';
 import { randomSuffixBytes, suggestProductCode } from '../supply/product-code';
 import { previewSellerNet, type SellerNetLine } from '../supply/preview';
-import { derivativeBytesFromUri } from '../studio/capture';
+import { derivativeBytesFromUri, renderCropDerivative } from '../studio/capture';
+import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
+import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } from '../studio/roles';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 
@@ -91,12 +93,13 @@ interface PendingPhotos {
   readonly bytes: UploadBytes;
 }
 
-/** The raw bytes per role — kept so a retry re-uploads ONLY what failed. */
+/** The raw bytes per role — kept so a retry re-uploads ONLY what failed.
+ * `detail` is 1..2 entries since STUDIO-BATCH-1 (the founder's 4th photo). */
 interface UploadBytes {
   readonly heroSquare: Uint8Array;
   readonly heroVertical: Uint8Array;
   readonly proof: Uint8Array;
-  readonly detail: Uint8Array;
+  readonly detail: readonly Uint8Array[];
   readonly masterSha256: string;
 }
 
@@ -142,6 +145,19 @@ export function SListerReal({ st, d, captures, session }: {
   const [attachNote, setAttachNote] = useState<'sending' | 'done' | string | null>(null);
   const inFlight = useRef(false);
   const identity = useRef<OfferIdentity | null>(null);
+  /** THE ROLE ASSIGNMENT (STUDIO-BATCH-1) — index-aligned with the capture
+   * set's photos, chosen by the chips on the verify step. KEYED TO THE SET
+   * ITSELF: a fresh studio round-trip hands up a new object, so a stale
+   * assignment can never map onto new photographs — it silently falls back to
+   * the default (pick order). */
+  const [roleChoice, setRoleChoice] = useState<{ set: CaptureSet; roles: readonly PhotoRole[] } | null>(null);
+  const rolesFor = (set: CaptureSet): readonly PhotoRole[] =>
+    roleChoice !== null && roleChoice.set === set && roleChoice.roles.length === set.photos.length
+      ? roleChoice.roles
+      : defaultRoles(set.photos.length);
+  const setRoles = (next: readonly PhotoRole[]): void => {
+    if (captures.current !== null) setRoleChoice({ set: captures.current, roles: next });
+  };
   // The suffix is drawn ONCE PER LISTING (not per mount): held in the shell
   // session so the suggested code for an unchanged name is stable across a
   // studio round-trip. No CSPRNG → stays null → no suggestion, never weak.
@@ -205,24 +221,43 @@ export function SListerReal({ st, d, captures, session }: {
         moderationState: MODERATION_STATE,
       };
 
-      // ── photographs: hash the master, upload the four derivatives ──────────
+      // ── photographs: crop the ASSIGNED hero, hash its master, upload ──────
+      // The role assignment comes from the verify step (STUDIO-BATCH-1 —
+      // founder 2026-07-27: roles are chosen on 5/5, not by pick order), and
+      // the hero's two crops render HERE, once, because only now is the hero
+      // finally known. `publishOrder` refusing means a non-permutation
+      // assignment — unreachable through the chip UI, refused rather than
+      // trusted (a two-hero upload would be the quiet corruption).
       let assets: ProductAssetsInput | undefined;
       let leftover: PendingPhotos | null = null;
-      if (captures.current !== null && mediaService !== null) {
+      const order = captures.current === null ? null : publishOrder(rolesFor(captures.current));
+      if (captures.current !== null && order === null) {
+        // Unreachable through the chip UI — and REFUSED LOUDLY if ever reached
+        // (verifier finding 2026-07-27: the silent alternative published the
+        // product with no photos and no sentence saying why).
+        setPub({ kind: 'failed', cause: 'device', reason: 'attribution des rôles invalide' });
+        return;
+      }
+      if (captures.current !== null && mediaService !== null && order !== null) {
         const set = captures.current;
+        const hero = set.photos[order.hero]!;
+        const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.master.width, hero.master.height));
+        const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.master.width, hero.master.height));
         const bytes: UploadBytes = {
-          heroSquare: set.heroSquare.bytes,
-          heroVertical: set.heroVertical.bytes,
-          proof: derivativeBytesFromUri(set.proof.derivative.uri),
-          detail: derivativeBytesFromUri(set.detail.derivative.uri),
+          heroSquare: heroSquare.bytes,
+          heroVertical: heroVertical.bytes,
+          proof: derivativeBytesFromUri(set.photos[order.preuve]!.derivative.uri),
+          detail: order.details.map((i) => derivativeBytesFromUri(set.photos[i]!.derivative.uri)),
           // the master never uploads (open read route vs « master private ») —
           // so the record is the REAL hash of the MASTER'S OWN BYTES, read from
           // the retained file. Hashing the derivative here and calling it the
           // master would be a false record — the exact fabrication class this
           // project refuses. If the file cannot be read, the master is honestly
           // missing and the whole set stays absent (prefix rule).
-          masterSha256: await sha256Hex(await bytesFromUri(set.hero.masterUri)),
+          masterSha256: await sha256Hex(await bytesFromUri(hero.masterUri)),
         };
+        const detailUploads: RoleUpload[] = [];
+        for (const detailBytes of bytes.detail) detailUploads.push(await uploadRole(mediaService, detailBytes));
         const uploads: AssemblyInput = {
           master: {
             ok: true,
@@ -231,7 +266,7 @@ export function SListerReal({ st, d, captures, session }: {
           heroSquare: await uploadRole(mediaService, bytes.heroSquare),
           heroVertical: await uploadRole(mediaService, bytes.heroVertical),
           proof: await uploadRole(mediaService, bytes.proof),
-          detail: [await uploadRole(mediaService, bytes.detail)],
+          detail: detailUploads,
           processingVersion: PROCESSING_VERSION,
         };
         const assembled = assembleAssets(uploads);
@@ -262,12 +297,16 @@ export function SListerReal({ st, d, captures, session }: {
       const prev = pending.uploads;
       const retry = async (u: RoleUpload, bytes: Uint8Array): Promise<RoleUpload> =>
         u.ok ? u : uploadRole(mediaService, bytes);
+      const retriedDetails: RoleUpload[] = [];
+      for (let i = 0; i < pending.bytes.detail.length; i += 1) {
+        retriedDetails.push(await retry(prev.detail[i] ?? { ok: false }, pending.bytes.detail[i]!));
+      }
       const uploads: AssemblyInput = {
         master: prev.master, // the on-device record — already present
         heroSquare: await retry(prev.heroSquare, pending.bytes.heroSquare),
         heroVertical: await retry(prev.heroVertical, pending.bytes.heroVertical),
         proof: await retry(prev.proof, pending.bytes.proof),
-        detail: [await retry(prev.detail[0] ?? { ok: false }, pending.bytes.detail)],
+        detail: retriedDetails,
         processingVersion: PROCESSING_VERSION,
       };
       const assembled = assembleAssets(uploads);
@@ -468,16 +507,24 @@ export function SListerReal({ st, d, captures, session }: {
   // ALL THREE PHOTOGRAPHS for the verify step — the SHIPPED bytes, in his
   // shot order. `undefined` when the Studio has not run, which is the honest
   // absence the card keys off rather than three grey squares.
+  // Each photo carries its ASSIGNED role as a tappable chip (STUDIO-BATCH-1,
+  // founder 2026-07-27: *"choose the hero photo, the preuve and the detail
+  // from this screen"*). A tap swaps roles — see studio/roles.ts. The aperçu
+  // tile shows the assigned hero's WHOLE derivative: the square crop does not
+  // exist yet (it renders at publish, from whichever photo ends up hero).
   const set = captures.current;
+  const assigned = set === null ? null : rolesFor(set);
   const photos =
-    set === null
+    set === null || assigned === null
       ? undefined
-      : ([
-          { label: 'Héro', uri: set.heroSquare.uri },
-          { label: 'Preuve', uri: set.proof.derivative.uri },
-          { label: 'Détail', uri: set.detail.derivative.uri },
-        ] as const);
-  return <S20Wizard st={st} d={dd} money={money} heroUri={set?.heroSquare.uri} photos={photos} />;
+      : set.photos.map((p, i) => ({
+          label: t(roleChipKey(assigned[i]!)),
+          uri: p.derivative.uri,
+          onRole: () => setRoles(swapToNext(assigned, i)),
+        }));
+  const heroIdx = assigned === null ? null : publishOrder(assigned)?.hero ?? null;
+  const heroUri = set === null || heroIdx === null ? undefined : set.photos[heroIdx]?.derivative.uri;
+  return <S20Wizard st={st} d={dd} money={money} heroUri={heroUri} photos={photos} photosHint={t('publier.roles_hint')} />;
 }
 
 export { type CaptureSet };

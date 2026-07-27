@@ -39,6 +39,9 @@ export interface CaptureResult {
   master: { width: number; height: number };
   /** The ONE derivative — the STRIPPED bytes as a data URI, previewed AND stored. */
   derivative: { uri: string; width: number; height: number };
+  /** Always `'camera'` here — recorded per shot (see pick.ts `ShotSource`),
+   * the surviving hook for the parked proof-camera-only native rule. */
+  source: 'camera';
   /** Guidance from the downscaled metrics frame. */
   guidance: { verdict: GuidanceVerdict; key: string };
 }
@@ -91,6 +94,7 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
       width: derivative.width,
       height: derivative.height,
     },
+    source: 'camera',
     guidance: guidanceFor(metrics),
   };
 }

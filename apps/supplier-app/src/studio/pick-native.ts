@@ -56,15 +56,20 @@ function imagePicker(): PickerModule {
  * library file was — HEIC included — the strip only ever sees JPEG.
  */
 export const nativeImageSource: ImageSourcePort = {
-  async pickFromLibrary() {
+  async pickManyFromLibrary(max: number) {
+    // MULTI-SELECT (STUDIO-BATCH-1). On web this renders an <input multiple>;
+    // on native the OS sheet enforces `selectionLimit`. The limit here is UX;
+    // the guarantee is `pickShots`/`shotsFromAssets` bounding the batch before
+    // any decode (verifier-corrected 2026-07-27: the pick path once forwarded
+    // the picker's answer unbounded, so this comment overclaimed).
     const result = await imagePicker().launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsMultipleSelection: false,
+      allowsMultipleSelection: true,
+      selectionLimit: max,
+      orderedSelection: true,
     });
     if (result.canceled) return null;
-    const asset = result.assets[0];
-    if (asset === undefined) return null;
-    return { uri: asset.uri, mimeType: asset.mimeType, fileName: asset.fileName };
+    return result.assets.map((asset) => ({ uri: asset.uri, mimeType: asset.mimeType, fileName: asset.fileName }));
   },
   async decode(uri: string) {
     const image = await ImageManipulator.manipulate(uri).renderAsync();
