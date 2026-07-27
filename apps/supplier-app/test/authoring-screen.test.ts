@@ -43,7 +43,7 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     // an offer that cannot exist. Both asserted by value in
     // test/preview-rounding.test.ts; asserted here as the wiring.
     expect(lister).toMatch(
-      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{set\?\.heroSquare\.uri\} photos=\{photos\} \/>;/,
+      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{heroUri\} photos=\{photos\} photosHint=\{t\('publier\.roles_hint'\)\} \/>;/,
     );
   });
 
@@ -73,8 +73,11 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     expect(lister).toMatch(/t\('publier\.photos_non_config'\)/);
   });
 
-  it('the step-4 aperçu shows the REAL heroSquare when one exists — demo chrome makes no claim over real photos', () => {
-    expect(lister).toMatch(/heroUri=\{set\?\.heroSquare\.uri\}/);
+  it('the aperçu shows the ASSIGNED hero when one exists — demo chrome makes no claim over real photos', () => {
+    // STUDIO-BATCH-1: the square crop renders at PUBLISH (the hero is chosen on
+    // the verify step), so the aperçu shows the assigned hero's whole
+    // derivative — real bytes, never the glyph tile, never a master.
+    expect(lister).toMatch(/const heroUri = set === null \|\| heroIdx === null \? undefined : set\.photos\[heroIdx\]\?\.derivative\.uri;/);
     expect(screens2).toMatch(/heroUri !== undefined \? \(/);
   });
 
@@ -82,15 +85,16 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
    * FOUNDER DEVICE RULING 2026-07-26 — *"on vérifier et publier screen I want
    * everything well detailed and able to see all photos taken"*.
    */
-  it('the verify step shows ALL THREE photographs, and they are the SHIPPED bytes', () => {
-    // hero comes from the CROP that uploads, proof and detail from their own
-    // stripped derivatives — never from a master, which never leaves the phone
-    expect(lister).toMatch(/label: 'Héro', uri: set\.heroSquare\.uri/);
-    expect(lister).toMatch(/label: 'Preuve', uri: set\.proof\.derivative\.uri/);
-    expect(lister).toMatch(/label: 'Détail', uri: set\.detail\.derivative\.uri/);
-    expect(lister).not.toMatch(/uri: set\.\w+\.masterUri/);
+  it('the verify step shows EVERY photograph with its ROLE CHIP, and they are the SHIPPED bytes', () => {
+    // each photo renders its stripped derivative under its assigned role's
+    // catalog label, with the swap callback — never a master, which never
+    // leaves the phone (STUDIO-BATCH-1, founder 2026-07-27: roles chosen here).
+    expect(lister).toMatch(/label: t\(roleChipKey\(assigned\[i\]!\)\)/);
+    expect(lister).toMatch(/uri: p\.derivative\.uri/);
+    expect(lister).toMatch(/onRole: \(\) => setRoles\(swapToNext\(assigned, i\)\)/);
+    expect(lister).not.toMatch(/uri: p\.masterUri/);
     // and NOTHING is claimed when the Studio has not run
-    expect(lister).toMatch(/set === null\s*\?\s*undefined/);
+    expect(lister).toMatch(/set === null \|\| assigned === null\s*\?\s*undefined/);
     expect(screens2).toMatch(/photos !== undefined && photos\.length > 0/);
   });
 
@@ -180,15 +184,15 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
   it('the master is HASHED FROM ITS OWN BYTES and never uploaded (open read route vs « master private »)', () => {
     // BOUTIK-WEB-W2: the read goes through the platform seam (`uri-bytes.ts` /
     // `.web.ts`) — same bytes, read by the platform's own reader.
-    expect(lister).toMatch(/await sha256Hex\(await bytesFromUri\(set\.hero\.masterUri\)\)/);
+    expect(lister).toMatch(/await sha256Hex\(await bytesFromUri\(hero\.masterUri\)\)/);
     expect(lister).toMatch(/private\/device\/\$\{bytes\.masterSha256\}/);
     // the derivative is never passed off as the master
     expect(lister).not.toMatch(/masterSha256: await sha256Hex\(derivativeBytesFromUri\(set\.hero/);
   });
 
-  it('what uploads is what he SAW — proof/detail bytes decode from the previewed data URI', () => {
-    expect(lister).toMatch(/derivativeBytesFromUri\(set\.proof\.derivative\.uri\)/);
-    expect(lister).toMatch(/derivativeBytesFromUri\(set\.detail\.derivative\.uri\)/);
+  it('what uploads is what he SAW — proof/detail bytes decode from the previewed data URIs, by ASSIGNED role', () => {
+    expect(lister).toMatch(/derivativeBytesFromUri\(set\.photos\[order\.preuve\]!\.derivative\.uri\)/);
+    expect(lister).toMatch(/order\.details\.map\(\(i\) => derivativeBytesFromUri\(set\.photos\[i\]!\.derivative\.uri\)\)/);
   });
 
   it('partial uploads publish WITHOUT assets and the outcome pane offers completion — never a truncated set', () => {
@@ -202,14 +206,17 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
     expect(lister).toMatch(/commandId: `\$\{identity\.current\.commandId\}-assets`/);
   });
 
-  it('the studio crops the ONE hero into square + vertical during REAL processing — no fourth capture', () => {
+  it('the ASSIGNED hero is cropped square + vertical AT PUBLISH — once, from the master\'s own dimensions', () => {
     // THE DIMENSIONS ARE THE FINDING (verifier, HIGH): a rect computed from the
     // DERIVATIVE's dimensions but applied to the master ships an off-centre
     // corner fragment on every real camera. The crop MUST be computed from the
-    // master's OWN dimensions — pinned to the exact argument text.
-    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(hero\.master\.width, hero\.master\.height\)\)/);
-    expect(studio).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(hero\.master\.width, hero\.master\.height\)\)/);
-    expect(studio).not.toMatch(/heroSquareCrop\(hero\.derivative/);
+    // master's OWN dimensions — pinned to the exact argument text. MOVED with
+    // the crops (STUDIO-BATCH-1): they render in lister-real's publish, where
+    // the assigned hero is finally known; the collect studio crops nothing.
+    expect(lister).toMatch(/renderCropDerivative\(hero\.masterUri, heroSquareCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(lister).toMatch(/renderCropDerivative\(hero\.masterUri, heroVerticalCrop\(hero\.master\.width, hero\.master\.height\)\)/);
+    expect(lister).not.toMatch(/heroSquareCrop\(hero\.derivative/);
+    expect(studio).not.toMatch(/renderCropDerivative/);
     // BOUTIK-WEB-W2: the camera moved WITH its screen into the NATIVE shoot
     // file — the assertion moved with it, not away (the removal-turnaround law
     // applies to moves too).

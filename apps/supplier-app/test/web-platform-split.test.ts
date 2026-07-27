@@ -94,9 +94,10 @@ describe('the W3 drop container rules (source tripwires on the web shoot screen)
     expect([...shootWeb.matchAll(/e\.preventDefault\(\)/g)].length).toBeGreaterThanOrEqual(2);
   });
 
-  it('only files[0] is taken — single-selection parity with the picker', () => {
-    expect(shootWeb).toMatch(/files\?\.\[0\]/);
-    expect(shootWeb).not.toMatch(/for .*files|files\.map|files\[1\]/);
+  it('EVERY dropped file is taken (STUDIO-BATCH-1) — multi-selection parity with the picker', () => {
+    expect(shootWeb).toMatch(/for \(let i = 0; i < files\.length/);
+    // and no lone files[0] shortcut survives to silently drop the rest
+    expect(shootWeb).not.toMatch(/files\?\.\[0\]/);
   });
 
   it('the object URL is NEVER revoked — it is the masterUri the publish path hashes; revoking it would turn the master hash into a false record', () => {
@@ -104,8 +105,9 @@ describe('the W3 drop container rules (source tripwires on the web shoot screen)
     expect(shootWeb).not.toMatch(/revokeObjectURL/);
   });
 
-  it('the drop feeds the SHARED funnel through onDropAsset — no decode, strip, or upload happens in the screen', () => {
-    expect(shootWeb).toMatch(/onDropAsset\(\{ uri: URL\.createObjectURL\(file\), mimeType: file\.type, fileName: file\.name \}\)/);
+  it('the drop feeds the SHARED funnel through onDropAssets — no decode, strip, or upload happens in the screen', () => {
+    expect(shootWeb).toMatch(/assets\.push\(\{ uri: URL\.createObjectURL\(file\), mimeType: file\.type, fileName: file\.name \}\)/);
+    expect(shootWeb).toMatch(/onDropAssets\(assets\)/);
     expect(shootWeb).not.toMatch(/stripJpegMetadata|assertExifFree|ImageManipulator/);
   });
 });

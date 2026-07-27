@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   decodeRefusalSentence,
-  galleryRefusalKey,
-  pickShot,
+  pickShots,
   shotFromAsset,
+  shotsFromAssets,
   pickedFormatLabel,
   type ImageSourcePort,
   type PickedAsset,
@@ -13,10 +13,12 @@ import { heroSquareCrop, heroVerticalCrop } from '../src/studio/crops';
 import { t } from '../src/i18n';
 
 /**
- * STUDIO-PICK-1 — the gallery seam. The properties under test are the founder's
- * rulings: the dimensions come from the DECODE and never from the picker, the
- * shipped bytes go through the same strip as capture, a decode fault is a typed
- * refusal that NAMES the format, and the proof shot stays camera-only.
+ * STUDIO-PICK-1 / STUDIO-BATCH-1 — the gallery seam, multi-select since the
+ * founder's 2026-07-27 reshape. The properties under test are his rulings: the
+ * dimensions come from the DECODE and never from the picker, the shipped bytes
+ * go through the same strip as capture, a decode fault is a typed refusal that
+ * NAMES the format — and a BATCH is processed one at a time through the same
+ * funnel, first refusal keeping the successes and dropping the rest.
  */
 
 // --- a real JPEG carrying metadata, same segment grammar as exif-strip -------
@@ -45,16 +47,20 @@ const ASSET: PickedAsset = { uri: 'file:///cache/IMG_2031.heic', mimeType: 'imag
  */
 function fakePort(over: Partial<{
   decodeW: number; decodeH: number; bytes: Uint8Array;
-  failDecode: boolean; failEncode: boolean; asset: PickedAsset | null;
-}> = {}): ImageSourcePort & { actionsSeen: unknown[] } {
+  failDecode: boolean; failEncode: boolean; assets: readonly PickedAsset[] | null;
+  failDecodeFor: string;
+}> = {}): ImageSourcePort & { actionsSeen: unknown[]; maxSeen: number[] } {
   const actionsSeen: unknown[] = [];
+  const maxSeen: number[] = [];
   return {
     actionsSeen,
-    async pickFromLibrary() {
-      return over.asset === undefined ? ASSET : over.asset;
+    maxSeen,
+    async pickManyFromLibrary(max: number) {
+      maxSeen.push(max);
+      return over.assets === undefined ? [ASSET] : over.assets;
     },
     async decode(uri: string) {
-      if (over.failDecode === true) throw new Error('native decode failed');
+      if (over.failDecode === true || uri === over.failDecodeFor) throw new Error('native decode failed');
       return { image: { handle: uri }, width: over.decodeW ?? 4000, height: over.decodeH ?? 3000 };
     },
     async encode(image, actions) {
@@ -69,34 +75,32 @@ describe('THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER', () => {
   it('reports the DECODED size as the master, not the picker’s (which its own types say may be 0)', async () => {
     // the picker's asset carries a degenerate 0x0 — the exact value its .d.ts warns about
     const claimsZero = { ...ASSET, ...({ width: 0, height: 0 } as unknown as PickedAsset) };
-    const out = await pickShot(fakePort({ decodeW: 4032, decodeH: 3024, asset: claimsZero }));
-    if (out.kind !== 'picked') throw new Error(`expected picked, got ${out.kind}`);
-    expect(out.shot.master).toEqual({ width: 4032, height: 3024 });
+    const out = await pickShots(fakePort({ decodeW: 4032, decodeH: 3024, assets: [claimsZero] }), 4);
+    expect(out.shots[0]!.master).toEqual({ width: 4032, height: 3024 });
   });
 
   it('DERIVES THE RESIZE from the decoded size — a 0x0 picker claim would have produced NO resize at all', async () => {
     const port = fakePort({ decodeW: 4000, decodeH: 3000 });
-    await pickShot(port);
+    await pickShots(port, 4);
     // 4000 is above the 1280 ceiling and landscape ⇒ resize by WIDTH
     expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [{ resize: { width: 1280 } }] }]);
   });
 
   it('a PORTRAIT decode resizes by HEIGHT — the branch a wrong-orientation source would flip', async () => {
     const port = fakePort({ decodeW: 3000, decodeH: 4000 });
-    await pickShot(port);
+    await pickShots(port, 4);
     expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [{ resize: { height: 1280 } }] }]);
   });
 
   it('an already-small image gets NO resize action', async () => {
     const port = fakePort({ decodeW: 900, decodeH: 700 });
-    await pickShot(port);
+    await pickShots(port, 4);
     expect(port.actionsSeen).toEqual([{ image: { handle: ASSET.uri }, actions: [] }]);
   });
 
   it('the master dimensions it reports are the ones the CROPS will be carved from — square and 4:5 both land in bounds', async () => {
-    const out = await pickShot(fakePort({ decodeW: 4032, decodeH: 3024 }));
-    if (out.kind !== 'picked') throw new Error('expected picked');
-    const { width, height } = out.shot.master;
+    const out = await pickShots(fakePort({ decodeW: 4032, decodeH: 3024 }), 4);
+    const { width, height } = out.shots[0]!.master;
     for (const rect of [heroSquareCrop(width, height), heroVerticalCrop(width, height)]) {
       expect(rect.width).toBeGreaterThan(0);
       expect(rect.height).toBeGreaterThan(0);
@@ -107,7 +111,7 @@ describe('THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER', () => {
 
   it('the ENCODE runs on the DECODED image handle — one decode, not a second pass over the URI', async () => {
     const port = fakePort();
-    await pickShot(port);
+    await pickShots(port, 4);
     expect(port.actionsSeen).toHaveLength(1);
     expect((port.actionsSeen[0] as { image: unknown }).image).toEqual({ handle: ASSET.uri });
   });
@@ -116,43 +120,44 @@ describe('THE DIMENSIONS COME FROM THE DECODE, NEVER FROM THE PICKER', () => {
 describe('THE SAME STRIP FUNNEL AS CAPTURE — no laxer path for a library photo', () => {
   it('XMP and IPTC are GONE from the shipped bytes (XMP is where a gallery app writes GPS)', async () => {
     expect(jpegCarriesExif(GALLERY_JPEG)).toBe(true); // the fixture really is dirty
-    const out = await pickShot(fakePort());
-    if (out.kind !== 'picked') throw new Error('expected picked');
+    const out = await pickShots(fakePort(), 4);
     // decoded with OUR decoder, not `atob` — normalization.ts removed that
     // dependency by construction after the founder's device failed on it
-    const shipped = base64ToBytes(out.shot.derivative.uri.split(',')[1]!);
+    const shipped = base64ToBytes(out.shots[0]!.derivative.uri.split(',')[1]!);
     expect(jpegCarriesExif(shipped)).toBe(false);
     expect(shipped.length).toBeLessThan(GALLERY_JPEG.length); // segments were actually removed
   });
 
   it('the PREVIEW URI is built from the stripped bytes — what he sees is what uploads', async () => {
-    const out = await pickShot(fakePort());
-    if (out.kind !== 'picked') throw new Error('expected picked');
-    expect(out.shot.derivative.uri.startsWith('data:image/jpeg;base64,')).toBe(true);
+    const out = await pickShots(fakePort(), 4);
+    expect(out.shots[0]!.derivative.uri.startsWith('data:image/jpeg;base64,')).toBe(true);
     // and the master is the ORIGINAL file, kept apart from the derivative
-    expect(out.shot.masterUri).toBe(ASSET.uri);
-    expect(out.shot.derivative.uri).not.toContain(ASSET.uri);
+    expect(out.shots[0]!.masterUri).toBe(ASSET.uri);
+    expect(out.shots[0]!.derivative.uri).not.toContain(ASSET.uri);
+    // where it came from is RECORDED — the parked proof-camera rule's hook
+    expect(out.shots[0]!.source).toBe('gallery');
   });
 
   it('BYTES THAT CANNOT BE PROVEN CLEAN FAIL CLOSED — the strip error is not swallowed into a refusal', async () => {
     const notAJpeg = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    await expect(pickShot(fakePort({ bytes: notAJpeg }))).rejects.toBeInstanceOf(ExifLeakError);
+    await expect(pickShots(fakePort({ bytes: notAJpeg }), 4)).rejects.toBeInstanceOf(ExifLeakError);
   });
 });
 
 describe('A DECODE FAULT IS A TYPED REFUSAL THAT NAMES THE FORMAT', () => {
   it('a decode failure refuses with the format the phone reported', async () => {
-    const out = await pickShot(fakePort({ failDecode: true }));
-    expect(out).toEqual({ kind: 'refused', refusal: { messageKey: 'studio.image_illisible', format: 'heic' } });
+    const out = await pickShots(fakePort({ failDecode: true }), 4);
+    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false });
   });
 
   it('an ENCODE failure refuses the same way — he cannot tell the two apart and should not have to', async () => {
-    const out = await pickShot(fakePort({ failEncode: true }));
-    expect(out).toEqual({ kind: 'refused', refusal: { messageKey: 'studio.image_illisible', format: 'heic' } });
+    const out = await pickShots(fakePort({ failEncode: true }), 4);
+    expect(out).toEqual({ shots: [], refusal: { messageKey: 'studio.image_illisible', format: 'heic' }, cancelled: false });
   });
 
   it('backing out of the picker is a CANCEL, not a fault — no refusal sentence, nothing kept', async () => {
-    expect(await pickShot(fakePort({ asset: null }))).toEqual({ kind: 'cancelled' });
+    expect(await pickShots(fakePort({ assets: null }), 4)).toEqual({ shots: [], refusal: null, cancelled: true });
+    expect(await pickShots(fakePort({ assets: [] }), 4)).toEqual({ shots: [], refusal: null, cancelled: true });
   });
 });
 
@@ -202,22 +207,33 @@ describe('THE REFUSAL SENTENCE — rendered from the catalog, never assembled in
   });
 });
 
-describe('CAMERA-ONLY FOR THE PROOF SHOT — stated in words, not by a missing button', () => {
-  it('the proof role refuses the gallery, and names the reason string', () => {
-    expect(galleryRefusalKey('preuve')).toBe('studio.preuve_appareil_seul');
+describe('THE BATCH (STUDIO-BATCH-1) — one funnel, one at a time, honest about a bad file', () => {
+  const A2: PickedAsset = { uri: 'file:///cache/IMG_2032.jpg', mimeType: 'image/jpeg', fileName: 'IMG_2032.jpg' };
+  const A3: PickedAsset = { uri: 'file:///cache/IMG_2033.jpg', mimeType: 'image/jpeg', fileName: 'IMG_2033.jpg' };
+
+  it('a batch of three lands as three shots, in pick order, each stripped and each tagged gallery', async () => {
+    const out = await pickShots(fakePort({ assets: [ASSET, A2, A3] }), 4);
+    expect(out.refusal).toBeNull();
+    expect(out.shots.map((sh) => sh.masterUri)).toEqual([ASSET.uri, A2.uri, A3.uri]);
+    for (const sh of out.shots) {
+      expect(jpegCarriesExif(base64ToBytes(sh.derivative.uri.split(',')[1]!))).toBe(false);
+      expect(sh.source).toBe('gallery');
+    }
   });
 
-  it('hero and detail allow the gallery — the founder’s standing ruling, both halves', () => {
-    expect(galleryRefusalKey('hero')).toBeNull();
-    expect(galleryRefusalKey('detail')).toBeNull();
+  it('FIRST REFUSAL keeps the successes BEFORE it and DROPS the rest — never a set he did not choose', async () => {
+    const out = await pickShots(fakePort({ assets: [ASSET, A2, A3], failDecodeFor: A2.uri }), 4);
+    expect(out.shots.map((sh) => sh.masterUri)).toEqual([ASSET.uri]); // A3 dropped WITH the refusal
+    expect(out.refusal).toEqual({ messageKey: 'studio.image_illisible', format: 'jpeg' });
   });
 
-  it('the refusal string exists, states the rule AND the reason, and claims no verification', () => {
-    const s = t('studio.preuve_appareil_seul');
-    expect(s).toContain("avec l'appareil"); // the rule
-    expect(s).toContain('chez vous'); // the reason
-    // it must not claim the platform can check the photo — provenance is all we have
-    expect(s).not.toMatch(/vérifi|contrôl|authentif/i);
+  it('the MAX bound is enforced in the funnel, not trusted to the picker', async () => {
+    const port = fakePort({ assets: [ASSET, A2, A3] });
+    const out = await shotsFromAssets(port, [ASSET, A2, A3], 2);
+    expect(out.shots).toHaveLength(2);
+    // and the pick dialog is ASKED for only the remaining room
+    await pickShots(port, 1);
+    expect(port.maxSeen).toEqual([1]);
   });
 });
 
@@ -233,8 +249,8 @@ describe('A DROPPED FILE WALKS THE SAME FUNNEL (BOUTIK-WEB-W3 — shotFromAsset)
     expect(jpegCarriesExif(shipped)).toBe(false);
   });
 
-  it('pickShot IS this funnel behind the dialog — same asset in, deep-equal outcome out (no second path can drift)', async () => {
-    expect(await pickShot(fakePort({ asset: DROPPED }))).toEqual(await shotFromAsset(fakePort(), DROPPED));
+  it('pickShots IS this funnel behind the dialog — same assets in, deep-equal outcome out (no second path can drift)', async () => {
+    expect(await pickShots(fakePort({ assets: [DROPPED] }), 4)).toEqual(await shotsFromAssets(fakePort(), [DROPPED]));
   });
 
   it("a decode fault refuses naming the DROPPED file's format", async () => {

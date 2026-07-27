@@ -129,7 +129,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string }[] | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -256,7 +256,7 @@ export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; mone
               <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: P.successBg }}>
                 <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
                 <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
-                  {'3 photos capturées et validées (héro · preuve · détail) — cadre premium appliqué.'}
+                  {'Photos ajoutées et validées — vous choisirez le rôle de chaque photo à la vérification.'}
                 </Text>
               </View>
             ) : (
@@ -312,15 +312,32 @@ export function S20Wizard({ st, d, money, heroUri, photos }: { st: S; d: D; mone
             {photos !== undefined && photos.length > 0 && (
               <Card style={{ marginTop: 12, padding: 16 }}>
                 <Overline level="card">Vos photos</Overline>
+                {photosHint !== undefined && (
+                  <Text style={[role({ f: 'IS', w: 400, s: 12, lh: 1.5 }, P.sub), { marginTop: 6 }]}>{photosHint}</Text>
+                )}
                 <View style={{ marginTop: 11, flexDirection: 'row', gap: 10 }}>
                   {/* TAPPABLE (founder device ruling 2026-07-26): a 100-point
                       thumbnail cannot be judged; the tap opens the full-screen
                       viewer over the SAME shipped bytes. */}
-                  {photos.map((p) => (
-                    <Pressable key={p.label} style={{ flex: 1 }} onPress={() => setViewing({ uri: p.uri, label: p.label })} accessibilityRole="button">
-                      <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: C21.preview.r }} resizeMode="cover" />
-                      <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{p.label}</Text>
-                    </Pressable>
+                  {photos.map((p, i) => (
+                    <View key={`${i}-${p.uri.slice(-24)}`} style={{ flex: 1 }}>
+                      <Pressable onPress={() => setViewing({ uri: p.uri, label: p.label })} accessibilityRole="button">
+                        <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: C21.preview.r }} resizeMode="cover" />
+                      </Pressable>
+                      {/* THE ROLE CHIP (STUDIO-BATCH-1, founder 2026-07-27:
+                          "choose the hero photo, the preuve and the detail
+                          from this screen"). Tapping it advances this photo to
+                          the next role; the photo that held it takes this
+                          one's — a swap, so the set always has exactly one of
+                          each. Plain label when the flow has no role choice. */}
+                      {p.onRole !== undefined ? (
+                        <Pressable onPress={p.onRole} accessibilityRole="button" hitSlop={8} style={{ marginTop: 6, alignSelf: 'center', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}>
+                          <Text style={role({ f: 'IS', w: 600, s: 11.5 }, P.ink)}>{p.label}</Text>
+                        </Pressable>
+                      ) : (
+                        <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{p.label}</Text>
+                      )}
+                    </View>
                   ))}
                 </View>
               </Card>

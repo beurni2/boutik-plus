@@ -35,22 +35,26 @@ import { t } from '../i18n';
  * the only honest source, and the orchestration below reads it from there.
  */
 
-/** The three shots, in his sequence. `preuve` keeps `guidance.ts`'s spelling. */
-export type StudioRole = 'hero' | 'preuve' | 'detail';
+/**
+ * WHERE A PHOTOGRAPH CAME FROM. Recorded on every shot (STUDIO-BATCH-1) —
+ * because roles are now assigned at the VERIFY step, not at intake, the old
+ * "proof shot is camera-only on native" rule has no intake hook left to hang
+ * on. The SOURCE is the data that rule would need if the parked native app
+ * revives: a publish-time check can then require the preuve-assigned photo to
+ * carry `source: 'camera'`. Not enforced today (web is upload-only by W-D1);
+ * carried so the ruling stays enforceable rather than quietly destroyed.
+ */
+export type ShotSource = 'camera' | 'gallery';
 
 /**
- * CAMERA-ONLY FOR THE PROOF SHOT (standing founder ruling). Returns the catalog
- * KEY of the refusal, or `null` when the gallery is allowed.
- *
- * **Stated in words, never by a missing button.** A control that silently is
- * not there reads as a bug; a control that says why reads as care. And the
- * sentence claims only what is true — the proof shot is taken now, with the
- * camera, because that is what makes it evidence of possession. It does NOT
- * claim the platform can verify that, because it cannot (see JOURNAL.md,
- * burned-in prices: provenance is the only real control we have).
+ * WHAT THE SHOOTING SCREEN SAYS AFTER A PICK THAT BROUGHT NOTHING BACK
+ * (device incident 2026-07-25 — a silent cancel is indistinguishable from a
+ * dead button; the picker reports a deliberate back-out and an OS refusal the
+ * same way, so the sentence must be true of both). Moved here from review.ts
+ * when the per-role review walk retired (STUDIO-BATCH-1).
  */
-export function galleryRefusalKey(role: StudioRole): string | null {
-  return role === 'preuve' ? 'studio.preuve_appareil_seul' : null;
+export function noPhotoSentenceKey(): string {
+  return 'studio.aucune_photo';
 }
 
 /** What the picker hands back, narrowed to the fields this seam reads. */
@@ -119,6 +123,8 @@ export interface StudioShot {
   readonly master: { readonly width: number; readonly height: number };
   /** The stripped, upload-ready derivative: the exact bytes AND their preview URI. */
   readonly derivative: { readonly uri: string; readonly width: number; readonly height: number };
+  /** Where it came from — see {@link ShotSource} for why this is recorded. */
+  readonly source: ShotSource;
 }
 
 export type PickOutcome =
@@ -142,8 +148,10 @@ export type ShootBanner =
  * disagrees with the picker on purpose.
  */
 export interface ImageSourcePort {
-  /** Launch the phone's library. `null` when he backed out — a cancel, not a fault. */
-  pickFromLibrary(): Promise<PickedAsset | null>;
+  /** Launch the phone's library, MULTI-SELECT up to `max` (STUDIO-BATCH-1 —
+   * founder: *"select ... and upload at the same time instead just doing it
+   * one by one"*). `null` when he backed out — a cancel, not a fault. */
+  pickManyFromLibrary(max: number): Promise<readonly PickedAsset[] | null>;
   /** DECODE the image. `width`/`height` are the decoded truth, not a file header claim. */
   decode(uri: string): Promise<{ image: unknown; width: number; height: number }>;
   /** Resize the ALREADY-DECODED image and encode it as JPEG base64. */
@@ -154,17 +162,50 @@ export interface ImageSourcePort {
 }
 
 /**
- * Pick one photograph and bring it through the funnel.
+ * A BATCH brought through the funnel — every photograph still walks the ONE
+ * funnel, one at a time (peak memory on a 2 GB phone is one decode, exactly as
+ * before; "at the same time" is the SELECTION, not the processing).
+ *
+ * `refusal` carries the FIRST undecodable file, and the REST OF THE BATCH IS
+ * DROPPED with it — stated plainly: the alternative (skip and continue) would
+ * silently publish a set he did not choose. The successes BEFORE the refusal
+ * are kept; re-picking the rest is one multi-select away.
+ */
+export interface BatchOutcome {
+  readonly shots: readonly StudioShot[];
+  readonly refusal: DecodeRefusal | null;
+  /** True when the library dialog brought nothing back at all. */
+  readonly cancelled: boolean;
+}
+
+/**
+ * Pick up to `max` photographs and bring each through the funnel.
  *
  * A decode or encode fault is a TYPED REFUSAL naming the format, never a throw
  * that reaches the screen as English. A strip fault is NOT caught here: an
  * image whose bytes cannot be proven clean must fail closed exactly as it does
  * on the camera path — that error class already has its designed state.
  */
-export async function pickShot(port: ImageSourcePort): Promise<PickOutcome> {
-  const picked = await port.pickFromLibrary();
-  if (picked === null) return { kind: 'cancelled' };
-  return await shotFromAsset(port, picked);
+export async function pickShots(port: ImageSourcePort, max: number): Promise<BatchOutcome> {
+  const picked = await port.pickManyFromLibrary(max);
+  if (picked === null || picked.length === 0) return { shots: [], refusal: null, cancelled: true };
+  return await shotsFromAssets(port, picked);
+}
+
+/** The batch funnel over assets already in hand (drops arrive here too). The
+ * `max` bound is enforced HERE, not trusted to any picker or drag source. */
+export async function shotsFromAssets(
+  port: ImageSourcePort,
+  assets: readonly PickedAsset[],
+  max: number = assets.length,
+): Promise<BatchOutcome> {
+  const shots: StudioShot[] = [];
+  for (const asset of assets.slice(0, max)) {
+    const out = await shotFromAsset(port, asset);
+    if (out.kind === 'refused') return { shots, refusal: out.refusal, cancelled: false };
+    shots.push(out.shot);
+  }
+  return { shots, refusal: null, cancelled: false };
 }
 
 /**
@@ -209,6 +250,8 @@ export async function shotFromAsset(
         width: encoded.width,
         height: encoded.height,
       },
+      // a picked file and a dropped file are both library material.
+      source: 'gallery',
     },
   };
 }
