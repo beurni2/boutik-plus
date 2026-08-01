@@ -43,7 +43,14 @@ class_name = "FulfillmentDO"
 tag = "v2"
 new_sqlite_classes = ["FulfillmentDO"]
 
-# THREE SECRETS, NONE OF THEM HERE. (ORDER-PAID-WIRE-1c added the third:
+# FOUR SECRETS, NONE OF THEM HERE. (The fourth, FULFILLMENT_OPS_SECRET, gates
+# GET /fulfillment/orders — the operator's read of the paid-order book,
+# supplier ids included. It is the FOUNDER'S credential alone and is
+# deliberately NOT the intake secret: Shop+ holds the intake secret to
+# deliver, and one key must never unlock the other's capability. UNSET ⇒ the
+# ops read answers 401 to everyone.)
+#
+# THREE SECRETS OF THE EARLIER PATTERN, NONE OF THEM HERE. (ORDER-PAID-WIRE-1c added the third:
 # FULFILLMENT_WRITE_SECRET gates POST /fulfillment/order-confirmed and the ops
 # read GET /fulfillment/orders — the same value Shop+'s storefront-service
 # holds and presents as Bearer when delivering order.confirmed.v1. Set with

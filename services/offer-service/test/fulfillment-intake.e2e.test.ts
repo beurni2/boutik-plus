@@ -19,6 +19,7 @@ const SCRIPT = 'dist/worker/worker.mjs';
 const persist = mkdtempSync(join(tmpdir(), 'fulfillment-intake-'));
 const WRITE_SECRET = 'test-offer-write-secret-0001';
 const FULFILL_SECRET = 'test-fulfillment-write-secret-0001';
+const OPS_SECRET = 'test-fulfillment-ops-secret-0001';
 const T0 = '2026-08-01T08:00:00.000Z';
 const PV = 'pv-intake-001';
 
@@ -60,6 +61,7 @@ function makeMf(secret: string | null = FULFILL_SECRET, persistDir: string = per
     bindings: {
       OFFER_WRITE_SECRET: WRITE_SECRET,
       ...(secret !== null ? { FULFILLMENT_WRITE_SECRET: secret } : {}),
+      FULFILLMENT_OPS_SECRET: OPS_SECRET,
     },
   });
 }
@@ -121,7 +123,7 @@ async function postIntake(event: unknown, auth: string | null = `Bearer ${FULFIL
 
 async function listOrders(m: Miniflare = mf) {
   const res = await m.dispatchFetch('http://o/fulfillment/orders', {
-    headers: { Authorization: `Bearer ${FULFILL_SECRET}` },
+    headers: { Authorization: `Bearer ${OPS_SECRET}` },
   });
   return (await res.json()) as { ok: boolean; orders: Record<string, unknown>[] };
 }
@@ -231,8 +233,17 @@ describe('the intake — canon-parsed, supplier joined INTERNALLY, first-wins, d
     expect(again.json['status']).toBe('duplicate');
   });
 
-  it('the ops read is GATED: no secret, no list', async () => {
-    const res = await mf.dispatchFetch('http://o/fulfillment/orders');
-    expect(res.status).toBe(401);
+  it("the ops read is GATED BY THE FOUNDER'S OWN KEY — no secret 401, and THE INTAKE SECRET (Shop+'s) does not open it", async () => {
+    const bare = await mf.dispatchFetch('http://o/fulfillment/orders');
+    expect(bare.status).toBe(401);
+    // The verifier's finding, closed structurally: the credential Shop+ holds
+    // to DELIVER must never read supplier identities back out.
+    const shopKey = await mf.dispatchFetch('http://o/fulfillment/orders', {
+      headers: { Authorization: `Bearer ${FULFILL_SECRET}` },
+    });
+    expect(shopKey.status).toBe(401);
+    // …and the ops key does not open the INTAKE either: two keys, two doors.
+    const opsOnIntake = await postIntake(confirmedEvent('ord-q-cross'), `Bearer ${OPS_SECRET}`);
+    expect(opsOnIntake.status).toBe(401);
   });
 });

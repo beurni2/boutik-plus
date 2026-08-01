@@ -33,6 +33,15 @@ interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
    *  value and presents it as Bearer). UNSET ⇒ every intake is 401 — fail
    *  closed; the emitter's outbox retries until the founder sets both sides. */
   FULFILLMENT_WRITE_SECRET?: string;
+  /**
+   * THE OPERATOR'S OWN CREDENTIAL (verifier MINOR, closed structurally): the
+   * ops read returns `supplierId`, and gating it with the intake secret would
+   * hand Shop+ — which holds that secret to deliver — a key to supplier
+   * identities, leaving B4.2's intent true only because nobody calls it. This
+   * secret is the founder's alone; the operator-console slice authenticates
+   * with it. UNSET ⇒ the ops read is 401 for everyone, including Shop+.
+   */
+  FULFILLMENT_OPS_SECRET?: string;
 }
 
 /**
@@ -111,10 +120,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
       return handleOrderConfirmedIntake(request, store, env);
     }
-    // The OPS READ of the book — same secret today; the operator-console slice
-    // re-gates it behind the founder's own credential when it lands.
+    // The OPS READ of the book — gated by the FOUNDER'S OWN credential, never
+    // the intake secret: the list carries `supplierId`, and the intake secret
+    // is held by Shop+ to deliver. Two capabilities, two keys, structurally.
     if (request.method === 'GET' && fp === '/fulfillment/orders') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handlePaidOrdersList(env);
     }
