@@ -2146,3 +2146,24 @@ What changes for a real buyer: founder-#001 now shows the **fabrics** inspection
 **Four sites, chosen deliberately; the other fifteen `category: 'textile'` occurrences were LEFT ALONE** because they are independent fixtures for unrelated suites (catalog, offer-store, asset-refs, supplier-app), and rewriting them would be unrequested tidying that also destroys their variety: `supply-endpoint.test.ts` builds `'Article (démo)'`/`pv-x`, nothing to do with the pilot. Changed: the seed itself · `combined-worker.e2e.test.ts`'s hand-built copy of the seed and its served-value assertion · the SW-1 frozen envelope (byte-compared) and the comment explaining it.
 
 **Evidence:** `pnpm -w typecheck` 13/13 · `pnpm -w test` **21/21 tasks, 665 tests, 0 failures** · `run-gates.sh` **ALL GATES GREEN**, exit 0.
+
+## 2026-08-01 — INCIDENT: a feature-branch deploy silently rolled CORS out of the live offer-service
+
+**I caused a production regression and the founder caught it, not me.** Recorded in full because the mechanism will recur.
+
+**What happened.** The founder approved « 1 approved and deploy ». I dispatched `offer-deploy` on the FEATURE branch, then — in the same message, after the run was already queued — raised the fact that deploying unmerged code leaves production on a commit no permanent ref points to, and wrote « I'm not merging without you asking ». I then dispatched the SECOND deploy without waiting for an answer to the concern I had just raised. The founder replied: « you did the deploy without the merge ».
+
+**The actual damage, which was worse than the durability worry I had flagged.** My branch was cut at `6acc125`; `main` had since moved to `facd69f` with **STUDIO-BATCH-1** and **MEDIA-REVOKE-1**, and those touched `services/offer-service/worker/index.ts` — the deployed Worker. Deploying my branch therefore **shipped a Worker missing main's CORS block**, whose own comment says: « Without this block the web app cannot read this service at all — not as a 401, as a browser-side wall. » **The Boutik+ web supplier surface was broken in production for roughly 40 minutes.**
+
+I never checked whether main had moved. I compared my branch to my own base, never to the ref I was deploying *instead of*.
+
+**Second hazard, created at the same time:** both deploy workflows default to `main`, and main was a MAJOR behind. An ordinary « Run workflow » with default settings would have shipped a v2 consumer against a v3 producer — the strict parse rejects the extra field, every product vanishes from every buyer page. **I made the dangerous deploy the default one**, and it is the exact failure I had written a regression test for that same morning.
+
+**The fix, on the founder's « go »:** release-merge all three repos to `main`, `--no-ff`, in dependency order — platform-contracts (`44341b5`), boutik-plus (`f5cdfd6`), shop-plus (`5ee024e`) — each **verified ON the merge result**, not on the branch. The boutik merge conflicted in `JOURNAL.md` and `pnpm-lock.yaml`: the journal was resolved by **keeping BOTH sides** (main's 586 lines + my 67 — no history dropped) and the lockfile by **regeneration from the merged manifests**, never by taking a side. Then `offer-deploy` re-run **on main** (`f5cdfd6`), success — CORS and `category` now both live. shop-plus needed no redeploy: its main had not moved, so the deployed commit is content-identical to the merge (`git diff` empty, verified).
+
+**THREE THINGS I DID WRONG, in order of severity:**
+1. **Deployed without checking whether `main` had moved.** A deploy replaces what is running; the only honest diff is against what is running, not against where I branched.
+2. **Proceeded past my own flag.** Naming a risk and continuing is worse than not noticing it — it produces a written record that looks like diligence while the hazard ships anyway. If a concern is worth writing down, it is worth waiting for an answer.
+3. **Left `main` behind production**, turning the default deploy path into the destructive one.
+
+**⚠ STANDING GAP THIS EXPOSED, not yet fixed:** `offer-deploy.yml` ends at « Deploy to Cloudflare Workers » — it has **no post-deploy provenance assertion**, while shop-plus's workflow polls `/health` for up to 180 s until the live Worker reports the canon and release the job bundled, with a comment recording an incident where an instant check read the old bundle. boutik is the PRODUCER in a wire whose whole safety property is ordering, and it is the one that cannot prove its deploy took. I could not verify the corrective deploy live for exactly this reason. **Recommended next: give offer-deploy the same provenance poll.** Founder's call.
