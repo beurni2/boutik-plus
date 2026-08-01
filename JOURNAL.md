@@ -2231,3 +2231,5 @@ Nothing consumes the new schemas in this repo yet — that is the next slice (fu
 **Verifier NIT recorded, not actioned:** a DO-fetch rejection inside the intake answers 500 where a refused book answers 503 `book_unavailable` — both non-2xx, the emitter retries either; cosmetic.
 
 **Post-split evidence: offer-service 142/142 · typecheck clean.** Deploy now needs the founder to set THREE values on boutik's Worker (`FULFILLMENT_WRITE_SECRET` shared with shop, `FULFILLMENT_OPS_SECRET` his alone, plus the existing pair) — commands go in the go-live note.
+
+**Gate board on the ops-split commit (`35a36ac`): `run-gates.sh` exit 0, ALL GATES GREEN** — log written 20:50 UTC, offer-service 142/142 inside the run, canon declared and installed agreeing at 3.2.0. The board has now passed on the exact HEAD that would merge; the earlier verdict covered `77d0620`, two commits back.
