@@ -29,15 +29,18 @@ const FIXED_ASOF = '2026-07-15T08:00:00.000Z';
 // ('Pagne tissé Faso (démo)', from product.name) + assetRefs ([] — the honest
 // empty; boutik has no image source yet) + category.
 //
-// ⚠ `category` IS 'textile', AND THAT IS THE SEED'S OWN VALUE, LEFT ALONE.
-// `founderOneCreateCommand` has always declared `category: 'textile'` on this
-// ProductVersion, and CATEGORY-WIRE-1 carries it verbatim — no mapping, no
-// substitution. Shop+'s §6.2 matrix does not know 'textile' (its rows are
-// fashion_bags_fabrics · shoes · sealed_beauty_cosmetics), so this product will
-// correctly fail CLOSED there: no Option B offered, the cautious inspection row
-// shown. That is the designed behaviour of an unrecognised category, not a bug
-// in this wire — and re-labelling the pilot seed to make a nicer demo would be
-// choosing a taxonomy value, which is a founder decision. Flagged, not decided.
+// `category` IS THE SEED'S OWN VALUE, CARRIED VERBATIM — no mapping, no
+// substitution, here or in the producer.
+//
+// It read 'textile' until the founder ruled on 2026-08-01. Shop+'s §6.2 matrix
+// does not know that name, so the pilot product failed CLOSED there — no
+// Option B, cautious inspection row — which was correct behaviour and a poor
+// demonstration of a wire that had just been built. The seed now declares
+// `fashion_bags_fabrics`: §6.2's first row is « Fashion, bags, fabrics » and a
+// pagne tissé is a woven fabric, so this classifies the product under an
+// EXISTING row rather than inventing a name. The fail-closed path is still
+// pinned — by `projection.test.ts`, which keeps an unrecognised category, and
+// by shop-plus's own tests.
 //
 // The key ORDER matters here: this test byte-compares JSON, so `category` sits
 // last because that is where `buildSupplyProjection` emits it.
@@ -52,7 +55,7 @@ const SW1_FROZEN_BODY = {
     available: 5,
     productName: 'Pagne tissé Faso (démo)',
     assetRefs: [],
-    category: 'textile',
+    category: 'fashion_bags_fabrics',
   },
 };
 

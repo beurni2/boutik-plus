@@ -1545,3 +1545,17 @@ Founder ordered the standing verifier re-run before merge. It came back **FAIL**
 **Fixed in this round:** the new check was a bare `if`/`echo` — no evidence artifact, no negative fixture — in a file whose own header declares « Every gate has a negative fixture and this script SHOWS each one failing once per run ». It is now `scripts/gates/canon-pin-declared.mjs`, routed through `capture` with a positive and a negative arm. Run output: `canon-pin-declared: OK — declared 3.0.0 === resolved 3.0.0` and the negative `VIOLATION … declares 0.0.0-not-the-pin but resolves 3.0.0`. `ALL GATES GREEN`, exit 0.
 
 **⏳ CARRIED, founder's call — the derivations warrant doc.** I deferred it claiming it would ripple a docs re-sync through three repos. **That was an untested assumption and it is false.** The verifier proved it two ways: the manifest generator is non-recursive and `.md`-filtered, so nothing under `docs/derivations/` can enter it (empirically: a scratch file there left both manifests byte-identical); and the precedent commit `2f0a83a` shipped `docs/derivations/SUPPLY-DISPLAY-FIELDS.md` with a one-line manifest diff. Writing it in canon, where `commerce.ts` already points, since it is the only place shop-plus and sera can discover this change's reasoning.
+
+### 2026-08-01 — the pilot seed is classified, not re-invented (founder ruling)
+
+**FOUNDER RULING**, on the open item CATEGORY-WIRE-1 flagged rather than decided: « for 2 and 3 work on it with your recommendations ». Item 2 was the pilot seed's category.
+
+**`founderOneCreateCommand` now declares `fashion_bags_fabrics` instead of `'textile'`.** §6.2's first row is « Fashion, bags, fabrics » and a *pagne tissé Faso* is a woven fabric, so this is a **classification under an existing row**, not a new taxonomy value: the identifier is the one already committed in Shop+'s `inspectableCategories`, itself taken from §6.2's rows. **No fourth name was invented and the ⏳ category-floor Decision is untouched.**
+
+What changes for a real buyer: founder-#001 now shows the **fabrics** inspection row and is **eligible for Option B** (subject to the other four §6.1 conditions), where it previously showed the cautious row and no pay-at-door. Both behaviours were correct; the first was a poor demonstration of a wire that had just been built.
+
+**THE FAIL-CLOSED PATH IS NOT WEAKENED, and that is the thing to check when reading this.** Re-labelling one seed does not remove the unknown-category behaviour — it is still pinned by `projection.test.ts` (which deliberately keeps an unrecognised category and asserts it travels verbatim) and by shop-plus's own tests (`'textile'` and `'un-truc-que-personne-ne-connait'` → conservative row). What moved is one product's data, not one line of policy.
+
+**Four sites, chosen deliberately; the other fifteen `category: 'textile'` occurrences were LEFT ALONE** because they are independent fixtures for unrelated suites (catalog, offer-store, asset-refs, supplier-app), and rewriting them would be unrequested tidying that also destroys their variety: `supply-endpoint.test.ts` builds `'Article (démo)'`/`pv-x`, nothing to do with the pilot. Changed: the seed itself · `combined-worker.e2e.test.ts`'s hand-built copy of the seed and its served-value assertion · the SW-1 frozen envelope (byte-compared) and the comment explaining it.
+
+**Evidence:** `pnpm -w typecheck` 13/13 · `pnpm -w test` **21/21 tasks, 665 tests, 0 failures** · `run-gates.sh` **ALL GATES GREEN**, exit 0.
