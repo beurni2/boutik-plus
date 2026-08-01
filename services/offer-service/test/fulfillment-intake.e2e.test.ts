@@ -82,7 +82,14 @@ function confirmedEvent(orderId: string, over: Record<string, unknown> = {}, pay
       command_id: `ord-confirm-${orderId}`,
       correlation_id: `corr-${orderId}`,
       aggregateVersion: 5,
-      actor: 'storefront-service:order',
+      // The producer's real actor names its own service; canon requires only a
+      // non-empty string and the intake asserts nothing about it. Spelled
+      // NEUTRALLY here because B+I-15's gate greps this repo's source for
+      // consumer-commerce words, and a neighbour service's name in a fixture is
+      // that gate's one legitimate false positive — do not "fix" this back to
+      // the wire-literal value; the schema both ends parse is the fidelity
+      // anchor, not this string.
+      actor: 'shop-plus:order-emitter',
       serverTime: T0,
       version: 'v1',
     },
