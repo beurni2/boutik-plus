@@ -30,7 +30,27 @@ class_name = "OfferDO"
 tag = "v1"
 new_sqlite_classes = ["OfferDO"]
 
-# TWO SECRETS, NEITHER OF THEM HERE. Both are set out-of-band with
+# ORDER-PAID-WIRE-1c — the paid-order book: one singleton FulfillmentDO holding
+# every order Shop+ has told this platform to prepare (first-wins on orderId).
+[[durable_objects.bindings]]
+name = "FULFILLMENT"
+class_name = "FulfillmentDO"
+
+# Second migration: creates FulfillmentDO on the next deploy. Same
+# new_sqlite_classes reasoning as v1 (the account only supports the SQLite
+# backend; the storage API this code uses is identical).
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["FulfillmentDO"]
+
+# THREE SECRETS, NONE OF THEM HERE. (ORDER-PAID-WIRE-1c added the third:
+# FULFILLMENT_WRITE_SECRET gates POST /fulfillment/order-confirmed and the ops
+# read GET /fulfillment/orders — the same value Shop+'s storefront-service
+# holds and presents as Bearer when delivering order.confirmed.v1. Set with
+# `wrangler secret put FULFILLMENT_WRITE_SECRET` on BOTH Workers. UNSET ⇒ the
+# intake is 401 and Shop+'s outbox retries hourly until both sides hold it.)
+#
+# TWO SECRETS OF THE ORIGINAL PATTERN, NEITHER OF THEM HERE. Both are set out-of-band with
 # `wrangler secret put` (encrypted, not in the repo) and must NEVER be added to
 # [vars]: all five repos are PUBLIC and anything in [vars] is committed and
 # published. Both gates fail CLOSED — until each secret is set, the route it

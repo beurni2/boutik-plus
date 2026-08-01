@@ -50,7 +50,7 @@ export interface SupplyReadAuthEnv {
   readonly SUPPLY_READ_SECRET?: string;
 }
 
-export { WRITE_KEY_HEADER, BEARER_HEADER, BEARER_PREFIX, isWrite, unauthorized };
+export { WRITE_KEY_HEADER, BEARER_HEADER, BEARER_PREFIX, isWrite, unauthorized, rejectUnauthorizedBearer };
 
 /** Fail-closed shared-key check against offer-service's secret. */
 export async function keyAuthorized(request: Request, env: WriteAuthEnv): Promise<boolean> {

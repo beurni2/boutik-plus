@@ -1,9 +1,11 @@
 import offerRouter, { OfferDO } from './offer-do.js';
+import { FulfillmentDO, handleOrderConfirmedIntake, handlePaidOrdersList } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
 import {
   keyAuthorized,
+  rejectUnauthorizedBearer,
   rejectUnauthorizedSupplyRead,
   rejectUnauthorizedWrite,
   unauthorized,
@@ -21,10 +23,16 @@ import {
  *
  * wrangler binds this class by its exported name.
  */
-export { OfferDO };
+export { OfferDO, FulfillmentDO };
 
 interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
   OFFER: DurableObjectNamespace;
+  /** ORDER-PAID-WIRE-1c — the paid-order book (one singleton instance). */
+  FULFILLMENT: DurableObjectNamespace;
+  /** The intake's shared credential (wrangler secret; Shop+ holds the same
+   *  value and presents it as Bearer). UNSET ⇒ every intake is 401 — fail
+   *  closed; the emitter's outbox retries until the founder sets both sides. */
+  FULFILLMENT_WRITE_SECRET?: string;
 }
 
 /**
@@ -89,6 +97,28 @@ export default {
 };
 
 async function handle(request: Request, env: Env): Promise<Response> {
+    // ═══ ORDER-PAID-WIRE-1c — THE PREPARATION INTAKE, gated by ITS OWN secret
+    // BEFORE the write gate (the write key ships in the supplier app bundle;
+    // this credential never leaves two Workers — they must not be
+    // interchangeable, so this route never reaches the X-Write-Key gate at
+    // all). Bearer-gated before any dispatch: a 401 is never an existence
+    // oracle for order ids, and an unset secret refuses everything (the
+    // emitter's outbox absorbs that as retry-hourly, by design).
+    const { pathname: fp } = new URL(request.url);
+    if (request.method === 'POST' && fp === '/fulfillment/order-confirmed') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      if (refused) return refused;
+      const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
+      return handleOrderConfirmedIntake(request, store, env);
+    }
+    // The OPS READ of the book — same secret today; the operator-console slice
+    // re-gates it behind the founder's own credential when it lands.
+    if (request.method === 'GET' && fp === '/fulfillment/orders') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      if (refused) return refused;
+      return handlePaidOrdersList(env);
+    }
+
     // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any
     // dispatch or existence lookup (so the 401 is never an existence oracle).
     // Reads pass straight through; a Worker with no secret configured fails closed.

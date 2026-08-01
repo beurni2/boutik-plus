@@ -2201,3 +2201,21 @@ I never checked whether main had moved. I compared my branch to my own base, nev
 **⚠ A sha was INVENTED during this repin and caught one command later.** I typed the target ref from memory as `bd32ab2ba19…` — the first seven characters were right and the remaining thirty-three were fabricated — and ran the sed before checking it against `git rev-parse`. The very next output line showed the real sha (`bd32ab20e49…`) and the mismatch. Repaired in the same session, zero traces left (grep-verified), and the install-and-verify step would have caught it regardless (pnpm cannot fetch a nonexistent commit). The lesson is the standing one in sharper form: **a sha is never typed, it is always substituted from a command.** `NEW=$(git rev-parse …)`, not `NEW=<paste from memory>`.
 
 Nothing consumes the new schemas in this repo yet — that is the next slice (fulfillment intake). This commit is deliberately repin-only so the feature diff stays reviewable.
+
+## 2026-08-01 — ORDER-PAID-WIRE-1c: the preparation intake — this platform now hears a sale
+
+**`POST /fulfillment/order-confirmed` exists, Bearer-gated by its own secret, parsing through canon, joining the supplier INTERNALLY, and absorbing at-least-once delivery first-wins into a durable book.**
+
+**The shape of it:**
+- **`FulfillmentDO`** (`worker/fulfillment-do.ts`) — one singleton instance, the paid-order book. First-wins on `orderId` is STRUCTURAL (the DO input gate serializes redeliveries), and a replay carrying a crafted later `paidAt` cannot reset the record a supplier's preparation clock will be measured against — the same law `FulfillmentBook.registerPaidOrder` encodes, now durable.
+- **The supplier join happens HERE and stays here** — the wire carries no supplier id by founder ruling; the router resolves `productVersionId → entry.product.supplierId` through the same `OfferStore` the supply read uses, and the intake RESPONSE Shop+ sees never echoes it (byte-asserted in the tests). An unknown pv REGISTERS with `supplierResolved: false` rather than refusing (a retry can never improve it) or dropping (a paid order must never be invisible) — the founder's console exists to surface exactly this anomaly.
+- **Its own credential, gated BEFORE the write gate** (`worker/index.ts`): the X-Write-Key ships in the supplier app bundle; this secret never leaves two Workers. The tests prove they are not interchangeable in either direction, and the unset-secret runtime 401s everything (fail closed; the emitter's outbox absorbs it as retry-hourly).
+- **`event_not_canonical` is a 400, not a 5xx, deliberately**: the emitter retries only non-2xx-with-5xx-or-silence… no — it retries any non-2xx, so a producer bug surfaces as a REPEATING 400 in both logs rather than a silent drop, while an outage drains normally. Stated in the code.
+- **`GET /fulfillment/orders`** — the ops read, same secret today; the operator-console slice re-gates it behind the founder's own credential when it lands.
+- **wrangler.toml**: `FULFILLMENT` binding + migration `v2` (`new_sqlite_classes`, the account's only supported backend) + the three-secrets doc. UNPROVEN UNTIL A REAL DEPLOY RUNS, as the file itself warns about all migrations.
+
+**Evidence:** typecheck 13/13 · new e2e **8/8** on the real combined bundle (gate: unset-secret 401 · wrong/missing/write-key 401 ×4 · register-with-internal-join, response supplier-free · duplicate-with-crafted-paidAt keeps the original · four non-canonical shapes 400 by name, nothing stored · unknown-pv registers unresolved · restart durability · gated ops read) · offer-service **142/142** · workspace typecheck 13/13 · run-gates verdict recorded below when the background run lands.
+
+**Mutation-proven, three ways, each restored:** first-wins removed (redelivery overwrites) → **2 red** · canon parse skipped (any JSON registers) → **1 red** · the Bearer gate dropped (write key falls through) → **2 red**.
+
+**One test-infrastructure lesson:** two workerd runtimes on ONE SQLite persist dir deadlock (`SQLITE_BUSY` at startup). The unset-secret runtime gets its own scratch dir — the same isolation the shop harness already gives its slow-provider runtime.
