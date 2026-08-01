@@ -7,6 +7,7 @@ import {
   type SupplyProjection,
 } from '@platform/contracts';
 import { buildSupplyProjection } from './projection.js';
+import { attestedTier, type AttestedSuppliersEnv } from './attested-suppliers.js';
 import type { OfferEntry, CreateOfferCommand } from './offer-core.js';
 import type { OfferStore } from './offer-store.js';
 
@@ -149,11 +150,26 @@ export function assertAssetRefsIdentityFree(assetRefs: readonly string[], suppli
  * `available` is a DECLARED number that changes only on a write. `asOf` answers
  * "as of when is this envelope accurate", not "when was this last verified".
  */
-export function serveProjection(service: string, entry: OfferEntry | undefined, nowIso: string): ServeOutcome {
+export function serveProjection(
+  service: string,
+  entry: OfferEntry | undefined,
+  nowIso: string,
+  /**
+   * SELLER-TIER-WIRE-1 — the founder's attestation config. OMITTED ⇒ no
+   * supplier resolves to `verified` ⇒ the wire carries `provisional` ⇒ Shop+'s
+   * §6.1 refuses Option B. Every caller that forgets fails CLOSED, and the two
+   * serve paths (single read and the discovery collection) both take it so they
+   * cannot disagree about who is verified.
+   */
+  attested?: AttestedSuppliersEnv,
+): ServeOutcome {
   if (!entry) {
     return { ok: false, status: 404, body: { service, status: 'not_found', reason: 'unknown_product_version' } };
   }
-  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets);
+  // Resolved from the SUPPLIER ID THE STORE ALREADY HOLDS and the deployment's
+  // own configuration — never from anything on the request.
+  const tier = attestedTier(entry.product.supplierId, attested);
+  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets, tier);
   if (!built.ok) {
     // the projection.ts refusal ladder surfaces verbatim — never a 200-empty
     return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };
@@ -218,10 +234,15 @@ export interface SupplyCollection {
  * product version ids exist but are unapproved — an existence signal the single
  * read's gate is designed to keep back.
  */
-export function serveProjections(service: string, entries: readonly OfferEntry[], nowIso: string): SupplyCollection {
+export function serveProjections(
+  service: string,
+  entries: readonly OfferEntry[],
+  nowIso: string,
+  attested?: AttestedSuppliersEnv,
+): SupplyCollection {
   const items: SupplyReadModel[] = [];
   for (const entry of entries) {
-    const outcome = serveProjection(service, entry, nowIso);
+    const outcome = serveProjection(service, entry, nowIso, attested);
     if (outcome.ok) items.push(outcome.body);
   }
   return { asOf: nowIso, items };
@@ -241,6 +262,8 @@ export function makeSupplyFetch(
   now: () => string = () => new Date().toISOString(),
   fallback: (request: Request) => Response = makeHealthFetch(SERVICE_NAME),
   service: string = SERVICE_NAME,
+  /** SELLER-TIER-WIRE-1 — the deployment's attestations, handed down from the Worker's env. */
+  attested?: AttestedSuppliersEnv,
 ): (request: Request) => Promise<Response> {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -260,11 +283,11 @@ export function makeSupplyFetch(
     // DISCOVERY — every servable offer, one serve clock for all of them.
     if (isCollection) {
       const entries = await store.listEntries();
-      return Response.json(serveProjections(service, entries, now()), { status: 200, headers });
+      return Response.json(serveProjections(service, entries, now(), attested), { status: 200, headers });
     }
     const productVersionId = decodeURIComponent(match![1]!);
     const entry = await store.getEntryByProductVersion(productVersionId);
-    const outcome = serveProjection(service, entry, now());
+    const outcome = serveProjection(service, entry, now(), attested);
     return Response.json(outcome.body, { status: outcome.status, headers });
   };
 }

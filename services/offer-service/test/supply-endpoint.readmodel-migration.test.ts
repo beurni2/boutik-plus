@@ -56,6 +56,11 @@ const SW1_FROZEN_BODY = {
     productName: 'Pagne tissé Faso (démo)',
     assetRefs: [],
     category: 'fashion_bags_fabrics',
+    // SELLER-TIER-WIRE-1 — `provisional` because NO attestation is configured
+    // in this test, and provisional is the only tier this repo can otherwise
+    // produce. It is pinned here deliberately: if a future default ever made an
+    // unattested supplier `verified`, this frozen envelope reddens first.
+    sellerTier: 'provisional',
   },
 };
 

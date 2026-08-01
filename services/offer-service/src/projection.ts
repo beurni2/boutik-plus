@@ -1,4 +1,4 @@
-import type { ProductAssets, ProductVersion, SupplierOffer } from '@platform/contracts';
+import type { ProductAssets, ProductVersion, SellerTrustTier, SupplierOffer } from '@platform/contracts';
 // Type-only: the projection payload contract lives in @platform/certification
 // at E1 (promoted into contracts/ when frozen). A type-only import is erased
 // at build — certification never enters the runtime graph (it is a
@@ -82,6 +82,14 @@ export function buildSupplyProjection(
   available: number,
   nowIso: string,
   assets?: ProductAssets,
+  /**
+   * SELLER-TIER-WIRE-1 — resolved by the CALLER, exactly as `available` and
+   * `assets` are, so this stays a pure function with no config or I/O reach.
+   * OMITTED ⇒ the field is omitted from the wire (canon v3.1.0 types it
+   * optional) ⇒ Shop+'s §6.1 cannot prove « tier ≥ verified » and refuses
+   * Option B. Every path where a caller forgets therefore fails CLOSED.
+   */
+  sellerTier?: SellerTrustTier,
 ): ProjectionOutcome {
   if (product.status !== 'active') return { ok: false, reason: 'product_not_active' };
   if (!product.moderationState.startsWith('approved')) return { ok: false, reason: 'product_not_approved' };
@@ -130,6 +138,12 @@ export function buildSupplyProjection(
     // verbatim. Shop+ allowlists what it recognises and fails closed on the
     // rest, which is the only side that may decide what a category MEANS.
     category: product.category,
+    // Spread CONDITIONALLY so an unresolved tier is an ABSENT key rather than
+    // an explicit `undefined`: canon's `.strict()` accepts the omission, and an
+    // absent field cannot later be misread as « we asked and the answer was
+    // nothing ». There is no default here on purpose — a default would be this
+    // service answering a question it cannot answer.
+    ...(sellerTier !== undefined ? { sellerTier } : {}),
   };
   return { ok: true, projection };
 }

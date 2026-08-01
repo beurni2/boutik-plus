@@ -1,5 +1,6 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
+import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
 import {
   keyAuthorized,
@@ -22,7 +23,7 @@ import {
  */
 export { OfferDO };
 
-interface Env extends WriteAuthEnv, SupplyReadAuthEnv {
+interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
   OFFER: DurableObjectNamespace;
 }
 
@@ -138,5 +139,5 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // over the DURABLE store, resolved here against the DO namespace via the
     // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
-    return makeSupplyFetch(store)(request);
+    return makeSupplyFetch(store, undefined, undefined, undefined, env)(request);
 }

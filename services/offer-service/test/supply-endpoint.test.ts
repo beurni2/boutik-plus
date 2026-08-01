@@ -137,9 +137,18 @@ describe('SW-1 · served == buildSupplyProjection, byte-for-byte', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { version: number; asOf: string; value: unknown };
 
-    const built = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW);
+    // SELLER-TIER-WIRE-1 — the builder is called EXACTLY as `serveProjection`
+    // calls it, including the resolved tier. Passing no tier here would compare
+    // the served value against a DIFFERENT build and the mismatch would look
+    // like drift; passing the resolved one keeps this a real byte-for-byte
+    // identity between the transport and the pure core. No attestation is
+    // configured in this fetch, so the honest tier is `provisional` — which is
+    // also what the assertion below pins.
+    const built = buildSupplyProjection(entry.product, entry.offer, entry.available, READ_NOW, entry.assets, 'provisional');
     if (!built.ok) throw new Error('builder refused a servable entry');
     expect(body.value).toEqual(built.projection); // byte-for-byte
+    // …and the tier really is the unattested one, stated rather than implied.
+    expect((body.value as { sellerTier?: string }).sellerTier).toBe('provisional');
     expect(body.version).toBe(entry.offer.version); // the offer version, verbatim
     expect(() => SupplyProjectionSchema.parse(body.value)).not.toThrow();
   });
