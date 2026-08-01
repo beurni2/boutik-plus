@@ -43,6 +43,40 @@ import type { OfferStore } from '../src/offer-store.js';
 
 export const BOOK_NAME = 'paid-orders';
 const ORDER_PREFIX = 'order:';
+const RELANCE_PREFIX = 'relance:';
+
+/**
+ * CONSOLE-2 — THE OPERATOR'S CHASE LOG, AND WHAT IT DELIBERATELY IS NOT.
+ *
+ * The founder's ruling (2026-08-01): « after 10 mn if the another supplier get
+ * a product sold but still not showing any sign of preparation I will notify
+ * them offline myself. » A relance records THAT ACT — the operator phoned the
+ * supplier at this instant — and nothing more.
+ *
+ * ═══ IT IS NOT READINESS. THIS SEPARATION IS LOAD-BEARING ═══
+ *
+ * The canon already owns « le produit est prêt »: B+6 / B6.2 —
+ * `PackageReadinessConfirmation` (photo + the short-TTL
+ * `sellerReadinessChallenge` + qty/variant/availability), and B+I-06: « A Séra
+ * pickup MUST NOT be requested until fulfillment is accepted and the supplier
+ * has confirmed package-ready. » Readiness is the SUPPLIER's evidenced act and
+ * it GATES CUSTODY. A phone call by the operator is neither, so it is stored
+ * under its own prefix, named for what it is, and can never be mistaken for —
+ * or promoted into — readiness evidence. A console that could mark an order
+ * « prêt » would be forging the dispatch gate; this one cannot express the
+ * idea at all.
+ *
+ * Stored SEPARATELY from the record for a second reason: the paid-order record
+ * is first-wins and byte-stable, the property the emitter's at-least-once
+ * delivery leans on. Annotations never mutate it; they are merged at read.
+ */
+export interface RelanceMark {
+  /** THIS Worker's clock when the relance was recorded — never a client's
+   *  claim, the same law `paidAt` follows on the emitter side. */
+  readonly at: string;
+  /** How many times the operator has called about this order. */
+  readonly count: number;
+}
 
 export interface PaidOrderRecord {
   readonly orderId: string;
@@ -95,8 +129,38 @@ export class FulfillmentDO {
      *  forever). */
     if (request.method === 'GET' && pathname === '/orders') {
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
-      const orders = [...entries.values()].sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));
+      const marks = await this.state.storage.list<RelanceMark>({ prefix: RELANCE_PREFIX });
+      const orders = [...entries.values()]
+        .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
+        // Merged at READ — the stored record stays exactly the bytes the
+        // intake wrote (see RelanceMark).
+        .map((r) => {
+          const mark = marks.get(`${RELANCE_PREFIX}${r.orderId}`);
+          return mark === undefined ? r : { ...r, relance: mark };
+        });
       return Response.json({ ok: true, orders });
+    }
+
+    /** RECORD A RELANCE — the operator called this supplier, just now.
+     *  Repeatable on purpose: a second call a day later is a real event, so
+     *  the count grows and `at` moves to the latest. An order this book has
+     *  never heard of is a 404, never an invented row: a chase log about a
+     *  paid order that does not exist would be a lie about a real one. */
+    if (request.method === 'POST' && pathname === '/relance') {
+      const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+      const orderId = body?.orderId;
+      if (typeof orderId !== 'string' || orderId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const existing = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (existing === undefined) {
+        return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      }
+      const key = `${RELANCE_PREFIX}${orderId}`;
+      const prev = await this.state.storage.get<RelanceMark>(key);
+      const mark: RelanceMark = { at: new Date().toISOString(), count: (prev?.count ?? 0) + 1 };
+      await this.state.storage.put(key, mark);
+      return Response.json({ ok: true, relance: mark });
     }
 
     return Response.json({ error: 'not_found' }, { status: 404 });
@@ -169,4 +233,27 @@ export async function handleOrderConfirmedIntake(
 export async function handlePaidOrdersList(env: FulfillmentEnv): Promise<Response> {
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(new Request('https://do/orders'));
+}
+
+/**
+ * CONSOLE-2 — record one relance. Auth (the FOUNDER'S ops credential) ran at
+ * the composition root: chasing is his act alone, and the intake secret Shop+
+ * holds must never reach it.
+ *
+ * ONLY `orderId` IS FORWARDED, and that re-serialization is load-bearing, not
+ * tidiness: it strips any `at`/`count` a caller invents before the object can
+ * see them. Proven by mutation — making the DO trust a claimed `at` ALONE
+ * leaves the suite green, because this line already threw the claim away;
+ * both layers must fall together before the clock can lie, and the e2e goes
+ * red exactly then. Do not "simplify" this to forward the body.
+ */
+export async function handleRelance(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(
+    new Request('https://do/relance', {
+      method: 'POST',
+      body: JSON.stringify({ orderId: body?.orderId }),
+    }),
+  );
 }

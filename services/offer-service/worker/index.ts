@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, handleOrderConfirmedIntake, handlePaidOrdersList } from './fulfillment-do.js';
+import { FulfillmentDO, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -132,6 +132,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handlePaidOrdersList(env);
+    }
+    // CONSOLE-2 — the operator's chase log. HIS credential, not Shop+'s: the
+    // relance is the founder's own act (« j'ai appelé le fournisseur »), and
+    // it is emphatically NOT readiness — canon readiness (B+I-06, photo +
+    // sellerReadinessChallenge) gates custody and lives in fulfillment-service.
+    if (request.method === 'POST' && fp === '/fulfillment/relance') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleRelance(request, env);
     }
 
     // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any

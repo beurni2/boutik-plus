@@ -13,12 +13,20 @@ import type { PaidOrderRow } from './service';
  * from `fulfillment-service`'s aging POLICY (still its 120-minute safest
  * default; re-tuning that is the fulfillment slice's own change).
  *
- * HONESTY ABOUT WHAT « sign of preparation » MEANS TODAY: no supplier
- * acceptance action exists yet, so nothing can clear an order off the chase
- * list — every paid order older than ten minutes chases. That is the true
- * state of the platform, and the screen says so in its own words rather than
- * inventing a « préparé » it cannot know. The acceptance slice will make this
- * list quiet down for real.
+ * WHAT CLEARS THE LIST TODAY — AND WHAT DOES NOT (CONSOLE-2):
+ * the operator's own relance clears it. He calls the supplier, taps « J'ai
+ * appelé le fournisseur », and the order moves to « Déjà relancés ». That is
+ * a true record of HIS act.
+ *
+ * It is NOT a preparation signal, and this file will not pretend otherwise.
+ * Canon owns « le produit est prêt » — B+I-06 / B6.2: a
+ * `PackageReadinessConfirmation` carrying a photo and the short-TTL
+ * `sellerReadinessChallenge`, the supplier's own evidenced act, and the gate
+ * that lets a Séra pickup be requested at all. That machinery lives in
+ * `services/fulfillment-service` and is not yet wired to this book, so the
+ * board cannot show a genuine preparation state and does not claim one.
+ * Wiring readiness → the board is its own slice; until it lands, « relancé »
+ * means « vous avez appelé », nothing more.
  */
 export const CHASE_AFTER_MIN = 10;
 
@@ -42,9 +50,12 @@ export type OperationsView =
   | { readonly kind: 'empty'; readonly message: string }
   | {
       readonly kind: 'board';
-      /** Paid ≥ 10 min ago — the founder calls these suppliers, oldest first. */
+      /** Paid ≥ 10 min ago and NOT yet called — the founder's queue, oldest first. */
       readonly relancer: readonly OperationsRow[];
-      /** Paid < 10 min ago — fresh, no action yet, newest first. */
+      /** Already called, whatever their age — most recently called first. He
+       *  can call again from here; nothing about preparation is claimed. */
+      readonly relances: readonly OperationsRow[];
+      /** Paid < 10 min ago, not yet called — fresh, no action yet, newest first. */
       readonly recentes: readonly OperationsRow[];
       /** Rows whose product this platform could not resolve — always shown,
        *  never buried: a paid order without a supplier is the board's loudest
@@ -68,8 +79,13 @@ export function operationsView(read: OperationsRead, nowMs: number): OperationsV
   if (read.rows.length === 0) return { kind: 'empty', message: 'operations.vide' };
 
   const rows: OperationsRow[] = read.rows.map((r) => ({ ...r, ageMin: ageMinutes(r.paidAt, nowMs) }));
-  const relancer = rows.filter((r) => r.ageMin >= CHASE_AFTER_MIN).sort((a, b) => b.ageMin - a.ageMin);
-  const recentes = rows.filter((r) => r.ageMin < CHASE_AFTER_MIN).sort((a, b) => a.ageMin - b.ageMin);
+  // A called order leaves the queue WHATEVER its age — the founder does not
+  // need to be told twice about a supplier he has already phoned.
+  const called = rows.filter((r) => r.relance !== undefined);
+  const uncalled = rows.filter((r) => r.relance === undefined);
+  const relancer = uncalled.filter((r) => r.ageMin >= CHASE_AFTER_MIN).sort((a, b) => b.ageMin - a.ageMin);
+  const recentes = uncalled.filter((r) => r.ageMin < CHASE_AFTER_MIN).sort((a, b) => a.ageMin - b.ageMin);
+  const relances = [...called].sort((a, b) => (a.relance!.at < b.relance!.at ? 1 : -1));
   const anomalies = rows.filter((r) => !r.supplierResolved);
-  return { kind: 'board', relancer, recentes, anomalies };
+  return { kind: 'board', relancer, relances, recentes, anomalies };
 }

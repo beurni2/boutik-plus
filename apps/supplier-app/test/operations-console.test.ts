@@ -100,6 +100,125 @@ describe('THE 10-MINUTE LINE — the founder’s ruling, at its exact boundary',
   });
 });
 
+describe('CONSOLE-2 — the relance clears the queue, and claims nothing about preparation', () => {
+  it('a CALLED order leaves « À relancer » whatever its age — he is not told twice about one supplier', () => {
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('ord-called', paidAgo(45), { relance: { at: paidAgo(2), count: 1 } }),
+          rowAt('ord-uncalled', paidAgo(45)),
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.relancer.map((r) => r.orderId)).toEqual(['ord-uncalled']);
+    expect(view.relances.map((r) => r.orderId)).toEqual(['ord-called']);
+    expect(view.recentes).toHaveLength(0); // called ≠ « à l'instant »
+  });
+
+  it('a call on a FRESH order also moves it out of « à l’instant » — one place per order, never two', () => {
+    const view = operationsView(
+      { kind: 'ok', rows: [rowAt('ord-fresh-called', paidAgo(2), { relance: { at: paidAgo(1), count: 1 } })] },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.recentes).toHaveLength(0);
+    expect(view.relancer).toHaveLength(0);
+    expect(view.relances.map((r) => r.orderId)).toEqual(['ord-fresh-called']);
+  });
+
+  it('« Déjà appelés » is ordered by WHEN HE CALLED, most recent first — not by order age', () => {
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('ord-old-order-new-call', paidAgo(300), { relance: { at: paidAgo(1), count: 1 } }),
+          rowAt('ord-new-order-old-call', paidAgo(20), { relance: { at: paidAgo(90), count: 3 } }),
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.relances.map((r) => r.orderId)).toEqual(['ord-old-order-new-call', 'ord-new-order-old-call']);
+  });
+
+  it('an ANOMALY that has been called is still an anomaly — a phone call resolves no supplier', () => {
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [rowAt('ord-ghost', paidAgo(30), { supplierId: '', supplierResolved: false, relance: { at: paidAgo(1), count: 1 } })],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.anomalies.map((r) => r.orderId)).toEqual(['ord-ghost']);
+  });
+
+  it('NOTHING THE FOUNDER READS CLAIMS THE PRODUCT IS READY — every relance label says « appelé », and readiness is named as the SUPPLIER’s own future act', () => {
+    // Asserted on the RENDERED strings, not on source characters: a code
+    // comment that says « never prêt » is the right comment, and scanning raw
+    // source for the word punishes it (the B+I-15 false-positive class).
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    for (const k of ['operations.relance_action', 'operations.relances_titre', 'operations.relance_faite', 'operations.relance_faite_long', 'operations.relance_fois', 'operations.relance_rappeler']) {
+      const s = (fr.get(k) ?? '').toLowerCase();
+      expect(s, k).not.toBe('');
+      expect(s.includes('prêt') || s.includes('prépar'), `${k} must not claim readiness`).toBe(false);
+    }
+    // …and the one string that DOES mention « prêt » says the supplier will
+    // confirm it himself — the honest boundary, in the founder's own screen.
+    const sens = fr.get('operations.relance_sens') ?? '';
+    expect(sens.toLowerCase()).toContain('prêt');
+    expect(sens.toLowerCase()).toContain('fournisseur');
+  });
+});
+
+describe('the relance port — only the id crosses, and every refusal keeps its own name', () => {
+  it('POSTs to /fulfillment/relance with the Bearer and a body of EXACTLY {orderId} — no client clock', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, relance: { at: 'x', count: 1 } })));
+    const res = await resolveOperationsService()!.recordRelance('cle-b', 'ord-7');
+    expect(res).toEqual({ ok: true });
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('https://offer.example/fulfillment/relance');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-b');
+    expect(JSON.parse(String(init?.body))).toEqual({ orderId: 'ord-7' });
+  });
+
+  it('401 → bad_key · 404 → unknown_order · 500 and a thrown fetch → unreachable', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const port = resolveOperationsService()!;
+    for (const [reply, expected] of [
+      [async () => new Response('no', { status: 401 }), 'bad_key'],
+      [async () => new Response('no', { status: 404 }), 'unknown_order'],
+      [async () => new Response('no', { status: 500 }), 'unreachable'],
+      [() => Promise.reject(new Error('down')), 'unreachable'],
+    ] as const) {
+      stubFetch(reply as () => Promise<Response>);
+      expect(await port.recordRelance('k', 'ord-1'), expected).toEqual({ ok: false, reason: expected });
+    }
+  });
+
+  it('a MALFORMED relance mark on a row is dropped — « vous avez appelé » is never shown on a guess', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const base = rowAt('ord-1', '2026-08-01T11:00:00.000Z');
+    for (const bad of [{ count: 1 }, { at: '', count: 1 }, { at: 'x' }, { at: 'x', count: 0 }, { at: 'x', count: 1.5 }, 'nope', null]) {
+      stubFetch(async () => new Response(JSON.stringify({ ok: true, orders: [{ ...base, relance: bad }] })));
+      const res = await resolveOperationsService()!.listPaidOrders('k');
+      if (!res.ok) throw new Error(res.reason);
+      expect(res.orders[0]!.relance, JSON.stringify(bad)).toBeUndefined();
+      expect(res.orders[0]!.orderId).toBe('ord-1'); // the ORDER survives; only the mark is dropped
+    }
+    // …and a true mark is carried through verbatim
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, orders: [{ ...base, relance: { at: '2026-08-01T11:30:00.000Z', count: 2 } }] })));
+    const good = await resolveOperationsService()!.listPaidOrders('k');
+    if (!good.ok) throw new Error(good.reason);
+    expect(good.orders[0]!.relance).toEqual({ at: '2026-08-01T11:30:00.000Z', count: 2 });
+  });
+});
+
 describe('ageMinutes — whole minutes, never a countdown', () => {
   it('floors to whole minutes', () => {
     expect(ageMinutes(paidAgo(9, 59_999), NOW)).toBe(9); // 9:59.999 is still 9 min

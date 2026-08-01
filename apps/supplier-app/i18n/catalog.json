@@ -1834,5 +1834,59 @@
     "fr": "Appelez le fournisseur",
     "register": "money",
     "screenClass": "label"
+  },
+  {
+    "key": "operations.relance_action",
+    "fr": "J'ai appelé le fournisseur",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.relance_encours",
+    "fr": "Enregistrement…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.relance_echec",
+    "fr": "L'appel n'a pas été enregistré. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.relances_titre",
+    "fr": "Fournisseurs déjà appelés",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.relance_faite",
+    "fr": "Appelé il y a {n} min",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.relance_faite_long",
+    "fr": "Appelé, il y a plus d'une heure",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.relance_fois",
+    "fr": "Appelé {n} fois",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.relance_rappeler",
+    "fr": "Rappeler",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.relance_sens",
+    "fr": "« Appelé » veut dire que vous avez appelé. Le fournisseur confirmera lui-même quand le colis sera prêt.",
+    "register": "money",
+    "screenClass": "general"
   }
 ]

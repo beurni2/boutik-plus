@@ -128,6 +128,18 @@ async function listOrders(m: Miniflare = mf) {
   return (await res.json()) as { ok: boolean; orders: Record<string, unknown>[] };
 }
 
+async function postRelance(orderId: unknown, auth: string | null = `Bearer ${OPS_SECRET}`, m: Miniflare = mf) {
+  const res = await m.dispatchFetch('http://o/fulfillment/relance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(auth !== null ? { Authorization: auth } : {}) },
+    body: JSON.stringify({ orderId }),
+  });
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try { json = JSON.parse(text) as Record<string, unknown>; } catch { /* non-JSON */ }
+  return { status: res.status, text, json };
+}
+
 async function seedOffer(): Promise<void> {
   const res = await mf.dispatchFetch('http://o/offers', {
     method: 'POST',
@@ -252,5 +264,116 @@ describe('the intake — canon-parsed, supplier joined INTERNALLY, first-wins, d
     // …and the ops key does not open the INTAKE either: two keys, two doors.
     const opsOnIntake = await postIntake(confirmedEvent('ord-q-cross'), `Bearer ${OPS_SECRET}`);
     expect(opsOnIntake.status).toBe(401);
+  });
+});
+
+/**
+ * CONSOLE-2 — THE RELANCE: the operator's own chase log.
+ *
+ * The property that outranks every other here: a relance is « j'ai appelé »,
+ * NOT « le produit est prêt ». Canon readiness (B+I-06 / B6.2) is the
+ * SUPPLIER's evidenced act — `PackageReadinessConfirmation` with a photo and
+ * the short-TTL `sellerReadinessChallenge` — and it is what gates a Séra
+ * pickup. Nothing on this route can produce, imply, or be mistaken for it.
+ */
+describe('the relance — the founder’s credential alone, his act, our clock', () => {
+  it('IT IS NOT READINESS: the route stores no evidence, no challenge, no ready flag — the answer names only the call', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-1'));
+    const res = await postRelance('ord-relance-1');
+    expect(res.status, res.text).toBe(200);
+    expect(res.json['ok']).toBe(true);
+    const mark = res.json['relance'] as Record<string, unknown>;
+    expect(Object.keys(mark).sort()).toEqual(['at', 'count']); // no `ready`, no challenge, no photoRef
+    expect(mark['count']).toBe(1);
+    // and the words canon reserves for readiness appear NOWHERE in the answer
+    for (const forbidden of ['ready', 'readiness', 'prêt', 'challenge', 'photoRef', 'pickup']) {
+      expect(res.text.toLowerCase().includes(forbidden.toLowerCase()), forbidden).toBe(false);
+    }
+  });
+
+  it('THE CLOCK IS THE WORKER’S: a client-claimed time is ignored, and the stored mark is a real instant near now', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-clock'));
+    const before = Date.now();
+    const res = await mf.dispatchFetch('http://o/fulfillment/relance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
+      // a hostile caller insisting the call happened last year
+      body: JSON.stringify({ orderId: 'ord-relance-clock', at: '2025-01-01T00:00:00.000Z', count: 99 }),
+    });
+    const json = (await res.json()) as { relance: { at: string; count: number } };
+    expect(json.relance.count).toBe(1); // the claimed count is not honoured either
+    const at = Date.parse(json.relance.at);
+    expect(Number.isNaN(at)).toBe(false);
+    expect(at).toBeGreaterThanOrEqual(before - 60_000);
+    expect(at).toBeLessThanOrEqual(Date.now() + 60_000);
+    expect(json.relance.at).not.toBe('2025-01-01T00:00:00.000Z');
+  });
+
+  it('A SECOND CALL IS A REAL EVENT: the count grows and `at` moves forward — he called again, and the book says so', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-2'));
+    const first = await postRelance('ord-relance-2');
+    const firstAt = (first.json['relance'] as { at: string }).at;
+    await new Promise((r) => setTimeout(r, 5));
+    const second = await postRelance('ord-relance-2');
+    const mark = second.json['relance'] as { at: string; count: number };
+    expect(mark.count).toBe(2);
+    expect(mark.at >= firstAt).toBe(true);
+  });
+
+  it('AN ORDER THE BOOK NEVER SAW IS 404 — a chase log about a phantom order is a lie about a real one', async () => {
+    const res = await postRelance('ord-never-existed');
+    expect(res.status).toBe(404);
+    expect(res.json['reason']).toBe('unknown_order');
+    const { orders } = await listOrders();
+    expect(orders.some((o) => o['orderId'] === 'ord-never-existed')).toBe(false); // nothing invented
+  });
+
+  it('a missing / empty / non-string orderId is 400 malformed', async () => {
+    for (const bad of [undefined, '', 42, null]) {
+      const res = await postRelance(bad);
+      expect(res.status, String(bad)).toBe(400);
+      expect(res.json['reason']).toBe('malformed');
+    }
+  });
+
+  it('THE GATE IS THE FOUNDER’S KEY: no key, the INTAKE key (Shop+’s), and the app WRITE key are all 401 — and none of them logs a call', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-gate'));
+    for (const auth of [null, `Bearer ${FULFILL_SECRET}`, `Bearer ${WRITE_SECRET}`, 'Bearer wrong']) {
+      const res = await postRelance('ord-relance-gate', auth);
+      expect(res.status, String(auth)).toBe(401);
+    }
+    const { orders } = await listOrders();
+    const rec = orders.find((o) => o['orderId'] === 'ord-relance-gate');
+    expect(rec?.['relance']).toBeUndefined(); // refused means NOTHING was written
+  });
+
+  it('THE MARK RIDES THE OPS LIST and SURVIVES A PROCESS DEATH — while the paid-order record stays byte-identical', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-durable'));
+    const before = (await listOrders()).orders.find((o) => o['orderId'] === 'ord-relance-durable');
+    expect(before?.['relance']).toBeUndefined();
+    await postRelance('ord-relance-durable');
+    await restart();
+    const after = (await listOrders()).orders.find((o) => o['orderId'] === 'ord-relance-durable');
+    expect((after?.['relance'] as { count: number }).count).toBe(1);
+    // The annotation is stored SEPARATELY: every wire field is untouched, so
+    // the emitter's first-wins/byte-stability guarantee still holds.
+    for (const k of ['orderId', 'productVersionId', 'offerVersion', 'paymentMode', 'paidAt', 'zoneTo', 'sellerBasePrice', 'supplierId', 'supplierResolved', 'registeredAt', 'productName']) {
+      expect(after?.[k], k).toEqual(before?.[k]);
+    }
+  });
+
+  it('A REDELIVERY AFTER A RELANCE keeps both: duplicate absorbed, the call still logged', async () => {
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-dup'));
+    await postRelance('ord-relance-dup');
+    const again = await postIntake(confirmedEvent('ord-relance-dup'));
+    expect(again.json['status']).toBe('duplicate');
+    const rec = (await listOrders()).orders.find((o) => o['orderId'] === 'ord-relance-dup');
+    expect((rec?.['relance'] as { count: number }).count).toBe(1);
   });
 });

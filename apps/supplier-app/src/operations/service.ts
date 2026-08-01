@@ -24,6 +24,17 @@
  * this port reads is already refused-or-true.
  */
 
+/**
+ * CONSOLE-2 — the operator's own chase mark, merged onto the row by the book.
+ * « J'ai appelé le fournisseur », with the SERVER's clock. Never readiness:
+ * canon readiness (B+I-06 — photo + `sellerReadinessChallenge`) is the
+ * supplier's evidenced act and gates custody; this is a phone call.
+ */
+export interface RelanceMark {
+  readonly at: string;
+  readonly count: number;
+}
+
 /** Mirrors `PaidOrderRecord` (offer-service `worker/fulfillment-do.ts`). */
 export interface PaidOrderRow {
   readonly orderId: string;
@@ -38,6 +49,8 @@ export interface PaidOrderRow {
   readonly supplierId: string;
   readonly supplierResolved: boolean;
   readonly registeredAt: string;
+  /** Absent until the operator has called about this order. */
+  readonly relance?: RelanceMark;
 }
 
 export type PaidOrdersResult =
@@ -46,8 +59,17 @@ export type PaidOrdersResult =
    *  one asks the founder to re-check what he typed, the other to retry. */
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
+export type RelanceResult =
+  | { readonly ok: true }
+  /** `unknown_order`: the book has no such order — the board is stale, so the
+   *  screen re-reads rather than pretending the call was logged. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unknown_order' | 'unreachable' };
+
 export interface OperationsServicePort {
   listPaidOrders(opsKey: string): Promise<PaidOrdersResult>;
+  /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
+   *  the Worker stamps its own clock. */
+  recordRelance(opsKey: string, orderId: string): Promise<RelanceResult>;
 }
 
 /**
@@ -86,6 +108,29 @@ export function resolveOperationsService(): OperationsServicePort | null {
       }
       return { ok: true, orders };
     },
+
+    async recordRelance(opsKey: string, orderId: string): Promise<RelanceResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/relance`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${opsKey}`,
+          },
+          // ONLY the id. The Worker stamps the time — a client-claimed clock
+          // is exactly the class of defect the emitter's `paidAt` round taught.
+          body: JSON.stringify({ orderId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404) return { ok: false, reason: 'unknown_order' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      return { ok: true };
+    },
   };
 }
 
@@ -107,7 +152,9 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     (r['productName'] === undefined || typeof r['productName'] === 'string') &&
     (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string');
   if (!ok) return null;
+  const relance = readRelance(r['relance']);
   return {
+    ...(relance !== null ? { relance } : {}),
     orderId: r['orderId'] as string,
     productVersionId: r['productVersionId'] as string,
     productName: typeof r['productName'] === 'string' ? r['productName'] : '',
@@ -120,6 +167,16 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     supplierResolved: r['supplierResolved'] as boolean,
     registeredAt: r['registeredAt'] as string,
   };
+}
+
+/** A malformed mark is DROPPED, never rendered as a call that may not have
+ *  happened — « vous avez appelé » must be true or absent. */
+function readRelance(value: unknown): RelanceMark | null {
+  if (value === null || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  if (typeof r['at'] !== 'string' || r['at'] === '') return null;
+  if (typeof r['count'] !== 'number' || !Number.isSafeInteger(r['count']) || r['count'] < 1) return null;
+  return { at: r['at'], count: r['count'] };
 }
 
 /* ─────────────────── the founder's key, on HIS device only ─────────────────── */
