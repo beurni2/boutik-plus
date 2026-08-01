@@ -180,6 +180,7 @@ describe('the intake — canon-parsed, supplier joined INTERNALLY, first-wins, d
     const rec = orders.find((o) => o['orderId'] === 'ord-quote-real-1');
     expect(rec).toMatchObject({
       productVersionId: PV,
+      productName: 'Pagne tissé Faso (démo)', // joined from the same entry as the supplier
       supplierId: 'supplier-founder-001',
       supplierResolved: true,
       sellerBasePrice: 10_000,

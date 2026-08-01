@@ -52,6 +52,10 @@ export interface PaidOrderRecord {
   readonly paidAt: string;
   readonly zoneTo: string;
   readonly sellerBasePrice: number;
+  /** The product's display name, joined from the same internal entry as the
+   *  supplier — so the founder's board passes the 5-second test without a
+   *  second lookup. '' when the pv was unknown. Display only, never identity. */
+  readonly productName: string;
   /** Resolved INTERNALLY by the router; '' when the pv was unknown. */
   readonly supplierId: string;
   readonly supplierResolved: boolean;
@@ -135,6 +139,7 @@ export async function handleOrderConfirmedIntake(
   const supplierId = entry?.product.supplierId ?? '';
 
   const record = {
+    productName: entry?.product.name ?? '',
     orderId: event.payload.orderId,
     productVersionId: event.payload.productVersionId,
     offerVersion: event.payload.offerVersion,

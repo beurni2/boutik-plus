@@ -1,0 +1,146 @@
+/**
+ * CONSOLE-1 — the operator's client to the LIVE fulfillment book
+ * (`GET /fulfillment/orders` on offer-service, ORDER-PAID-WIRE-1c).
+ *
+ * ═══ THE KEY IS TYPED BY THE FOUNDER, NEVER BUNDLED ═══
+ *
+ * Every other credential this app presents ships inside the published bundle
+ * (the write key — a scanner-stopper, not a secret). THIS one is different in
+ * kind: `FULFILLMENT_OPS_SECRET` unlocks supplier identities and every paid
+ * order on the platform, it exists in exactly two places — the Worker's
+ * encrypted store and the founder's head — and it must never become a third.
+ * So there is NO `EXPO_PUBLIC_*` for it, deliberately: the resolver takes the
+ * key as an argument from the screen that asked the founder for it, and the
+ * only persistence is the founder's own browser (`localStorage`, his device,
+ * his choice to save it there). An attacker with the public bundle holds
+ * nothing.
+ *
+ * UNSET RESOLVES TO NOTHING, NEVER TO DEMO — the standing law of this app's
+ * outbound ports (`supply/service.ts` states the scar in full). There is no
+ * demo book and no import of one.
+ *
+ * RN-safe: no `@platform/*` runtime import (Metro law). The record shape is
+ * mirrored locally; the SERVICE validated the canon event at intake, so what
+ * this port reads is already refused-or-true.
+ */
+
+/** Mirrors `PaidOrderRecord` (offer-service `worker/fulfillment-do.ts`). */
+export interface PaidOrderRow {
+  readonly orderId: string;
+  readonly productVersionId: string;
+  /** Enriched at intake from the offer store's own entry; '' when unknown. */
+  readonly productName: string;
+  readonly offerVersion: string;
+  readonly paymentMode: string;
+  readonly paidAt: string;
+  readonly zoneTo: string;
+  readonly sellerBasePrice: number;
+  readonly supplierId: string;
+  readonly supplierResolved: boolean;
+  readonly registeredAt: string;
+}
+
+export type PaidOrdersResult =
+  | { readonly ok: true; readonly orders: readonly PaidOrderRow[] }
+  /** The key was REFUSED — a different honest sentence from « unreachable »:
+   *  one asks the founder to re-check what he typed, the other to retry. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export interface OperationsServicePort {
+  listPaidOrders(opsKey: string): Promise<PaidOrdersResult>;
+}
+
+/**
+ * Dot access on `process.env.EXPO_PUBLIC_*` (member expression), the same
+ * Metro-inlining rule `supply/service.ts` documents: a computed access is
+ * invisible to the inliner and ships `undefined` forever.
+ */
+export function resolveOperationsService(): OperationsServicePort | null {
+  const base = process.env.EXPO_PUBLIC_OFFER_BASE;
+  if (base === undefined || base === '') return null;
+  const trimmed = base.replace(/\/$/, '');
+  return {
+    async listPaidOrders(opsKey: string): Promise<PaidOrdersResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/orders`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
+      if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
+      // Shape-guarded row by row: a record the book never wrote is DROPPED,
+      // never rendered half-formed — the console's whole worth is that every
+      // line on it is true.
+      const orders = body.orders.filter(isPaidOrderRow);
+      return { ok: true, orders };
+    },
+  };
+}
+
+function isPaidOrderRow(value: unknown): value is PaidOrderRow {
+  if (value === null || typeof value !== 'object') return false;
+  const r = value as Record<string, unknown>;
+  return (
+    typeof r['orderId'] === 'string' &&
+    r['orderId'] !== '' &&
+    typeof r['productVersionId'] === 'string' &&
+    typeof r['paymentMode'] === 'string' &&
+    typeof r['paidAt'] === 'string' &&
+    typeof r['zoneTo'] === 'string' &&
+    typeof r['sellerBasePrice'] === 'number' &&
+    Number.isSafeInteger(r['sellerBasePrice']) &&
+    typeof r['supplierId'] === 'string' &&
+    typeof r['supplierResolved'] === 'boolean' &&
+    typeof r['registeredAt'] === 'string' &&
+    (r['productName'] === undefined || typeof r['productName'] === 'string') &&
+    (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string')
+  );
+}
+
+/* ─────────────────── the founder's key, on HIS device only ─────────────────── */
+
+const OPS_KEY_STORAGE = 'boutik.operateur.cle';
+
+/** Web: his browser's localStorage. Native: nowhere — the console is a webapp
+ *  surface by founder ruling, and the parked native app never shows it. */
+export function readStoredOpsKey(): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const v = localStorage.getItem(OPS_KEY_STORAGE);
+    return v !== null && v !== '' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeOpsKey(key: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(OPS_KEY_STORAGE, key);
+  } catch {
+    // storage refused (private mode) — the session keeps the key in memory only.
+  }
+}
+
+export function clearStoredOpsKey(): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(OPS_KEY_STORAGE);
+  } catch {
+    // nothing to clear
+  }
+}
+
+/** The web-only door to the key screen: boutik-plus-web.pages.dev/#operateur */
+export function operateurHashPresent(): boolean {
+  try {
+    // RN's TS lib has no DOM `window`; on web the global exists at runtime.
+    const w = (globalThis as { window?: { location?: { hash?: string } } }).window;
+    return w?.location?.hash === '#operateur';
+  } catch {
+    return false;
+  }
+}

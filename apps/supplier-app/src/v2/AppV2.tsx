@@ -35,6 +35,8 @@ import {
 } from './screens2';
 import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
+import { SOperations } from '../operations/screen';
+import { operateurHashPresent, readStoredOpsKey } from '../operations/service';
 import { SUPPLIER_ID } from '../supply/service';
 import { useWebFonts } from '../ui/web-fonts';
 import { S26StudioReal, type CaptureSet } from './studio-real';
@@ -106,6 +108,15 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // timestamp, and there is no invalidation signal to make persistence safe.
   const produits = useRef<ProduitsCache>({ rows: null, asOf: null });
 
+  // CONSOLE-1 — the founder's operator key, held at the SHELL and never in the
+  // machine: the machine is pure demo-safe state, and the key is a credential.
+  // Present ⇒ the Dock shows « Opérations ». The door for a fresh browser is
+  // the web-only #operateur hash (boutik-plus-web.pages.dev/#operateur), which
+  // shows the tab so the key screen becomes reachable; on native it never
+  // exists. Clearing the key (bad-key path) drops the tab again.
+  const [opsKey, setOpsKey] = useState<string | null>(() => readStoredOpsKey());
+  const operateurDoor = opsKey !== null || operateurHashPresent();
+
   // BOUTIK-WEB — THE 430px PHONE FRAME WAS REVERTED BY FOUNDER RULING
   // (2026-07-27, verbatim: *"the whole webapp the way it was, was good and my
   // issue was the photo part only"*). The app takes the full browser width
@@ -133,6 +144,15 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
             <SProduitsReal st={st} d={d} supplierId={SUPPLIER_ID} cache={produits} />
           ) : st.tab === 'commandes' ? (
             <S07Commandes st={st} d={d} />
+          ) : st.tab === 'operations' ? (
+            <SOperations
+              opsKey={opsKey}
+              onKeySaved={setOpsKey}
+              onKeyCleared={() => {
+                setOpsKey(null);
+                d({ t: 'TAB', tab: 'home' });
+              }}
+            />
           ) : (
             <S32Argent st={st} d={d} />
           )
@@ -162,7 +182,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           <S02Accueil st={st} d={d} shopName={SEED_DEFAULTS.shopName} ownerName={SEED_DEFAULTS.ownerName} />
         )}
       </View>
-      {!st.loading && v === null && <Dock tab={st.tab} onTab={(tab) => d({ t: 'TAB', tab })} />}
+      {!st.loading && v === null && <Dock tab={st.tab} onTab={(tab) => d({ t: 'TAB', tab })} operateur={operateurDoor} />}
       {st.sheet === 'ready' && <S17ReadySheet st={st} d={d} />}
       {st.sheet === 'stock' && <S19StockSheet st={st} d={d} />}
       <ToastStack toasts={st.toasts} />

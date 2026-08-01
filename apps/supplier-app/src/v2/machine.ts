@@ -39,7 +39,10 @@ export const flowLabel = (s: OrderStatus, mode: 'A' | 'B'): string => {
 };
 
 // ── §3.1 state ────────────────────────────────────────────────────────────────
-export type Tab = 'home' | 'produits' | 'commandes' | 'argent';
+// CONSOLE-1: 'operations' is the founder's operator surface. It is a TAB like
+// any other to the machine (pure, no special case); WHO SEES IT is decided at
+// the shell (AppV2) — the Dock shows it only when the operator key is present.
+export type Tab = 'home' | 'produits' | 'commandes' | 'argent' | 'operations';
 export type Seg = 'traiter' | 'cours' | 'fini' | 'incidents';
 export type View = null | { s: 'product' | 'order' | 'add' | 'studio' | 'trust' | 'onboard'; id?: string };
 // `code` and `zone` are ADDITIVE (combined slice): the product code (derived

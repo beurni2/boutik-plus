@@ -1690,5 +1690,149 @@
     "fr": "Photos ajoutées et validées — vous choisirez le rôle de chaque photo à la vérification.",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "operations.titre",
+    "fr": "Opérations",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.chargement",
+    "fr": "Lecture des ventes payées…",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.non_configure",
+    "fr": "Le service des commandes n'est pas branché sur cet écran. Rien n'est perdu : les ventes restent enregistrées.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.cle_explication",
+    "fr": "Cet espace montre toutes les ventes payées de la plateforme. Il s'ouvre avec votre clé d'opérateur — elle reste sur cet appareil et ne part nulle part.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.cle_libelle",
+    "fr": "Votre clé d'opérateur",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.cle_ouvrir",
+    "fr": "Ouvrir les opérations",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.cle_reste_ici",
+    "fr": "La clé est gardée sur cet appareil seulement. Vous pouvez la retirer à tout moment.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.cle_refusee",
+    "fr": "Cette clé n'a pas été acceptée. Vérifiez-la et saisissez-la à nouveau.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.cle_ressaisir",
+    "fr": "Saisir la clé à nouveau",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.echec",
+    "fr": "La lecture n'a pas abouti. Vos ventes restent enregistrées — réessayez dans un instant.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.vide",
+    "fr": "Aucune vente payée pour l'instant. Dès qu'une cliente paie, sa commande apparaît ici toute seule.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.relancer_titre",
+    "fr": "À relancer maintenant",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.relancer_vide",
+    "fr": "Rien à relancer. Toutes les ventes payées ont moins de 10 minutes.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.recentes_titre",
+    "fr": "Payées à l'instant",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.recentes_vide",
+    "fr": "Pas de vente dans les 10 dernières minutes.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.anomalie_bandeau",
+    "fr": "Une vente payée concerne un produit introuvable sur la plateforme. Elle est gardée en haut de la liste — à vérifier en premier.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.actualiser",
+    "fr": "Actualiser la liste",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.mode_porte",
+    "fr": "Reste à payer à la porte",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.mode_paye",
+    "fr": "Tout est payé",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.fournisseur_inconnu",
+    "fr": "Fournisseur introuvable",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.age_min",
+    "fr": "il y a {n} min",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.age_long",
+    "fr": "plus d'une heure",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.appeler",
+    "fr": "Appelez le fournisseur",
+    "register": "money",
+    "screenClass": "label"
   }
 ]

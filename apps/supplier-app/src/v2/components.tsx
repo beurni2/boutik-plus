@@ -98,12 +98,16 @@ export function StatusZone() {
   return <View style={{ height: GEO.statusZone, backgroundColor: P.bg }} />;
 }
 
-export function Dock({ tab, onTab }: { tab: 'home' | 'produits' | 'commandes' | 'argent'; onTab: (t: 'home' | 'produits' | 'commandes' | 'argent') => void }) {
+type DockTab = 'home' | 'produits' | 'commandes' | 'argent' | 'operations';
+export function Dock({ tab, onTab, operateur }: { tab: DockTab; onTab: (t: DockTab) => void; operateur?: boolean }) {
   const TABS = [
     { k: 'home' as const, label: 'Accueil', icon: 'tab.home' as const },
     { k: 'produits' as const, label: 'Produits', icon: 'tab.tag' as const },
     { k: 'commandes' as const, label: 'Commandes', icon: 'tab.box' as const },
     { k: 'argent' as const, label: 'Argent', icon: 'tab.franc' as const },
+    // CONSOLE-1 — the founder's surface, present ONLY when his key is on this
+    // device (the shell decides; see AppV2). Everyone else's Dock is unchanged.
+    ...(operateur === true ? [{ k: 'operations' as const, label: 'Opérations', icon: 'tab.box' as const }] : []),
   ];
   return (
     <View style={s.dockBar}>
