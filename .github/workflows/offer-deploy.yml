@@ -54,7 +54,67 @@ jobs:
       - name: Bundle the combined Worker (OfferDO + service routes)
         run: pnpm --filter @boutik/offer-service bundle:worker
       - name: Deploy to Cloudflare Workers
+        id: deploy
         working-directory: services/offer-service
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@4 deploy
+
+      # ═══ THE HALF THAT WAS MISSING, AND IT COST A PRODUCTION OUTAGE ═══
+      #
+      # Until now this workflow ended at `wrangler deploy`. That proves the
+      # UPLOAD was accepted — not that the running Worker is this bundle, and
+      # not that this bundle is what anyone intended. On 2026-08-01 a deploy
+      # from a stale feature branch rolled the CORS block out of the live
+      # service (breaking the supplier web app for ~40 min), and NOTHING here
+      # noticed; the corrective deploy could not be confirmed either, for the
+      # same reason. shop-plus has had this assertion for a while. boutik is
+      # the PRODUCER on a wire whose whole safety property is ordering, so it
+      # is the worse one to leave unproven.
+      #
+      # A WORKERS DEPLOY PROPAGATES; IT DOES NOT SWITCH — the lesson
+      # storefront-deploy.yml already paid for. Asserting instantly reads
+      # whichever bundle that edge still holds, so this polls for up to three
+      # minutes and fails only if the live Worker NEVER becomes this build. A
+      # checker that reddens a correct deploy trains everyone to ignore it.
+      #
+      # An EMPTY secret is a hard error here, matching live-check.yml. That is
+      # not "failing a correct deploy": the upload has already happened and is
+      # reported above — this step's job is to say whether anyone verified it,
+      # and « nobody could » is a real answer that deserves a red mark once,
+      # not a green tick forever.
+      - name: Assert the live Worker is the bundle this job built
+        env:
+          OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+        run: |
+          set -uo pipefail
+          if [ -z "${OFFER_BASE}" ]; then
+            echo "::error::EXPO_PUBLIC_OFFER_BASE is empty — the deploy above ran, but NOTHING verified it."
+            echo "Set the secret so this step can prove the live Worker is the bundle this job built."
+            exit 1
+          fi
+          BASE="${OFFER_BASE%/}"
+          OUT=$(mktemp)
+          DEADLINE=$(( $(date +%s) + 180 ))
+          LIVE_CANON='?'; LIVE_RELEASE='?'
+          while :; do
+            CODE=$(curl -sS -o "$OUT" -w '%{http_code}' "$BASE/health" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              LIVE_CANON=$(node -p "JSON.parse(require('fs').readFileSync('$OUT','utf8')).canon" 2>/dev/null || echo '?')
+              LIVE_RELEASE=$(node -p "JSON.parse(require('fs').readFileSync('$OUT','utf8')).release" 2>/dev/null || echo '?')
+              echo "health 200 — live canon=$LIVE_CANON release=$LIVE_RELEASE (want $BOUTIK_CANON / $BOUTIK_RELEASE)"
+              if [ "$LIVE_CANON" = "$BOUTIK_CANON" ] && [ "$LIVE_RELEASE" = "$BOUTIK_RELEASE" ]; then
+                echo "PROVENANCE OK — live Worker is $BOUTIK_RELEASE speaking canon $BOUTIK_CANON."
+                exit 0
+              fi
+            else
+              echo "health $CODE — not answering yet"
+            fi
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "::error::DEPLOY DID NOT TAKE — after 180s the live Worker is still not this job's bundle."
+              echo "  live canon=$LIVE_CANON release=$LIVE_RELEASE"
+              echo "  want canon=$BOUTIK_CANON release=$BOUTIK_RELEASE"
+              exit 1
+            fi
+            sleep 10
+          done
