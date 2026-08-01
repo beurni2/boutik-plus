@@ -25,9 +25,22 @@ const FIXED_ASOF = '2026-07-15T08:00:00.000Z';
 // The served body for founder-#001 — the frozen ground truth. The seed mints
 // offer version 1 through OfferBook.create (basePrice 10 000, resellerCommission
 // 1 000, available 5, DECLARED on the command); the projection is the strict
-// 7-field SupplyProjection (canon v2.0.0, SUPPLY-DISPLAY-FIELDS-1): the five
-// economics + productName ('Pagne tissé Faso (démo)', from product.name) +
-// assetRefs ([] — the honest empty; boutik has no image source yet).
+// 8-field SupplyProjection (canon v3.0.0): the five economics + productName
+// ('Pagne tissé Faso (démo)', from product.name) + assetRefs ([] — the honest
+// empty; boutik has no image source yet) + category.
+//
+// ⚠ `category` IS 'textile', AND THAT IS THE SEED'S OWN VALUE, LEFT ALONE.
+// `founderOneCreateCommand` has always declared `category: 'textile'` on this
+// ProductVersion, and CATEGORY-WIRE-1 carries it verbatim — no mapping, no
+// substitution. Shop+'s §6.2 matrix does not know 'textile' (its rows are
+// fashion_bags_fabrics · shoes · sealed_beauty_cosmetics), so this product will
+// correctly fail CLOSED there: no Option B offered, the cautious inspection row
+// shown. That is the designed behaviour of an unrecognised category, not a bug
+// in this wire — and re-labelling the pilot seed to make a nicer demo would be
+// choosing a taxonomy value, which is a founder decision. Flagged, not decided.
+//
+// The key ORDER matters here: this test byte-compares JSON, so `category` sits
+// last because that is where `buildSupplyProjection` emits it.
 const SW1_FROZEN_BODY = {
   version: 1,
   asOf: FIXED_ASOF,
@@ -39,6 +52,7 @@ const SW1_FROZEN_BODY = {
     available: 5,
     productName: 'Pagne tissé Faso (démo)',
     assetRefs: [],
+    category: 'textile',
   },
 };
 

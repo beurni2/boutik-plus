@@ -169,14 +169,23 @@ capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entro
 log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mint path must fail)"
 capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
 
+# DERIVED, NEVER TYPED (CATEGORY-WIRE-1; the lesson platform-contracts wrote
+# down at canon v2.5.0 and this repo had the same bug). This was hardcoded
+# `2.0.0` in two places, so the gate asserted against a number nobody updated
+# while CI's manifest asserted against the real one — two checks reading
+# different sources, agreeing only while the pin happened to sit still. Reading
+# the INSTALLED package makes the gate move with the pin by construction.
+CANON_VERSION="$(node -p "require('@platform/contracts/package.json').version")"
+log "canon version under test: $CANON_VERSION"
+
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 2.0.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version "$CANON_VERSION"
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 2.0.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version "$CANON_VERSION"
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then

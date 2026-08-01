@@ -9,10 +9,10 @@ import type { z } from 'zod';
 /**
  * B4.2 — supply-to-reseller projection: "Only approved active eligible;
  * never contact/precise pickup/mutable amount; shape matches Shop+'s read."
- * The projection carries EXACTLY the pinned payload contract — SEVEN fields
- * (canon v2.0.0, SUPPLY-DISPLAY-FIELDS-1): the five economics + `productName`
- * + `assetRefs`. No supplier identity, no contact, no pickup location, nothing
- * else. The strict-schema gate + leaking negative fixture enforce it in CI;
+ * The projection carries EXACTLY the pinned payload contract — EIGHT fields
+ * (canon v3.0.0): the five economics + `productName` + `assetRefs`
+ * (SUPPLY-DISPLAY-FIELDS-1, v2.0.0) + `category` (CATEGORY-WIRE-1, v3.0.0).
+ * No supplier identity, no contact, no pickup location, nothing else. The strict-schema gate + leaking negative fixture enforce it in CI;
  * the certification tests parse every emitted projection against the pinned
  * schema itself.
  *
@@ -24,6 +24,12 @@ import type { z } from 'zod';
  * emits `[]`, and that stays a TRUE statement rather than a placeholder: an offer
  * created without images has no ref to emit, and no demo or seed image is ever
  * substituted.
+ *
+ * `category` comes straight from `product.category` (display string, zero
+ * transformation). It is REQUIRED in canon on purpose: an optional category
+ * would degrade silently on the Shop+ side — pay-at-door quietly refused, the
+ * cautious inspection row quietly shown — so a producer that forgot would be
+ * indistinguishable from a product that is genuinely uninspectable.
  */
 
 export type SupplyProjection = z.infer<typeof SupplyProjectionEventPayloadSchema>;
@@ -96,6 +102,21 @@ export function buildSupplyProjection(
     available,
     productName: product.name,
     assetRefs: wireAssetRefs(assets),
+    // CATEGORY-WIRE-1 (canon v3.0.0) — the product's OWN category, straight
+    // from `product.category`, zero transformation, exactly as `productName`
+    // takes `product.name`. It is display data, not identity: the B4.2/SP-I03
+    // ban is on supplier identity/contact/pickup, and a category names the
+    // PRODUCT, never who supplies it.
+    //
+    // WHY SHOP+ NEEDS IT, so nobody later reads this as a cosmetic field:
+    // Shop+ decides two things with it — whether Option B (pay at the door)
+    // may be offered at all (§6.1 « category inspectable ») and which at-door
+    // inspection rights the buyer is shown (§6.2's matrix). Until this line
+    // existed, Shop+ had no category and read one off the buyer's own request.
+    // NO MAPPING AND NO DEFAULT HERE: the supplier's own value travels
+    // verbatim. Shop+ allowlists what it recognises and fails closed on the
+    // rest, which is the only side that may decide what a category MEANS.
+    category: product.category,
   };
   return { ok: true, projection };
 }

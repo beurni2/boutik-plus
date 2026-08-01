@@ -5,5 +5,6 @@
   "resellerCommission": 1000,
   "available": 4,
   "productName": "Pagne tissé",
-  "assetRefs": []
+  "assetRefs": [],
+  "category": "textile"
 }
