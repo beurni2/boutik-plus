@@ -89,11 +89,22 @@ export function buildSupplyProjection(
   if (nowIso < offer.effective || nowIso > offer.expiry) return { ok: false, reason: 'offer_not_effective' };
 
   // EXACTLY the contract fields — building via explicit literals means a
-  // supplier id or pickup point is not even expressible here. `productName` is
-  // the product's own name (display data is not identity — the ban is on
+  // supplier id or pickup point is not expressible here AS A KEY. `productName`
+  // is the product's own name (display data is not identity — the ban is on
   // supplier identity/contact/pickup). `assetRefs` carries the product's real
   // images via `wireAssetRefs` (masterRef excluded, hero first); a product with
   // no assets yields the honest empty [], never an invented ref or demo URL.
+  //
+  // ⚠ KEYS, NOT VALUES — the limit of that guarantee, stated because the
+  // sentence above used to claim more than it delivers (verifier finding).
+  // `sweepIdentityKeys` tests key NAMES; only `assetRefs` gets a value-side
+  // check (`assertAssetRefsIdentityFree`), because canon states that rule on
+  // `AssetRefSchema` alone. So a supplier who types their own phone number into
+  // `productName` — or now into `category` — puts it on the wire, and no gate
+  // here refuses it. That is the accepted `productName` precedent (canon:
+  // « display data is not identity »), not a new hole; `category` widens the
+  // unswept surface by one FREE-TEXT field and is recorded here so the next
+  // person weighing a value-side sweep knows the exact scope: three fields.
   const projection: SupplyProjection = {
     productVersionId: product.id,
     offerVersion: String(offer.version),

@@ -169,14 +169,37 @@ capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entro
 log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mint path must fail)"
 capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
 
-# DERIVED, NEVER TYPED (CATEGORY-WIRE-1; the lesson platform-contracts wrote
-# down at canon v2.5.0 and this repo had the same bug). This was hardcoded
-# `2.0.0` in two places, so the gate asserted against a number nobody updated
-# while CI's manifest asserted against the real one — two checks reading
-# different sources, agreeing only while the pin happened to sit still. Reading
-# the INSTALLED package makes the gate move with the pin by construction.
+# ═══ DECLARED **AND** DERIVED — AND THE DIFFERENCE IS THE WHOLE GATE ═══
+#
+# CATEGORY-WIRE-1 first "fixed" this by DELETING the declaration: it replaced a
+# hardcoded `--pinned-version 2.0.0` with the version read from the INSTALLED
+# package, copying what platform-contracts did at canon v2.5.0. That copy was
+# wrong, and a fresh-context verifier caught it.
+#
+# In platform-contracts the two operands are genuinely independent — the version
+# comes from that repo's own `./package.json`, the manifest from its own
+# committed `docs.manifest.json`, two hand-maintained files that CAN disagree.
+# HERE they are not: `drift-check` defaults `--manifest` to the installed
+# package's own `docs.manifest.json`, so version and manifest were both being
+# read out of ONE immutable tarball. The comparison became a tautology — a gate
+# that cannot fail, wearing the words of one that can.
+#
+# So the declaration comes back, and the derived value is checked AGAINST it.
+# EXPECTED_CANON is this repo saying which canon it believes it consumes; it is
+# bumped by hand, in the same commit as the pin. The failure it exists to catch
+# is the one that cost this slice 21 tests: `package.json` repinned while
+# `pnpm-workspace.yaml`'s override — the resolution that actually wins — stayed
+# behind. Then the installed version is the OLD one, this check fires, and the
+# repo says so instead of printing a number that agrees with itself.
+EXPECTED_CANON="3.0.0"
 CANON_VERSION="$(node -p "require('@platform/contracts/package.json').version")"
-log "canon version under test: $CANON_VERSION"
+log "canon declared: $EXPECTED_CANON · canon installed: $CANON_VERSION"
+if [ "$CANON_VERSION" != "$EXPECTED_CANON" ]; then
+  echo "canon-pin-declared: FAILED — this repo declares canon $EXPECTED_CANON but resolves $CANON_VERSION."
+  echo "A repin is not complete until pnpm-workspace.yaml's overrides move too (that override wins over every package.json)."
+  echo "Fix the pin, or bump EXPECTED_CANON in this file in the same commit."
+  FAILED=$((FAILED + 1))
+fi
 
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
 capture drift-check-positive pass pnpm exec drift-check docs --pinned-version "$CANON_VERSION"
