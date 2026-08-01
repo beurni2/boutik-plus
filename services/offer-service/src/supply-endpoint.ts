@@ -290,7 +290,15 @@ export function founderOneCreateCommand(asOf: string): CreateOfferCommand {
     name: 'Pagne tissé Faso (démo)',
     productCode: 'FASO-001',
     facts: {},
-    category: 'textile',
+    // FOUNDER RULING 2026-08-01 (« for 2 and 3 work on it with your
+    // recommendations »): was 'textile', which Shop+'s §6.2 matrix does not
+    // know, so the pilot product correctly showed the CAUTIOUS inspection row
+    // and no pay-at-door. §6.2's first row is « Fashion, bags, fabrics » and a
+    // pagne tissé IS a woven fabric, so this is a CLASSIFICATION under an
+    // existing row, not a new taxonomy value — the identifier is the one
+    // already committed in Shop+'s `inspectableCategories`. No fourth name was
+    // invented and the open ⏳ category-floor Decision is untouched.
+    category: 'fashion_bags_fabrics',
     zone: 'Gounghin',
     moderationState: 'approved',
     status: 'active',

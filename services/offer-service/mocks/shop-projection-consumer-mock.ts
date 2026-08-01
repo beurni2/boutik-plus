@@ -34,6 +34,13 @@ function projectionSequence(seed: string) {
     // matching the canon reference adapter.
     productName: 'Savon de karité',
     assetRefs: [`media/pv_${seed}/hero.jpg`],
+    // canon v3.0.0 (CATEGORY-WIRE-1): `category` is required too. This mock
+    // stands in for the SHOP+ CONSUMER, so its payload must be exactly what a
+    // real producer now sends — a mock still emitting seven fields would certify
+    // a consumer against a wire that no longer exists, which is the mock failure
+    // mode the certification suite exists to prevent. Value matches the canon
+    // reference adapter's, for the same shea soap.
+    category: 'sealed_beauty_cosmetics',
   });
   return [
     { name: 'offer.published.v1' as const, payload: payload(5) },

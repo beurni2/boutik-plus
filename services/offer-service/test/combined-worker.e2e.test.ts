@@ -55,7 +55,7 @@ const SEED = {
     name: 'Pagne tissé Faso (démo)',
     productCode: 'FASO-001',
     facts: {},
-    category: 'textile',
+    category: 'fashion_bags_fabrics',
     zone: 'Gounghin',
     moderationState: 'approved',
     status: 'active',
@@ -187,7 +187,7 @@ describe('combined Worker — durable offers on real workerd', () => {
       basePrice: 10_000,
       resellerCommission: 1_000,
       name: 'Pagne tissé Faso (démo)',
-      category: 'textile',
+      category: 'fashion_bags_fabrics',
       assetRefs: [],
     });
     // the second offer, its own live values

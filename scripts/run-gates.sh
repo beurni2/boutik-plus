@@ -169,14 +169,52 @@ capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entro
 log "gate: mint-path entropy — NEGATIVE FIXTURE (a planted Math.random in a mint path must fail)"
 capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entropy-negative.sh
 
+# ═══ DECLARED **AND** DERIVED — AND THE DIFFERENCE IS THE WHOLE GATE ═══
+#
+# CATEGORY-WIRE-1 first "fixed" this by DELETING the declaration: it replaced a
+# hardcoded `--pinned-version 2.0.0` with the version read from the INSTALLED
+# package, copying what platform-contracts did at canon v2.5.0. That copy was
+# wrong, and a fresh-context verifier caught it.
+#
+# In platform-contracts the two operands are genuinely independent — the version
+# comes from that repo's own `./package.json`, the manifest from its own
+# committed `docs.manifest.json`, two hand-maintained files that CAN disagree.
+# HERE they are not: `drift-check` defaults `--manifest` to the installed
+# package's own `docs.manifest.json`, so version and manifest were both being
+# read out of ONE immutable tarball. The comparison became a tautology — a gate
+# that cannot fail, wearing the words of one that can.
+#
+# So the declaration comes back, and the derived value is checked AGAINST it.
+# EXPECTED_CANON is this repo saying which canon it believes it consumes; it is
+# bumped by hand, in the same commit as the pin. The failure it exists to catch
+# is the one that cost this slice 21 tests: `package.json` repinned while
+# `pnpm-workspace.yaml`'s override — the resolution that actually wins — stayed
+# behind. Then the installed version is the OLD one, this check fires, and the
+# repo says so instead of printing a number that agrees with itself.
+#
+# ROUTED THROUGH `capture`, WITH A NEGATIVE FIXTURE, like every other gate here
+# (verifier finding, round 2). The first cut was a bare `if`/`echo`: it produced
+# no evidence artifact and nothing in CI ever proved it could fail — the exact
+# gap this file's own header legislates against ("Every gate has a negative
+# fixture and this script SHOWS each one failing once per run").
+EXPECTED_CANON="3.0.0"
+CANON_VERSION="$(node -p "require('@platform/contracts/package.json').version")"
+log "canon declared: $EXPECTED_CANON · canon installed: $CANON_VERSION"
+
+log "gate: canon-pin-declared — the canon this repo DECLARES is the canon that RESOLVED (must pass)"
+capture canon-pin-declared-positive pass node scripts/gates/canon-pin-declared.mjs "$EXPECTED_CANON"
+
+log "gate: canon-pin-declared — NEGATIVE FIXTURE (a declaration the install does not match, must fail)"
+capture canon-pin-declared-negative fail node scripts/gates/canon-pin-declared.mjs 0.0.0-not-the-pin
+
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
-capture drift-check-positive pass pnpm exec drift-check docs --pinned-version 2.0.0
+capture drift-check-positive pass pnpm exec drift-check docs --pinned-version "$CANON_VERSION"
 
 log "gate: contracts drift-check — TAMPERED doc (must fail)"
 DRIFT_TMP="$(mktemp -d)"
 cp -r docs "$DRIFT_TMP/docs"
 printf '\nrogue edit — this consumer copy drifted from canon\n' >> "$DRIFT_TMP/docs/Boutik-Plus-Build-Spec.md"
-capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version 2.0.0
+capture drift-check-negative fail pnpm exec drift-check "$DRIFT_TMP/docs" --pinned-version "$CANON_VERSION"
 rm -rf "$DRIFT_TMP"
 
 if [ $FAILED -ne 0 ]; then
