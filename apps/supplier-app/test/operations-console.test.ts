@@ -9,7 +9,14 @@ import {
   storeOpsKey,
   type PaidOrderRow,
 } from '../src/operations/service';
-import { CHASE_AFTER_MIN, ageMinutes, operationsView } from '../src/operations/view';
+import {
+  CHASE_AFTER_MIN,
+  RELANCE_IDLE,
+  ageMinutes,
+  operationsView,
+  relanceSettled,
+  relanceStart,
+} from '../src/operations/view';
 import { catalog } from '../src/i18n';
 
 /**
@@ -129,19 +136,34 @@ describe('CONSOLE-2 — the relance clears the queue, and claims nothing about p
     expect(view.relances.map((r) => r.orderId)).toEqual(['ord-fresh-called']);
   });
 
-  it('« Déjà appelés » is ordered by WHEN HE CALLED, most recent first — not by order age', () => {
+  it('« Déjà appelés » is ordered by WHEN HE CALLED — and the fixture can tell that apart from BOTH age orderings', () => {
+    // The first cut of this fixture had « most recently called » and « newest
+    // order » coincide, so sorting by age DESCENDING passed it — the likelier
+    // bug, since that line sits two lines above in the source. Now the call
+    // order is the REVERSE of the age order in both directions: only a sort on
+    // `relance.at` can produce the expected sequence.
     const view = operationsView(
       {
         kind: 'ok',
         rows: [
-          rowAt('ord-old-order-new-call', paidAgo(300), { relance: { at: paidAgo(1), count: 1 } }),
-          rowAt('ord-new-order-old-call', paidAgo(20), { relance: { at: paidAgo(90), count: 3 } }),
+          // Call order is NON-MONOTONIC in age on purpose: with any monotonic
+          // fixture one of the two age sorts still coincides with call order
+          // (my first two attempts each did). Here neither can.
+          rowAt('ord-age300-call45', paidAgo(300), { relance: { at: paidAgo(45), count: 1 } }),
+          rowAt('ord-age120-call1', paidAgo(120), { relance: { at: paidAgo(1), count: 2 } }),
+          rowAt('ord-age20-call90', paidAgo(20), { relance: { at: paidAgo(90), count: 3 } }),
         ],
       },
       NOW,
     );
     if (view.kind !== 'board') throw new Error(view.kind);
-    expect(view.relances.map((r) => r.orderId)).toEqual(['ord-old-order-new-call', 'ord-new-order-old-call']);
+    const byCall = ['ord-age120-call1', 'ord-age300-call45', 'ord-age20-call90'];
+    expect(view.relances.map((r) => r.orderId)).toEqual(byCall);
+    // …and prove the fixture is discriminating: neither age ordering matches.
+    const byAgeDesc = [...view.relances].sort((a, b) => b.ageMin - a.ageMin).map((r) => r.orderId);
+    const byAgeAsc = [...view.relances].sort((a, b) => a.ageMin - b.ageMin).map((r) => r.orderId);
+    expect(byAgeDesc).not.toEqual(byCall);
+    expect(byAgeAsc).not.toEqual(byCall);
   });
 
   it('an ANOMALY that has been called is still an anomaly — a phone call resolves no supplier', () => {
@@ -156,14 +178,22 @@ describe('CONSOLE-2 — the relance clears the queue, and claims nothing about p
     expect(view.anomalies.map((r) => r.orderId)).toEqual(['ord-ghost']);
   });
 
-  it('NOTHING THE FOUNDER READS CLAIMS THE PRODUCT IS READY — every relance label says « appelé », and readiness is named as the SUPPLIER’s own future act', () => {
+  it('NOTHING THE FOUNDER READS CLAIMS THE PRODUCT IS READY — every relance label is ABOUT THE CALL, and readiness is named as the SUPPLIER’s own future act', () => {
     // Asserted on the RENDERED strings, not on source characters: a code
     // comment that says « never prêt » is the right comment, and scanning raw
     // source for the word punishes it (the B+I-15 false-positive class).
+    //
+    // And asserted as a POSITIVE boundary, not a blacklist: a verifier showed
+    // that « Colis annoncés par le fournisseur » — a readiness claim in plain
+    // French, attributing the act to the supplier, exactly the confusion
+    // B+I-06 exists to prevent — sailed past a « prêt »/« prépar » word ban.
+    // Requiring « appel » in every relance label cannot be walked past: a
+    // string that claims the supplier's act cannot also be about the call.
     const fr = new Map(catalog.map((e) => [e.key, e.fr]));
-    for (const k of ['operations.relance_action', 'operations.relances_titre', 'operations.relance_faite', 'operations.relance_faite_long', 'operations.relance_fois', 'operations.relance_rappeler']) {
+    for (const k of ['operations.relance_action', 'operations.relances_titre', 'operations.relance_faite', 'operations.relance_faite_long', 'operations.relance_faite_maintenant', 'operations.relance_fois', 'operations.relance_rappeler']) {
       const s = (fr.get(k) ?? '').toLowerCase();
       expect(s, k).not.toBe('');
+      expect(s, `${k} must speak of the CALL`).toMatch(/appel/);
       expect(s.includes('prêt') || s.includes('prépar'), `${k} must not claim readiness`).toBe(false);
     }
     // …and the one string that DOES mention « prêt » says the supplier will
@@ -171,6 +201,50 @@ describe('CONSOLE-2 — the relance clears the queue, and claims nothing about p
     const sens = fr.get('operations.relance_sens') ?? '';
     expect(sens.toLowerCase()).toContain('prêt');
     expect(sens.toLowerCase()).toContain('fournisseur');
+  });
+});
+
+describe('the relance INTERACTION — the decision the screen used to own, now asserted by value', () => {
+  it('one write at a time: a tap while another card is writing is IGNORED (null = do not even call the port)', () => {
+    expect(relanceStart(RELANCE_IDLE, 'ord-1')).toEqual({ busy: 'ord-1', echec: null });
+    expect(relanceStart({ busy: 'ord-1', echec: null }, 'ord-2')).toBeNull();
+  });
+
+  it('starting a new call CLEARS a previous failure — the old red line must not haunt the new attempt', () => {
+    expect(relanceStart({ busy: null, echec: 'ord-9' }, 'ord-9')).toEqual({ busy: 'ord-9', echec: null });
+  });
+
+  it('SUCCESS releases the lock and demands a RE-READ — what he sees must be the stored mark, never a hope', () => {
+    expect(relanceSettled('ord-1', { ok: true })).toEqual({ ui: RELANCE_IDLE, then: 'refresh' });
+  });
+
+  it('a refused KEY escalates the whole board, and does not blame the phone call', () => {
+    expect(relanceSettled('ord-1', { ok: false, reason: 'bad_key' })).toEqual({ ui: RELANCE_IDLE, then: 'bad_key' });
+  });
+
+  it('unreachable / unknown_order keep the failure ON THAT CARD, release the lock, and claim NOTHING', () => {
+    for (const reason of ['unreachable', 'unknown_order'] as const) {
+      expect(relanceSettled('ord-7', { ok: false, reason }), reason).toEqual({
+        ui: { busy: null, echec: 'ord-7' },
+        then: 'none',
+      });
+    }
+  });
+
+  it('a failure is keyed to ITS order — one card’s red line can never appear on another', () => {
+    const s = relanceSettled('ord-a', { ok: false, reason: 'unreachable' });
+    expect(s.ui.echec).toBe('ord-a');
+    expect(s.ui.echec === 'ord-b').toBe(false);
+  });
+
+  it('[source-text check] the screen delegates: it calls the port and feeds BOTH decisions back, and its own re-read is FORCED', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    expect(source).toContain('service.recordRelance(opsKey, orderId)');
+    expect(source).toContain('relanceStart(');
+    expect(source).toContain('relanceSettled(');
+    // the post-write re-read must bypass the in-flight guard, or a successful
+    // call renders as if nothing happened (the verifier's M1)
+    expect(source).toMatch(/then === 'refresh'\) await load\(true\)/);
   });
 });
 
@@ -204,7 +278,10 @@ describe('the relance port — only the id crosses, and every refusal keeps its 
   it('a MALFORMED relance mark on a row is dropped — « vous avez appelé » is never shown on a guess', async () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
     const base = rowAt('ord-1', '2026-08-01T11:00:00.000Z');
-    for (const bad of [{ count: 1 }, { at: '', count: 1 }, { at: 'x' }, { at: 'x', count: 0 }, { at: 'x', count: 1.5 }, 'nope', null]) {
+    for (const bad of [{ count: 1 }, { at: '', count: 1 }, { at: 'x' }, { at: 'x', count: 0 }, { at: 'x', count: 1.5 }, 'nope', null,
+      // an UNPARSEABLE instant: `ageMinutes` reads it as 0, which would render
+      // « Appelé à l'instant » about a call whose time is unknown.
+      { at: 'pas-une-date', count: 1 }]) {
       stubFetch(async () => new Response(JSON.stringify({ ok: true, orders: [{ ...base, relance: bad }] })));
       const res = await resolveOperationsService()!.listPaidOrders('k');
       if (!res.ok) throw new Error(res.reason);

@@ -1888,5 +1888,17 @@
     "fr": "« Appelé » veut dire que vous avez appelé. Le fournisseur confirmera lui-même quand le colis sera prêt.",
     "register": "money",
     "screenClass": "general"
+  },
+  {
+    "key": "operations.relance_attendre",
+    "fr": "Un instant, un appel est en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.relance_faite_maintenant",
+    "fr": "Appelé à l'instant",
+    "register": "money",
+    "screenClass": "label"
   }
 ]

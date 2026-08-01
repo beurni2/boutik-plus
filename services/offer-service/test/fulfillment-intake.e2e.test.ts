@@ -292,14 +292,16 @@ describe('the relance — the founder’s credential alone, his act, our clock',
     }
   });
 
-  it('THE CLOCK IS THE WORKER’S: a client-claimed time is ignored, and the stored mark is a real instant near now', async () => {
+  it('THE CLOCK IS THE WORKER’S: the stored mark is a real instant near now, and the router forwards no claim', async () => {
     await seedOffer();
     await postIntake(confirmedEvent('ord-relance-clock'));
     const before = Date.now();
+    // A hostile caller insisting the call happened last year. The ROUTER
+    // strips it (only `orderId` is forwarded), so this reaches the book as a
+    // clean relance — and the stored instant is ours.
     const res = await mf.dispatchFetch('http://o/fulfillment/relance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
-      // a hostile caller insisting the call happened last year
       body: JSON.stringify({ orderId: 'ord-relance-clock', at: '2025-01-01T00:00:00.000Z', count: 99 }),
     });
     const json = (await res.json()) as { relance: { at: string; count: number } };
@@ -309,6 +311,30 @@ describe('the relance — the founder’s credential alone, his act, our clock',
     expect(at).toBeGreaterThanOrEqual(before - 60_000);
     expect(at).toBeLessThanOrEqual(Date.now() + 60_000);
     expect(json.relance.at).not.toBe('2025-01-01T00:00:00.000Z');
+  });
+
+  it('THE BOOK ITSELF REFUSES a body carrying `at`/`count` — so the clock defence is testable at BOTH layers, not just the router', async () => {
+    // The verifier's finding and its better fix: the object used to IGNORE
+    // those fields, which made a regression HERE invisible (the router had
+    // already thrown them away). Refusing means either layer failing alone
+    // goes red. Addressed to the DO directly, past the router that strips.
+    await seedOffer();
+    await postIntake(confirmedEvent('ord-relance-refuse'));
+    const id = await mf.getDurableObjectNamespace('FULFILLMENT');
+    const stub = id.get(id.idFromName('paid-orders'));
+    for (const body of [
+      { orderId: 'ord-relance-refuse', at: '2025-01-01T00:00:00.000Z' },
+      { orderId: 'ord-relance-refuse', count: 99 },
+    ]) {
+      // The Miniflare DO proxy takes (url, init) — a Request instance built
+      // out here cannot cross the process boundary.
+      const res = await stub.fetch('https://do/relance', { method: 'POST', body: JSON.stringify(body) });
+      expect(res.status, JSON.stringify(body)).toBe(400);
+      expect(((await res.json()) as { reason: string }).reason).toBe('malformed');
+    }
+    // …and nothing was written by the refused calls.
+    const rec = (await listOrders()).orders.find((o) => o['orderId'] === 'ord-relance-refuse');
+    expect(rec?.['relance']).toBeUndefined();
   });
 
   it('A SECOND CALL IS A REAL EVENT: the count grows and `at` moves forward — he called again, and the book says so', async () => {
@@ -360,11 +386,13 @@ describe('the relance — the founder’s credential alone, his act, our clock',
     await restart();
     const after = (await listOrders()).orders.find((o) => o['orderId'] === 'ord-relance-durable');
     expect((after?.['relance'] as { count: number }).count).toBe(1);
-    // The annotation is stored SEPARATELY: every wire field is untouched, so
-    // the emitter's first-wins/byte-stability guarantee still holds.
-    for (const k of ['orderId', 'productVersionId', 'offerVersion', 'paymentMode', 'paidAt', 'zoneTo', 'sellerBasePrice', 'supplierId', 'supplierResolved', 'registeredAt', 'productName']) {
-      expect(after?.[k], k).toEqual(before?.[k]);
-    }
+    // The annotation is stored SEPARATELY, and this asserts what its title
+    // says — WHOLE-RECORD identity, not a list of field names I remembered.
+    // A verifier proved the field loop's weakness: writing an extra
+    // `chasedByOperator: true` back onto the order record (precisely the
+    // "annotations never mutate it" violation) kept the loop green.
+    const { relance: _mark, ...afterWithoutMark } = after as Record<string, unknown>;
+    expect(afterWithoutMark).toEqual(before);
   });
 
   it('A REDELIVERY AFTER A RELANCE keeps both: duplicate absorbed, the call still logged', async () => {

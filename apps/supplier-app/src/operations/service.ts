@@ -175,6 +175,10 @@ function readRelance(value: unknown): RelanceMark | null {
   if (value === null || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
   if (typeof r['at'] !== 'string' || r['at'] === '') return null;
+  // An UNPARSEABLE instant is dropped too: `ageMinutes` reads a non-date as 0,
+  // which would render the very specific false claim « Appelé à l'instant »
+  // about a call whose time this app cannot actually know.
+  if (Number.isNaN(Date.parse(r['at']))) return null;
   if (typeof r['count'] !== 'number' || !Number.isSafeInteger(r['count']) || r['count'] < 1) return null;
   return { at: r['at'], count: r['count'] };
 }

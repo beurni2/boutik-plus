@@ -147,9 +147,17 @@ export class FulfillmentDO {
      *  never heard of is a 404, never an invented row: a chase log about a
      *  paid order that does not exist would be a lie about a real one. */
     if (request.method === 'POST' && pathname === '/relance') {
-      const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
-      const orderId = body?.orderId;
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
       if (typeof orderId !== 'string' || orderId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      // A body that CARRIES `at`/`count` is REFUSED, not quietly ignored — the
+      // verifier's fix, and a better one than mine: ignoring made this object's
+      // clock defence untestable on its own (the router already strips those
+      // fields, so a regression here stayed green). Refusing means either layer
+      // failing alone is red, and « quand » can never come from a caller.
+      if (body?.['at'] !== undefined || body?.['count'] !== undefined) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
       const existing = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);

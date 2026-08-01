@@ -11,7 +11,17 @@ import {
   storeOpsKey,
   type OperationsServicePort,
 } from './service';
-import { CHASE_AFTER_MIN, ageMinutes, operationsView, type OperationsRead, type OperationsRow } from './view';
+import {
+  CHASE_AFTER_MIN,
+  RELANCE_IDLE,
+  ageMinutes,
+  operationsView,
+  relanceSettled,
+  relanceStart,
+  type OperationsRead,
+  type OperationsRow,
+  type RelanceUi,
+} from './view';
 
 /**
  * CONSOLE-1 — « Opérations », the founder's board (founder directive
@@ -107,12 +117,17 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const inFlight = useRef(false);
   // CONSOLE-2 — which card is mid-write, and which one refused. NEVER
   // optimistic: a call is « enregistré » only once the book says so (Law 7 —
-  // queued is pending, never done).
-  const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null);
-  const [relanceEchec, setRelanceEchec] = useState<string | null>(null);
+  // queued is pending, never done). The transitions are `view.ts`'s.
+  const [relanceUi, setRelanceUi] = useState<RelanceUi>(RELANCE_IDLE);
 
-  const load = async (): Promise<void> => {
-    if (service === null || inFlight.current) return;
+  // `force` exists because of a real defect the verifier caught: the 60-second
+  // background re-read holds `inFlight`, so the re-read AFTER a successful
+  // write was silently skipped and the card stayed in « À relancer » with no
+  // « Appelé » line and no error — a recorded call rendered as if nothing had
+  // happened, whose only human answer is to tap again and inflate his own
+  // count. A write's own re-read is never skippable.
+  const load = async (force = false): Promise<void> => {
+    if (service === null || (inFlight.current && !force)) return;
     inFlight.current = true;
     try {
       const res = await service.listPaidOrders(opsKey);
@@ -124,24 +139,21 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     }
   };
 
+  // Impure substance only — every decision below is `view.ts`'s, by value.
   const relancer = async (orderId: string): Promise<void> => {
-    if (service === null || relanceEnCours !== null) return;
-    setRelanceEnCours(orderId);
-    setRelanceEchec(null);
+    if (service === null) return;
+    const started = relanceStart(relanceUi, orderId);
+    if (started === null) return; // a write is already in flight
+    setRelanceUi(started);
+    let settlement;
     try {
-      const res = await service.recordRelance(opsKey, orderId);
-      if (res.ok) {
-        await load(); // the board re-reads: the mark shown is the STORED one
-      } else if (res.reason === 'bad_key') {
-        setRead({ kind: 'bad_key' });
-      } else {
-        // `unknown_order` too: the board is stale rather than the call lost —
-        // either way nothing is claimed, and the honest line invites a retry.
-        setRelanceEchec(orderId);
-      }
-    } finally {
-      setRelanceEnCours(null);
+      settlement = relanceSettled(orderId, await service.recordRelance(opsKey, orderId));
+    } catch {
+      settlement = relanceSettled(orderId, { ok: false, reason: 'unreachable' } as const);
     }
+    setRelanceUi(settlement.ui);
+    if (settlement.then === 'refresh') await load(true);
+    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
   };
 
   useEffect(() => {
@@ -211,8 +223,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                   chase
                   action={{
                     label: t('operations.relance_action'),
-                    busy: relanceEnCours === r.orderId,
-                    failed: relanceEchec === r.orderId,
+                    busy: relanceUi.busy === r.orderId,
+                    failed: relanceUi.echec === r.orderId,
+                    locked: relanceUi.busy !== null,
                     onPress: () => { void relancer(r.orderId); },
                   }}
                 />
@@ -239,8 +252,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                   nowMs={nowMs}
                   action={{
                     label: t('operations.relance_rappeler'),
-                    busy: relanceEnCours === r.orderId,
-                    failed: relanceEchec === r.orderId,
+                    busy: relanceUi.busy === r.orderId,
+                    failed: relanceUi.echec === r.orderId,
+                    locked: relanceUi.busy !== null,
                     onPress: () => { void relancer(r.orderId); },
                   }}
                 />
@@ -289,7 +303,10 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
   chase?: boolean;
   called?: boolean;
   nowMs?: number;
-  action?: { label: string; busy: boolean; failed: boolean; onPress: () => void };
+  /** `locked`: ANOTHER card is writing. Its button goes quiet rather than
+   *  staying lit and doing nothing — a dead tap on this screen would teach
+   *  the founder that the board ignores him. */
+  action?: { label: string; busy: boolean; failed: boolean; locked: boolean; onPress: () => void };
 }) {
   const nom = row.productName !== '' ? row.productName : row.productVersionId;
   const modeLabel = row.paymentMode === 'DELIVERY_FEE_PREPAID_PRODUCT_AT_DOOR'
@@ -332,6 +349,8 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
         <View style={{ marginTop: 10 }}>
           {action.busy ? (
             <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.relance_encours')}</Text>
+          ) : action.locked ? (
+            <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.relance_attendre')}</Text>
           ) : (
             <BtnSoft label={action.label} icon="check" onPress={action.onPress} />
           )}
@@ -346,9 +365,15 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
   );
 }
 
-/** « Appelé il y a X min » — and past the hour, no invented precision. */
+/**
+ * « Appelé à l'instant » → « Appelé il y a X min » → past the hour, no
+ * invented precision. The zero-minute branch is not an edge case: it is the
+ * FIRST sentence he reads after tapping, the confirmation beat of his own
+ * act, and « il y a 0 min » reads there like a glitch.
+ */
 function relanceSentence(atIso: string, nowMs: number): string {
   const min = ageMinutes(atIso, nowMs);
+  if (min < 1) return t('operations.relance_faite_maintenant');
   return min < 60
     ? t('operations.relance_faite').replace('{n}', String(min))
     : t('operations.relance_faite_long');
