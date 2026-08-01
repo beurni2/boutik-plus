@@ -60,6 +60,51 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@4 deploy
 
+      # ═══ THE FOUNDER'S ATTESTATION, WRITTEN WITH THE DEPLOY ═══
+      #
+      # SELLER-TIER-WIRE-1. `VERIFIED_SUPPLIERS` is the list of supplier ids the
+      # founder has personally vouched for; `attested-suppliers.ts` turns it into
+      # the `sellerTier` on the supply wire, and Shop+'s §6.1 decides pay-at-door
+      # from it. It rides WITH the deploy on the founder's instruction, so the
+      # code that reads it and the value it reads can never arrive separately.
+      #
+      # A SECRET, NOT `[vars]`, AND THE REASON IS IN wrangler.toml: « all five
+      # repos are PUBLIC and anything in [vars] is committed and published ».
+      # This list is not a credential — knowing it grants nothing, because the
+      # tier is resolved from the supplier id the STORE holds and never from
+      # anything a caller sends — but it is a record of which real businesses the
+      # founder has vouched for, and that does not belong in a public repository.
+      # The encrypted store keeps it out while `wrangler secret put` still writes
+      # it deliberately, from a value only the founder can set.
+      #
+      # UNSET IS A LEGITIMATE STATE, unlike the webhook secret this pattern is
+      # borrowed from. No attestation simply means no supplier is verified, which
+      # means §6.1 refuses Option B for every product — the designed fail-closed
+      # behaviour while ⏳ « verification tiers evidence + progression thresholds »
+      # stays open. So this WARNS loudly and does NOT fail the deploy: a red mark
+      # here would be a checker reddening a correct deploy.
+      #
+      # Piped, never passed as an argument, so it stays out of any process
+      # listing — the same discipline as shop-plus's payment-webhook-secret.
+      - name: Write the founder's supplier attestations onto the Worker
+        working-directory: services/offer-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          VERIFIED_SUPPLIERS: ${{ secrets.VERIFIED_SUPPLIERS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERIFIED_SUPPLIERS}" ]; then
+            echo "::warning::VERIFIED_SUPPLIERS is not set — NO supplier is attested."
+            echo "The deploy is valid and the service is fail-closed: every projection will"
+            echo "carry sellerTier=provisional, so Shop+'s §6.1 refuses Option B for every"
+            echo "product. Set the repository secret and re-run this workflow to change that."
+            exit 0
+          fi
+          # The COUNT is safe to print and useful; the ids are not printed.
+          echo "attesting $(echo "${VERIFIED_SUPPLIERS}" | tr ', ' '\n' | grep -c . || true) supplier id(s)"
+          printf '%s' "${VERIFIED_SUPPLIERS}" | npx --yes wrangler@4 secret put VERIFIED_SUPPLIERS
+          echo "attestations written to the Worker's encrypted store."
+
       # ═══ THE HALF THAT WAS MISSING, AND IT COST A PRODUCTION OUTAGE ═══
       #
       # Until now this workflow ended at `wrangler deploy`. That proves the
