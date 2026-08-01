@@ -113,9 +113,13 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // Present ⇒ the Dock shows « Opérations ». The door for a fresh browser is
   // the web-only #operateur hash (boutik-plus-web.pages.dev/#operateur), which
   // shows the tab so the key screen becomes reachable; on native it never
-  // exists. Clearing the key (bad-key path) drops the tab again.
+  // exists.
   const [opsKey, setOpsKey] = useState<string | null>(() => readStoredOpsKey());
-  const operateurDoor = opsKey !== null || operateurHashPresent();
+  // The door, ONCE OPEN THIS SESSION, STAYS OPEN: a refused key clears back to
+  // the key screen — the tab must not vanish under the founder mid-recovery,
+  // and the bad-key moment IS the key-rotation moment. A fresh browser without
+  // the stored key or the hash never opens it at all.
+  const [operateurDoor] = useState(() => readStoredOpsKey() !== null || operateurHashPresent());
 
   // BOUTIK-WEB — THE 430px PHONE FRAME WAS REVERTED BY FOUNDER RULING
   // (2026-07-27, verbatim: *"the whole webapp the way it was, was good and my
@@ -148,10 +152,10 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
             <SOperations
               opsKey={opsKey}
               onKeySaved={setOpsKey}
-              onKeyCleared={() => {
-                setOpsKey(null);
-                d({ t: 'TAB', tab: 'home' });
-              }}
+              // Stays ON the operations tab: with the key null, SOperations
+              // renders the key screen — the recovery is one paste away,
+              // never a hunt for a vanished tab.
+              onKeyCleared={() => setOpsKey(null)}
             />
           ) : (
             <S32Argent st={st} d={d} />

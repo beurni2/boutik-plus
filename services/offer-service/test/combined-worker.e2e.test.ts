@@ -431,6 +431,9 @@ describe('CORS — the browser can ask, the key still gates (BOUTIK-WEB-W1)', ()
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
     expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-Write-Key');
+    // CONSOLE-1: the founder's board sends `Authorization: Bearer` from a
+    // browser — the preflight must grant the HEADER (the key still gates).
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization');
     expect(res.headers.get('Access-Control-Allow-Methods')).toContain('GET');
   });
 

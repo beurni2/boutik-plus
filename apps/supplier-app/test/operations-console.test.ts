@@ -187,11 +187,16 @@ describe('the resolver — unset means NOTHING, never demo (standing law of this
   it('a MALFORMED row is dropped, the true rows survive — no half-formed line ever renders', async () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
     const good = rowAt('ord-true', '2026-08-01T11:00:00.000Z');
+    // A row registered BEFORE the productName enrichment: no productName, no
+    // offerVersion. It must SURVIVE with '' — the screen then falls back to
+    // the pv id instead of rendering a blank title.
+    const { productName: _pn, offerVersion: _ov, ...legacy } = rowAt('ord-legacy', '2026-08-01T10:00:00.000Z');
     stubFetch(async () =>
       new Response(JSON.stringify({
         ok: true,
         orders: [
           good,
+          legacy,
           { orderId: '' },                                  // empty id
           { ...good, orderId: 'ord-franc', sellerBasePrice: 10_000.5 }, // fractional francs
           { ...good, orderId: 'ord-bool', supplierResolved: 'yes' },    // wrong type
@@ -201,7 +206,9 @@ describe('the resolver — unset means NOTHING, never demo (standing law of this
     );
     const res = await resolveOperationsService()!.listPaidOrders('k');
     if (!res.ok) throw new Error(res.reason);
-    expect(res.orders.map((r) => r.orderId)).toEqual(['ord-true']);
+    expect(res.orders.map((r) => r.orderId)).toEqual(['ord-true', 'ord-legacy']);
+    expect(res.orders[1]!.productName).toBe(''); // normalized, never undefined
+    expect(res.orders[1]!.offerVersion).toBe('');
   });
 });
 

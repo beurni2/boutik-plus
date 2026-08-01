@@ -243,6 +243,12 @@ describe('the intake — canon-parsed, supplier joined INTERNALLY, first-wins, d
       headers: { Authorization: `Bearer ${FULFILL_SECRET}` },
     });
     expect(shopKey.status).toBe(401);
+    // …nor the APP'S write key — the one credential that ships in a public
+    // bundle is exactly the one that must never see a supplier id.
+    const appKey = await mf.dispatchFetch('http://o/fulfillment/orders', {
+      headers: { Authorization: `Bearer ${WRITE_SECRET}` },
+    });
+    expect(appKey.status).toBe(401);
     // …and the ops key does not open the INTAKE either: two keys, two doors.
     const opsOnIntake = await postIntake(confirmedEvent('ord-q-cross'), `Bearer ${OPS_SECRET}`);
     expect(opsOnIntake.status).toBe(401);

@@ -88,10 +88,11 @@ export class FulfillmentDO {
     }
 
     /** THE OPS READ — every paid order, supplier ids included. The ROUTER
-     *  gates this behind the intake secret; the founder's console slice will
-     *  re-gate it behind the operator credential when it lands. Unbounded at
-     *  pilot scale on purpose (the same reasoning as the offer store's list:
-     *  a cursor today is speculative flexibility, an obligation forever). */
+     *  gates this behind FULFILLMENT_OPS_SECRET — the founder's OWN credential
+     *  (his console's login), never the intake secret Shop+ holds to deliver.
+     *  Unbounded at pilot scale on purpose (the same reasoning as the offer
+     *  store's list: a cursor today is speculative flexibility, an obligation
+     *  forever). */
     if (request.method === 'GET' && pathname === '/orders') {
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
       const orders = [...entries.values()].sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));

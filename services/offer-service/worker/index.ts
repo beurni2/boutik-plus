@@ -88,7 +88,12 @@ const isSupplyRoute = (pathname: string): boolean =>
 const CORS_HEADERS: Readonly<Record<string, string>> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key',
+  // `Authorization` is here for exactly one browser client: the founder's
+  // operator console (CONSOLE-1) reading GET /fulfillment/orders with his
+  // Bearer key. Without it the preflight refuses the header and the board can
+  // never load — not as a 401, as a browser-side wall. Granting the HEADER
+  // grants nothing: the ops read still 401s anything but the founder's key.
+  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key, Authorization',
   'Access-Control-Max-Age': '86400',
 };
 

@@ -73,19 +73,26 @@ export function resolveOperationsService(): OperationsServicePort | null {
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
       if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
-      // Shape-guarded row by row: a record the book never wrote is DROPPED,
-      // never rendered half-formed — the console's whole worth is that every
-      // line on it is true.
-      const orders = body.orders.filter(isPaidOrderRow);
+      // Shape-READ row by row: a record the book never wrote is DROPPED, never
+      // rendered half-formed — the console's whole worth is that every line on
+      // it is true. Reading (not just guarding) matters for the two fields
+      // records written BEFORE the productName enrichment lack: they normalize
+      // to '', so the screen's fallback-to-pv-id renders instead of a blank
+      // title on precisely the oldest rows.
+      const orders: PaidOrderRow[] = [];
+      for (const raw of body.orders) {
+        const row = readPaidOrderRow(raw);
+        if (row !== null) orders.push(row);
+      }
       return { ok: true, orders };
     },
   };
 }
 
-function isPaidOrderRow(value: unknown): value is PaidOrderRow {
-  if (value === null || typeof value !== 'object') return false;
+function readPaidOrderRow(value: unknown): PaidOrderRow | null {
+  if (value === null || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
-  return (
+  const ok =
     typeof r['orderId'] === 'string' &&
     r['orderId'] !== '' &&
     typeof r['productVersionId'] === 'string' &&
@@ -98,8 +105,21 @@ function isPaidOrderRow(value: unknown): value is PaidOrderRow {
     typeof r['supplierResolved'] === 'boolean' &&
     typeof r['registeredAt'] === 'string' &&
     (r['productName'] === undefined || typeof r['productName'] === 'string') &&
-    (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string')
-  );
+    (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string');
+  if (!ok) return null;
+  return {
+    orderId: r['orderId'] as string,
+    productVersionId: r['productVersionId'] as string,
+    productName: typeof r['productName'] === 'string' ? r['productName'] : '',
+    offerVersion: typeof r['offerVersion'] === 'string' ? r['offerVersion'] : '',
+    paymentMode: r['paymentMode'] as string,
+    paidAt: r['paidAt'] as string,
+    zoneTo: r['zoneTo'] as string,
+    sellerBasePrice: r['sellerBasePrice'] as number,
+    supplierId: r['supplierId'] as string,
+    supplierResolved: r['supplierResolved'] as boolean,
+    registeredAt: r['registeredAt'] as string,
+  };
 }
 
 /* ─────────────────── the founder's key, on HIS device only ─────────────────── */
