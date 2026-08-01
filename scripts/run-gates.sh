@@ -191,15 +191,21 @@ capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entrop
 # `pnpm-workspace.yaml`'s override — the resolution that actually wins — stayed
 # behind. Then the installed version is the OLD one, this check fires, and the
 # repo says so instead of printing a number that agrees with itself.
+#
+# ROUTED THROUGH `capture`, WITH A NEGATIVE FIXTURE, like every other gate here
+# (verifier finding, round 2). The first cut was a bare `if`/`echo`: it produced
+# no evidence artifact and nothing in CI ever proved it could fail — the exact
+# gap this file's own header legislates against ("Every gate has a negative
+# fixture and this script SHOWS each one failing once per run").
 EXPECTED_CANON="3.0.0"
 CANON_VERSION="$(node -p "require('@platform/contracts/package.json').version")"
 log "canon declared: $EXPECTED_CANON · canon installed: $CANON_VERSION"
-if [ "$CANON_VERSION" != "$EXPECTED_CANON" ]; then
-  echo "canon-pin-declared: FAILED — this repo declares canon $EXPECTED_CANON but resolves $CANON_VERSION."
-  echo "A repin is not complete until pnpm-workspace.yaml's overrides move too (that override wins over every package.json)."
-  echo "Fix the pin, or bump EXPECTED_CANON in this file in the same commit."
-  FAILED=$((FAILED + 1))
-fi
+
+log "gate: canon-pin-declared — the canon this repo DECLARES is the canon that RESOLVED (must pass)"
+capture canon-pin-declared-positive pass node scripts/gates/canon-pin-declared.mjs "$EXPECTED_CANON"
+
+log "gate: canon-pin-declared — NEGATIVE FIXTURE (a declaration the install does not match, must fail)"
+capture canon-pin-declared-negative fail node scripts/gates/canon-pin-declared.mjs 0.0.0-not-the-pin
 
 log "gate: contracts drift-check — honest /docs copy vs pinned canon manifest (must pass)"
 capture drift-check-positive pass pnpm exec drift-check docs --pinned-version "$CANON_VERSION"

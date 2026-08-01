@@ -103,8 +103,10 @@ export function buildSupplyProjection(
   // `productName` — or now into `category` — puts it on the wire, and no gate
   // here refuses it. That is the accepted `productName` precedent (canon:
   // « display data is not identity »), not a new hole; `category` widens the
-  // unswept surface by one FREE-TEXT field and is recorded here so the next
-  // person weighing a value-side sweep knows the exact scope: three fields.
+  // unswept surface by one FREE-TEXT field, from ONE to TWO — `productName` and
+  // `category`. (`assetRefs` is the third display field but is NOT in this set:
+  // it is opaque refs, not free text, and it already HAS a value-side check.)
+  // Recorded so the next person weighing a value-side sweep knows the scope.
   const projection: SupplyProjection = {
     productVersionId: product.id,
     offerVersion: String(offer.version),
