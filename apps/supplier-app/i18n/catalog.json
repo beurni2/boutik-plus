@@ -1723,7 +1723,7 @@
   },
   {
     "key": "publier.pour_sans_cle_hint",
-    "fr": "Pas de liste ici : votre clé n’est pas enregistrée sur cet appareil. Entrez-la dans l’onglet Opérations. Sinon, laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
+    "fr": "Pas de liste ici : votre clé n’est pas enregistrée sur cet appareil. Vous pouvez l’entrer dans l’onglet Opérations. Sinon, laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
     "register": "neutral",
     "screenClass": "instruction"
   },
