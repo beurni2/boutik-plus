@@ -2379,3 +2379,20 @@ So CONSOLE-2 records the only thing that is actually true: **he called**. « J'a
 **The screens** (produits-real pattern, all decisions pure): code door (BF- code → localStorage `boutik.fournisseur.code`) → « Mes commandes » (GET /mine) → accepter → « Produit prêt » flow: challenge fetch → photo through THE SAME STUDIO FUNNEL (pick → decode → bounded resize → EXIF/XMP/IPTC strip → assertExifFree — no laxer path exists for a readiness photo, Ten Laws) → upload via media seam → strict confirmation POST. Follow-up shows the true chain (payée → acceptée → prête) and grows as Séra lands.
 
 **1b-i CI verdicts:** `86bcbfa` run 30727590262 **success** · `a354688` (re-pinned coverage) run 30728064385 **success**, head_shas exact. The personal code door is built, verifier-clean, coverage-pinned, and CI-green. Still unmerged with 1a — the whole readiness chain merges and deploys as one release once 1b-ii's surface exists to use it.
+
+## 2026-08-02 — READINESS-WIRE-1b-ii (`0f9f197` + `5f9a57c`): the fournisseur surface (verifier pending)
+
+**Built, in two committed units:** the pure core (port on the personal code, /mine allowlist reader, the card's action from the TRUE state, the « Produit prêt » reducer with every refusal its own sentence — 12 tests by value), then the surface: code door → « Mes commandes » (work above the archive, oldest-waiting buyer first, « À traiter : {n} » honest headline) → accepter → photo through THE studio funnel (pick → decode → bounded resize → EXIF/XMP/IPTC strip; a readiness proof gets no laxer path than any shipped photograph) → the strict confirmation, challenge fetched AT SEND so the whole act sits in one TTL window. Sending IS the availability attestation, said in plain words above the button. 31 strings, French Voice, two simplified for the reading-level budget by the copy-lint itself.
+
+**The entry became a three-way lazy fold** — and the old static `import { AppV2 }` mattered more than it looked: it had been putting the whole authoring graph in EVERY artifact regardless of which root mounted. Now each root bundles alone, and the ruling is MEASURED, not argued:
+
+**`fournisseur-bundle-absence` — three lessons the gate itself taught while being built, each now in its comments:**
+1. **Metro's transform cache is not keyed on `EXPO_PUBLIC_*`** — two exports with different env produced BYTE-IDENTICAL bundles until `--clear`. A warm gate measures a stale world. (The 2026-07-26 web-deploy lesson, re-learned by measurement and now enforced in both bundle gates.)
+2. **An env-less export DCEs the entire http client** — with no OFFER_BASE the inliner folds the resolver to null and the route strings vanish. The gate exports with each root's REAL deploy env shape, or it scans a bundle nobody ships.
+3. **The fingerprint must be the OFFERS ROUTES, not the X-Write-Key header** — the MEDIA wire shares that header name, and media upload is a capability the ruling GRANTS. First cut flagged a "leak" that was the granted photo path.
+
+The NEGATIVE is the v2 root: the same scan must FAIL on the founder's own export (it does — '/offers/assets' and '/offers/delete' found, exit 1). And my entry change broke the ORIGINAL android bundle gate (its v2 controls vanished from a ROOT-less export); it now states its subject explicitly (ROOT=v2, cold) instead of inheriting it from the static import.
+
+**`fournisseur-web-deploy.yml`:** own Pages project `boutik-plus-fournisseur`; the offers write key appears NOWHERE in the file (a bundle cannot inline a secret the job never receives); the ruling is re-asserted on the EXACT dist deployed — controls before forbidden, empty-secret guard first.
+
+**Evidence:** supplier-app **555/555** · typecheck clean · copy-lint 354/0 · **run-gates exit 0, ALL 47 sections** (both directions of the new gate inside the run). CI dispatched on `5f9a57c`; fresh-context verifier running on the two-commit diff. NO merge until both return; the whole readiness chain (1a + 1b-i + 1b-ii) then merges and deploys as one release: offer Worker → fournisseur Pages → founder mints codes.
