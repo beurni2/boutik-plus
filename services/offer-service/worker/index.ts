@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList, resolveSupplierIdByCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -176,6 +176,33 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
     if (request.method === 'GET' && fp === '/fulfillment/mine') {
       return forwardSupplierAct(request, env, '/mine');
+    }
+    // ═══ LISTER-POUR-1a — HIS OWN PRODUCTS, THROUGH HIS OWN DOOR (founder
+    // order 2026-08-02: the founder lists FOR suppliers; each supplier WATCHES
+    // his own, and edits nothing). The write side needs no change — POST
+    // /offers has been the founder-seed path behind the write key since day
+    // one, and no personal code opens it. This is the missing READ.
+    //
+    // WHY NOT `GET /offers?supplierId=…`: that route's own header records the
+    // hazard — its scope is a FILTER the caller names, not an authorization,
+    // "nil while one supplier exists, real the day there are two." This route
+    // is the day there are two, so here the identity is DERIVED: the Bearer
+    // personal code resolves to a supplierId inside the book (same door as
+    // /fulfillment/mine), and the derived id — never a claimed one — scopes
+    // the list. Missing, unknown and revoked codes answer ONE identical 401.
+    //
+    // A named scope is REFUSED, not stripped (the refuse-don't-ignore law):
+    // silently ignoring `?supplierId=` would teach the one caller who tries
+    // it that naming a neighbour works.
+    if (request.method === 'GET' && fp === '/offers/mine') {
+      if (new URL(request.url).searchParams.has('supplierId')) {
+        return Response.json({ error: 'scope_is_derived' }, { status: 400 });
+      }
+      const auth = request.headers.get('Authorization') ?? '';
+      const presented = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';
+      const supplierId = await resolveSupplierIdByCode(env, presented);
+      if (supplierId === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      return offerRouter.fetch(new Request(`https://do/offers?supplierId=${encodeURIComponent(supplierId)}`), env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/accept') {
       return forwardSupplierAct(request, env, '/accept');

@@ -548,6 +548,19 @@ export class FulfillmentDO {
       return Response.json({ ok: true, status: 'revoked' });
     }
 
+    /** LISTER-POUR-1a — WHO IS BEHIND THIS CODE, and nothing else. An
+     *  INTERNAL door: only the composition root calls it (the public route
+     *  is `GET /offers/mine`), so the answer carries the derived identity
+     *  alone — no orders, no code bytes, no mintedAt. Same uniform null as
+     *  every other code lookup: a miss, a non-string and a revoked code are
+     *  indistinguishable upstream. */
+    if (request.method === 'POST' && pathname === '/resolve') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      return Response.json({ ok: true, supplierId: resolved.supplierId });
+    }
+
     /** THE SUPPLIER'S OWN LIST — the code is the identity; only that
      *  supplier's orders leave, each as an explicit ALLOWLIST of fields
      *  (never a record spread): the founder's relance log and the neighbours'
@@ -882,6 +895,20 @@ export async function forwardSupplierAct(
         : { ...(raw !== null && typeof raw === 'object' ? raw : {}), code };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(`https://do${path}`, { method: 'POST', body: JSON.stringify(envelope) });
+}
+
+/** LISTER-POUR-1a — derive the supplier behind a presented code, or null.
+ *  The book's `/resolve` is internal; this helper is its ONLY caller surface,
+ *  so the envelope discipline (exactly `{code}`) lives here next to the
+ *  forwarders that share it. Null on ANY failure — the caller answers the
+ *  same 401 whether the code was absent, unknown, or revoked. */
+export async function resolveSupplierIdByCode(env: FulfillmentEnv, code: string): Promise<string | null> {
+  if (code === '') return null;
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  const res = await stub.fetch('https://do/resolve', { method: 'POST', body: JSON.stringify({ code }) });
+  if (res.status !== 200) return null;
+  const body = (await res.json().catch(() => null)) as { supplierId?: unknown } | null;
+  return typeof body?.supplierId === 'string' && body.supplierId !== '' ? body.supplierId : null;
 }
 
 /** CONSOLE-3 — the code inventory, through the same singleton. Auth (the
