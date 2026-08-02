@@ -99,21 +99,69 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
   let codeA = '';
   let codeB = '';
 
-  it('sets the stage: the FOUNDER lists for two suppliers; both get personal codes', async () => {
+  it('sets the stage: codes are minted FIRST, then the FOUNDER lists for both suppliers', async () => {
+    // MINT BEFORE SEED — the order is now load-bearing (LISTER-POUR-1a',
+    // founder-approved): a create may only name a supplier the book knows,
+    // and « known » is « currently holds an active code ». The founder's
+    // operational sequence is therefore mint → list, including for himself.
+    codeA = await mint(SUPPLIER_A);
+    codeB = await mint(SUPPLIER_B);
+    expect(codeA).not.toBe(codeB);
     // The write key — the founder's seed path — attributes each offer to its
-    // supplier. This is the "I am the one listing" half of the order,
-    // unchanged by this slice and re-proven here as the fixture.
+    // supplier. This is the "I am the one listing" half of the order.
     for (const seed of [
       seedFor(SUPPLIER_A, 'pv-mine-a1', 'offer-mine-a1', 'Bogolan du fondateur', 8_000, 800),
       seedFor(SUPPLIER_A, 'pv-mine-a2', 'offer-mine-a2', 'Panier tressé', 5_500, 550),
       seedFor(SUPPLIER_B, 'pv-mine-b1', 'offer-mine-b1', NAME_B, PRICE_B, COMMISSION_B),
     ]) {
       const res = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: seed });
+      // A 200 IS NOT A CREATION: the command path answers 200 for its own
+      // refusals too (status in the body). Asserting the decision is what
+      // caught this suite's first ghost fixture pricing below the category
+      // floor — a « passing » create that created nothing.
       expect(res.status, res.text).toBe(200);
+      expect(res.json['status'], res.text).toBe('created');
     }
-    codeA = await mint(SUPPLIER_A);
-    codeB = await mint(SUPPLIER_B);
-    expect(codeA).not.toBe(codeB);
+  });
+
+  it('a GHOST supplier cannot be listed for — and becomes listable the moment his code exists', async () => {
+    // The typo scenario the guard exists for: one wrong character in the id
+    // and the product would land where `/offers/mine` can never show it — a
+    // paid-for listing invisible to the very supplier it was meant for.
+    const ghost = seedFor('supplier-mine-ghost', 'pv-mine-g1', 'offer-mine-g1', 'Produit fantôme', 6_000, 600);
+    const refused = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: ghost });
+    expect(refused.status, refused.text).toBe(400);
+    expect(refused.json['error']).toBe('unknown_supplier');
+    expect(refused.json['supplierId']).toBe('supplier-mine-ghost');
+    // …and the refusal REFUSED: the ghost owns nothing.
+    const ghostCode = await mint('supplier-mine-ghost');
+    const empty = await call('/offers/mine', { headers: { Authorization: `Bearer ${ghostCode}` } });
+    expect(empty.status).toBe(200);
+    expect((empty.json['items'] as unknown[]).length).toBe(0);
+    // The SAME create, after the mint: the gate keys on the registry, not
+    // on anything about the body.
+    const accepted = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: ghost });
+    expect(accepted.status, accepted.text).toBe(200);
+    expect(accepted.json['status'], accepted.text).toBe('created');
+    const now = await call('/offers/mine', { headers: { Authorization: `Bearer ${ghostCode}` } });
+    expect((now.json['items'] as Array<Record<string, unknown>>).map((i) => i['productVersionId'])).toEqual(['pv-mine-g1']);
+  });
+
+  it('a REVOKED supplier can no longer be listed for — cut off cuts the pen too', async () => {
+    await mint('supplier-mine-delta');
+    const revoke = await call('/fulfillment/supplier-code/revoke', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
+      body: { supplierId: 'supplier-mine-delta' },
+    });
+    expect(revoke.status, revoke.text).toBe(200);
+    const res = await call('/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET },
+      body: seedFor('supplier-mine-delta', 'pv-mine-d1', 'offer-mine-d1', 'Après révocation', 6_500, 650),
+    });
+    expect(res.status).toBe(400);
+    expect(res.json['error']).toBe('unknown_supplier');
   });
 
   it('A sees BOTH his offers and ONLY his — the neighbour is absent as BYTES', async () => {

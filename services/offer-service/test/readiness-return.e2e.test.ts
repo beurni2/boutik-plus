@@ -103,6 +103,14 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
   let lastChallenge = '';
 
   it('sets the stage: a paid order, a supplier with a personal code', async () => {
+    // MINT BEFORE SEED — since LISTER-POUR-1a' a create may only name a
+    // supplier who currently holds an active code, so the code comes first.
+    const minted = await post('/fulfillment/supplier-code', { supplierId: SUPPLIER }, {
+      Authorization: `Bearer ${OPS_SECRET}`,
+    });
+    expect(minted.status, minted.text).toBe(200);
+    code = minted.json['code'] as string;
+    expect(code.startsWith('BF-')).toBe(true);
     expect((await post('/offers', seed, { 'X-Write-Key': WRITE_SECRET })).status).toBe(200);
     const confirmed = await post(
       '/fulfillment/order-confirmed',
@@ -120,12 +128,6 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
       { Authorization: `Bearer ${FULFILL_SECRET}` },
     );
     expect(confirmed.status, confirmed.text).toBe(200);
-    const minted = await post('/fulfillment/supplier-code', { supplierId: SUPPLIER }, {
-      Authorization: `Bearer ${OPS_SECRET}`,
-    });
-    expect(minted.status, minted.text).toBe(200);
-    code = minted.json['code'] as string;
-    expect(code.startsWith('BF-')).toBe(true);
   });
 
   it('ACCEPT emits fulfillment.accepted.v1 — the canon name, the founder-approved payload, and the intake’s own Bearer', async () => {
@@ -278,6 +280,15 @@ describe('READINESS-RETURN-1b — with no progress secret, the act succeeds and 
 
   it('accepts the order, delivers nothing, and does not fail the supplier', async () => {
     const ORDER2 = 'ord-return-0002';
+    // MINT BEFORE SEED (LISTER-POUR-1a'): the create names SUPPLIER, so his
+    // code must exist in THIS world first. The later re-mint in this test
+    // replaces it, which is the rotation story, not a conflict.
+    const preMint = await blind.dispatchFetch('http://o/fulfillment/supplier-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
+      body: JSON.stringify({ supplierId: SUPPLIER }),
+    });
+    expect(preMint.status).toBe(200);
     const pub = await blind.dispatchFetch('http://o/offers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
@@ -410,6 +421,12 @@ describe('READINESS-RETURN-1b — a refusal keeps the fact alive until it truly 
     });
     const ORDER3 = 'ord-return-0003';
     try {
+      // MINT BEFORE SEED (LISTER-POUR-1a') — same reason as the blind world.
+      await world.dispatchFetch('http://o/fulfillment/supplier-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
+        body: JSON.stringify({ supplierId: SUPPLIER }),
+      });
       await world.dispatchFetch('http://o/offers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },

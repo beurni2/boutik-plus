@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, beforeAll } from 'vitest';
 
 /**
  * BOUTIK-OFFER-DURABLE-1 — the COMBINED Worker (OfferDO + the service routes) on
@@ -77,18 +77,35 @@ const SEED = {
 const persist = mkdtempSync(join(tmpdir(), 'offer-do-'));
 const persistNoSecret = mkdtempSync(join(tmpdir(), 'offer-nosecret-'));
 
+const OPS_SECRET = 'test-fulfillment-ops-secret-cw01';
+
 function mkWorker(persistDir: string, withSecret: boolean): Miniflare {
   return new Miniflare({
     modules: true,
     scriptPath: SCRIPT,
-    durableObjects: { OFFER: 'OfferDO' },
+    // BOTH namespaces, matching the deployable: since LISTER-POUR-1a' the
+    // offer CREATE consults the book (known-supplier gate), so a world with
+    // only OFFER bound is a world the production worker never is.
+    durableObjects: { OFFER: 'OfferDO', FULFILLMENT: 'FulfillmentDO' },
     durableObjectsPersist: persistDir,
-    ...(withSecret ? { bindings: { OFFER_WRITE_SECRET: WRITE_SECRET, SUPPLY_READ_SECRET: READ_SECRET } } : {}),
+    ...(withSecret ? { bindings: { OFFER_WRITE_SECRET: WRITE_SECRET, SUPPLY_READ_SECRET: READ_SECRET, FULFILLMENT_OPS_SECRET: OPS_SECRET } } : {}),
   });
 }
 
 let mf = mkWorker(persist, true);
 const mfNoSecret = mkWorker(persistNoSecret, false);
+
+/** MINT BEFORE SEED (LISTER-POUR-1a'): every fixture in this file lists for
+ *  `supplier-founder-001`, so his code exists before the first create. The
+ *  restarted worker shares the persist dir — the mint survives it. */
+beforeAll(async () => {
+  const minted = await mf.dispatchFetch('http://o/fulfillment/supplier-code', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ supplierId: SEED.product.supplierId }),
+  });
+  if (minted.status !== 200) throw new Error(`mint: ${minted.status} ${await minted.text()}`);
+});
 
 afterAll(async () => {
   await mf.dispose();

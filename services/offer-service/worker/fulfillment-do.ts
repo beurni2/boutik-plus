@@ -548,6 +548,23 @@ export class FulfillmentDO {
       return Response.json({ ok: true, status: 'revoked' });
     }
 
+    /** LISTER-POUR-1a' — IS THIS A SUPPLIER THE FOUNDER KNOWS? Internal, like
+     *  `/resolve`; the composition root asks before an offer CREATE may name a
+     *  supplierId. « Known » means CURRENTLY HOLDS AN ACTIVE CODE — the same
+     *  registry CONSOLE-3 lists, so the console and this gate can never
+     *  disagree about who exists. Revocation therefore also closes NEW
+     *  listings for that supplier (existing offers untouched) until a
+     *  re-mint: « cut them off » cuts the pen that writes FOR them too. */
+    if (request.method === 'POST' && pathname === '/known') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const row = await this.state.storage.get(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      return Response.json({ ok: true, known: row !== undefined });
+    }
+
     /** LISTER-POUR-1a — WHO IS BEHIND THIS CODE, and nothing else. An
      *  INTERNAL door: only the composition root calls it (the public route
      *  is `GET /offers/mine`), so the answer carries the derived identity
@@ -909,6 +926,18 @@ export async function resolveSupplierIdByCode(env: FulfillmentEnv, code: string)
   if (res.status !== 200) return null;
   const body = (await res.json().catch(() => null)) as { supplierId?: unknown } | null;
   return typeof body?.supplierId === 'string' && body.supplierId !== '' ? body.supplierId : null;
+}
+
+/** LISTER-POUR-1a' — does this supplierId currently hold an active code?
+ *  Fail CLOSED: any book error answers false, so a transient fault can
+ *  never wave an unknown supplier through the create gate. */
+export async function supplierHasActiveCode(env: FulfillmentEnv, supplierId: string): Promise<boolean> {
+  if (supplierId === '') return false;
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  const res = await stub.fetch('https://do/known', { method: 'POST', body: JSON.stringify({ supplierId }) });
+  if (res.status !== 200) return false;
+  const body = (await res.json().catch(() => null)) as { known?: unknown } | null;
+  return body?.known === true;
 }
 
 /** CONSOLE-3 — the code inventory, through the same singleton. Auth (the

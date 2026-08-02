@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList, resolveSupplierIdByCode } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -222,7 +222,32 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     const { pathname } = new URL(request.url);
     // POST /offers (the founder-seed write path) → the offer DO router.
-    if (request.method === 'POST' && pathname === '/offers') return offerRouter.fetch(request, env);
+    //
+    // LISTER-POUR-1a' (founder-approved 2026-08-02): a create may only name a
+    // supplierId the book KNOWS — one currently holding an active personal
+    // code. Without this, one typo strands a product on a ghost supplier no
+    // screen will ever show: `/offers/mine` scopes by the DERIVED id, so a
+    // mis-attributed offer is invisible to the very supplier it was meant
+    // for, silently. The check keys on the SAME registry CONSOLE-3 lists —
+    // the founder mints first, lists second, including once for himself.
+    //
+    // Only the CREATE is gated: /offers/assets and /offers/delete name an
+    // offerId whose attribution is already settled. A body from which no
+    // supplierId can be read passes through UNJUDGED — the offer DO's own
+    // validation owns malformed, and owns it entirely (one home for that
+    // refusal, not two that can drift).
+    if (request.method === 'POST' && pathname === '/offers') {
+      const raw = await request.text();
+      let named = '';
+      try {
+        const body = JSON.parse(raw) as { product?: { supplierId?: unknown } };
+        if (typeof body?.product?.supplierId === 'string') named = body.product.supplierId;
+      } catch { /* the DO's validation owns malformed */ }
+      if (named !== '' && !(await supplierHasActiveCode(env, named))) {
+        return Response.json({ error: 'unknown_supplier', supplierId: named }, { status: 400 });
+      }
+      return offerRouter.fetch(new Request(request.url, { method: 'POST', headers: request.headers, body: raw }), env);
+    }
 
     // POST /offers/assets — THE COMPLETION PATH (attach photographs to an
     // existing offer). A WRITE, so the gate above has already run; same key,

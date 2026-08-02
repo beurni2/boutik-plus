@@ -141,6 +141,15 @@ async function postRelance(orderId: unknown, auth: string | null = `Bearer ${OPS
 }
 
 async function seedOffer(): Promise<void> {
+  // MINT BEFORE SEED (LISTER-POUR-1a'): a create may only name a supplier
+  // who currently holds an active code. Re-minting is the rotation story,
+  // so calling this more than once stays safe.
+  const minted = await mf.dispatchFetch('http://o/fulfillment/supplier-code', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ supplierId: SEED.product.supplierId }),
+  });
+  if (minted.status !== 200) throw new Error(`mint: ${minted.status} ${await minted.text()}`);
   const res = await mf.dispatchFetch('http://o/offers', {
     method: 'POST',
     headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },

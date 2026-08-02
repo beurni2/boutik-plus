@@ -142,6 +142,11 @@ let prepared: { codeA: string; codeB: string } | null = null;
 /** One-time world: both offers seeded, both codes minted. */
 async function world(): Promise<{ codeA: string; codeB: string }> {
   if (prepared !== null) return prepared;
+  // MINT BEFORE SEED (LISTER-POUR-1a'): a create may only name a supplier
+  // who currently holds an active code, so the codes come first.
+  const a = await opsPost('/fulfillment/supplier-code', { supplierId: SUPPLIER_A });
+  const b = await opsPost('/fulfillment/supplier-code', { supplierId: SUPPLIER_B });
+  if (a.json['ok'] !== true || b.json['ok'] !== true) throw new Error(`mint: ${a.text} ${b.text}`);
   for (const seed of [seedFor(PV_A, SUPPLIER_A, '1'), seedFor(PV_B, SUPPLIER_B, '2')]) {
     const res = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
@@ -150,9 +155,6 @@ async function world(): Promise<{ codeA: string; codeB: string }> {
     });
     if (res.status !== 200) throw new Error(`seed: ${res.status} ${await res.text()}`);
   }
-  const a = await opsPost('/fulfillment/supplier-code', { supplierId: SUPPLIER_A });
-  const b = await opsPost('/fulfillment/supplier-code', { supplierId: SUPPLIER_B });
-  if (a.json['ok'] !== true || b.json['ok'] !== true) throw new Error(`mint: ${a.text} ${b.text}`);
   prepared = { codeA: a.json['code'] as string, codeB: b.json['code'] as string };
   return prepared;
 }
@@ -447,6 +449,13 @@ describe('the record’s bytes and the TTL ceiling', () => {
       },
     });
     try {
+      // MINT BEFORE SEED (LISTER-POUR-1a'): the create names SUPPLIER_A, so
+      // his code exists in this world first.
+      const minted = await hostile.dispatchFetch('http://o/fulfillment/supplier-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
+        body: JSON.stringify({ supplierId: SUPPLIER_A }),
+      });
+      const code = ((await minted.json()) as { code: string }).code;
       const seedRes = await hostile.dispatchFetch('http://o/offers', {
         method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
         body: JSON.stringify(seedFor(PV_A, SUPPLIER_A, '1')),
@@ -456,11 +465,6 @@ describe('the record’s bytes and the TTL ceiling', () => {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FULFILL_SECRET}` },
         body: JSON.stringify(confirmedEvent('ord-r-clamp-1')),
       });
-      const minted = await hostile.dispatchFetch('http://o/fulfillment/supplier-code', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
-        body: JSON.stringify({ supplierId: SUPPLIER_A }),
-      });
-      const code = ((await minted.json()) as { code: string }).code;
       const doAct = async (path: string, body: unknown) => {
         const res = await hostile.dispatchFetch(`http://o${path}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${code}` },
