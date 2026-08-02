@@ -52,7 +52,15 @@ onlyBuiltDependencies:
 #
 # @platform/i18n and @platform/ui-tokens are NOT moved by this order — nothing
 # in the category wire touches copy or tokens, and each carries its own wave.
+#
+# READINESS-RETURN-1 (founder order 2026-08-02): re-pinned to canon v3.3.0
+# (sha 58e249b) — the RETURN LEG, `fulfillment.accepted.v1` +
+# `fulfillment.ready.v1`, so a reseller's follow-up can continue past
+# « payée ». ADDITIVE (no export removed, no existing schema changed), hence
+# MINOR. contracts + kernel-types MOVE TOGETHER as always, and
+# @platform/certification moves with them in package.json. i18n and ui-tokens
+# are NOT moved by this order — nothing here touches copy or tokens.
 overrides:
-  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#bd32ab20e496a00e79b53a3c6d93332967205553&path:packages/kernel-types"
-  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#bd32ab20e496a00e79b53a3c6d93332967205553&path:packages/contracts"
+  "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#58e249bde9ceb52d3fed06f8ded115d29b2b7c34&path:packages/kernel-types"
+  "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#58e249bde9ceb52d3fed06f8ded115d29b2b7c34&path:packages/contracts"
   "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens"

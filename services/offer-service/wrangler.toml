@@ -84,3 +84,30 @@ new_sqlite_classes = ["FulfillmentDO"]
 # "undescribable" and OMITS the product, so the vitrine simply empties — silently,
 # with both repos green. Verify against the LIVE /supply-projection response after
 # deploying, never against a green workflow.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# READINESS-RETURN-1b — THE RETURN LEG'S DESTINATION AND ITS OWN SECRET.
+# ═══════════════════════════════════════════════════════════════════════════
+# Founder-approved 2026-08-02: the reseller's follow-up continues past
+# « payée », so `fulfillment.accepted.v1` and `fulfillment.ready.v1` travel
+# from this Worker to Shop+.
+#
+# A SERVICE BINDING, not a public URL: the call never leaves Cloudflare's
+# network and needs no CORS, exactly as Shop+'s OFFER binding calls this
+# Worker in the other direction.
+[[services]]
+binding = "STOREFRONT"
+service = "storefront-service"
+
+# A FIFTH SECRET, AND IT IS ITS OWN. `PROGRESS_WRITE_SECRET` gates ONLY
+# Shop+'s POST /fulfillment/progress intake. It is deliberately NOT
+# FULFILLMENT_WRITE_SECRET: that one is Shop+'s key to write INTO this Worker,
+# and one key must never unlock the other direction's capability — the same
+# separation the four above already keep. Set the SAME value on BOTH Workers
+# with `wrangler secret put PROGRESS_WRITE_SECRET` (piped, never an argument).
+#
+# UNSET ⇒ this Worker delivers NOTHING and the outbox retries on its backoff.
+# That is the correct, tested behaviour (`readiness-return.e2e.test.ts`): the
+# supplier's accept/ready still succeeds, and the fact is never dropped and
+# never falsely marked delivered — it simply waits for the founder to set both
+# sides.

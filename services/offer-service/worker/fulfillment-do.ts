@@ -1,4 +1,6 @@
 import {
+  FulfillmentAcceptedEventSchema,
+  FulfillmentReadyEventSchema,
   OrderConfirmedEventSchema,
   PackageReadinessConfirmationSchema,
   type OrderConfirmedEvent,
@@ -54,6 +56,18 @@ const CHALLENGE_PREFIX = 'challenge:';
 const READY_PREFIX = 'ready:';
 const CODEHASH_PREFIX = 'codehash:';
 const SUPPLIERCODE_PREFIX = 'suppliercode:';
+/** READINESS-RETURN-1 — one outbox row per (order, fact). */
+const PROGRESS_OUTBOX_PREFIX = 'progressoutbox:';
+
+/**
+ * At-least-once backoff for the return leg, mirroring the Shop+ emitter's
+ * policy rather than inventing a second one: quick first retries for a
+ * transient blip, then hourly so a long Shop+ outage cannot spin a Worker.
+ */
+function progressBackoffMs(attempts: number): number {
+  const ladder = [1_000, 5_000, 30_000, 300_000, 1_800_000];
+  return attempts - 1 < ladder.length ? ladder[attempts - 1]! : 3_600_000;
+}
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
@@ -240,8 +254,107 @@ export interface PaidOrderRecord {
 export class FulfillmentDO {
   constructor(
     private readonly state: DurableObjectState,
-    private readonly env?: { readonly READINESS_TTL_MS?: string },
+    private readonly env?: {
+      readonly READINESS_TTL_MS?: string;
+      /**
+       * READINESS-RETURN-1 — the return leg's destination and credential.
+       * `STOREFRONT` is the Shop+ service binding; `PROGRESS_WRITE_SECRET` is
+       * its intake's own secret (a `wrangler secret`, never `[vars]`, never
+       * bundled). EITHER ABSENT ⇒ nothing is delivered and the outbox keeps
+       * retrying, which is the correct behaviour before the founder has set
+       * both sides — never a silent drop, never a fabricated success.
+       */
+      readonly STOREFRONT?: { fetch(request: Request): Promise<Response> };
+      readonly PROGRESS_WRITE_SECRET?: string;
+    },
   ) {}
+
+  /**
+   * ═══ READINESS-RETURN-1 — THE RETURN LEG, Boutik+ → Shop+ ═══
+   *
+   * Founder-approved 2026-08-02. Two facts travel home so a reseller's
+   * follow-up can continue past « payée »: the supplier ACCEPTED the order,
+   * and the supplier confirmed PACKAGE-READY. Both already exist durably in
+   * this object; until now neither left it.
+   *
+   * ONE OUTBOX ROW PER (order, fact) — deliberately NOT the single-row outbox
+   * Shop+'s OrderDO uses. That one carries exactly one event per order; this
+   * object emits two at different times, and a shared row would let the
+   * second overwrite an undelivered first. Keyed rows also make redelivery
+   * first-wins for free.
+   *
+   * The event is COMPOSED THROUGH CANON before it is stored, so a payload
+   * canon would refuse can never sit in the outbox retrying forever.
+   */
+  private async enqueueProgress(kind: 'accepted' | 'ready', orderId: string, at: string): Promise<void> {
+    try {
+      const name = kind === 'accepted' ? 'fulfillment.accepted.v1' : 'fulfillment.ready.v1';
+      const schema = kind === 'accepted' ? FulfillmentAcceptedEventSchema : FulfillmentReadyEventSchema;
+      const composed = schema.safeParse({
+        name,
+        envelope: {
+          command_id: `ful-${kind}-${orderId}`,
+          correlation_id: `corr-${orderId}`,
+          aggregateVersion: 1,
+          actor: 'offer-service:fulfillment',
+          serverTime: at,
+          version: 'v1',
+        },
+        payload: { orderId, at },
+      });
+      const key = `${PROGRESS_OUTBOX_PREFIX}${orderId}:${kind}`;
+      if ((await this.state.storage.get(key)) !== undefined) return; // first-wins
+      const row = composed.success
+        ? { status: 'pending' as const, event: composed.data, attempts: 0 }
+        : { status: 'unsendable' as const, reason: 'not_canonical', attempts: 0 };
+      await this.state.storage.put(key, row);
+      if (composed.success) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+    } catch {
+      // The supplier's act is already durably recorded; a queueing failure
+      // must never fail it. The row is re-enqueued the next time this fact is
+      // re-asserted (both call sites are idempotent and re-enter here).
+    }
+  }
+
+  /** Drain every pending progress row. At-least-once with backoff, exactly
+   *  like the Shop+ emitter — a non-2xx is UNDELIVERED and retried, so a
+   *  producer bug shows up as a repeating refusal in both Workers' logs
+   *  rather than a silent loss. */
+  async alarm(): Promise<void> {
+    const rows = await this.state.storage.list<{
+      status: 'pending' | 'delivered' | 'unsendable';
+      event?: unknown;
+      attempts: number;
+    }>({ prefix: PROGRESS_OUTBOX_PREFIX });
+    let retryIn: number | null = null;
+    for (const [key, row] of rows) {
+      if (row.status !== 'pending' || row.event === undefined) continue;
+      let delivered = false;
+      const target = this.env?.STOREFRONT;
+      const secret = this.env?.PROGRESS_WRITE_SECRET;
+      if (target !== undefined && secret !== undefined && secret !== '') {
+        const res = await target
+          .fetch(
+            new Request('https://storefront/fulfillment/progress', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+              body: JSON.stringify(row.event),
+            }),
+          )
+          .catch(() => undefined);
+        delivered = res !== undefined && res.ok;
+      }
+      if (delivered) {
+        await this.state.storage.put(key, { ...row, status: 'delivered', attempts: row.attempts + 1 });
+        continue;
+      }
+      const attempts = row.attempts + 1;
+      await this.state.storage.put(key, { ...row, attempts });
+      const next = progressBackoffMs(attempts);
+      retryIn = retryIn === null ? next : Math.min(retryIn, next);
+    }
+    if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
+  }
 
   /** The 10-minute canon TTL, and CANON IS THE CEILING BY CONSTRUCTION: the
    *  env knob exists so the e2e can prove expiry in milliseconds, and it can
@@ -444,6 +557,10 @@ export class FulfillmentDO {
         acceptedAt: new Date().toISOString(),
       };
       await this.state.storage.put(key, acceptance);
+      // READINESS-RETURN-1 — the fact travels home. AFTER the durable write,
+      // so nothing is announced that this object has not already recorded;
+      // first-wins above means a repeat accept never re-announces.
+      await this.enqueueProgress('accepted', orderId, acceptance.acceptedAt);
       return Response.json({ ok: true, status: 'accepted', acceptedAt: acceptance.acceptedAt });
     }
 
@@ -550,6 +667,12 @@ export class FulfillmentDO {
         [`${CHALLENGE_PREFIX}${orderId}`]: { ...issued, consumedAt: now } satisfies IssuedChallengeRecord,
         [`${READY_PREFIX}${orderId}`]: ready,
       });
+      // READINESS-RETURN-1 — package-ready travels home, AFTER the atomic
+      // batch above. The event carries the FACT and its instant only: the
+      // photo and the challenge that proved it stay in this object (§5.4's
+      // four secrets are not shareable, and Ten Laws #3 names readiness
+      // evidence explicitly).
+      await this.enqueueProgress('ready', orderId, now);
       return Response.json({ ok: true, status: 'ready', confirmedAt: now });
     }
 
