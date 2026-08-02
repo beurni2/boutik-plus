@@ -2224,5 +2224,89 @@
     "fr": "En envoyant, vous confirmez : le colis est complet et disponible.",
     "register": "money",
     "screenClass": "general"
+  },
+  {
+    "key": "livraisons.titre",
+    "fr": "Livraisons",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "livraisons.cle_explication",
+    "fr": "Cette liste vient de Shop+. Elle a sa propre clé — pas la même que la console.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "livraisons.cle_libelle",
+    "fr": "Clé des livraisons",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "livraisons.cle_ouvrir",
+    "fr": "Ouvrir les livraisons",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "livraisons.cle_ressaisir",
+    "fr": "Ressaisir la clé",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "livraisons.cle_refusee",
+    "fr": "Cette clé n'est pas la bonne. Vérifiez ce que vous avez tapé.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.chargement",
+    "fr": "Lecture des livraisons…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.echec",
+    "fr": "Impossible de lire les livraisons. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.non_configure",
+    "fr": "L'adresse de Shop+ n'est pas configurée sur cette version.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.vide",
+    "fr": "Aucune commande pour l'instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.a_livrer_titre",
+    "fr": "À livrer — payées, avec le contact",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "livraisons.a_livrer_vide",
+    "fr": "Rien à livrer pour l'instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.sans_contact",
+    "fr": "{n} commande(s) payée(s) sans numéro — voyez la commande pour joindre l'acheteuse.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "livraisons.en_attente",
+    "fr": "{n} commande(s) pas encore payée(s) — elles montent ici dès que l'opérateur confirme.",
+    "register": "money",
+    "screenClass": "general"
   }
 ]

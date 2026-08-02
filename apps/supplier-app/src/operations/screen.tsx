@@ -12,12 +12,21 @@ import {
   type OperationsServicePort,
 } from './service';
 import {
+  clearStoredCleC,
+  readStoredCleC,
+  resolveDispatchService,
+  storeCleC,
+  type DispatchServicePort,
+  type LivraisonRow,
+} from './dispatch-service';
+import {
   CHASE_AFTER_MIN,
   CODES_IDLE,
   RELANCE_IDLE,
   ageMinutes,
   codesReadOf,
   codesView,
+  livraisonsVue,
   mintAvis,
   mintSettled,
   mintStart,
@@ -28,6 +37,7 @@ import {
   revokeStart,
   type CodesRead,
   type CodesUi,
+  type LivraisonsRead,
   type OperationsRead,
   type OperationsRow,
   type RelanceUi,
@@ -397,7 +407,175 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
         />
       )}
+
+      {/* ── BC-1c — Livraisons: buyer contact from the Shop+ side, behind its
+             OWN key (value C — one console, two doors, two Workers). ── */}
+      {(view.kind === 'board' || view.kind === 'empty') && <SLivraisons />}
     </ScrollView>
+  );
+}
+
+/* ─────────── BC-1c — the dispatch section (Shop+ read, key C) ─────────── */
+
+/**
+ * The second door of the one console. Its own key, its own honest states, the
+ * same laws: nothing renders as true before the Shop+ Worker says so, only
+ * the newest read writes the section, and a refused key gets its own sentence
+ * and its own re-entry — never an escalation of the BOARD's door, because the
+ * two keys are different credentials on different Workers.
+ */
+function SLivraisons() {
+  const service = useMemo<DispatchServicePort | null>(() => resolveDispatchService(), []);
+  const [cleC, setCleC] = useState<string | null>(() => readStoredCleC());
+  const [draft, setDraft] = useState('');
+  const [read, setRead] = useState<LivraisonsRead>(() =>
+    service === null ? { kind: 'not_configured' } : { kind: 'loading' },
+  );
+  const seq = useRef(0);
+
+  const load = async (key: string): Promise<void> => {
+    if (service === null) return;
+    seq.current += 1;
+    const mine = seq.current;
+    const res = await service.listLivraisons(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    if (mine !== seq.current) return; // only the newest read writes the section
+    if (res.ok) setRead({ kind: 'ok', rows: res.rows });
+    else setRead({ kind: res.reason === 'bad_key' ? 'bad_key' : 'failed' });
+  };
+
+  useEffect(() => {
+    if (cleC !== null) void load(cleC);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleC]);
+
+  const vue = cleC === null ? null : livraisonsVue(read);
+
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('livraisons.titre')}</Text>
+
+      {cleC === null && (
+        <>
+          <View style={{ marginTop: 6 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('livraisons.cle_explication')}</Text>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <Input label={t('livraisons.cle_libelle')} value={draft} onChangeText={setDraft} />
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft
+              label={t('livraisons.cle_ouvrir')}
+              icon="check"
+              onPress={() => {
+                const v = draft.trim();
+                if (v === '') return;
+                storeCleC(v);
+                setRead({ kind: 'loading' });
+                setCleC(v);
+              }}
+            />
+          </View>
+        </>
+      )}
+
+      {vue !== null && vue.kind === 'loading' && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
+        </View>
+      )}
+      {vue !== null && vue.kind === 'not_configured' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t(vue.message)}</Banner>
+        </View>
+      )}
+      {vue !== null && vue.kind === 'bad_key' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft
+              label={t('livraisons.cle_ressaisir')}
+              icon="retry"
+              onPress={() => {
+                clearStoredCleC();
+                setDraft('');
+                setCleC(null);
+              }}
+            />
+          </View>
+        </View>
+      )}
+      {vue !== null && vue.kind === 'failed' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
+          </View>
+        </View>
+      )}
+      {vue !== null && vue.kind === 'empty' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t(vue.message)}</Banner>
+        </View>
+      )}
+
+      {vue !== null && vue.kind === 'liste' && (
+        <>
+          <View style={{ marginTop: 8 }}>
+            <Text style={role({ f: 'IS', w: 600, s: 13 }, P.ink)}>{t('livraisons.a_livrer_titre')}</Text>
+          </View>
+          {vue.aLivrer.length === 0 ? (
+            <View style={{ marginTop: 6 }}>
+              <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('livraisons.a_livrer_vide')}</Text>
+            </View>
+          ) : (
+            vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} />)
+          )}
+          {vue.sansContact.length > 0 && (
+            <View style={{ marginTop: 10 }}>
+              <Banner tone="warn">{t('livraisons.sans_contact').replace('{n}', String(vue.sansContact.length))}</Banner>
+            </View>
+          )}
+          {vue.enAttente.length > 0 && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>
+                {t('livraisons.en_attente').replace('{n}', String(vue.enAttente.length))}
+              </Text>
+            </View>
+          )}
+          <View style={{ marginTop: 12 }}>
+            <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+/** One course: the quartier LOUDEST (it is where the rider goes), then the
+ *  number — big, selectable — then the repère in the buyer's own words. */
+function CarteLivraison({ row }: { row: LivraisonRow }) {
+  return (
+    <Card variant="Llist" style={{ marginTop: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>
+          {row.contact?.quartier ?? row.zoneTo}
+        </Text>
+        <Text style={role({ f: 'IS', w: 400, s: 11 }, P.sub)}>{row.createdAt.slice(0, 10)}</Text>
+      </View>
+      {row.contact !== null && (
+        <>
+          <Text style={[role({ f: 'BG', w: 800, s: 18 }, P.ink), { marginTop: 4 }]} selectable>
+            {row.contact.phone}
+          </Text>
+          {row.contact.repere !== '' && (
+            <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{row.contact.repere}</Text>
+          )}
+        </>
+      )}
+      <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.sub), { marginTop: 4 }]} numberOfLines={1}>
+        {row.orderId}
+      </Text>
+    </Card>
   );
 }
 

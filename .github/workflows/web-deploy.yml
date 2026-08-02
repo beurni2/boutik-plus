@@ -71,6 +71,11 @@ jobs:
           # supplier bundle it would be a delete credential for the founder's
           # product photographs, the exact hole the split closes.
           EXPO_PUBLIC_MEDIA_REVOKE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}
+          # BC-1c — the Shop+ storefront Worker's URL (config, not a
+          # credential), for the console's Livraisons section. The KEY that
+          # opens that read (CHECKOUT_OPS_SECRET, value C) is NEVER here —
+          # typed by the founder at the section's own door, like the board's.
+          EXPO_PUBLIC_SHOP_CHECKOUT_BASE: ${{ secrets.EXPO_PUBLIC_SHOP_CHECKOUT_BASE }}
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app

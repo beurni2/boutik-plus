@@ -2,6 +2,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearStoredCleC,
+  readStoredCleC,
+  resolveDispatchService,
+  storeCleC,
+} from '../src/operations/dispatch-service';
+import {
+  livraisonsVue,
+} from '../src/operations/view';
+import {
   clearStoredOpsKey,
   operateurHashPresent,
   readStoredOpsKey,
@@ -690,3 +699,90 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
 function stubCall(spy: ReturnType<typeof vi.fn>): RequestInit | undefined {
   return spy.mock.calls[0]?.[1] as RequestInit | undefined;
 }
+
+/* ══════════ BC-1c — the Livraisons door (Shop+ read, key C) ══════════ */
+
+describe('BC-1c — the dispatch view: its own key, its own honest states, dispatchable means CONFIRMED + contact', () => {
+  const lrow = (orderId: string, state: string, createdAt: string, contact: { phone: string; quartier: string; repere: string } | null = { phone: '70 12 34 56', quartier: 'Gounghin', repere: 'Face à la pharmacie' }) =>
+    ({ orderId, state, createdAt, contact, productVersionId: 'pv-1', zoneTo: 'Ouagadougou' });
+
+  it('livraisonsVue: only CONFIRMED rows reach the queue; contactless confirmed rows are their own honest group; the unconfirmed whisper', () => {
+    const keys = new Set(catalog.map((e) => e.key));
+    const vue = livraisonsVue({
+      kind: 'ok',
+      rows: [
+        lrow('o-new', 'confirmed', '2026-08-02T10:00:00.000Z'),
+        lrow('o-old', 'confirmed', '2026-08-02T08:00:00.000Z'),
+        lrow('o-nocontact', 'confirmed', '2026-08-02T09:00:00.000Z', null),
+        lrow('o-pending', 'payment_pending', '2026-08-02T11:00:00.000Z'),
+        lrow('o-failed', 'payment_failed', '2026-08-02T07:00:00.000Z'),
+      ],
+    });
+    if (vue.kind !== 'liste') throw new Error(vue.kind);
+    // longest-waiting first: the buyer who paid first gets her rider first
+    expect(vue.aLivrer.map((r) => r.orderId)).toEqual(['o-old', 'o-new']);
+    expect(vue.sansContact.map((r) => r.orderId)).toEqual(['o-nocontact']);
+    // an unconfirmed order is NEVER dispatchable, whatever contact it carries
+    expect(vue.enAttente.map((r) => r.orderId)).toEqual(['o-pending', 'o-failed']);
+    for (const [read, kind, message] of [
+      [{ kind: 'loading' }, 'loading', 'livraisons.chargement'],
+      [{ kind: 'not_configured' }, 'not_configured', 'livraisons.non_configure'],
+      [{ kind: 'bad_key' }, 'bad_key', 'livraisons.cle_refusee'],
+      [{ kind: 'failed' }, 'failed', 'livraisons.echec'],
+      [{ kind: 'ok', rows: [] }, 'empty', 'livraisons.vide'],
+    ] as const) {
+      const v = livraisonsVue(read);
+      expect(v.kind, message).toBe(kind);
+      expect('message' in v && v.message, kind).toBe(message);
+      expect(keys.has(message), `${message} missing from catalog`).toBe(true);
+    }
+  });
+
+  it('the port: key C travels as Bearer to /checkout/dispatch on the SHOP base; 401 → bad_key; a malformed CONTACT drops the whole row', async () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'https://shop.example/');
+    const good = lrow('ord-ok', 'confirmed', '2026-08-02T08:00:00.000Z');
+    const spy = stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, orders: [
+        good,
+        { ...lrow('ord-halfphone', 'confirmed', '2026-08-02T08:00:00.000Z'), contact: { phone: '', quartier: 'G', repere: '' } },
+        { ...lrow('ord-junk', 'confirmed', 'pas une date') },
+        null,
+      ] })),
+    );
+    const res = await resolveDispatchService()!.listLivraisons('cle-c');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.rows).toEqual([good]);
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('https://shop.example/checkout/dispatch');
+    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-c');
+    stubFetch(async () => new Response('no', { status: 401 }));
+    expect(await resolveDispatchService()!.listLivraisons('k')).toEqual({ ok: false, reason: 'bad_key' });
+  });
+
+  it('unset base resolves to NOTHING — never demo; and key C has its own storage slot, never the board key’s', () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', '');
+    expect(resolveDispatchService()).toBeNull();
+    const bag = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => bag.get(k) ?? null,
+      setItem: (k: string, v: string) => void bag.set(k, v),
+      removeItem: (k: string) => void bag.delete(k),
+    });
+    storeCleC('cle-c-valeur');
+    expect([...bag.keys()]).toEqual(['boutik.livraisons.cle']);
+    expect(readStoredCleC()).toBe('cle-c-valeur');
+    clearStoredCleC();
+    expect(bag.size).toBe(0);
+  });
+
+  it('[source-text check] the section reads with a seq token, never escalates the BOARD on ITS bad key, and every livraisons.* key rendered exists', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    expect(source).toContain('if (mine !== seq.current) return;');
+    // key C's refusal re-enters ITS OWN door (clearStoredCleC), never setRead bad_key on the board
+    expect(source).toContain('clearStoredCleC();');
+    const used = [...source.matchAll(/t\('(livraisons\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(5);
+    const keys = new Set(catalog.map((e) => e.key));
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+});

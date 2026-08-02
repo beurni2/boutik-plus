@@ -89,14 +89,30 @@ export function countScannedFiles(roots, extensions = SCANNED_EXTENSIONS) {
  * zero files were scanned — a deleted/renamed target must read as "gate
  * could not run", never as a pass (verifier finding, 2026-07-09).
  */
-export function runScanGate({ gateName, invariant, patterns, defaultRoots = DEFAULT_ROOTS, scanExtensions = SCANNED_EXTENSIONS }) {
+export function runScanGate({ gateName, invariant, patterns, defaultRoots = DEFAULT_ROOTS, scanExtensions = SCANNED_EXTENSIONS, allow = [] }) {
   const args = process.argv.slice(2);
   const roots = args.length > 0 ? args : defaultRoots;
   if (countScannedFiles(roots, scanExtensions) === 0) {
     console.error(`${gateName} ERROR — no scannable files under ${roots.join(', ')}; refusing to pass on an empty scan`);
     process.exit(2);
   }
-  const hits = scanForPatterns(roots, patterns, scanExtensions);
+  const allHits = scanForPatterns(roots, patterns, scanExtensions);
+  /**
+   * FOUNDER-RULED CARVE-OUTS, the narrowest expressible: a hit is excused
+   * ONLY when its exact relative file AND pattern name match an `allow`
+   * entry, and every excused hit is PRINTED with its ruling — an invisible
+   * exemption is a gate nobody can audit. Any other file, any other
+   * pattern, and every negative fixture still fail exactly as before.
+   */
+  const hits = [];
+  for (const hit of allHits) {
+    const entry = allow.find((a) => a.file === hit.file && a.pattern === hit.pattern);
+    if (entry !== undefined) {
+      console.log(`${gateName} allowed — ${hit.file}:${hit.lineNo} [${hit.pattern}] (${entry.ruling})`);
+    } else {
+      hits.push(hit);
+    }
+  }
   if (hits.length === 0) {
     console.log(`${gateName} OK — no banned pattern in ${roots.join(', ')} (${invariant})`);
     process.exit(0);

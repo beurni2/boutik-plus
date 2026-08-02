@@ -1,4 +1,5 @@
 import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevokeResult } from './service';
+import type { LivraisonRow } from './dispatch-service';
 
 /**
  * CONSOLE-1 — THE ONE DECISION IS PURE (the `produits-view.ts` pattern): a
@@ -256,4 +257,51 @@ export function revokeSettled(supplierId: string, result: RevokeResult): CodesSe
 export function codesReadOf(result: CodesResult): CodesRead {
   if (result.ok) return { kind: 'ok', codes: result.codes };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
+}
+
+/* ─────── BC-1c — the dispatch view (Shop+ read, key C), PURE decisions ─────── */
+
+/**
+ * The founder's one question here: « which orders can I send a rider for,
+ * right now? » A dispatchable order is CONFIRMED (the webhook's word — the
+ * only word that can say paid) AND carries a contact. Everything else is
+ * shown honestly in its own place, never promoted: an unconfirmed order is
+ * not a course, and a confirmed one without a number is a call to make, not
+ * a rider to send.
+ */
+export type LivraisonsRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'not_configured' }
+  | { readonly kind: 'bad_key' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly rows: readonly LivraisonRow[] };
+
+export type LivraisonsVue =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'not_configured'; readonly message: string }
+  | { readonly kind: 'bad_key'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | {
+      readonly kind: 'liste';
+      /** Confirmed + contact — the riders' queue, LONGEST-WAITING first. */
+      readonly aLivrer: readonly LivraisonRow[];
+      /** Confirmed, no contact — dispatchable only by reaching the buyer
+       *  another way; never buried under the queue. */
+      readonly sansContact: readonly LivraisonRow[];
+      /** Not yet confirmed — context, newest first, whispering. */
+      readonly enAttente: readonly LivraisonRow[];
+    };
+
+export function livraisonsVue(read: LivraisonsRead): LivraisonsVue {
+  if (read.kind === 'loading') return { kind: 'loading', message: 'livraisons.chargement' };
+  if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'livraisons.non_configure' };
+  if (read.kind === 'bad_key') return { kind: 'bad_key', message: 'livraisons.cle_refusee' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'livraisons.echec' };
+  if (read.rows.length === 0) return { kind: 'empty', message: 'livraisons.vide' };
+  const confirmed = read.rows.filter((r) => r.state === 'confirmed');
+  const aLivrer = confirmed.filter((r) => r.contact !== null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const sansContact = confirmed.filter((r) => r.contact === null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const enAttente = read.rows.filter((r) => r.state !== 'confirmed').sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return { kind: 'liste', aLivrer, sansContact, enAttente };
 }
