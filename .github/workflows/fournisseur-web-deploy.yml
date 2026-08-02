@@ -75,7 +75,14 @@ jobs:
             fi
           done
           # CONTROLS — the scan must SEE the fournisseur's own literals.
-          for want in "boutik.fournisseur.code" "/fulfillment/mine"; do
+          # "/offers/mine" is REQUIRED since LISTER-POUR-1c: it is the one
+          # granted offers read, and requiring it keeps the excusal below from
+          # outliving the code it excuses (same three-part discipline as
+          # scripts/gates/fournisseur-bundle-absence.mjs — the OTHER copy of
+          # this law; when one changes, change both. This deploy refused a
+          # good bundle on 2026-08-02 precisely because only the gate copy
+          # had been evolved).
+          for want in "boutik.fournisseur.code" "/fulfillment/mine" "/offers/mine"; do
             if ! grep -rqF "$want" dist-fournisseur/_expo/static/js/web/; then
               echo "::error::control $want not found — the scan cannot see, refusing to deploy"
               exit 1
@@ -88,12 +95,21 @@ jobs:
             fi
           done
           # THE RULING — the offers client's routes must be ABSENT.
-          for banned in "/offers/assets" "/offers/delete" "/offers" "/media/revoke" "revokeImage"; do
+          for banned in "/offers/assets" "/offers/delete" "/media/revoke" "revokeImage"; do
             if grep -rqF "$banned" dist-fournisseur/_expo/static/js/web/; then
               echo "::error::$banned FOUND in the fournisseur artifact — the authoring client rode in; do not deploy"
               exit 1
             fi
           done
+          # Bare "/offers" — with the GRANTED read masked first (LISTER-POUR-1c,
+          # founder-ordered): "/offers/mine" legitimately rides this bundle, and
+          # every write route above is scanned UNMASKED so the mask can hide
+          # nothing but the read itself.
+          echo "excusal: /offers/mine is a GRANTED read (LISTER-POUR-1c) — masked before the bare /offers scan"
+          if find dist-fournisseur/_expo/static/js/web/ -type f -print0 | xargs -0 cat | sed 's|/offers/mine||g' | grep -qF "/offers"; then
+            echo "::error::/offers FOUND (beyond the granted /offers/mine) — the authoring client rode in; do not deploy"
+            exit 1
+          fi
           echo "capability ruling holds on the deployed artifact: authoring client absent, fournisseur literals present"
       - name: Ensure the Pages project exists (idempotent — create errors if present)
         working-directory: apps/supplier-app

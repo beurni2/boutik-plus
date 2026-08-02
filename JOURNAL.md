@@ -9,6 +9,11 @@ Format per entry:
 
 ---
 
+## 2026-08-02 · LISTER-POUR deploy round 2 — the law had TWO copies and I evolved one
+- **fournisseur-web-deploy run 30768674574 REFUSED the bundle — correctly, by MY gap:** the deploy workflow carries its own INLINE copy of the artifact scan, and 1c evolved only `scripts/gates/fournisseur-bundle-absence.mjs`. The inline copy still banned bare `/offers` with no excusal, so it refused the artifact that now legitimately carries the granted `/offers/mine` read. The refusal message names the exact fingerprint — the failure was diagnosable from one line.
+- **FIXED by mirroring, not weakening, with the duplication now NAMED in both copies:** the workflow gains the same three-part discipline — `/offers/mine` REQUIRED as a control, the excusal PRINTED, bare `/offers` scanned with the granted read masked while every write route stays unmasked. The mask logic was proven locally both directions before pushing (a granted-read-only blob passes; a blob smuggling a bare `/offers` client past the mask fails). Both copies now carry « when one changes, change both », with this incident as the reason.
+- **web-deploy (the founder's studio webapp, the 1b field) succeeded first try:** run 30768675352 on `9207904`.
+
 ## 2026-08-02 · LISTER-POUR — MERGED and DEPLOYED (founder go-ahead)
 - **MERGE RECORD:** main fast-forwarded `e7122f7` → **`9207904`** (five commits: 1a `5bf5ec1` · 1a' `78538c8` · 1b `6faf084` · 1c `0c89e4d` · verifier fixes `9207904`), each individually CI-green on its exact sha; the merge rode run 30768113936 on the head.
 - **REGISTRY PRECONDITION MET BY THE FOUNDER FIRST:** he minted `supplier-founder-001`'s code in the console BEFORE the service deploy, so the known-supplier gate never had a window in which his own publishing refused.
