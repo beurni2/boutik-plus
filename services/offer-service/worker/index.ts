@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardToFulfillmentBook, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -146,6 +146,37 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       return handleRelance(request, env);
     }
+    // ═══ READINESS-WIRE-1b-i — THE PERSONAL CODE DOOR (founder ruling
+    // 2026-08-02: authoring is HIS webapp alone; suppliers are fulfillment-
+    // only). The supplier acts left the offers write key ENTIRELY: a
+    // suppliers' bundle carrying that key would carry authoring capability.
+    // The founder MINTS one personal code per supplier (his ops credential
+    // gates the mint); the code is presented as Bearer and IS the identity —
+    // supplierId is derived server-side, never claimed by a body. The write
+    // key, the ops key, and the intake secret open none of these; the code
+    // opens nothing else.
+    if (request.method === 'POST' && fp === '/fulfillment/supplier-code') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return forwardOpsCodeAdmin(request, env, '/code/mint');
+    }
+    if (request.method === 'POST' && fp === '/fulfillment/supplier-code/revoke') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return forwardOpsCodeAdmin(request, env, '/code/revoke');
+    }
+    if (request.method === 'GET' && fp === '/fulfillment/mine') {
+      return forwardSupplierAct(request, env, '/mine');
+    }
+    if (request.method === 'POST' && fp === '/fulfillment/accept') {
+      return forwardSupplierAct(request, env, '/accept');
+    }
+    if (request.method === 'POST' && fp === '/fulfillment/ready/challenge') {
+      return forwardSupplierAct(request, env, '/ready/challenge');
+    }
+    if (request.method === 'POST' && fp === '/fulfillment/ready') {
+      return forwardSupplierAct(request, env, '/ready');
+    }
 
     // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any
     // dispatch or existence lookup (so the 401 is never an existence oracle).
@@ -166,26 +197,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // WRITE like the two above: the gate has already run; same key, same 401.
     if (request.method === 'POST' && pathname === '/offers/delete') return offerRouter.fetch(request, env);
 
-    // ═══ READINESS-WIRE-1a — the SUPPLIER's fulfillment acts (B6.1/B6.2) ═══
-    // Behind the write gate above, deliberately: these are the supplier app's
-    // acts, so they ride the SAME credential every supplier write rides
-    // (X-Write-Key). The founder's ops key and Shop+'s intake secret are
-    // Bearer credentials the write gate does not recognize — structurally
-    // refused, and pinned by test in both directions. TRUST NOTE (journalled):
-    // the write key is the bundled pilot credential; per-supplier identity is
-    // a future slice, and until it lands the supplierId claim is checked
-    // against the book's OWN internal join, which refuses acts on another
-    // supplier's order without ever distinguishing « unknown » from « not
-    // yours ».
-    if (request.method === 'POST' && pathname === '/fulfillment/accept') {
-      return forwardToFulfillmentBook(request, env, '/accept');
-    }
-    if (request.method === 'POST' && pathname === '/fulfillment/ready/challenge') {
-      return forwardToFulfillmentBook(request, env, '/ready/challenge');
-    }
-    if (request.method === 'POST' && pathname === '/fulfillment/ready') {
-      return forwardToFulfillmentBook(request, env, '/ready');
-    }
 
     // GET /offers (the founder's admin list) is a GET, so the write gate above
     // skipped it — key-gate it EXPLICITLY here with the same key before any

@@ -52,6 +52,70 @@ const RELANCE_PREFIX = 'relance:';
 const ACCEPT_PREFIX = 'accept:';
 const CHALLENGE_PREFIX = 'challenge:';
 const READY_PREFIX = 'ready:';
+const CODEHASH_PREFIX = 'codehash:';
+const SUPPLIERCODE_PREFIX = 'suppliercode:';
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * READINESS-WIRE-1b-i — THE PERSONAL CODE: each supplier's own door.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * FOUNDER RULING (2026-08-02, verbatim): « i do not want other suppliers
+ * boutik+ webapp be able to list new products, only my webapp have that
+ * capability, their webapp will be only able to accept commandes, upload
+ * photo prove of readiness , and see all the follow up until product is
+ * delivered » — approved implementation: « the personal code door ».
+ *
+ * The supplier fulfillment acts therefore leave the offers write key
+ * entirely: the suppliers' bundle must not CARRY authoring capability, and a
+ * shared key in that bundle would carry it. Instead the FOUNDER mints one
+ * personal code per supplier (his ops credential gates the mint), hands it
+ * over offline, and the code IS the identity: every act derives its
+ * supplierId from the presented code server-side — no request body carries a
+ * claimed supplierId anywhere in this flow any more, which retires 1a's
+ * spoofing caveat instead of patching it.
+ *
+ * CODE DISCIPLINE:
+ *  · minted from the OS CSPRNG (80 bits, base32, grouped for human handover:
+ *    BF-XXXX-XXXX-XXXX-XXXX) — typeable once on a low-end phone, unguessable
+ *    online at any rate;
+ *  · stored ONLY as its SHA-256 — this object can prove a code, never leak
+ *    one; the plaintext exists exactly twice: in the mint RESPONSE the
+ *    founder reads once, and in the supplier's own browser;
+ *  · ONE active code per supplier — re-minting replaces (the old code dies
+ *    at that instant), which is also the revocation story: « cut them off »
+ *    is one founder call away;
+ *  · every refused code answers ONE uniform 401 — never an oracle for which
+ *    codes exist.
+ */
+
+export interface SupplierCodeRecord {
+  readonly supplierId: string;
+  readonly mintedAt: string;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** RFC-4648-ish base32 (no padding) over CSPRNG bytes, grouped for handover. */
+function mintSupplierCode(): string {
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bytes = crypto.getRandomValues(new Uint8Array(10)); // 80 bits
+  let bits = 0;
+  let acc = 0;
+  let out = '';
+  for (const b of bytes) {
+    acc = (acc << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      out += ALPHABET[(acc >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  return `BF-${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8, 12)}-${out.slice(12, 16)}`;
+}
 
 /**
  * CONSOLE-2 — THE OPERATOR'S CHASE LOG, AND WHAT IT DELIBERATELY IS NOT.
@@ -191,6 +255,15 @@ export class FulfillmentDO {
     return Number.isSafeInteger(n) && n > 0 ? Math.min(n, READINESS_CHALLENGE_TTL_MS) : READINESS_CHALLENGE_TTL_MS;
   }
 
+  /** Hash the presented code and look it up — a miss, a non-string, and a
+   *  revoked code are all the SAME null (one uniform 401 upstream, never an
+   *  oracle). No secret-dependent comparison exists: the hash is the key. */
+  private async resolveCode(presented: unknown): Promise<SupplierCodeRecord | null> {
+    if (typeof presented !== 'string' || presented === '') return null;
+    const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(presented)}`);
+    return record ?? null;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
 
@@ -248,22 +321,96 @@ export class FulfillmentDO {
       return Response.json({ ok: true, orders });
     }
 
-    /** B6.1 thin — the supplier ACCEPTS, locking the terms readiness must
-     *  repeat. First-wins (a second accept answers `already_accepted`, terms
-     *  untouched). An unknown order and ANOTHER supplier's order answer the
-     *  SAME refusal: the route is reachable with the bundled app key, and a
-     *  distinguishable answer would be an oracle for who supplies what. */
-    if (request.method === 'POST' && pathname === '/accept') {
+    /** THE FOUNDER MINTS a personal code (ops-key-gated at the router). ONE
+     *  active code per supplier: re-mint atomically replaces — the previous
+     *  code dies at that instant, which is also revocation-by-rotation. The
+     *  plaintext appears in THIS response once and is never stored. */
+    if (request.method === 'POST' && pathname === '/code/mint') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-      const orderId = body?.['orderId'];
       const supplierId = body?.['supplierId'];
-      if (
-        typeof orderId !== 'string' || orderId === '' ||
-        typeof supplierId !== 'string' || supplierId === '' ||
-        Object.keys(body ?? {}).length !== 2
-      ) {
+      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
+      const code = mintSupplierCode();
+      const hash = await sha256Hex(code);
+      const mintedAt = new Date().toISOString();
+      const previous = await this.state.storage.get<{ hash: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      if (previous !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${previous.hash}`);
+      await this.state.storage.put({
+        [`${CODEHASH_PREFIX}${hash}`]: { supplierId, mintedAt } satisfies SupplierCodeRecord,
+        [`${SUPPLIERCODE_PREFIX}${supplierId}`]: { hash, mintedAt },
+      });
+      return Response.json({ ok: true, code, supplierId, mintedAt });
+    }
+
+    /** REVOKE — the founder cuts a supplier off. Idempotent: revoking a
+     *  supplier with no code answers honestly rather than erroring. */
+    if (request.method === 'POST' && pathname === '/code/revoke') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const existing = await this.state.storage.get<{ hash: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      if (existing === undefined) return Response.json({ ok: true, status: 'no_code' });
+      await this.state.storage.delete([`${CODEHASH_PREFIX}${existing.hash}`, `${SUPPLIERCODE_PREFIX}${supplierId}`]);
+      return Response.json({ ok: true, status: 'revoked' });
+    }
+
+    /** THE SUPPLIER'S OWN LIST — the code is the identity; only that
+     *  supplier's orders leave, each as an explicit ALLOWLIST of fields
+     *  (never a record spread): the founder's relance log and the neighbours'
+     *  orders are not theirs to see. */
+    if (request.method === 'POST' && pathname === '/mine') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
+      const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
+      const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
+      const orders = [...entries.values()]
+        .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
+        .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
+        .map((r) => {
+          const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
+          const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
+          return {
+            orderId: r.orderId,
+            productName: r.productName,
+            productVersionId: r.productVersionId,
+            offerVersion: r.offerVersion,
+            paymentMode: r.paymentMode,
+            paidAt: r.paidAt,
+            zoneTo: r.zoneTo,
+            sellerBasePrice: r.sellerBasePrice,
+            ...(accepted !== undefined || ready !== undefined
+              ? {
+                  fulfillment: {
+                    ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
+                    ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+                  },
+                }
+              : {}),
+          };
+        });
+      return Response.json({ ok: true, orders });
+    }
+
+    /** B6.1 thin — the supplier ACCEPTS, locking the terms readiness must
+     *  repeat. First-wins (a second accept answers `already_accepted`, terms
+     *  untouched). THE CODE IS THE IDENTITY (1b-i): supplierId is DERIVED
+     *  from the presented code, never claimed by the body. An unknown order
+     *  and another supplier's order answer the SAME refusal — never an
+     *  oracle for who supplies what. */
+    if (request.method === 'POST' && pathname === '/accept') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const orderId = body?.['orderId'];
+      if (typeof orderId !== 'string' || orderId === '' || Object.keys(body ?? {}).length !== 2) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const supplierId = resolved.supplierId;
       const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
       if (order === undefined || !order.supplierResolved || order.supplierId !== supplierId) {
         return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
@@ -287,20 +434,18 @@ export class FulfillmentDO {
 
     /** B6.2 — issue the short-TTL sellerReadinessChallenge. CSPRNG mint; a
      *  re-issue REPLACES the previous (which then refuses by mismatch). Only
-     *  an ACCEPTED order may hold a challenge (B+I-06 ordering). */
+     *  an ACCEPTED order may hold a challenge (B+I-06 ordering). Identity
+     *  derived from the code, as everywhere on this door. */
     if (request.method === 'POST' && pathname === '/ready/challenge') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
       const orderId = body?.['orderId'];
-      const supplierId = body?.['supplierId'];
-      if (
-        typeof orderId !== 'string' || orderId === '' ||
-        typeof supplierId !== 'string' || supplierId === '' ||
-        Object.keys(body ?? {}).length !== 2
-      ) {
+      if (typeof orderId !== 'string' || orderId === '' || Object.keys(body ?? {}).length !== 2) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
       const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
-      if (order === undefined || !order.supplierResolved || order.supplierId !== supplierId) {
+      if (order === undefined || !order.supplierResolved || order.supplierId !== resolved.supplierId) {
         return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
       }
       const acceptance = await this.state.storage.get<FulfillmentAcceptanceRecord>(`${ACCEPT_PREFIX}${orderId}`);
@@ -323,15 +468,29 @@ export class FulfillmentDO {
      *  failure); the challenge must match, be unexpired and UNCONSUMED; the
      *  locked terms must be repeated exactly. Consumption and the readiness
      *  record land in ONE atomic batch. Reason names mirror the reference
-     *  FulfillmentBook so the two implementations can never drift silently. */
+     *  FulfillmentBook so the two implementations can never drift silently.
+     *  ENVELOPE (1b-i): { code, confirmation } — the code authenticates and
+     *  binds the supplier; the confirmation stays byte-for-byte the canon
+     *  shape, strict-parsed on its own. */
     if (request.method === 'POST' && pathname === '/ready') {
-      const raw: unknown = await request.json().catch(() => null);
+      const envelope = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(envelope?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const raw: unknown = envelope?.['confirmation'];
       const parsed = PackageReadinessConfirmationSchema.safeParse(raw);
       if (!parsed.success) {
         return Response.json({ ok: false, reason: 'not_canonical_or_foreign_secret' }, { status: 400 });
       }
       const confirmation = parsed.data;
       const orderId = confirmation.orderId;
+
+      // OWNERSHIP BEFORE ANY STATE IS REVEALED: a valid code that is not THIS
+      // order's supplier learns nothing — not even that the order is already
+      // ready. Same uniform refusal as everywhere on this door.
+      const owned = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (owned === undefined || !owned.supplierResolved || owned.supplierId !== resolved.supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
 
       const already = await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`);
       if (already !== undefined) {
@@ -482,21 +641,51 @@ export async function handlePaidOrdersList(env: FulfillmentEnv): Promise<Respons
 }
 
 /**
- * READINESS-WIRE-1a — forward a supplier fulfillment act to the book. Auth
- * (the app's write key) ran at the composition root. The BODY passes through
- * VERBATIM, deliberately unlike the relance forwarder: these routes validate
- * strictly inside the object (exact key sets; the canon strict parse), so a
- * smuggled field is REFUSED there rather than silently stripped here — the
- * refuse-don't-ignore lesson the relance verifier taught, applied from birth.
+ * READINESS-WIRE-1b-i — forward a SUPPLIER act. The Bearer is the supplier's
+ * personal code: extracted here, resolved INSIDE the object (hash lookup —
+ * no secret ever compares against attacker-controlled bytes). The caller's
+ * body rides inside the envelope untouched, so the object's strict
+ * validation (exact key sets; the canon parse) still refuses smuggled
+ * fields rather than this layer silently stripping them.
+ *
+ * A missing/malformed Authorization answers the SAME 401 shape an unknown
+ * code answers — the door never says which part was wrong.
  */
-export async function forwardToFulfillmentBook(
+export async function forwardSupplierAct(
   request: Request,
   env: FulfillmentEnv,
-  path: '/accept' | '/ready/challenge' | '/ready',
+  path: '/mine' | '/accept' | '/ready/challenge' | '/ready',
 ): Promise<Response> {
-  const body = await request.text();
+  const auth = request.headers.get('Authorization') ?? '';
+  const code = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';
+  if (code === '') return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+  const raw: unknown = request.method === 'GET' ? null : await request.json().catch(() => null);
+  // THE BEARER ALWAYS WINS: `code` is set AFTER the spread, so a body that
+  // smuggles its own `code` field cannot substitute the authenticated one —
+  // the identity is the header, never a body byte.
+  const envelope =
+    path === '/mine'
+      ? { code }
+      : path === '/ready'
+        ? { code, confirmation: raw }
+        : { ...(raw !== null && typeof raw === 'object' ? raw : {}), code };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
-  return stub.fetch(`https://do${path}`, { method: 'POST', body });
+  return stub.fetch(`https://do${path}`, { method: 'POST', body: JSON.stringify(envelope) });
+}
+
+/** The founder's code administration (mint/revoke) — his ops key ran at the
+ *  composition root; only the body's supplierId crosses. */
+export async function forwardOpsCodeAdmin(
+  request: Request,
+  env: FulfillmentEnv,
+  path: '/code/mint' | '/code/revoke',
+): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(`https://do${path}`, {
+    method: 'POST',
+    body: JSON.stringify({ supplierId: body?.['supplierId'] }),
+  });
 }
 
 /**
