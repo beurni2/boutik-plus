@@ -929,8 +929,12 @@ export async function resolveSupplierIdByCode(env: FulfillmentEnv, code: string)
 }
 
 /** LISTER-POUR-1a' — does this supplierId currently hold an active code?
- *  Fail CLOSED: any book error answers false, so a transient fault can
- *  never wave an unknown supplier through the create gate. */
+ *  Fail CLOSED, in two distinct ways (verifier finding — the first wording
+ *  claimed one): a book answering non-2xx returns FALSE here, so the caller
+ *  refuses with 400 `unknown_supplier`; a book call that THROWS (e.g. the
+ *  FULFILLMENT binding absent — a deploy misconfiguration) is uncaught and
+ *  the create answers 500. Both paths refuse; neither waves an unknown
+ *  supplier through. The 500 is deliberate loudness, not a gap. */
 export async function supplierHasActiveCode(env: FulfillmentEnv, supplierId: string): Promise<boolean> {
   if (supplierId === '') return false;
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));

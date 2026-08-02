@@ -540,7 +540,6 @@ export function SListerReal({ st, d, captures, session }: {
       photosHint={t('publier.roles_hint')}
       fournisseur={{
         value: session.current.pourFournisseur,
-        placeholder: SUPPLIER_ID,
         onChange: (v: string) => { session.current.pourFournisseur = v; },
       }}
     />
