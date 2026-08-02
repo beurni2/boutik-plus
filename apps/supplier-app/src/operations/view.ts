@@ -22,11 +22,10 @@ import type { PaidOrderRow, RelanceResult } from './service';
  * Canon owns « le produit est prêt » — B+I-06 / B6.2: a
  * `PackageReadinessConfirmation` carrying a photo and the short-TTL
  * `sellerReadinessChallenge`, the supplier's own evidenced act, and the gate
- * that lets a Séra pickup be requested at all. That machinery lives in
- * `services/fulfillment-service` and is not yet wired to this book, so the
- * board cannot show a genuine preparation state and does not claim one.
- * Wiring readiness → the board is its own slice; until it lands, « relancé »
- * means « vous avez appelé », nothing more.
+ * that lets a Séra pickup be requested at all. READINESS-WIRE-1a wired that
+ * machinery to the book: the row's `fulfillment` mark (acceptedAt/readyAt,
+ * server clocks) is the REAL signal, and it supersedes both the chase queue
+ * and the call log. « Relancé » still means only « vous avez appelé ».
  */
 export const CHASE_AFTER_MIN = 10;
 
@@ -50,12 +49,17 @@ export type OperationsView =
   | { readonly kind: 'empty'; readonly message: string }
   | {
       readonly kind: 'board';
-      /** Paid ≥ 10 min ago and NOT yet called — the founder's queue, oldest first. */
+      /** Paid ≥ 10 min ago, NO preparation signal, NOT yet called — the
+       *  founder's queue, oldest first. */
       readonly relancer: readonly OperationsRow[];
-      /** Already called, whatever their age — most recently called first. He
-       *  can call again from here; nothing about preparation is claimed. */
+      /** THE REAL SIGNAL (READINESS-WIRE-1a): the supplier accepted and/or
+       *  confirmed « Produit prêt ». Supersedes both the chase and the call
+       *  log — his 10-minute rule was « no sign of preparation », and this IS
+       *  the sign. Most recent signal first. */
+      readonly preparation: readonly OperationsRow[];
+      /** Called, no preparation signal YET — most recently called first. */
       readonly relances: readonly OperationsRow[];
-      /** Paid < 10 min ago, not yet called — fresh, no action yet, newest first. */
+      /** Paid < 10 min ago, no signal, not called — fresh, newest first. */
       readonly recentes: readonly OperationsRow[];
       /** Rows whose product this platform could not resolve — always shown,
        *  never buried: a paid order without a supplier is the board's loudest
@@ -122,13 +126,22 @@ export function operationsView(read: OperationsRead, nowMs: number): OperationsV
   if (read.rows.length === 0) return { kind: 'empty', message: 'operations.vide' };
 
   const rows: OperationsRow[] = read.rows.map((r) => ({ ...r, ageMin: ageMinutes(r.paidAt, nowMs) }));
+  // THE REAL SIGNAL FIRST: an order the supplier has accepted or readied
+  // needs neither chasing nor a call reminder — whatever its age, and even
+  // if he already called about it.
+  const signalOf = (r: OperationsRow): string | undefined =>
+    r.fulfillment?.readyAt ?? r.fulfillment?.acceptedAt;
+  const preparation = rows
+    .filter((r) => signalOf(r) !== undefined)
+    .sort((a, b) => (signalOf(a)! < signalOf(b)! ? 1 : -1));
+  const unprepared = rows.filter((r) => signalOf(r) === undefined);
   // A called order leaves the queue WHATEVER its age — the founder does not
   // need to be told twice about a supplier he has already phoned.
-  const called = rows.filter((r) => r.relance !== undefined);
-  const uncalled = rows.filter((r) => r.relance === undefined);
+  const called = unprepared.filter((r) => r.relance !== undefined);
+  const uncalled = unprepared.filter((r) => r.relance === undefined);
   const relancer = uncalled.filter((r) => r.ageMin >= CHASE_AFTER_MIN).sort((a, b) => b.ageMin - a.ageMin);
   const recentes = uncalled.filter((r) => r.ageMin < CHASE_AFTER_MIN).sort((a, b) => a.ageMin - b.ageMin);
   const relances = [...called].sort((a, b) => (a.relance!.at < b.relance!.at ? 1 : -1));
   const anomalies = rows.filter((r) => !r.supplierResolved);
-  return { kind: 'board', relancer, relances, recentes, anomalies };
+  return { kind: 'board', relancer, preparation, relances, recentes, anomalies };
 }

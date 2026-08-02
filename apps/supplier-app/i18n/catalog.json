@@ -1900,5 +1900,41 @@
     "fr": "Appelé à l'instant",
     "register": "money",
     "screenClass": "label"
+  },
+  {
+    "key": "operations.preparation_titre",
+    "fr": "En préparation chez le fournisseur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.prep_accepte",
+    "fr": "Commande acceptée",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.prep_pret",
+    "fr": "Colis prêt, photo à l'appui",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.prep_maintenant",
+    "fr": "à l'instant",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.prep_depuis",
+    "fr": "il y a {n} min",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.prep_depuis_long",
+    "fr": "il y a plus d'une heure",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

@@ -233,6 +233,19 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             )}
           </View>
 
+          {/* ── En préparation — the REAL signal: the supplier's own act.
+                 « Prêt » only from an evidenced B6.2 confirmation. ── */}
+          {view.preparation.length > 0 && (
+            <View style={{ marginTop: 22 }}>
+              <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>
+                {t('operations.preparation_titre')}
+              </Text>
+              {view.preparation.map((r) => (
+                <CommandeCard key={r.orderId} row={r} nowMs={nowMs} />
+              ))}
+            </View>
+          )}
+
           {/* ── Déjà appelés — his own record of his own act. Never « prêt ». ── */}
           {view.relances.length > 0 && (
             <View style={{ marginTop: 22 }}>
@@ -336,6 +349,17 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
         </View>
       </View>
 
+      {row.fulfillment !== undefined && (
+        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={role({ f: 'IS', w: 700, s: 12 }, P.ink)}>
+            {row.fulfillment.readyAt !== undefined ? t('operations.prep_pret') : t('operations.prep_accepte')}
+          </Text>
+          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginLeft: 6 }]}>
+            {prepSentence(row.fulfillment.readyAt ?? row.fulfillment.acceptedAt ?? '', nowMs ?? Date.now())}
+          </Text>
+        </View>
+      )}
+
       {called === true && row.relance !== undefined && (
         <View style={{ marginTop: 8 }}>
           <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
@@ -363,6 +387,16 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
       )}
     </Card>
   );
+}
+
+/** « À l'instant » → « il y a X min » → past the hour, no invented precision —
+ *  the same honest clock the relance sentence uses, for the supplier's act. */
+function prepSentence(atIso: string, nowMs: number): string {
+  const min = ageMinutes(atIso, nowMs);
+  if (min < 1) return t('operations.prep_maintenant');
+  return min < 60
+    ? t('operations.prep_depuis').replace('{n}', String(min))
+    : t('operations.prep_depuis_long');
 }
 
 /**

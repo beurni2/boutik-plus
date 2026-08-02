@@ -1,4 +1,9 @@
-import { OrderConfirmedEventSchema, type OrderConfirmedEvent } from '@platform/contracts';
+import {
+  OrderConfirmedEventSchema,
+  PackageReadinessConfirmationSchema,
+  type OrderConfirmedEvent,
+  type PackageReadinessConfirmation,
+} from '@platform/contracts';
 import type { OfferStore } from '../src/offer-store.js';
 
 /**
@@ -44,6 +49,9 @@ import type { OfferStore } from '../src/offer-store.js';
 export const BOOK_NAME = 'paid-orders';
 const ORDER_PREFIX = 'order:';
 const RELANCE_PREFIX = 'relance:';
+const ACCEPT_PREFIX = 'accept:';
+const CHALLENGE_PREFIX = 'challenge:';
+const READY_PREFIX = 'ready:';
 
 /**
  * CONSOLE-2 — THE OPERATOR'S CHASE LOG, AND WHAT IT DELIBERATELY IS NOT.
@@ -78,6 +86,73 @@ export interface RelanceMark {
   readonly count: number;
 }
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * READINESS-WIRE-1a — B6.1/B6.2 MADE DURABLE: acceptance, the challenge, and
+ * « Produit prêt », on the same book the paid orders live in.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * SPEC AUTHORITY, quoted:
+ *  · B+I-06: « A Séra pickup MUST NOT be requested until fulfillment is
+ *    accepted and the supplier has confirmed package-ready (readiness
+ *    evidence + dynamic readiness challenge). »
+ *  · §5.6 PackageReadinessConfirmation — STRICT: « carries the
+ *    sellerReadinessChallenge and NOTHING ELSE secret »; a buyerDropCode (or
+ *    any undeclared key) in readiness evidence is a parse failure.
+ *  · B6.2: « confirm package-ready with photo + sellerReadinessChallenge
+ *    (short-TTL) + qty/variant/availability → only then enters the dispatch
+ *    queue. »
+ *
+ * The SEMANTICS mirror `@boutik/fulfillment-service`'s FulfillmentBook — the
+ * tested in-memory reference: acceptance LOCKS terms and is first-wins; the
+ * challenge is short-TTL and SINGLE-USE; readiness demands the strict canon
+ * confirmation, a live matching challenge, and the locked terms. A pin test
+ * asserts this file's TTL equals the reference's.
+ *
+ * SAFEST DEFAULTS, FLAGGED (walking-skeleton scope, journalled):
+ *  · Acceptance locks `variant = productVersionId` and `qty = 1` — the wire
+ *    carries neither (founder-approved 7 fields) and today's spine sells one
+ *    unit of one version. When variants/qty reach the order wire, acceptance
+ *    starts locking the real values; the ready-time equality check is already
+ *    the enforcement.
+ *  · NO MONEY FIELD. The reference locks `sellerNetFcfa` copied from the
+ *    Quote; this Worker never sees the Quote and MUST NOT recompute (B+I-05,
+ *    Ten Laws #1/#2) — so the durable acceptance simply carries no amount.
+ *
+ * THE CHALLENGE MINT DRAWS FROM THE OS CSPRNG (`crypto.randomUUID`), never a
+ * counter: the reference's `srch-<orderId>-<n>` was mock-grade — predictable
+ * secrets are not secrets, and this one is one of the four the custody laws
+ * name. The mint-path-entropy discipline applies to it in full.
+ */
+
+export const READINESS_CHALLENGE_TTL_MS = 10 * 60 * 1000; // pin-tested against @boutik/fulfillment-service
+
+export interface FulfillmentAcceptanceRecord {
+  readonly orderId: string;
+  readonly supplierId: string;
+  /** Locked at acceptance; readiness must repeat them exactly. */
+  readonly variant: string;
+  readonly qty: number;
+  /** THIS Worker's clock — never a caller's claim. */
+  readonly acceptedAt: string;
+}
+
+interface IssuedChallengeRecord {
+  readonly challenge: string;
+  readonly expiresAt: string;
+  /** Single-use: set on consumption; a consumed challenge refuses forever. */
+  readonly consumedAt?: string;
+}
+
+interface ReadinessRecord {
+  /** The canon confirmation VERBATIM — the evidence, as parsed. */
+  readonly confirmation: PackageReadinessConfirmation;
+  /** THIS Worker's receipt clock — the board's display time. The
+   *  confirmation's own `at` is the supplier's claim and stays inside the
+   *  evidence, never promoted (the emitter's paidAt law, third application). */
+  readonly confirmedAt: string;
+}
+
 export interface PaidOrderRecord {
   readonly orderId: string;
   readonly productVersionId: string;
@@ -99,7 +174,19 @@ export interface PaidOrderRecord {
 }
 
 export class FulfillmentDO {
-  constructor(private readonly state: DurableObjectState) {}
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env?: { readonly READINESS_TTL_MS?: string },
+  ) {}
+
+  /** The 10-minute canon TTL — overridable ONLY downward-visible via an env
+   *  var so the e2e can prove expiry without waiting ten real minutes.
+   *  Production never sets it; anything unparseable falls to the canon value. */
+  private readinessTtlMs(): number {
+    const raw = this.env?.READINESS_TTL_MS;
+    const n = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
+    return Number.isSafeInteger(n) && n > 0 ? n : READINESS_CHALLENGE_TTL_MS;
+  }
 
   async fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -130,15 +217,163 @@ export class FulfillmentDO {
     if (request.method === 'GET' && pathname === '/orders') {
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
       const marks = await this.state.storage.list<RelanceMark>({ prefix: RELANCE_PREFIX });
+      const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
+      const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
       const orders = [...entries.values()]
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
         // Merged at READ — the stored record stays exactly the bytes the
-        // intake wrote (see RelanceMark).
+        // intake wrote (see RelanceMark). The fulfillment mark carries the
+        // TWO server clocks only; the evidence (photoRef, challenge) never
+        // leaves this object through the list.
         .map((r) => {
           const mark = marks.get(`${RELANCE_PREFIX}${r.orderId}`);
-          return mark === undefined ? r : { ...r, relance: mark };
+          const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
+          const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
+          const fulfillment =
+            accepted === undefined && ready === undefined
+              ? undefined
+              : {
+                  ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
+                  ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+                };
+          return {
+            ...r,
+            ...(mark !== undefined ? { relance: mark } : {}),
+            ...(fulfillment !== undefined ? { fulfillment } : {}),
+          };
         });
       return Response.json({ ok: true, orders });
+    }
+
+    /** B6.1 thin — the supplier ACCEPTS, locking the terms readiness must
+     *  repeat. First-wins (a second accept answers `already_accepted`, terms
+     *  untouched). An unknown order and ANOTHER supplier's order answer the
+     *  SAME refusal: the route is reachable with the bundled app key, and a
+     *  distinguishable answer would be an oracle for who supplies what. */
+    if (request.method === 'POST' && pathname === '/accept') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      const supplierId = body?.['supplierId'];
+      if (
+        typeof orderId !== 'string' || orderId === '' ||
+        typeof supplierId !== 'string' || supplierId === '' ||
+        Object.keys(body ?? {}).length !== 2
+      ) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined || !order.supplierResolved || order.supplierId !== supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      const key = `${ACCEPT_PREFIX}${orderId}`;
+      const existing = await this.state.storage.get<FulfillmentAcceptanceRecord>(key);
+      if (existing !== undefined) {
+        return Response.json({ ok: true, status: 'already_accepted', acceptedAt: existing.acceptedAt });
+      }
+      const acceptance: FulfillmentAcceptanceRecord = {
+        orderId,
+        supplierId,
+        // Safest defaults, flagged in the header: the wire carries neither.
+        variant: order.productVersionId,
+        qty: 1,
+        acceptedAt: new Date().toISOString(),
+      };
+      await this.state.storage.put(key, acceptance);
+      return Response.json({ ok: true, status: 'accepted', acceptedAt: acceptance.acceptedAt });
+    }
+
+    /** B6.2 — issue the short-TTL sellerReadinessChallenge. CSPRNG mint; a
+     *  re-issue REPLACES the previous (which then refuses by mismatch). Only
+     *  an ACCEPTED order may hold a challenge (B+I-06 ordering). */
+    if (request.method === 'POST' && pathname === '/ready/challenge') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      const supplierId = body?.['supplierId'];
+      if (
+        typeof orderId !== 'string' || orderId === '' ||
+        typeof supplierId !== 'string' || supplierId === '' ||
+        Object.keys(body ?? {}).length !== 2
+      ) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined || !order.supplierResolved || order.supplierId !== supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      const acceptance = await this.state.storage.get<FulfillmentAcceptanceRecord>(`${ACCEPT_PREFIX}${orderId}`);
+      if (acceptance === undefined) {
+        return Response.json({ ok: false, reason: 'not_accepted' }, { status: 409 });
+      }
+      if ((await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
+      }
+      const issued: IssuedChallengeRecord = {
+        challenge: `srch-${crypto.randomUUID()}`,
+        expiresAt: new Date(Date.now() + this.readinessTtlMs()).toISOString(),
+      };
+      await this.state.storage.put(`${CHALLENGE_PREFIX}${orderId}`, issued);
+      return Response.json({ ok: true, challenge: issued.challenge, expiresAt: issued.expiresAt });
+    }
+
+    /** B6.2 — « Produit prêt ». The canonical STRICT confirmation is the ONLY
+     *  accepted shape (a buyerDropCode — or any foreign key — is a parse
+     *  failure); the challenge must match, be unexpired and UNCONSUMED; the
+     *  locked terms must be repeated exactly. Consumption and the readiness
+     *  record land in ONE atomic batch. Reason names mirror the reference
+     *  FulfillmentBook so the two implementations can never drift silently. */
+    if (request.method === 'POST' && pathname === '/ready') {
+      const raw: unknown = await request.json().catch(() => null);
+      const parsed = PackageReadinessConfirmationSchema.safeParse(raw);
+      if (!parsed.success) {
+        return Response.json({ ok: false, reason: 'not_canonical_or_foreign_secret' }, { status: 400 });
+      }
+      const confirmation = parsed.data;
+      const orderId = confirmation.orderId;
+
+      const already = await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`);
+      if (already !== undefined) {
+        // A REPLAY of the confirmed act (same challenge) is absorbed — the
+        // at-least-once law every write on this book follows. A DIFFERENT
+        // confirmation against an already-ready order is refused: correction
+        // is its own flow (reopenForCorrection), not a silent overwrite.
+        if (already.confirmation.readinessChallenge === confirmation.readinessChallenge) {
+          return Response.json({ ok: true, status: 'already_ready', confirmedAt: already.confirmedAt });
+        }
+        return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
+      }
+
+      const acceptance = await this.state.storage.get<FulfillmentAcceptanceRecord>(`${ACCEPT_PREFIX}${orderId}`);
+      if (acceptance === undefined) {
+        return Response.json({ ok: false, reason: 'not_accepted' }, { status: 409 });
+      }
+      const issued = await this.state.storage.get<IssuedChallengeRecord>(`${CHALLENGE_PREFIX}${orderId}`);
+      if (issued === undefined || issued.challenge !== confirmation.readinessChallenge) {
+        return Response.json({ ok: false, reason: 'challenge_missing_or_mismatched' }, { status: 409 });
+      }
+      // HONESTLY-DEAD DEFENCE TODAY, stated not claimed (proven by mutation:
+      // removing it stays green): consumption and readiness commit in ONE
+      // atomic batch below, and the already-ready branch answers first, so
+      // « consumed but not ready » cannot currently exist. It comes ALIVE the
+      // day reopenForCorrection lands — correction clears readiness while the
+      // consumed challenge remains, and THIS line is what forces the seller
+      // to a fresh challenge instead of replaying old evidence (WO-2.6).
+      if (issued.consumedAt !== undefined) {
+        return Response.json({ ok: false, reason: 'challenge_already_used' }, { status: 409 });
+      }
+      const now = new Date().toISOString();
+      if (now > issued.expiresAt) {
+        return Response.json({ ok: false, reason: 'challenge_expired' }, { status: 409 });
+      }
+      if (confirmation.qty !== acceptance.qty || confirmation.variant !== acceptance.variant || !confirmation.availableConfirmed) {
+        return Response.json({ ok: false, reason: 'locked_terms_mismatch' }, { status: 409 });
+      }
+
+      const ready: ReadinessRecord = { confirmation, confirmedAt: now };
+      await this.state.storage.put({
+        [`${CHALLENGE_PREFIX}${orderId}`]: { ...issued, consumedAt: now } satisfies IssuedChallengeRecord,
+        [`${READY_PREFIX}${orderId}`]: ready,
+      });
+      return Response.json({ ok: true, status: 'ready', confirmedAt: now });
     }
 
     /** RECORD A RELANCE — the operator called this supplier, just now.
@@ -241,6 +476,24 @@ export async function handleOrderConfirmedIntake(
 export async function handlePaidOrdersList(env: FulfillmentEnv): Promise<Response> {
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(new Request('https://do/orders'));
+}
+
+/**
+ * READINESS-WIRE-1a — forward a supplier fulfillment act to the book. Auth
+ * (the app's write key) ran at the composition root. The BODY passes through
+ * VERBATIM, deliberately unlike the relance forwarder: these routes validate
+ * strictly inside the object (exact key sets; the canon strict parse), so a
+ * smuggled field is REFUSED there rather than silently stripped here — the
+ * refuse-don't-ignore lesson the relance verifier taught, applied from birth.
+ */
+export async function forwardToFulfillmentBook(
+  request: Request,
+  env: FulfillmentEnv,
+  path: '/accept' | '/ready/challenge' | '/ready',
+): Promise<Response> {
+  const body = await request.text();
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(`https://do${path}`, { method: 'POST', body });
 }
 
 /**

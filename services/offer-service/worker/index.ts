@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
+import { FulfillmentDO, forwardToFulfillmentBook, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -42,6 +42,10 @@ interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
    * with it. UNSET ⇒ the ops read is 401 for everyone, including Shop+.
    */
   FULFILLMENT_OPS_SECRET?: string;
+  /** READINESS-WIRE-1a TEST KNOB, never a secret: overrides the 10-minute
+   *  challenge TTL so the e2e can prove expiry without waiting. Production
+   *  never sets it; unset or unparseable falls to the canon value. */
+  READINESS_TTL_MS?: string;
 }
 
 /**
@@ -161,6 +165,27 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // POST /offers/delete — OFFER-DELETE-1 (founder feature 2026-07-27). A
     // WRITE like the two above: the gate has already run; same key, same 401.
     if (request.method === 'POST' && pathname === '/offers/delete') return offerRouter.fetch(request, env);
+
+    // ═══ READINESS-WIRE-1a — the SUPPLIER's fulfillment acts (B6.1/B6.2) ═══
+    // Behind the write gate above, deliberately: these are the supplier app's
+    // acts, so they ride the SAME credential every supplier write rides
+    // (X-Write-Key). The founder's ops key and Shop+'s intake secret are
+    // Bearer credentials the write gate does not recognize — structurally
+    // refused, and pinned by test in both directions. TRUST NOTE (journalled):
+    // the write key is the bundled pilot credential; per-supplier identity is
+    // a future slice, and until it lands the supplierId claim is checked
+    // against the book's OWN internal join, which refuses acts on another
+    // supplier's order without ever distinguishing « unknown » from « not
+    // yours ».
+    if (request.method === 'POST' && pathname === '/fulfillment/accept') {
+      return forwardToFulfillmentBook(request, env, '/accept');
+    }
+    if (request.method === 'POST' && pathname === '/fulfillment/ready/challenge') {
+      return forwardToFulfillmentBook(request, env, '/ready/challenge');
+    }
+    if (request.method === 'POST' && pathname === '/fulfillment/ready') {
+      return forwardToFulfillmentBook(request, env, '/ready');
+    }
 
     // GET /offers (the founder's admin list) is a GET, so the write gate above
     // skipped it — key-gate it EXPLICITLY here with the same key before any

@@ -204,6 +204,98 @@ describe('CONSOLE-2 — the relance clears the queue, and claims nothing about p
   });
 });
 
+describe('READINESS-WIRE-1a — the REAL signal supersedes the chase AND the call log', () => {
+  it('an ACCEPTED order leaves « À relancer » whatever its age — the 10-minute rule was « no sign of preparation », and this is the sign', () => {
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('ord-accepted-old', paidAgo(90), { fulfillment: { acceptedAt: paidAgo(5) } }),
+          rowAt('ord-silent-old', paidAgo(90)),
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.relancer.map((r) => r.orderId)).toEqual(['ord-silent-old']);
+    expect(view.preparation.map((r) => r.orderId)).toEqual(['ord-accepted-old']);
+  });
+
+  it('a CALLED order that then shows a real signal moves from the call log to « En préparation » — the true state wins', () => {
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('ord-called-then-ready', paidAgo(60), {
+            relance: { at: paidAgo(30), count: 1 },
+            fulfillment: { acceptedAt: paidAgo(10), readyAt: paidAgo(2) },
+          }),
+          rowAt('ord-called-still-silent', paidAgo(60), { relance: { at: paidAgo(30), count: 1 } }),
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.preparation.map((r) => r.orderId)).toEqual(['ord-called-then-ready']);
+    expect(view.relances.map((r) => r.orderId)).toEqual(['ord-called-still-silent']);
+  });
+
+  it('« En préparation » sorts by the MOST RECENT signal — and readyAt IS the key when both clocks exist', () => {
+    // Discriminating on the key preference itself (the relance-sort lesson):
+    // the both-clock row wins ONLY if readyAt (5 min) is its key; a mutation
+    // preferring acceptedAt (20 min) would rank the single-clock row (10 min)
+    // first instead.
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('ord-accepted-only', paidAgo(200), { fulfillment: { acceptedAt: paidAgo(10) } }),
+          rowAt('ord-ready', paidAgo(30), { fulfillment: { acceptedAt: paidAgo(20), readyAt: paidAgo(5) } }),
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.preparation.map((r) => r.orderId)).toEqual(['ord-ready', 'ord-accepted-only']);
+  });
+
+  it('a fresh order with a signal leaves « à l’instant » too — one place per order, always', () => {
+    const view = operationsView(
+      { kind: 'ok', rows: [rowAt('ord-fresh-accepted', paidAgo(2), { fulfillment: { acceptedAt: paidAgo(1) } })] },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.recentes).toHaveLength(0);
+    expect(view.preparation.map((r) => r.orderId)).toEqual(['ord-fresh-accepted']);
+  });
+
+  it('a MALFORMED preparation mark is dropped by the reader — « Accepté »/« Prêt » is true or absent', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const base = rowAt('ord-1', '2026-08-01T11:00:00.000Z');
+    for (const bad of [
+      'nope', 42, {}, { acceptedAt: '' }, { acceptedAt: 'pas-une-date' }, { readyAt: 12345 },
+    ]) {
+      stubFetch(async () => new Response(JSON.stringify({ ok: true, orders: [{ ...base, fulfillment: bad }] })));
+      const res = await resolveOperationsService()!.listPaidOrders('k');
+      if (!res.ok) throw new Error(res.reason);
+      expect(res.orders[0]!.fulfillment, JSON.stringify(bad)).toBeUndefined();
+      expect(res.orders[0]!.orderId).toBe('ord-1'); // the ORDER survives
+    }
+    // a half-valid mark keeps its valid clock and drops the rotten one
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, orders: [{ ...base, fulfillment: { acceptedAt: '2026-08-01T11:10:00.000Z', readyAt: 'pourri' } }] })));
+    const res = await resolveOperationsService()!.listPaidOrders('k');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.orders[0]!.fulfillment).toEqual({ acceptedAt: '2026-08-01T11:10:00.000Z' });
+  });
+
+  it('the strings the founder reads: « Prêt » names the EVIDENCE, and « accepté » stays a decision, not readiness', () => {
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    expect(fr.get('operations.prep_pret')?.toLowerCase()).toContain('photo'); // prêt is claimed WITH its evidence
+    expect(fr.get('operations.prep_accepte')?.toLowerCase()).toContain('accept');
+    expect(fr.get('operations.prep_accepte')?.toLowerCase().includes('prêt')).toBe(false); // acceptance never reads as ready
+  });
+});
+
 describe('the relance INTERACTION — the decision the screen used to own, now asserted by value', () => {
   it('one write at a time: a tap while another card is writing is IGNORED (null = do not even call the port)', () => {
     expect(relanceStart(RELANCE_IDLE, 'ord-1')).toEqual({ busy: 'ord-1', echec: null });

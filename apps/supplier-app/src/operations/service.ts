@@ -35,6 +35,18 @@ export interface RelanceMark {
   readonly count: number;
 }
 
+/**
+ * READINESS-WIRE-1a — the REAL preparation signal, merged onto the row by the
+ * book: the supplier ACCEPTED (B6.1) and/or confirmed « Produit prêt » with
+ * evidence + the challenge (B6.2). Server clocks both. This is the signal the
+ * founder's 10-minute rule was always waiting for — a relance is his phone
+ * call; THIS is the supplier's own act.
+ */
+export interface FulfillmentMark {
+  readonly acceptedAt?: string;
+  readonly readyAt?: string;
+}
+
 /** Mirrors `PaidOrderRecord` (offer-service `worker/fulfillment-do.ts`). */
 export interface PaidOrderRow {
   readonly orderId: string;
@@ -51,6 +63,8 @@ export interface PaidOrderRow {
   readonly registeredAt: string;
   /** Absent until the operator has called about this order. */
   readonly relance?: RelanceMark;
+  /** Absent until the supplier has accepted or confirmed ready. */
+  readonly fulfillment?: FulfillmentMark;
 }
 
 export type PaidOrdersResult =
@@ -153,8 +167,10 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string');
   if (!ok) return null;
   const relance = readRelance(r['relance']);
+  const fulfillment = readFulfillment(r['fulfillment']);
   return {
     ...(relance !== null ? { relance } : {}),
+    ...(fulfillment !== null ? { fulfillment } : {}),
     orderId: r['orderId'] as string,
     productVersionId: r['productVersionId'] as string,
     productName: typeof r['productName'] === 'string' ? r['productName'] : '',
@@ -181,6 +197,23 @@ function readRelance(value: unknown): RelanceMark | null {
   if (Number.isNaN(Date.parse(r['at']))) return null;
   if (typeof r['count'] !== 'number' || !Number.isSafeInteger(r['count']) || r['count'] < 1) return null;
   return { at: r['at'], count: r['count'] };
+}
+
+/** A malformed preparation mark is DROPPED — « Accepté »/« Prêt » must be
+ *  true or absent (the same law as the relance mark). A mark with NEITHER
+ *  clock is nothing and reads as absent. */
+function readFulfillment(value: unknown): FulfillmentMark | null {
+  if (value === null || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const validIso = (v: unknown): v is string =>
+    typeof v === 'string' && v !== '' && !Number.isNaN(Date.parse(v));
+  const acceptedAt = validIso(r['acceptedAt']) ? r['acceptedAt'] : undefined;
+  const readyAt = validIso(r['readyAt']) ? r['readyAt'] : undefined;
+  if (acceptedAt === undefined && readyAt === undefined) return null;
+  return {
+    ...(acceptedAt !== undefined ? { acceptedAt } : {}),
+    ...(readyAt !== undefined ? { readyAt } : {}),
+  };
 }
 
 /* ─────────────────── the founder's key, on HIS device only ─────────────────── */
