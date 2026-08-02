@@ -2469,3 +2469,8 @@ He typed key C and the section sat on its loading sentence with nothing behind i
 ### BC-1c — LIVE VERIFIED by the founder (2026-08-02)
 
 After the bounded-read fix deployed (web-deploy 30734700368 on `38fd09f`), he entered key C and the section answered « Aucune commande pour l'instant. » **That sentence is the end-to-end proof**, and every link in it is exercised: the console resolved its Shop+ base · the browser's preflight and exact-origin CORS passed · `CHECKOUT_OPS_SECRET` (value C) was ACCEPTED — a wrong key answers « Cette clé n'est pas la bonne », a hang now answers « Impossible de lire… » within 12 s, and neither appeared · the Worker's DispatchIndexDO answered 200 with an empty list · the screen rendered the honest empty state rather than a spinner or a fake row. The dispatch door is live and correct; the list is empty because no buyer has yet checked out with a contact.
+
+### Founder rulings, 2026-08-02 (logged)
+
+1. **`EXPO_PUBLIC_MEDIA_REVOKE_KEY` set** — the media-key split's second half is in place; web-deploy re-run to inline it, and the deploy log's `REVOKE_KEY` line is the proof (empty = unset warning, masked = set). The Worker-side `MEDIA_REVOKE_SECRET` needs no redeploy: a wrangler secret takes effect on the live Worker immediately.
+2. **The C3 privacy line STANDS AS WRITTEN** — « Le livreur passe par un relais. Votre numéro reste privé. » Founder ruling, verbatim: « the line is good leave it like that ». The verifier's note-8 (tension between the relay clause and the founder-dispatch flow) is hereby CLOSED as a founder decision, not a defect. No change to the copy.
