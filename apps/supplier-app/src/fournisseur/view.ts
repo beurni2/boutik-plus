@@ -1,4 +1,4 @@
-import type { CommandeRow, ReadyResult } from './service';
+import type { CommandeRow, ProduitRow, ReadyResult } from './service';
 
 /**
  * READINESS-WIRE-1b-ii — every decision the fournisseur screen renders, PURE
@@ -140,4 +140,73 @@ export function pretIssue(orderId: string, result: ReadyResult | { readonly ok: 
     return { ui: { etat: 'refus', orderId, messageKey: 'fournisseur.pret_photo_echec' }, then: 'none' };
   }
   return { ui: { etat: 'refus', orderId, messageKey: pretRefusKey(result.reason) }, then: 'none' };
+}
+
+
+/* ───────────── LISTER-POUR-1c — « Mes produits », pure ───────────── */
+
+/**
+ * The founder lists; the supplier WATCHES. This view can express no edit —
+ * not as a hidden button, but structurally: there is no action in the shape.
+ * Every state is named; « we could not read your products » and « you have no
+ * products yet » are different sentences (the honest-states law).
+ */
+export type ProduitsRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'not_configured' }
+  | { readonly kind: 'bad_code' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly rows: readonly ProduitRow[] };
+
+export interface ProduitVue extends ProduitRow {
+  /** The one status sentence under the name: live, or WHY not — the wire's
+   *  own reason mapped to his words, never re-derived locally. */
+  readonly etatKey: string;
+}
+
+export type ProduitsVue =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'not_configured'; readonly message: string }
+  | { readonly kind: 'bad_code'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | { readonly kind: 'liste'; readonly produits: readonly ProduitVue[]; readonly enLigne: number };
+
+/** Each wire reason, its own sentence — pinned one by one in the tests. */
+export function produitEtatKey(reason: ProduitRow['hiddenReason']): string {
+  switch (reason) {
+    case undefined:
+      return 'fournisseur.produit_en_ligne';
+    case 'product_not_active':
+    case 'offer_not_active':
+      return 'fournisseur.produit_retire';
+    case 'product_not_approved':
+      return 'fournisseur.produit_en_attente';
+    case 'offer_not_effective':
+      return 'fournisseur.produit_pas_encore';
+  }
+}
+
+export function produitsVue(read: ProduitsRead): ProduitsVue {
+  if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };
+  if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'fournisseur.non_configure' };
+  if (read.kind === 'bad_code') return { kind: 'bad_code', message: 'fournisseur.code_refuse' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'fournisseur.echec' };
+  if (read.rows.length === 0) return { kind: 'empty', message: 'fournisseur.produits_vide' };
+  // LIVE FIRST (what earns money now), then the marked ones — each still
+  // shown, each with its reason: « SHOW THEM, MARKED » is the standing ruling
+  // this list inherits from the founder's own produits screen.
+  const produits = read.rows
+    .map((r) => ({ ...r, etatKey: produitEtatKey(r.hiddenReason) }))
+    .sort((a, b) => {
+      const av = a.hiddenReason === undefined ? 0 : 1;
+      const bv = b.hiddenReason === undefined ? 0 : 1;
+      if (av !== bv) return av - bv;
+      return a.name.localeCompare(b.name, 'fr');
+    });
+  return {
+    kind: 'liste',
+    produits,
+    enLigne: produits.filter((p) => p.hiddenReason === undefined).length,
+  };
 }

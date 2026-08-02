@@ -41,16 +41,23 @@ const rootArg = process.argv.includes('--root')
   ? process.argv[process.argv.indexOf('--root') + 1]
   : 'fournisseur';
 
-// '/offers' bare: zero legitimate occurrences in the fournisseur bundle
-// (measured), so a future split of the create client cannot ride
-// unfingerprinted (verifier N1). '/media/revoke' + 'revokeImage': the
-// verifier's M1 — the revoke client is a destructive capability the ruling
-// never granted; upload-only is the law of this artifact.
+// '/offers' bare: the authoring client cannot ride unfingerprinted
+// (verifier N1) — WITH ONE NAMED, GRANTED EXCEPTION since LISTER-POUR-1c
+// (founder order 2026-08-02: suppliers SEE the products listed for them):
+// the READ route '/offers/mine' legitimately rides the fournisseur bundle.
+// It is masked before the bare-'/offers' scan and PRINTED as an excusal on
+// every run, and it is a REQUIRED control below — so the exception can
+// neither hide a write route ('/offers/assets', '/offers/delete' and bare
+// '/offers' all still fire) nor silently outlive the code it excuses.
+// '/media/revoke' + 'revokeImage': the verifier's M1 — the revoke client is
+// a destructive capability the ruling never granted; upload-only is the law
+// of this artifact.
+const GRANTED_READ = '/offers/mine';
 const FORBIDDEN = ['/offers/assets', '/offers/delete', '/offers', '/media/revoke', 'revokeImage'];
 const SECONDARY = ['HttpSupplyService', 'DemoSupplyService'];
 const REQUIRED =
   rootArg === 'fournisseur'
-    ? ['boutik.fournisseur.code', '/fulfillment/mine']
+    ? ['boutik.fournisseur.code', '/fulfillment/mine', GRANTED_READ]
     : ['supplier-founder-001', 'Ce produit part sans photo'];
 
 const out = mkdtempSync(join(tmpdir(), `fournisseur-bundle-${rootArg}-`));
@@ -123,8 +130,11 @@ if (missingControls.length > 0) {
 for (const s of REQUIRED) console.log(`  ✔ [CONTROL] ${JSON.stringify(s)} present — the scan can see`);
 
 let failed = false;
+console.log(`  ◦ [EXCUSAL, printed each run] ${JSON.stringify(GRANTED_READ)} is a GRANTED read (LISTER-POUR-1c) — masked before the bare '/offers' scan`);
+const anyHasMasked = (needle) =>
+  blobs.filter((b) => b.text.split(GRANTED_READ).join('').includes(needle)).map((b) => b.path);
 for (const needle of FORBIDDEN) {
-  const hits = anyHas(needle);
+  const hits = needle === '/offers' ? anyHasMasked(needle) : anyHas(needle);
   if (hits.length > 0) {
     failed = true;
     console.error(`  ✘ [LOAD-BEARING] ${JSON.stringify(needle)} FOUND in ${hits.map((p) => p.replace(out, '')).join(', ')}`);

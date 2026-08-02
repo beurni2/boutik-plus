@@ -22,10 +22,14 @@ import {
   pretChoisir,
   pretEnvoyer,
   pretIssue,
+  produitsVue,
   type CommandeVue,
   type FournisseurRead,
   type PretUi,
+  type ProduitsRead,
 } from './view';
+import { photoSlot } from '../supply/produits-view';
+import type { ProduitVue } from './view';
 
 /**
  * READINESS-WIRE-1b-ii — THE FOURNISSEUR SURFACE (founder ruling 2026-08-02:
@@ -54,14 +58,171 @@ const REFRESH_EVERY_MS = 60_000;
 
 export function FournisseurApp() {
   const [code, setCode] = useState<string | null>(() => readStoredCode());
+  // LISTER-POUR-1c — two views, ONE door: Commandes (his hands) and Mes
+  // produits (his eyes). Both read through the same stored code; clearing it
+  // from either returns to the door for both.
+  const [onglet, setOnglet] = useState<'commandes' | 'produits'>('commandes');
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       {code === null ? (
         <SPorteCode onCodeSaved={setCode} />
       ) : (
-        <SMesCommandes code={code} onCodeCleared={() => setCode(null)} />
+        <>
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+            {/* The active tab is STATED, not implied: full-opacity label on
+                the live tab, softened on the other — ≥44px targets held by
+                BtnSoft's own geometry. */}
+            <View style={{ flex: 1, opacity: onglet === 'commandes' ? 1 : 0.55 }}>
+              <BtnSoft label={t('fournisseur.onglet_commandes')} onPress={() => setOnglet('commandes')} />
+            </View>
+            <View style={{ flex: 1, opacity: onglet === 'produits' ? 1 : 0.55 }}>
+              <BtnSoft label={t('fournisseur.onglet_produits')} onPress={() => setOnglet('produits')} />
+            </View>
+          </View>
+          {onglet === 'commandes' ? (
+            <SMesCommandes code={code} onCodeCleared={() => setCode(null)} />
+          ) : (
+            <SMesProduits code={code} onCodeCleared={() => setCode(null)} />
+          )}
+        </>
       )}
     </View>
+  );
+}
+
+/* ───────────────────────────── mes produits ──────────────────────────────── */
+
+/**
+ * LISTER-POUR-1c — what the founder listed FOR HIM, read-only. « Real time »
+ * here is what it is everywhere on this surface: the same 60-second interval
+ * Commandes uses, a manual refresh, and the same monotonic read token so a
+ * stale answer can never overwrite a fresh one. No edit exists on this screen
+ * — not hidden, ABSENT: the port has no write, and the service refuses his
+ * code on every offer write besides.
+ */
+function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: () => void }) {
+  const service = useMemo<FournisseurServicePort | null>(() => resolveFournisseurService(), []);
+  const [read, setRead] = useState<ProduitsRead>(() =>
+    service === null ? { kind: 'not_configured' } : { kind: 'loading' },
+  );
+  const inFlight = useRef(false);
+  const readSeq = useRef(0);
+  const mediaBase = process.env.EXPO_PUBLIC_MEDIA_BASE ?? null;
+
+  const charger = async (force = false): Promise<void> => {
+    if (service === null || (inFlight.current && !force)) return;
+    inFlight.current = true;
+    readSeq.current += 1;
+    const seq = readSeq.current;
+    try {
+      const res = await service.listProduits(code);
+      if (seq !== readSeq.current) return; // a newer read owns the screen
+      if (res.ok) setRead({ kind: 'ok', rows: res.produits });
+      else setRead({ kind: res.reason === 'bad_code' ? 'bad_code' : 'failed' });
+    } finally {
+      inFlight.current = false;
+    }
+  };
+
+  useEffect(() => {
+    void charger();
+    const h = setInterval(() => {
+      void charger();
+    }, REFRESH_EVERY_MS);
+    return () => clearInterval(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const vue = produitsVue(read);
+
+  return (
+    <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
+      <PageTitle>{t('fournisseur.produits_titre')}</PageTitle>
+      <View style={{ marginTop: 8 }}>
+        <Text style={role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub)}>{t('fournisseur.produits_intro')}</Text>
+      </View>
+
+      {vue.kind === 'loading' && (
+        <View style={{ marginTop: 14 }}>
+          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
+        </View>
+      )}
+
+      {(vue.kind === 'not_configured' || vue.kind === 'empty') && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="info">{t(vue.message)}</Banner>
+        </View>
+      )}
+
+      {vue.kind === 'bad_code' && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 14 }}>
+            <C07BtnPrimary
+              label={t('fournisseur.code_ressaisir')}
+              icon="retry"
+              onPress={() => {
+                clearStoredCode();
+                onCodeCleared();
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      {vue.kind === 'failed' && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 14 }}>
+            <C07BtnPrimary label={t('fournisseur.reessayer')} icon="retry" onPress={() => { void charger(); }} />
+          </View>
+        </View>
+      )}
+
+      {vue.kind === 'liste' && (
+        <>
+          <View style={{ marginTop: 8 }}>
+            <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)}>
+              {t('fournisseur.produits_en_ligne').replace('{n}', String(vue.enLigne))}
+            </Text>
+          </View>
+          {vue.produits.map((prod) => (
+            <CarteProduit key={prod.offerId} produit={prod} mediaBase={mediaBase} />
+          ))}
+          <View style={{ marginTop: 14 }}>
+            <BtnSoft label={t('fournisseur.produits_actualiser')} onPress={() => { void charger(true); }} />
+          </View>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: string | null }) {
+  const slot = photoSlot(produit.assetRefs, mediaBase);
+  const enLigne = produit.hiddenReason === undefined;
+  return (
+    <Card style={{ marginTop: 12, padding: 14 }}>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {slot.kind === 'photo' ? (
+          <Image source={{ uri: slot.uri }} style={{ width: 74, height: 74, borderRadius: 10 }} resizeMode="cover" />
+        ) : (
+          <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: P.borderCard, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={role({ f: 'IS', w: 400, s: 10 }, P.sub)}>{t(slot.message)}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={2}>{produit.name}</Text>
+          <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.ink), { marginTop: 3 }]}>{formatF(produit.basePrice)}</Text>
+          <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 3 }]}>
+            {t('fournisseur.produit_stock').replace('{n}', String(produit.available))}
+          </Text>
+          <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, enLigne ? P.greenDeep : P.sub), { marginTop: 5 }]}>
+            {t(produit.etatKey)}
+          </Text>
+        </View>
+      </View>
+    </Card>
   );
 }
 

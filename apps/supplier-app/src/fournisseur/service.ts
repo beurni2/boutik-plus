@@ -39,6 +39,31 @@ export type MineResult =
    *  being down; the screen returns to the code door. */
   | { readonly ok: false; readonly reason: 'bad_code' | 'unreachable' };
 
+/**
+ * LISTER-POUR-1c — ONE of his products, as `GET /offers/mine` serves it
+ * (offer-service supplier-list.ts, the founder-ruled PRODUITS-READ-1 shape,
+ * scoped by the identity his CODE derives — never by anything this app says).
+ * READ-ONLY BY CONSTRUCTION: this port exposes no write for it, and the
+ * service refuses a personal code on every offer write anyway (1a pins it).
+ */
+export interface ProduitRow {
+  readonly offerId: string;
+  readonly productVersionId: string;
+  readonly name: string;
+  readonly category: string;
+  readonly basePrice: number;
+  readonly available: number;
+  readonly assetRefs: readonly string[];
+  readonly variantsNote?: string;
+  /** ABSENT means live to resellers right now; present names WHY it is not —
+   *  the refusal ladder's own reason, never a local re-derivation. */
+  readonly hiddenReason?: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective';
+}
+
+export type ProduitsResult =
+  | { readonly ok: true; readonly produits: readonly ProduitRow[] }
+  | { readonly ok: false; readonly reason: 'bad_code' | 'unreachable' };
+
 export type ActResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'unreachable' };
@@ -66,6 +91,8 @@ export type ReadyResult =
 
 export interface FournisseurServicePort {
   listMine(code: string): Promise<MineResult>;
+  /** LISTER-POUR-1c — his own products, same door, same Bearer. */
+  listProduits(code: string): Promise<ProduitsResult>;
   accept(code: string, orderId: string): Promise<ActResult>;
   challenge(code: string, orderId: string): Promise<ChallengeResult>;
   /** The strict canon confirmation travels whole; the Worker re-parses it. */
@@ -127,6 +154,27 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       return { ok: true, orders };
     },
 
+    async listProduits(code: string): Promise<ProduitsResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/offers/mine`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${code}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_code' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
+      if (body === null || !Array.isArray(body.items)) return { ok: false, reason: 'unreachable' };
+      const produits: ProduitRow[] = [];
+      for (const raw of body.items) {
+        const row = readProduitRow(raw);
+        if (row !== null) produits.push(row);
+      }
+      return { ok: true, produits };
+    },
+
     async accept(code: string, orderId: string): Promise<ActResult> {
       const res = await post('/fulfillment/accept', code, { orderId });
       if (res === null) return { ok: false, reason: 'unreachable' };
@@ -166,6 +214,37 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       }
       return { ok: false, reason: 'unreachable' };
     },
+  };
+}
+
+const HIDDEN_REASONS = ['product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective'] as const;
+
+/** Strict, like `readCommandeRow`: a malformed row is DROPPED WHOLE — a
+ *  product with an unreadable price must not render a wrong one. */
+function readProduitRow(value: unknown): ProduitRow | null {
+  if (value === null || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const ok =
+    typeof r['offerId'] === 'string' && r['offerId'] !== '' &&
+    typeof r['productVersionId'] === 'string' && r['productVersionId'] !== '' &&
+    typeof r['name'] === 'string' && r['name'] !== '' &&
+    typeof r['category'] === 'string' &&
+    typeof r['basePrice'] === 'number' && Number.isSafeInteger(r['basePrice']) &&
+    typeof r['available'] === 'number' && Number.isSafeInteger(r['available']) &&
+    Array.isArray(r['assetRefs']) && (r['assetRefs'] as unknown[]).every((a) => typeof a === 'string') &&
+    (r['variantsNote'] === undefined || typeof r['variantsNote'] === 'string') &&
+    (r['hiddenReason'] === undefined || (HIDDEN_REASONS as readonly string[]).includes(r['hiddenReason'] as string));
+  if (!ok) return null;
+  return {
+    offerId: r['offerId'] as string,
+    productVersionId: r['productVersionId'] as string,
+    name: r['name'] as string,
+    category: r['category'] as string,
+    basePrice: r['basePrice'] as number,
+    available: r['available'] as number,
+    assetRefs: r['assetRefs'] as readonly string[],
+    ...(r['variantsNote'] === undefined ? {} : { variantsNote: r['variantsNote'] as string }),
+    ...(r['hiddenReason'] === undefined ? {} : { hiddenReason: r['hiddenReason'] as Exclude<ProduitRow['hiddenReason'], undefined> }),
   };
 }
 

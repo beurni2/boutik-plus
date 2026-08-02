@@ -2244,6 +2244,78 @@
     "screenClass": "general"
   },
   {
+    "key": "fournisseur.onglet_commandes",
+    "fr": "Commandes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.onglet_produits",
+    "fr": "Mes produits",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.produits_titre",
+    "fr": "Mes produits",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.produits_intro",
+    "fr": "C’est l’équipe Boutik+ qui ajoute vos produits. Vous les voyez ici, et vous suivez ce qui est en ligne.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "fournisseur.produits_vide",
+    "fr": "Pas encore de produit pour vous. Dès que l’équipe en ajoute un, il apparaît ici.",
+    "register": "selling",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produits_en_ligne",
+    "fr": "{n} en ligne chez les revendeuses",
+    "register": "selling",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produits_actualiser",
+    "fr": "Actualiser",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.produit_stock",
+    "fr": "En stock : {n}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_en_ligne",
+    "fr": "En ligne chez les revendeuses",
+    "register": "selling",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_retire",
+    "fr": "Retiré de la vente pour le moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_en_attente",
+    "fr": "En attente de validation par l’équipe.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_pas_encore",
+    "fr": "Pas encore en vente — la date d’ouverture n’est pas arrivée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "livraisons.titre",
     "fr": "Livraisons",
     "register": "neutral",
