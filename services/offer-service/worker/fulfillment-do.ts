@@ -290,12 +290,23 @@ export class FulfillmentDO {
     try {
       const name = kind === 'accepted' ? 'fulfillment.accepted.v1' : 'fulfillment.ready.v1';
       const schema = kind === 'accepted' ? FulfillmentAcceptedEventSchema : FulfillmentReadyEventSchema;
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
       const composed = schema.safeParse({
         name,
         envelope: {
           command_id: `ful-${kind}-${orderId}`,
-          correlation_id: `corr-${orderId}`,
-          aggregateVersion: 1,
+          /**
+           * VERIFIER M2 — SHOP+'S OWN CORRELATION ID, carried off the paid-order
+           * record where `order.confirmed.v1` left it. The first cut fabricated
+           * `corr-${orderId}`, which made these the only two events in the
+           * ecosystem that could not be joined to their transaction by the
+           * correlation chain. The fallback is used only for a record this
+           * object somehow lacks — never in the normal path.
+           */
+          correlation_id: order?.correlationId ?? `corr-${orderId}`,
+          /** VERIFIER M3 — acceptance and readiness are two DISTINCT transitions
+           *  of the same aggregate; declaring both version 1 said otherwise. */
+          aggregateVersion: kind === 'accepted' ? 1 : 2,
           actor: 'offer-service:fulfillment',
           serverTime: at,
           version: 'v1',
@@ -303,16 +314,33 @@ export class FulfillmentDO {
         payload: { orderId, at },
       });
       const key = `${PROGRESS_OUTBOX_PREFIX}${orderId}:${kind}`;
-      if ((await this.state.storage.get(key)) !== undefined) return; // first-wins
+      const existing = await this.state.storage.get<{ status: string }>(key);
+      if (existing !== undefined) {
+        /**
+         * FIRST-WINS, and now genuinely load-bearing: the call sites re-enter
+         * here on every re-assertion (verifier B1), so this is what stops a
+         * repeat act from re-announcing. It also RE-ARMS A STRANDED ROW: a
+         * swallowed `setAlarm` failure below would otherwise leave a pending
+         * row with no scheduler, and only a later fact on this same object
+         * could ever rescue it — which never comes for a supplier who accepts
+         * and never confirms readiness.
+         */
+        if (existing.status === 'pending' && (await this.state.storage.getAlarm()) === null) {
+          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+        }
+        return;
+      }
       const row = composed.success
-        ? { status: 'pending' as const, event: composed.data, attempts: 0 }
-        : { status: 'unsendable' as const, reason: 'not_canonical', attempts: 0 };
+        ? { status: 'pending' as const, event: composed.data, attempts: 0, nextAttemptAt: 0 }
+        : { status: 'unsendable' as const, reason: 'not_canonical', attempts: 0, nextAttemptAt: 0 };
       await this.state.storage.put(key, row);
       if (composed.success) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
     } catch {
-      // The supplier's act is already durably recorded; a queueing failure
-      // must never fail it. The row is re-enqueued the next time this fact is
-      // re-asserted (both call sites are idempotent and re-enter here).
+      // The supplier's act is already durably recorded and must never fail on
+      // a queueing problem. RECOVERY IS REAL, not asserted: both call sites
+      // re-enter this method every time the fact is re-asserted (verifier B1),
+      // so a row lost to a transient failure is recreated on the next accept
+      // or readiness confirmation for the same order.
     }
   }
 
@@ -325,11 +353,26 @@ export class FulfillmentDO {
       status: 'pending' | 'delivered' | 'unsendable';
       event?: unknown;
       attempts: number;
+      nextAttemptAt?: number;
+      reason?: string;
     }>({ prefix: PROGRESS_OUTBOX_PREFIX });
+    const now = Date.now();
     let retryIn: number | null = null;
     for (const [key, row] of rows) {
       if (row.status !== 'pending' || row.event === undefined) continue;
+      /**
+       * VERIFIER M5 — EACH ROW WAITS ITS OWN TURN. Without a per-row due time
+       * a row whose ladder says thirty minutes was re-attempted — and had its
+       * attempt count burned — every time a sibling's one-second timer fired,
+       * which is not the backoff this code claims to implement.
+       */
+      const due = row.nextAttemptAt ?? 0;
+      if (due > now) {
+        retryIn = retryIn === null ? due - now : Math.min(retryIn, due - now);
+        continue;
+      }
       let delivered = false;
+      let permanentRefusal = false;
       const target = this.env?.STOREFRONT;
       const secret = this.env?.PROGRESS_WRITE_SECRET;
       if (target !== undefined && secret !== undefined && secret !== '') {
@@ -343,14 +386,34 @@ export class FulfillmentDO {
           )
           .catch(() => undefined);
         delivered = res !== undefined && res.ok;
+        /**
+         * VERIFIER M4 — A PERMANENT REFUSAL IS PARKED, NOT RETRIED FOREVER.
+         * A consumer 400 (`event_not_canonical`) or 404 (`unknown_order`) can
+         * never improve by waiting, and the first cut retried both hourly for
+         * ever with an unbounded attempt count. 401/408/429 are DELIBERATELY
+         * excluded: an unset secret and a rate limit are exactly the cases
+         * that DO improve on their own, and parking those would drop a real
+         * fact. A parked row is visible in storage with its reason — an
+         * operator can see it; nothing silently disappears.
+         */
+        if (res !== undefined && !res.ok && res.status >= 400 && res.status < 500 &&
+            res.status !== 401 && res.status !== 408 && res.status !== 429) {
+          permanentRefusal = true;
+        }
       }
       if (delivered) {
         await this.state.storage.put(key, { ...row, status: 'delivered', attempts: row.attempts + 1 });
         continue;
       }
+      if (permanentRefusal) {
+        await this.state.storage.put(key, {
+          ...row, status: 'unsendable', reason: 'refused_by_consumer', attempts: row.attempts + 1,
+        });
+        continue;
+      }
       const attempts = row.attempts + 1;
-      await this.state.storage.put(key, { ...row, attempts });
       const next = progressBackoffMs(attempts);
+      await this.state.storage.put(key, { ...row, attempts, nextAttemptAt: now + next });
       retryIn = retryIn === null ? next : Math.min(retryIn, next);
     }
     if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
@@ -546,6 +609,14 @@ export class FulfillmentDO {
       const key = `${ACCEPT_PREFIX}${orderId}`;
       const existing = await this.state.storage.get<FulfillmentAcceptanceRecord>(key);
       if (existing !== undefined) {
+        // VERIFIER B1 — RE-ASSERTING THE ACT REPAIRS A LOST FACT. The first
+        // cut returned here without re-entering `enqueueProgress`, while that
+        // method's own catch claimed « both call sites are idempotent and
+        // re-enter here ». They did not, so ONE transient storage blip during
+        // enqueue lost the fact FOREVER: the supplier's act stayed durable,
+        // Shop+ never learned, and her follow-up sat at « payée » with no
+        // error anywhere. Re-entering is free — the outbox row is first-wins.
+        await this.enqueueProgress('accepted', orderId, existing.acceptedAt);
         return Response.json({ ok: true, status: 'already_accepted', acceptedAt: existing.acceptedAt });
       }
       const acceptance: FulfillmentAcceptanceRecord = {
@@ -631,6 +702,8 @@ export class FulfillmentDO {
         // confirmation against an already-ready order is refused: correction
         // is its own flow (reopenForCorrection), not a silent overwrite.
         if (already.confirmation.readinessChallenge === confirmation.readinessChallenge) {
+          // VERIFIER B1 — same repair on the readiness side.
+          await this.enqueueProgress('ready', orderId, already.confirmedAt);
           return Response.json({ ok: true, status: 'already_ready', confirmedAt: already.confirmedAt });
         }
         return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
