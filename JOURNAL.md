@@ -2357,3 +2357,13 @@ So CONSOLE-2 records the only thing that is actually true: **he called**. « J'a
 **Evidence:** offer-service **171/171** (two-supplier scoping by value · cross-supplier ready with a STOLEN LIVE CHALLENGE refused · rotation kills mid-flow · the smuggled-code envelope · ops-gated mint) · typecheck clean · **run-gates exit 0**. **Mutations, five red:** any-string-authenticates → 6 red · /mine drops the supplier filter → 1 · re-mint keeps the old hash → 1 · /mine spreads the record → 1 · /ready ownership dropped → 1. CI dispatched on `86bcbfa`; fresh-context verifier running. NO merge until both return.
 
 **1b-ii next:** the fournisseur webapp (code door screen → their commandes → accepter → challenge + readiness photo → follow-up), its own Pages deploy, and a bundle-absence gate proving the authoring markers are NOT in the fournisseur artifact.
+
+### 1b-i verifier round (`a354688`) — the door held; my tests had holes
+
+**Verifier verdict: no credential opens anything beyond its door, in either direction — proven by attack** (a live code against POST/GET /offers, both supply reads, the ops read, the intake, the relance, and mint/revoke: all 401; the three secrets against all four supplier routes: all 401). No 1a behavioral regression; mint concurrency serializes to exactly one active code; the base32 mint is uniform (120-mint distribution probe), always 16 symbols; bearer-wins is load-bearing (reversal → red).
+
+**What it caught: my e2e REWRITE dropped four assertions the 1a suite carried** — the /accept exact-key refusal, /ready and /mine in the credential matrix, the mint discipline — leaving three live checks unpinned (its mutations removing them stayed green). All re-pinned, both mutations re-proven red. **And the re-pin exposed refuse-vs-strip a THIRD time:** `forwardOpsCodeAdmin` re-serialized only `supplierId`, dead-lettering the DO's exact-key check behind it — the identical class the relance verifier taught. The body now crosses verbatim. THE PATTERN IS NOW A LAW for this codebase: a forwarder never re-shapes a body to make the inner check unreachable; it forwards verbatim and the OBJECT refuses (the ONE exception, documented in place: the supplier-act envelope sets `code` after the spread, because there the header must beat the body).
+
+**Founder-awareness note (no code change, pilot scope):** minting a code for a supplierId that exists nowhere yields a working code to an empty door — there is no supplier-existence guard and no code-inventory surface yet. A typo'd mint is invisible until someone wonders why a supplier sees no orders. A « list active codes » ops surface is a natural CONSOLE-3 item.
+
+**Evidence:** offer-service **174/174** · typecheck clean · CI dispatched on `a354688`.
