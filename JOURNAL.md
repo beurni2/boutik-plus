@@ -2367,3 +2367,13 @@ So CONSOLE-2 records the only thing that is actually true: **he called**. « J'a
 **Founder-awareness note (no code change, pilot scope):** minting a code for a supplierId that exists nowhere yields a working code to an empty door — there is no supplier-existence guard and no code-inventory surface yet. A typo'd mint is invisible until someone wonders why a supplier sees no orders. A « list active codes » ops surface is a natural CONSOLE-3 item.
 
 **Evidence:** offer-service **174/174** · typecheck clean · CI dispatched on `a354688`.
+
+### READINESS-WIRE-1b-ii — design locked, grounded, build next
+
+**The fournisseur surface** (founder ruling: fulfillment-only): built INSIDE supplier-app as a third root behind the PROVEN entry-fold pattern (BOUTIK-WEB-W2 / ENTETES-G): `index.ts` branches on inlined `EXPO_PUBLIC_ROOT` with ALL THREE roots as lazy requires — the current static `import { AppV2 }` puts the whole authoring graph in EVERY bundle regardless of folding, so it becomes `require('./src/v2/AppV2').AppV2` in its own dead-foldable arm. One live require per export → one subgraph per artifact.
+
+**Enforcement is the ARTIFACT GATE, not bundler trust:** a new `fournisseur-bundle-absence` gate exports with `EXPO_PUBLIC_ROOT=fournisseur` (NO `EXPO_PUBLIC_OFFER_WRITE_KEY` in env — the workflow simply never passes it) and scans the real export: the `X-Write-Key` header constant ABSENT · studio/authoring identifiers ABSENT · a control marker PRESENT (the scan can see). Same shape as `no-demo-adapter-in-bundle`.
+
+**Deploy:** `fournisseur-web-deploy.yml` → its own Pages project `boutik-plus-fournisseur`, passing OFFER_BASE + MEDIA_* but never the offers write key. **Media key decision (flagged):** `EXPO_PUBLIC_MEDIA_WRITE_KEY` DOES ride the fournisseur bundle — « upload photo prove of readiness » is a capability the ruling GRANTS, and the media key grants uploads, not authoring. A code-gated upload proxy (supplier code → offer-service → media-service) is the cleaner future slice if the founder wants media upload per-supplier-attributable.
+
+**The screens** (produits-real pattern, all decisions pure): code door (BF- code → localStorage `boutik.fournisseur.code`) → « Mes commandes » (GET /mine) → accepter → « Produit prêt » flow: challenge fetch → photo through THE SAME STUDIO FUNNEL (pick → decode → bounded resize → EXIF/XMP/IPTC strip → assertExifFree — no laxer path exists for a readiness photo, Ten Laws) → upload via media seam → strict confirmation POST. Follow-up shows the true chain (payée → acceptée → prête) and grows as Séra lands.
