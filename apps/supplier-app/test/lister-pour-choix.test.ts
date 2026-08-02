@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chipsFournisseurs, pourFournisseurHintKey, type FournisseursRead } from '../src/v2/lister-pour-choix';
+import { readFileSync as readSrc } from 'node:fs';
+import { chipChoisi, chipsFournisseurs, pourFournisseurHintKey, type FournisseursRead } from '../src/v2/lister-pour-choix';
+import { supplierPourPublication } from '../src/v2/lister-pour';
 
 /**
  * LISTER-POUR-2 — the supplier picker's pure decisions.
@@ -37,20 +39,75 @@ describe('chipsFournisseurs — « Vous » first, one chip per OTHER supplier', 
   });
 });
 
+/**
+ * THE DoD INVARIANT ITSELF — « the selection that publishes is exactly the one
+ * he sees marked » (verifier BLOCKER 2026-08-02: it was not, and NOTHING in
+ * this suite noticed — the picker's whole wiring could be deleted and 601/601
+ * stayed green). The marking is now DERIVED, so it can be asserted against the
+ * real publish rule rather than against a copy of it.
+ */
+describe('chipChoisi — the marked chip IS the supplier that publishes', () => {
+  const SIEN = 'supplier-founder-001';
+
+  it('for every value he can hold, the marked chip resolves to the SAME supplier as the publish', () => {
+    for (const valeur of ['', '   ', SIEN, `  ${SIEN}  `, 'supplier-aicha-002', '  supplier-aicha-002  ', 'Supplier-AICHA-002']) {
+      const marque = chipChoisi(valeur, SIEN);
+      const publie = supplierPourPublication(valeur, SIEN);
+      // A chip id of '' IS « Vous », which publishes for himself.
+      const supplierDuChip = marque === '' ? SIEN : marque;
+      expect(supplierDuChip, `mismatch for ${JSON.stringify(valeur)}`).toBe(publie);
+    }
+  });
+
+  it('typing his OWN id marks « Vous » — never a picker with nothing chosen', () => {
+    expect(chipChoisi(SIEN, SIEN)).toBe('');
+    expect(chipChoisi(`  ${SIEN} `, SIEN)).toBe('');
+  });
+
+  it('the marked chip EXISTS among the chips — a marking that points at nothing is a lie', () => {
+    for (const valeur of ['', SIEN, 'supplier-aicha-002']) {
+      const chips = chipsFournisseurs(['supplier-aicha-002', 'supplier-zoe-003', valeur], SIEN);
+      expect(chips.some((c) => c.id === chipChoisi(valeur, SIEN)), `no chip for ${JSON.stringify(valeur)}`).toBe(true);
+    }
+  });
+
+  it('the screen MARKS with chipChoisi and PUBLISHES the same value — the two-copy defect cannot return', () => {
+    const screens2 = readSrc(new URL('../src/v2/screens2.tsx', import.meta.url), 'utf8');
+    // The marking reads the SAME `fournisseur.value` the wrapper publishes…
+    expect(screens2).toContain('active={chipChoisi(fournisseur.value, fournisseur.sienId) === c.id}');
+    // …and the tap writes through the single setter, with no local mirror.
+    expect(screens2).toContain('onPress={() => fournisseur.onChange(c.id)}');
+    expect(screens2, 'a second copy of the selection is back').not.toMatch(/pourSel/);
+    const lister = readSrc(new URL('../src/v2/lister-real.tsx', import.meta.url), 'utf8');
+    // The wrapper's ONE value feeds the screen and the session alike.
+    expect(lister).toContain('session.current.pourFournisseur = v;');
+    expect(lister).toContain('value: pour,');
+  });
+});
+
 describe('pourFournisseurHintKey — every read state names its own sentence', () => {
-  const cases: readonly [FournisseursRead, string][] = [
-    [{ kind: 'sans_cle' }, 'publier.pour_sans_cle_hint'],
-    [{ kind: 'chargement' }, 'publier.pour_chargement_hint'],
-    [{ kind: 'echec' }, 'publier.pour_echec_hint'],
-    [{ kind: 'liste', ids: [] }, 'publier.pour_fournisseur_hint'],
+  const cases: readonly [FournisseursRead, number, string][] = [
+    [{ kind: 'sans_cle' }, 0, 'publier.pour_sans_cle_hint'],
+    [{ kind: 'chargement' }, 0, 'publier.pour_chargement_hint'],
+    [{ kind: 'echec' }, 0, 'publier.pour_echec_hint'],
+    [{ kind: 'liste', ids: ['supplier-aicha-002'] }, 1, 'publier.pour_fournisseur_hint'],
+    // A SUCCESSFUL read with nobody else is its OWN state (verifier MAJOR): it
+    // must not tell him to touch a fournisseur chip that does not exist.
+    [{ kind: 'liste', ids: [] }, 0, 'publier.pour_liste_vide_hint'],
   ];
 
-  it('maps each of the four states to a distinct key', () => {
-    const keys = cases.map(([read, key]) => {
-      expect(pourFournisseurHintKey(read)).toBe(key);
+  it('maps each of the five states to a distinct key', () => {
+    const keys = cases.map(([read, autres, key]) => {
+      expect(pourFournisseurHintKey(read, autres)).toBe(key);
       return key;
     });
-    expect(new Set(keys).size).toBe(4);
+    expect(new Set(keys).size).toBe(5);
+  });
+
+  it('the empty roster never wears the populated sentence', () => {
+    const vide = pourFournisseurHintKey({ kind: 'liste', ids: [] }, 0);
+    const plein = pourFournisseurHintKey({ kind: 'liste', ids: ['x'] }, 1);
+    expect(vide).not.toBe(plein);
   });
 
   it('every key the picker can emit EXISTS in the catalog, non-empty, register-tagged', () => {
@@ -60,7 +117,7 @@ describe('pourFournisseurHintKey — every read state names its own sentence', (
       register: string;
     }>;
     const byKey = new Map(cat.map((e) => [e.key, e]));
-    for (const k of ['publier.pour_chips_vous', ...cases.map(([, key]) => key)]) {
+    for (const k of ['publier.pour_chips_vous', 'publier.pour_reessayer', ...cases.map(([, , key]) => key)]) {
       const entry = byKey.get(k);
       expect(entry, `missing catalog key: ${k}`).toBeDefined();
       expect(entry!.fr.length).toBeGreaterThan(0);

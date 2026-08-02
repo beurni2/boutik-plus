@@ -18,7 +18,7 @@ import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
 import { varianteChamp } from './categorie-details';
-import { pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
+import { chipChoisi, pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
@@ -131,7 +131,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[] } | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[]; readonly onRetry: () => void; readonly sienId: string } | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -152,10 +152,6 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
   const noNet = money.kind === 'refused';
   /** The verify step's full-screen photo inspection (founder ruling 2026-07-26). */
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
-  /** LISTER-POUR-2 — the picker's local mirror of the shell-held selection.
-   * The truth lives in the shell session (survives the studio round-trip);
-   * this state exists ONLY so a chip tap re-renders. One-way: tap → both. */
-  const [pourSel, setPourSel] = useState(fournisseur !== undefined ? fournisseur.value : '');
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>
@@ -325,10 +321,16 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 first, one per other active supplier; every other read state
                 falls back to the 1b typed field under an honestly NAMED hint
                 (no key here / list unreadable / still loading), never an empty
-                picker pretending there are no suppliers. The typed field stays
-                UNCONTROLLED (`defaultValue`): the truth lives in the shell-held
-                session — and a wrong id cannot land anyway: the service refuses
-                an unknown supplier by name (LISTER-POUR-1a'), shown in his words. */}
+                picker pretending there are no suppliers, and « n'a pas pu être
+                lue » now carries its own RETRY rather than naming a failure he
+                cannot act on. The typed field stays UNCONTROLLED
+                (`defaultValue`) — it seeds from the wrapper's value and reports
+                every keystroke up — and the MARKING is COMPUTED from that same
+                value (`chipChoisi`), never from a second copy: that mismatch,
+                where a typed id published under a « Vous » chip, is the
+                verifier's BLOCKER of 2026-08-02. A wrong id cannot land in any
+                case: the service refuses an unknown supplier by name
+                (LISTER-POUR-1a'), shown in his words. */}
             {fournisseur !== undefined && (
               <Card style={{ marginTop: 12, padding: 16 }}>
                 {fournisseur.read.kind === 'liste' ? (
@@ -339,11 +341,8 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                         <ChipCategory
                           key={c.id === '' ? '(vous)' : c.id}
                           label={c.labelKey !== null ? tr(c.labelKey) : c.id}
-                          active={pourSel === c.id}
-                          onPress={() => {
-                            setPourSel(c.id);
-                            fournisseur.onChange(c.id);
-                          }}
+                          active={chipChoisi(fournisseur.value, fournisseur.sienId) === c.id}
+                          onPress={() => fournisseur.onChange(c.id)}
                         />
                       ))}
                     </View>
@@ -356,8 +355,13 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   />
                 )}
                 <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>
-                  {tr(pourFournisseurHintKey(fournisseur.read))}
+                  {tr(pourFournisseurHintKey(fournisseur.read, fournisseur.chips.length - 1))}
                 </Text>
+                {fournisseur.read.kind === 'echec' && (
+                  <View style={{ marginTop: 12 }}>
+                    <BtnSoft label={tr('publier.pour_reessayer')} onPress={fournisseur.onRetry} />
+                  </View>
+                )}
               </Card>
             )}
             {/* ALL THREE PHOTOGRAPHS, not just the hero (founder device ruling

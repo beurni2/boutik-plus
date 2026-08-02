@@ -26,6 +26,15 @@ describe('variantesParDefaut — only clothing earns a pre-fill', () => {
   it('an unknown category (free string by canon) gets NO pre-fill, never a throw', () => {
     expect(variantesParDefaut('Pièces détachées moto')).toBe('');
   });
+
+  /** A plain-object lookup answered TRUTHY for these and slipped past `??` —
+   *  the renderer then got an undefined key and `t()` throws (white screen).
+   *  Canon says `category` is a free string, so the guard must be real. */
+  it('a prototype-named category is just an unknown category, never a crash', () => {
+    for (const evil of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      expect(variantesParDefaut(evil), evil).toBe('');
+    }
+  });
 });
 
 describe('varianteChamp — the field wears the category, and every key exists', () => {
@@ -39,6 +48,13 @@ describe('varianteChamp — the field wears the category, and every key exists',
     expect(varianteChamp('Tissus').labelKey).toBe('publier.variantes_coupe');
     expect(varianteChamp('Beauté scellée').labelKey).toBe('publier.variantes_contenances');
     expect(varianteChamp('Autre chose entièrement').labelKey).toBe('publier.variantes_generique');
+  });
+
+  it('prototype-named categories get the GENERIC clothes — not an undefined key that throws', () => {
+    for (const evil of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      expect(varianteChamp(evil).labelKey, evil).toBe('publier.variantes_generique');
+      expect(varianteChamp(evil).exempleKey, evil).toBe('publier.variantes_generique_ex');
+    }
   });
 
   it('every label AND example key any category can emit exists in the catalog', () => {

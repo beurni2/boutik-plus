@@ -115,6 +115,15 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     expect(screens2, 'verify variantes row missing').toContain(
       "[tr(varianteChamp(w.cat).labelKey), w.sizes.trim() === '' ? '—' : w.sizes]",
     );
+    // AND the step-1 FIELD wears the same category label + its example
+    // (verifier N1: pinning only the recap left « recap agrees with the field »
+    // half-tested — a state where the two disagree was green).
+    expect(screens2, 'step-1 variantes field is not category-aware').toContain(
+      'label={tr(varianteChamp(w.cat).labelKey)}',
+    );
+    expect(screens2, 'step-1 variantes example is not category-aware').toContain(
+      'tr(varianteChamp(w.cat).exempleKey)',
+    );
   });
 });
 

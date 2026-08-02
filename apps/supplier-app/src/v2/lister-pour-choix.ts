@@ -11,6 +11,8 @@
  * the fallback, never an empty picker pretending there are no suppliers.
  */
 
+import { supplierPourPublication } from './lister-pour';
+
 export type FournisseursRead =
   /** No ops key in this browser — the console tab has not been opened here. */
   | { readonly kind: 'sans_cle' }
@@ -36,8 +38,36 @@ export function chipsFournisseurs(ids: readonly string[], sienId: string): reado
   return [{ id: '', labelKey: 'publier.pour_chips_vous' }, ...autres.map((id) => ({ id, labelKey: null }))];
 }
 
-/** The hint under the picker/field, one per read state — every state named. */
-export function pourFournisseurHintKey(read: FournisseursRead): string {
+/**
+ * WHICH CHIP IS MARKED — derived from the SAME rule that decides whom the
+ * publication is FOR, never from a second copy of the selection.
+ *
+ * THE DEFECT THIS CLOSES (verifier BLOCKER, 2026-08-02): the marking used to
+ * live in a `useState` seeded once at mount, while the value that publishes
+ * lived in the shell session. An id typed into the fallback field while the
+ * roster was still loading updated the session only; when the list arrived the
+ * screen swapped to chips and drew « Vous » active while the publish went to
+ * the typed supplier. Two writers, one of them updating a single copy — so the
+ * marking is now COMPUTED from the session value on every render instead.
+ *
+ * `supplierPourPublication` is the single rule (empty/blank ⇒ himself, else
+ * the trimmed id verbatim); this maps its answer back onto a chip id, so
+ * « Vous » also lights up when he typed his OWN id by hand.
+ */
+export function chipChoisi(valeur: string, sienId: string): string {
+  const cible = supplierPourPublication(valeur, sienId);
+  return cible === sienId ? '' : cible;
+}
+
+/**
+ * The hint under the picker/field, one per read state — every state named.
+ *
+ * `autres` = how many chips other than « Vous » there are. A SUCCESSFUL read
+ * with no other supplier is its own state (verifier MAJOR): telling him to
+ * « touchez un fournisseur » when there is none to touch is an undesigned
+ * empty state wearing the populated state's sentence.
+ */
+export function pourFournisseurHintKey(read: FournisseursRead, autres: number): string {
   switch (read.kind) {
     case 'sans_cle':
       return 'publier.pour_sans_cle_hint';
@@ -46,6 +76,6 @@ export function pourFournisseurHintKey(read: FournisseursRead): string {
     case 'echec':
       return 'publier.pour_echec_hint';
     case 'liste':
-      return 'publier.pour_fournisseur_hint';
+      return autres > 0 ? 'publier.pour_fournisseur_hint' : 'publier.pour_liste_vide_hint';
   }
 }

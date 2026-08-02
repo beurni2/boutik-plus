@@ -1711,21 +1711,33 @@
   },
   {
     "key": "publier.pour_chargement_hint",
-    "fr": "Un instant — lecture de la liste des fournisseurs…",
+    "fr": "Un instant — on cherche vos fournisseurs…",
     "register": "neutral",
     "screenClass": "status"
   },
   {
+    "key": "publier.pour_liste_vide_hint",
+    "fr": "Vous êtes seul fournisseur pour l’instant. Créez le code personnel d’un fournisseur et il apparaîtra ici.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "publier.pour_sans_cle_hint",
-    "fr": "Pas de liste ici : votre clé n’est pas enregistrée sur cet appareil. Laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
+    "fr": "Pas de liste ici : votre clé n’est pas enregistrée sur cet appareil. Entrez-la dans l’onglet Opérations. Sinon, laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
     "register": "neutral",
     "screenClass": "instruction"
   },
   {
     "key": "publier.pour_echec_hint",
-    "fr": "La liste n’a pas pu être lue. Laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
+    "fr": "On n’a pas pu lire la liste. Réessayez. Sinon, laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
     "register": "neutral",
     "screenClass": "instruction"
+  },
+  {
+    "key": "publier.pour_reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "label"
   },
   {
     "key": "publier.err_fournisseur_inconnu",

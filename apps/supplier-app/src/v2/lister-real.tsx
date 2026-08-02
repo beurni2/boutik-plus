@@ -156,6 +156,25 @@ export function SListerReal({ st, d, captures, session }: {
    * Refetched per mount; the studio round-trip remounts this wrapper, which is
    * one extra GET and an always-fresh list. */
   const [fournisseurs, setFournisseurs] = useState<FournisseursRead>({ kind: 'chargement' });
+  /** Bumped by « Réessayer » — a named failure he can ACT on (verifier: the
+   *  echec state used to be terminal for the whole mount). */
+  const [relire, setRelire] = useState(0);
+  /**
+   * WHOM THIS PUBLICATION IS FOR — ONE COPY, held here and mirrored into the
+   * shell session so it survives the studio round-trip (SListerReal unmounts).
+   *
+   * IT IS STATE, NOT A BARE REF (verifier BLOCKER 2026-08-02): the marking used
+   * to be a `useState` seeded once inside the wizard while the publish read the
+   * session ref, so an id typed while the roster was still loading published to
+   * that supplier under a « Vous » chip. State here re-renders the wizard on
+   * every write — typed OR tapped — so the chip he sees marked is computed from
+   * the very value that publishes.
+   */
+  const [pour, setPour] = useState(session.current.pourFournisseur);
+  const choisirPour = (v: string): void => {
+    session.current.pourFournisseur = v; // the shell's copy — survives the studio
+    setPour(v);
+  };
   useEffect(() => {
     let alive = true;
     const opsKey = readStoredOpsKey();
@@ -164,16 +183,35 @@ export function SListerReal({ st, d, captures, session }: {
       setFournisseurs({ kind: 'sans_cle' });
       return undefined;
     }
-    void ops.listCodes(opsKey).then((res) => {
-      if (!alive) return;
-      // `bad_key` and `unreachable` both land on `echec`: either way the list
-      // cannot be shown, and the fallback field + hint say exactly that.
-      setFournisseurs(res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : { kind: 'echec' });
-    });
+    setFournisseurs({ kind: 'chargement' });
+    // A BOUNDED WAIT (verifier finding): `listCodes` cannot reject, but a body
+    // that never finishes streaming — routine on patchy data, the environment
+    // Law 7 names first — left « Un instant… » on screen for ever. 12 s is the
+    // same bound the console's dispatch read already uses.
+    const minuteur = setTimeout(() => {
+      if (alive) setFournisseurs({ kind: 'echec' });
+    }, 12_000);
+    void ops
+      .listCodes(opsKey)
+      .then((res) => {
+        if (!alive) return;
+        clearTimeout(minuteur);
+        // `bad_key` and `unreachable` both land on `echec`: either way the list
+        // cannot be shown, and the fallback field + hint say exactly that.
+        setFournisseurs(res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : { kind: 'echec' });
+      })
+      // Belt and braces: an unexpected throw must land on the NAMED failure,
+      // never leave the loading sentence standing for ever.
+      .catch(() => {
+        if (!alive) return;
+        clearTimeout(minuteur);
+        setFournisseurs({ kind: 'echec' });
+      });
     return () => {
       alive = false;
+      clearTimeout(minuteur);
     };
-  }, []);
+  }, [relire]);
   const [attachNote, setAttachNote] = useState<'sending' | 'done' | string | null>(null);
   const inFlight = useRef(false);
   const identity = useRef<OfferIdentity | null>(null);
@@ -567,18 +605,18 @@ export function SListerReal({ st, d, captures, session }: {
       photos={photos}
       photosHint={t('publier.roles_hint')}
       fournisseur={{
-        value: session.current.pourFournisseur,
-        onChange: (v: string) => { session.current.pourFournisseur = v; },
+        value: pour,
+        onChange: choisirPour,
         read: fournisseurs,
-        // The CURRENT selection is folded into the roster before chipping:
-        // a value typed under a fallback state (then remounted into `liste`)
-        // keeps a chip — the active marking never silently mismatches the id
-        // that will actually publish. `chipsFournisseurs` dedupes, folds his
-        // own id into « Vous », filters '', sorts the rest.
-        chips: chipsFournisseurs(
-          [...(fournisseurs.kind === 'liste' ? fournisseurs.ids : []), session.current.pourFournisseur],
-          SUPPLIER_ID,
-        ),
+        onRetry: () => setRelire((n) => n + 1),
+        sienId: SUPPLIER_ID,
+        // The CURRENT selection is folded into the roster before chipping, so
+        // an id typed under a fallback state always HAS a chip once the list
+        // arrives — and since the marking is computed from that same value
+        // (`chipChoisi`), the marked chip is by construction the id that
+        // publishes. `chipsFournisseurs` dedupes, folds his own id into
+        // « Vous », filters '', sorts the rest.
+        chips: chipsFournisseurs([...(fournisseurs.kind === 'liste' ? fournisseurs.ids : []), pour], SUPPLIER_ID),
       }}
     />
   );

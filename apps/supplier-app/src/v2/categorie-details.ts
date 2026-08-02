@@ -32,20 +32,28 @@ export interface VarianteChamp {
 const TAILLES: VarianteChamp = { labelKey: 'publier.variantes_tailles', exempleKey: 'publier.variantes_tailles_ex' };
 const MODELES: VarianteChamp = { labelKey: 'publier.variantes_modeles', exempleKey: 'publier.variantes_modeles_ex' };
 
-const CHAMP: Readonly<Record<string, VarianteChamp>> = {
-  'Mode femme': TAILLES,
-  'Mode homme': TAILLES,
-  'Enfant': TAILLES,
-  'Chaussures': { labelKey: 'publier.variantes_pointures', exempleKey: 'publier.variantes_pointures_ex' },
-  'Sacs': MODELES,
-  'Maison': MODELES,
-  'Tissus': { labelKey: 'publier.variantes_coupe', exempleKey: 'publier.variantes_coupe_ex' },
-  'Beauté scellée': { labelKey: 'publier.variantes_contenances', exempleKey: 'publier.variantes_contenances_ex' },
-};
+/**
+ * A MAP, not an object literal (verifier finding, 2026-08-02): a plain-object
+ * lookup walks `Object.prototype`, so a category named `constructor` or
+ * `toString` returned a truthy non-entry, slipped past `??`, and handed the
+ * renderer an undefined key — `t()` throws on that, so a free-string category
+ * (canon: `TrimmedNonEmptyString`, list still an open ⏳) would have been a
+ * white screen instead of the generic clothes this module promises.
+ */
+const CHAMP: ReadonlyMap<string, VarianteChamp> = new Map([
+  ['Mode femme', TAILLES],
+  ['Mode homme', TAILLES],
+  ['Enfant', TAILLES],
+  ['Chaussures', { labelKey: 'publier.variantes_pointures', exempleKey: 'publier.variantes_pointures_ex' }],
+  ['Sacs', MODELES],
+  ['Maison', MODELES],
+  ['Tissus', { labelKey: 'publier.variantes_coupe', exempleKey: 'publier.variantes_coupe_ex' }],
+  ['Beauté scellée', { labelKey: 'publier.variantes_contenances', exempleKey: 'publier.variantes_contenances_ex' }],
+]);
 
 const GENERIQUE: VarianteChamp = { labelKey: 'publier.variantes_generique', exempleKey: 'publier.variantes_generique_ex' };
 
 /** The field's clothes for a category — generic for any unknown string. */
 export function varianteChamp(cat: string): VarianteChamp {
-  return CHAMP[cat] ?? GENERIQUE;
+  return CHAMP.get(cat) ?? GENERIQUE;
 }
