@@ -15,9 +15,17 @@ name: media-deploy
 # is no [[migrations]] block to get wrong — the one first-deploy hazard that does
 # NOT apply to this service.)
 #
-# NO WRITE SECRET IS SET HERE. This Worker exposes no write route yet (the
-# supplier-app upload path is not built). When it lands, its secret goes in with
-# `wrangler secret put` — NEVER the dashboard.
+# SECRETS (correction 2026-08-02 — this header once said "no write route yet",
+# true when written, long since false): the Worker now gates TWO capabilities
+# behind TWO wrangler secrets, both set with `wrangler secret put` (value
+# PIPED, never an argument) — NEVER the dashboard, never [vars] (public repo):
+#   · MEDIA_WRITE_SECRET  — uploads (POST /media); its value also lives in the
+#     app bundles as EXPO_PUBLIC_MEDIA_WRITE_KEY.
+#   · MEDIA_REVOKE_SECRET — MEDIA-KEY-SPLIT (2026-08-02): destruction
+#     (POST /media/revoke) answers ONLY to this one; its value rides ONLY the
+#     founder's web bundle (EXPO_PUBLIC_MEDIA_REVOKE_KEY in web-deploy.yml,
+#     NEVER fournisseur-web-deploy.yml). Unset ⇒ every revoke 401s —
+#     fail-closed, not broken.
 
 on:
   workflow_dispatch:

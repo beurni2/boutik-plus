@@ -11,11 +11,19 @@ import {
 } from '../src/operations/service';
 import {
   CHASE_AFTER_MIN,
+  CODES_IDLE,
   RELANCE_IDLE,
   ageMinutes,
+  codesReadOf,
+  codesView,
+  mintAvis,
+  mintSettled,
+  mintStart,
   operationsView,
   relanceSettled,
   relanceStart,
+  revokeSettled,
+  revokeStart,
 } from '../src/operations/view';
 import { catalog } from '../src/i18n';
 
@@ -541,3 +549,115 @@ describe('the founder’s key — his device only, and honest when storage is ab
     expect(operateurHashPresent()).toBe(false);
   });
 });
+
+/* ═══════════ CONSOLE-3 — the code inventory, decisions BY VALUE ═══════════ */
+
+describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, one act at a time', () => {
+  const codeRow = (supplierId: string, mintedAt = '2026-08-01T10:00:00.000Z') => ({ supplierId, mintedAt });
+
+  it('codesView: loading/failed/empty each keep their own catalog sentence; bad_key returns NULL (the board escalates, one door one sentence)', () => {
+    const keys = new Set(catalog.map((e) => e.key));
+    expect(codesView({ kind: 'bad_key' })).toBeNull();
+    for (const [read, kind, message] of [
+      [{ kind: 'loading' }, 'loading', 'operations.codes_chargement'],
+      [{ kind: 'failed' }, 'failed', 'operations.codes_echec'],
+      [{ kind: 'ok', codes: [] }, 'empty', 'operations.codes_vide'],
+    ] as const) {
+      const vue = codesView(read);
+      if (vue === null) throw new Error(kind);
+      expect(vue.kind, message).toBe(kind);
+      expect('message' in vue && vue.message, kind).toBe(message);
+      expect(keys.has(message), `${message} missing from catalog`).toBe(true);
+    }
+    const liste = codesView({ kind: 'ok', codes: [codeRow('supplier-2')] });
+    expect(liste).toEqual({ kind: 'liste', codes: [codeRow('supplier-2')] });
+  });
+
+  it('mintAvis — the footgun guard: an id NO paid order names is « inconnu », an UNRESOLVED row never vouches, an existing code says « remplace »', () => {
+    const orders = [
+      rowAt('o1', paidAgo(5)), // supplier-2, resolved
+      rowAt('o2', paidAgo(5), { supplierId: 'supplier-ghost', supplierResolved: false }),
+    ];
+    const codes = [codeRow('supplier-armed')];
+    expect(mintAvis(orders, codes, 'supplier-2')).toBe('pret');
+    expect(mintAvis(orders, codes, 'supplier-typo')).toBe('inconnu');
+    // an unresolved order must NOT count as knowing the supplier — it is the
+    // anomaly row, not evidence the id exists
+    expect(mintAvis(orders, codes, 'supplier-ghost')).toBe('inconnu');
+    // replace beats known: the supplier already holds a door
+    expect(mintAvis(orders, [...codes, codeRow('supplier-2')], 'supplier-2')).toBe('remplace');
+    expect(mintAvis(orders, codes, 'supplier-armed')).toBe('remplace');
+  });
+
+  it('the reducer: one act at a time; a fresh code STAYS on screen through the refresh (the founder is mid-handover); failures name their act', () => {
+    expect(mintStart(CODES_IDLE)).toEqual({ busy: 'mint', nouveau: null, echec: null });
+    expect(mintStart({ busy: 'mint', nouveau: null, echec: null })).toBeNull();
+    expect(revokeStart({ busy: 'mint', nouveau: null, echec: null }, 'supplier-2')).toBeNull();
+    expect(revokeStart(CODES_IDLE, 'supplier-2')).toEqual({ busy: 'revoke:supplier-2', nouveau: null, echec: null });
+
+    const minted = mintSettled({ ok: true, code: 'BF-AAAA-BBBB-CCCC-DDDD', supplierId: 'supplier-2', mintedAt: 'x' });
+    expect(minted.then).toBe('refresh'); // the row must be the STORED truth
+    expect(minted.ui.nouveau).toEqual({ supplierId: 'supplier-2', code: 'BF-AAAA-BBBB-CCCC-DDDD' });
+
+    expect(mintSettled({ ok: false, reason: 'bad_key' })).toEqual({ ui: CODES_IDLE, then: 'bad_key' });
+    expect(mintSettled({ ok: false, reason: 'unreachable' }).ui.echec).toBe('mint');
+
+    expect(revokeSettled('supplier-2', { ok: true, status: 'revoked' })).toEqual({ ui: CODES_IDLE, then: 'refresh' });
+    // no_code refreshes too: the list claimed a door the book no longer holds
+    expect(revokeSettled('supplier-2', { ok: true, status: 'no_code' })).toEqual({ ui: CODES_IDLE, then: 'refresh' });
+    expect(revokeSettled('supplier-2', { ok: false, reason: 'bad_key' })).toEqual({ ui: CODES_IDLE, then: 'bad_key' });
+    expect(revokeSettled('supplier-2', { ok: false, reason: 'unreachable' }).ui.echec).toBe('supplier-2');
+  });
+
+  it('codesReadOf: ok carries the rows; bad_key and unreachable keep their own kinds', () => {
+    expect(codesReadOf({ ok: true, codes: [codeRow('s')] })).toEqual({ kind: 'ok', codes: [codeRow('s')] });
+    expect(codesReadOf({ ok: false, reason: 'bad_key' })).toEqual({ kind: 'bad_key' });
+    expect(codesReadOf({ ok: false, reason: 'unreachable' })).toEqual({ kind: 'failed' });
+  });
+
+  it('the port: Bearer on the inventory GET; mint body is EXACTLY {supplierId}; malformed rows dropped; 401 → bad_key everywhere', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const good = codeRow('supplier-2');
+    let spy = stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, codes: [good, { supplierId: '' }, { supplierId: 's', mintedAt: 'pas une date' }, null] })),
+    );
+    const list = await resolveOperationsService()!.listCodes('cle-ops');
+    if (!list.ok) throw new Error(list.reason);
+    expect(list.codes).toEqual([good]);
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('https://offer.example/fulfillment/supplier-codes');
+    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-ops');
+
+    spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, code: 'BF-X', supplierId: 'supplier-2', mintedAt: 't' })));
+    const mint = await resolveOperationsService()!.mintCode('cle-ops', 'supplier-2');
+    if (!mint.ok) throw new Error(mint.reason);
+    expect(mint.code).toBe('BF-X');
+    expect(JSON.parse(String(stubCall(spy)?.body))).toEqual({ supplierId: 'supplier-2' });
+
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'no_code' })));
+    expect(await resolveOperationsService()!.revokeCode('cle-ops', 'supplier-x')).toEqual({ ok: true, status: 'no_code' });
+
+    for (const call of [
+      () => resolveOperationsService()!.listCodes('k'),
+      () => resolveOperationsService()!.mintCode('k', 's'),
+      () => resolveOperationsService()!.revokeCode('k', 's'),
+    ]) {
+      stubFetch(async () => new Response('no', { status: 401 }));
+      expect(await call()).toEqual({ ok: false, reason: 'bad_key' });
+    }
+  });
+
+  it('[source-text check] the screen wires the decisions and keeps them honest: settle re-reads the STORED list, and the section exists on the EMPTY board too (day-one mint)', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    expect(source).toMatch(/then === 'refresh'\) await loadCodes\(\)/);
+    expect(source).toContain("view.kind === 'board' || view.kind === 'empty'");
+    // bad_key from the codes read escalates the WHOLE board
+    expect(source).toMatch(/read\.kind === 'bad_key'\) setRead\(\{ kind: 'bad_key' \}\)/);
+    // the plaintext renders from the reducer's one-time state, never from a store
+    expect(source).toContain('ui.nouveau.code');
+  });
+});
+
+function stubCall(spy: ReturnType<typeof vi.fn>): RequestInit | undefined {
+  return spy.mock.calls[0]?.[1] as RequestInit | undefined;
+}

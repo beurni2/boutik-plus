@@ -79,11 +79,40 @@ export type RelanceResult =
    *  screen re-reads rather than pretending the call was logged. */
   | { readonly ok: false; readonly reason: 'bad_key' | 'unknown_order' | 'unreachable' };
 
+/**
+ * CONSOLE-3 — one active door per supplier, as the book holds it. Mirrors the
+ * DO's /codes allowlist: supplierId + mintedAt, NOTHING else ever arrives
+ * (no hash, no code — a code's plaintext exists only in the mint answer).
+ */
+export interface CodeRow {
+  readonly supplierId: string;
+  readonly mintedAt: string;
+}
+
+export type CodesResult =
+  | { readonly ok: true; readonly codes: readonly CodeRow[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type MintResult =
+  /** The plaintext code — shown ONCE, never stored anywhere by this app. */
+  | { readonly ok: true; readonly code: string; readonly supplierId: string; readonly mintedAt: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type RevokeResult =
+  | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
 export interface OperationsServicePort {
   listPaidOrders(opsKey: string): Promise<PaidOrdersResult>;
   /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
    *  the Worker stamps its own clock. */
   recordRelance(opsKey: string, orderId: string): Promise<RelanceResult>;
+  /** CONSOLE-3 — the code inventory (who holds a door, since when). */
+  listCodes(opsKey: string): Promise<CodesResult>;
+  /** Mint (or re-mint — the book replaces atomically) one supplier's code. */
+  mintCode(opsKey: string, supplierId: string): Promise<MintResult>;
+  /** Cut a supplier off. Idempotent — `no_code` is an honest answer. */
+  revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult>;
 }
 
 /**
@@ -145,7 +174,86 @@ export function resolveOperationsService(): OperationsServicePort | null {
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       return { ok: true };
     },
+
+    async listCodes(opsKey: string): Promise<CodesResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-codes`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; codes?: unknown } | null;
+      if (body?.ok !== true || !Array.isArray(body.codes)) return { ok: false, reason: 'unreachable' };
+      // Strict rows, the console's standing law: a malformed row is DROPPED,
+      // never rendered half-formed.
+      const codes: CodeRow[] = [];
+      for (const raw of body.codes) {
+        const row = readCodeRow(raw);
+        if (row !== null) codes.push(row);
+      }
+      return { ok: true, codes };
+    },
+
+    async mintCode(opsKey: string, supplierId: string): Promise<MintResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-code`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          // EXACTLY {supplierId} — the book's exact-key check refuses anything
+          // more, and this port will not learn to smuggle.
+          body: JSON.stringify({ supplierId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (
+        body?.['ok'] !== true ||
+        typeof body['code'] !== 'string' || body['code'] === '' ||
+        typeof body['supplierId'] !== 'string' || body['supplierId'] === '' ||
+        typeof body['mintedAt'] !== 'string' || body['mintedAt'] === ''
+      ) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, code: body['code'], supplierId: body['supplierId'], mintedAt: body['mintedAt'] };
+    },
+
+    async revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-code/revoke`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          body: JSON.stringify({ supplierId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; status?: unknown } | null;
+      if (body?.ok !== true || (body.status !== 'revoked' && body.status !== 'no_code')) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, status: body.status };
+    },
   };
+}
+
+/** A code row must be whole or it is nothing — same law as every reader here. */
+function readCodeRow(value: unknown): CodeRow | null {
+  if (value === null || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  if (typeof r['supplierId'] !== 'string' || r['supplierId'] === '') return null;
+  if (typeof r['mintedAt'] !== 'string' || r['mintedAt'] === '' || Number.isNaN(Date.parse(r['mintedAt']))) return null;
+  return { supplierId: r['supplierId'], mintedAt: r['mintedAt'] };
 }
 
 function readPaidOrderRow(value: unknown): PaidOrderRow | null {

@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -155,6 +155,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // supplierId is derived server-side, never claimed by a body. The write
     // key, the ops key, and the intake secret open none of these; the code
     // opens nothing else.
+    // CONSOLE-3 — the code INVENTORY: which suppliers hold an active door,
+    // since when. The founder's credential, same as every code-admin act;
+    // the response carries supplierId + mintedAt only (the DO's allowlist —
+    // never a hash, never a code).
+    if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleSupplierCodesList(env);
+    }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;

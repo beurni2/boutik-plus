@@ -15,6 +15,7 @@ import type { R2BucketLike, R2ObjectBodyLike } from '../src/media-store.js';
  */
 
 const SECRET = 'test-media-write-secret';
+const REVOKE_SECRET = 'test-media-revoke-secret';
 const ORIGIN = 'https://media.boutik.test';
 
 function png(w = 800, h = 600): Uint8Array {
@@ -69,7 +70,7 @@ async function withColo<T>(cache: Cache, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-const env = (bucket: R2BucketLike) => ({ BUCKET: bucket, MEDIA_WRITE_SECRET: SECRET });
+const env = (bucket: R2BucketLike) => ({ BUCKET: bucket, MEDIA_WRITE_SECRET: SECRET, MEDIA_REVOKE_SECRET: REVOKE_SECRET });
 
 async function uploadOne(bucket: R2BucketLike): Promise<string> {
   const res = await worker.fetch(
@@ -83,7 +84,7 @@ async function uploadOne(bucket: R2BucketLike): Promise<string> {
 const revokeReq = (body: BodyInit, headers: Record<string, string> = {}): Request =>
   new Request(`${ORIGIN}${REVOKE_PATH}`, { method: 'POST', body, headers });
 
-describe('the write gate stands in front of the revoke route — destruction needs the key', () => {
+describe('MEDIA-KEY-SPLIT — destruction answers ONLY to the founder-only revoke secret', () => {
   it('an unkeyed revoke is 401, CORS-stamped, and the object SURVIVES', async () => {
     const { bucket, objects } = stubBucket();
     const ref = await uploadOne(bucket);
@@ -94,6 +95,41 @@ describe('the write gate stands in front of the revoke route — destruction nee
     const read = await worker.fetch(new Request(`${ORIGIN}/${ref}`), env(bucket));
     expect(read.status).toBe(200);
   });
+
+  it('THE SPLIT ITSELF: the UPLOAD key — the one that ships in app bundles — can no longer revoke; the object survives it', async () => {
+    const { bucket, objects } = stubBucket();
+    const ref = await uploadOne(bucket);
+    const res = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': SECRET }), env(bucket));
+    expect(res.status).toBe(401);
+    expect(objects.has(ref)).toBe(true);
+  });
+
+  it('and the REVOKE key cannot upload — two capabilities, two credentials, neither implies the other', async () => {
+    const { bucket, objects } = stubBucket();
+    const res = await worker.fetch(
+      new Request(`${ORIGIN}/media`, { method: 'POST', headers: { 'X-Write-Key': REVOKE_SECRET }, body: png() }),
+      env(bucket),
+    );
+    expect(res.status).toBe(401);
+    expect(objects.size).toBe(0);
+  });
+
+  it('FAIL CLOSED: with no revoke secret configured, EVERY revoke is 401 — including one presenting the correct write key', async () => {
+    const { bucket, objects } = stubBucket();
+    const ref = await uploadOne(bucket);
+    const half = { BUCKET: bucket, MEDIA_WRITE_SECRET: SECRET }; // deployed before its secret exists ⇒ shut, not open
+    for (const headers of [{}, { 'X-Write-Key': SECRET }, { 'X-Write-Key': REVOKE_SECRET }]) {
+      const res = await worker.fetch(revokeReq(JSON.stringify({ ref }), headers), half);
+      expect(res.status, JSON.stringify(headers)).toBe(401);
+    }
+    expect(objects.has(ref)).toBe(true);
+    // and the upload path is untouched by the missing revoke secret
+    const up = await worker.fetch(
+      new Request(`${ORIGIN}/media`, { method: 'POST', headers: { 'X-Write-Key': SECRET }, body: png() }),
+      half,
+    );
+    expect(up.status).toBe(201);
+  });
 });
 
 describe('revoke destroys the origin object and the read dies with it', () => {
@@ -102,7 +138,7 @@ describe('revoke destroys the origin object and the read dies with it', () => {
     const ref = await uploadOne(bucket);
     expect(objects.has(ref)).toBe(true);
 
-    const res = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': SECRET }), env(bucket));
+    const res = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'revoked', ref });
 
@@ -114,8 +150,8 @@ describe('revoke destroys the origin object and the read dies with it', () => {
   it('a REPLAY answers the same 200 revoked — idempotent, so a retry after a lost response converges', async () => {
     const { bucket } = stubBucket();
     const ref = await uploadOne(bucket);
-    const first = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': SECRET }), env(bucket));
-    const second = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': SECRET }), env(bucket));
+    const first = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
+    const second = await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(await second.json()).toEqual({ status: 'revoked', ref });
@@ -125,7 +161,7 @@ describe('revoke destroys the origin object and the read dies with it', () => {
     const { bucket } = stubBucket();
     const doomed = await uploadOne(bucket);
     const neighbour = await uploadOne(bucket);
-    await worker.fetch(revokeReq(JSON.stringify({ ref: doomed }), { 'X-Write-Key': SECRET }), env(bucket));
+    await worker.fetch(revokeReq(JSON.stringify({ ref: doomed }), { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
     const dead = await worker.fetch(new Request(`${ORIGIN}/${doomed}`), env(bucket));
     const alive = await worker.fetch(new Request(`${ORIGIN}/${neighbour}`), env(bucket));
     expect(dead.status).toBe(404);
@@ -140,7 +176,7 @@ describe('revoke destroys the origin object and the read dies with it', () => {
       const first = await worker.fetch(new Request(`${ORIGIN}/${ref}`), env(bucket));
       expect(first.status).toBe(200);
       expect(size()).toBe(1); // the colo now holds it
-      await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': SECRET }), env(bucket));
+      await worker.fetch(revokeReq(JSON.stringify({ ref }), { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
       expect(size()).toBe(0); // best-effort purge fired against the SAME origin the read populated
       const after = await worker.fetch(new Request(`${ORIGIN}/${ref}`), env(bucket));
       expect(after.status).toBe(404);
@@ -162,7 +198,7 @@ describe('the shape gate refuses anything that is not an opaque minted key — b
       JSON.stringify({ ref: `${ref}/../${ref}` }),
     ];
     for (const body of bodies) {
-      const res = await worker.fetch(revokeReq(body, { 'X-Write-Key': SECRET }), env(bucket));
+      const res = await worker.fetch(revokeReq(body, { 'X-Write-Key': REVOKE_SECRET }), env(bucket));
       expect(res.status, body).toBe(400);
       expect(((await res.json()) as { param?: string }).param, body).toBe('ref');
     }

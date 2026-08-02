@@ -343,6 +343,21 @@ export class FulfillmentDO {
       return Response.json({ ok: true, code, supplierId, mintedAt });
     }
 
+    /** CONSOLE-3 — THE CODE INVENTORY (ops read; the router gates it behind
+     *  the founder's own credential). Answers « who currently holds a door? »
+     *  — one row per active code, `{supplierId, mintedAt}` as an explicit
+     *  ALLOWLIST: the stored `hash` NEVER leaves this object, the same law
+     *  the /mine allowlist follows. Closes the mint footgun's blind half:
+     *  before this list existed, a typo'd supplierId minted a working code
+     *  for a phantom and nothing could ever show it. */
+    if (request.method === 'GET' && pathname === '/codes') {
+      const entries = await this.state.storage.list<{ mintedAt: string }>({ prefix: SUPPLIERCODE_PREFIX });
+      const codes = [...entries.entries()]
+        .map(([key, v]) => ({ supplierId: key.slice(SUPPLIERCODE_PREFIX.length), mintedAt: v.mintedAt }))
+        .sort((a, b) => (a.supplierId < b.supplierId ? -1 : 1));
+      return Response.json({ ok: true, codes });
+    }
+
     /** REVOKE — the founder cuts a supplier off. Idempotent: revoking a
      *  supplier with no code answers honestly rather than erroring. */
     if (request.method === 'POST' && pathname === '/code/revoke') {
@@ -671,6 +686,14 @@ export async function forwardSupplierAct(
         : { ...(raw !== null && typeof raw === 'object' ? raw : {}), code };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(`https://do${path}`, { method: 'POST', body: JSON.stringify(envelope) });
+}
+
+/** CONSOLE-3 — the code inventory, through the same singleton. Auth (the
+ *  founder's ops credential) is the composition root's, exactly as the
+ *  orders list. */
+export async function handleSupplierCodesList(env: FulfillmentEnv): Promise<Response> {
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(new Request('https://do/codes'));
 }
 
 /** The founder's code administration (mint/revoke) — his ops key ran at the

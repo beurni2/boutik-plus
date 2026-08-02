@@ -1938,6 +1938,114 @@
     "screenClass": "label"
   },
   {
+    "key": "operations.codes_titre",
+    "fr": "Codes fournisseurs",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.codes_sens",
+    "fr": "Un code par fournisseur. Créer un nouveau code remplace l'ancien.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.codes_chargement",
+    "fr": "Lecture des codes…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.codes_echec",
+    "fr": "Impossible de lire les codes. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.codes_vide",
+    "fr": "Aucun code pour l'instant. Créez le premier ci-dessous.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_cree_le",
+    "fr": "Créé le {d}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.code_couper",
+    "fr": "Couper l'accès",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_coupure_encours",
+    "fr": "Coupure en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_coupure_echec",
+    "fr": "La coupure n'est pas passée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_nouveau_pour",
+    "fr": "Nouveau code pour {id}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.code_nouveau_note",
+    "fr": "Notez-le et remettez-le en main propre. Il ne s'affichera plus.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_nouveau_vu",
+    "fr": "C'est noté",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_saisie",
+    "fr": "Nom du fournisseur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.code_avis_inconnu",
+    "fr": "Aucune commande ne porte ce nom. Vérifiez l'écriture avant de créer le code.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_avis_remplace",
+    "fr": "Ce fournisseur a déjà un code. Le nouveau remplace l'ancien tout de suite.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_creer",
+    "fr": "Créer le code",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.code_creation_encours",
+    "fr": "Création en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_creation_echec",
+    "fr": "La création n'est pas passée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.titre",
     "fr": "Mes commandes",
     "register": "neutral",

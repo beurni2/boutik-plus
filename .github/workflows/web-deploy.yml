@@ -65,6 +65,12 @@ jobs:
           EXPO_PUBLIC_OFFER_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
           EXPO_PUBLIC_MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
           EXPO_PUBLIC_MEDIA_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
+          # MEDIA-KEY-SPLIT — the founder-only revoke credential (the value of
+          # media-service's MEDIA_REVOKE_SECRET). ONLY this workflow may carry
+          # it: fournisseur-web-deploy.yml must NEVER receive it — in a
+          # supplier bundle it would be a delete credential for the founder's
+          # product photographs, the exact hole the split closes.
+          EXPO_PUBLIC_MEDIA_REVOKE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app
@@ -84,6 +90,14 @@ jobs:
               exit 1
             fi
           done
+          # MEDIA-KEY-SPLIT — WARNING ONLY, deliberately not a hard guard: the
+          # console's core function never depends on the revoke key, and the
+          # Worker fails closed regardless (no MEDIA_REVOKE_SECRET ⇒ every
+          # revoke 401s). This line just tells the founder WHY photo cleanup
+          # refuses, instead of letting it look like a bug.
+          if [ -z "${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}" ]; then
+            echo "::warning::EXPO_PUBLIC_MEDIA_REVOKE_KEY is unset — photo revoke will answer 401 until it and media-service's MEDIA_REVOKE_SECRET are both set"
+          fi
           if ! grep -rqF "$OFFER_BASE" dist-web/_expo/static/js/web/; then
             echo "::error::EXPO_PUBLIC_OFFER_BASE did not inline into the bundle — the export would ship a « non configuré » app"
             exit 1

@@ -54,7 +54,16 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 const REVOKE_TIMEOUT_MS = 10_000;
 
 export class HttpMediaService implements MediaServicePort {
-  constructor(private readonly base: string, private readonly writeKey: string) {}
+  /**
+   * MEDIA-KEY-SPLIT (2026-08-02): upload and revoke are now DIFFERENT
+   * credentials on the service — the upload key ships in bundles (including
+   * every supplier's), the revoke key rides ONLY this founder surface. An
+   * unset revoke key travels as '' and the service answers its one identical
+   * 401 — a typed `http` failure, the wire's own truth, never a fake locally
+   * minted one; the delete flow already absorbs a failed revoke (bytes
+   * orphan, journalled behaviour).
+   */
+  constructor(private readonly base: string, private readonly writeKey: string, private readonly revokeKey: string = '') {}
 
   async uploadImage(bytes: Uint8Array): Promise<ServiceResult<MediaRefInput>> {
     // The hash is computed BEFORE the upload, over the same bytes handed to
@@ -111,7 +120,9 @@ export class HttpMediaService implements MediaServicePort {
     try {
       res = await fetch(`${this.base.replace(/\/+$/, '')}/media/revoke`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
+        // The REVOKE credential — never the upload key (which the service now
+        // refuses on this route; MEDIA-KEY-SPLIT).
+        headers: { 'Content-Type': 'application/json', [MEDIA_WRITE_KEY_HEADER]: this.revokeKey },
         body: JSON.stringify({ ref }),
         signal: ctl.signal,
       });
@@ -163,7 +174,11 @@ export function resolveMediaBase(): string | null {
 export function resolveMediaService(): MediaServicePort | null {
   const base = process.env.EXPO_PUBLIC_MEDIA_BASE;
   const key = process.env.EXPO_PUBLIC_MEDIA_WRITE_KEY;
-  if (base && key) return new HttpMediaService(base, key);
+  // The revoke key is OPTIONAL by design: uploads (the app's core function)
+  // never wait on it, and without it the service refuses each revoke with the
+  // same 401 it gives everyone — fail-closed on the WIRE, not simulated here.
+  const revokeKey = process.env.EXPO_PUBLIC_MEDIA_REVOKE_KEY ?? '';
+  if (base && key) return new HttpMediaService(base, key, revokeKey);
   return null;
 }
 

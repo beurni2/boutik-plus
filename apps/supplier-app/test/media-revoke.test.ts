@@ -39,9 +39,16 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
   it('POSTs JSON {ref} to /media/revoke with the write key header', () => {
     expect(media).toContain("}/media/revoke`");
     expect(media).toContain('JSON.stringify({ ref })');
-    // the one revokeImage method carries the key header and the JSON content type
+    // MEDIA-KEY-SPLIT (2026-08-02): revoke carries the REVOKE credential,
+    // never the upload key — the upload key ships in every bundle, and the
+    // service refuses it on this route. This pin is the client half of that
+    // split; media-service's revoke-route matrix is the server half.
     const revokeBlock = media.slice(media.indexOf('async revokeImage'));
-    expect(revokeBlock).toContain("'Content-Type': 'application/json', [MEDIA_WRITE_KEY_HEADER]: this.writeKey");
+    expect(revokeBlock).toContain("[MEDIA_WRITE_KEY_HEADER]: this.revokeKey");
+    expect(revokeBlock).not.toContain('this.writeKey');
+    // and the resolver reads the founder-only env, defaulting to '' (the wire
+    // then answers its own 401 — fail-closed at the service, never simulated)
+    expect(media).toContain("process.env.EXPO_PUBLIC_MEDIA_REVOKE_KEY ?? ''");
   });
 
   it('every exit is a TYPED result — network, http, and unreadable each named, reader-guarded success', () => {

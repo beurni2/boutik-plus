@@ -1,4 +1,4 @@
-import type { PaidOrderRow, RelanceResult } from './service';
+import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevokeResult } from './service';
 
 /**
  * CONSOLE-1 — THE ONE DECISION IS PURE (the `produits-view.ts` pattern): a
@@ -144,4 +144,108 @@ export function operationsView(read: OperationsRead, nowMs: number): OperationsV
   const relances = [...called].sort((a, b) => (a.relance!.at < b.relance!.at ? 1 : -1));
   const anomalies = rows.filter((r) => !r.supplierResolved);
   return { kind: 'board', relancer, preparation, relances, recentes, anomalies };
+}
+
+/* ──────────── CONSOLE-3 — the code inventory, as PURE decisions ──────────── */
+
+/**
+ * The founder's door registry: who holds an active code, since when — and the
+ * mint form with the one guard the footgun demanded. A supplierId the paid-
+ * order book has NEVER seen gets a WARNING, not a block (safest default,
+ * flagged in JOURNAL): pre-provisioning a door before a first sale is
+ * legitimate; silently arming a typo is not. The warning names the exact
+ * situation in plain words and the founder decides.
+ */
+export type CodesRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'bad_key' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly codes: readonly CodeRow[] };
+
+export type CodesView =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | { readonly kind: 'liste'; readonly codes: readonly CodeRow[] };
+
+/** `bad_key` never renders its own section — the caller escalates the WHOLE
+ *  board to its bad-key surface (one door, one sentence, never two). */
+export function codesView(read: CodesRead): CodesView | null {
+  if (read.kind === 'bad_key') return null;
+  if (read.kind === 'loading') return { kind: 'loading', message: 'operations.codes_chargement' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'operations.codes_echec' };
+  if (read.codes.length === 0) return { kind: 'empty', message: 'operations.codes_vide' };
+  return { kind: 'liste', codes: read.codes };
+}
+
+/** The mint form's honest pre-flight, from data the board already holds:
+ *  · `remplace` — this supplier HAS a code; minting kills the old one now.
+ *  · `inconnu` — no paid order has ever named this supplier; a typo would
+ *    arm a phantom door (the footgun this slice exists to close).
+ *  · `pret` — known supplier, no active code: the plain case. */
+export type MintAvis = 'pret' | 'remplace' | 'inconnu';
+
+export function mintAvis(
+  orders: readonly PaidOrderRow[],
+  codes: readonly CodeRow[],
+  supplierId: string,
+): MintAvis {
+  if (codes.some((c) => c.supplierId === supplierId)) return 'remplace';
+  if (orders.some((o) => o.supplierResolved && o.supplierId === supplierId)) return 'pret';
+  return 'inconnu';
+}
+
+/**
+ * The interaction, one act at a time (the relance reducer's shape): a mint or
+ * a revoke is in flight, or a fresh code is ON SCREEN (shown once — this app
+ * never stores it), or a failure names its order. Law-7 honest: nothing
+ * renders as done before the book answers.
+ */
+export interface CodesUi {
+  /** 'mint' or the supplierId being revoked — one write at a time. */
+  readonly busy: 'mint' | `revoke:${string}` | null;
+  /** The one-time plaintext answer, until the founder dismisses it. */
+  readonly nouveau: { readonly supplierId: string; readonly code: string } | null;
+  /** Which act failed (mint → 'mint', revoke → the supplierId). */
+  readonly echec: string | null;
+}
+
+export const CODES_IDLE: CodesUi = { busy: null, nouveau: null, echec: null };
+
+export function mintStart(ui: CodesUi): CodesUi | null {
+  if (ui.busy !== null) return null;
+  return { busy: 'mint', nouveau: null, echec: null };
+}
+
+export function revokeStart(ui: CodesUi, supplierId: string): CodesUi | null {
+  if (ui.busy !== null) return null;
+  return { busy: `revoke:${supplierId}`, nouveau: null, echec: null };
+}
+
+export type CodesSettlement =
+  | { readonly ui: CodesUi; readonly then: 'refresh' }
+  | { readonly ui: CodesUi; readonly then: 'bad_key' }
+  | { readonly ui: CodesUi; readonly then: 'none' };
+
+export function mintSettled(result: MintResult): CodesSettlement {
+  if (result.ok) {
+    // The list refreshes (the row must be the STORED truth) while the
+    // plaintext stays on screen until dismissed — the founder is mid-handover.
+    return { ui: { busy: null, nouveau: { supplierId: result.supplierId, code: result.code }, echec: null }, then: 'refresh' };
+  }
+  if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
+  return { ui: { busy: null, nouveau: null, echec: 'mint' }, then: 'none' };
+}
+
+export function revokeSettled(supplierId: string, result: RevokeResult): CodesSettlement {
+  // `no_code` re-reads too: the list claimed a code the book no longer holds —
+  // the row must leave the screen, and the stored truth is how.
+  if (result.ok) return { ui: CODES_IDLE, then: 'refresh' };
+  if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
+  return { ui: { busy: null, nouveau: null, echec: supplierId }, then: 'none' };
+}
+
+export function codesReadOf(result: CodesResult): CodesRead {
+  if (result.ok) return { kind: 'ok', codes: result.codes };
+  return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }

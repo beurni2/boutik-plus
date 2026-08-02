@@ -518,3 +518,77 @@ describe('the coverage the rewrite dropped — re-pinned (verifier M1/M2/M3)', (
     expect(res.json['reason']).toBe('malformed');
   });
 });
+
+/* ═══════════ CONSOLE-3 — the code INVENTORY (who holds a door) ═══════════ */
+
+describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every active door, and NOTHING secret', () => {
+  const INV_A = 'supplier-inv-00a';
+  const INV_B = 'supplier-inv-00b';
+
+  async function inventory(bearer: string | null = OPS_SECRET) {
+    const res = await mf.dispatchFetch('http://o/fulfillment/supplier-codes', {
+      headers: bearer !== null ? { Authorization: `Bearer ${bearer}` } : {},
+    });
+    const text = await res.text();
+    let json: Record<string, unknown> = {};
+    try { json = JSON.parse(text) as Record<string, unknown>; } catch { /* non-JSON */ }
+    return { status: res.status, json };
+  }
+
+  it('the door matrix: no key, the intake secret, and the write key all refuse; ONLY the ops key reads', async () => {
+    for (const bearer of [null, FULFILL_SECRET, WRITE_SECRET, 'wrong']) {
+      const res = await inventory(bearer);
+      expect(res.status, String(bearer)).toBe(401);
+    }
+    const ok = await inventory();
+    expect(ok.status).toBe(200);
+    expect(ok.json['ok']).toBe(true);
+  });
+
+  it('every row is EXACTLY {supplierId, mintedAt} — the hash never leaves the book, on ANY row', async () => {
+    await opsPost('/fulfillment/supplier-code', { supplierId: INV_A });
+    const res = await inventory();
+    const codes = res.json['codes'] as Record<string, unknown>[];
+    expect(codes.length).toBeGreaterThan(0);
+    for (const row of codes) {
+      expect(Object.keys(row).sort(), JSON.stringify(row)).toEqual(['mintedAt', 'supplierId']);
+    }
+  });
+
+  it('lifecycle: mint appears (sorted by supplierId) → re-mint keeps ONE row with a NEW mintedAt → revoke removes it', async () => {
+    const mintB = await opsPost('/fulfillment/supplier-code', { supplierId: INV_B });
+    expect(mintB.json['ok']).toBe(true);
+    const first = await inventory();
+    const rows = (first.json['codes'] as { supplierId: string; mintedAt: string }[]).filter((r) =>
+      r.supplierId.startsWith('supplier-inv-'),
+    );
+    expect(rows.map((r) => r.supplierId)).toEqual([INV_A, INV_B]); // sorted, both present, once each
+    const before = rows.find((r) => r.supplierId === INV_B)!.mintedAt;
+
+    await new Promise((r) => setTimeout(r, 5)); // a distinct clock instant
+    const remint = await opsPost('/fulfillment/supplier-code', { supplierId: INV_B });
+    expect(remint.json['ok']).toBe(true);
+    const second = await inventory();
+    const rowsB = (second.json['codes'] as { supplierId: string; mintedAt: string }[]).filter(
+      (r) => r.supplierId === INV_B,
+    );
+    expect(rowsB.length).toBe(1); // ONE active door per supplier, always
+    expect(rowsB[0]!.mintedAt > before, 'mintedAt must advance on re-mint').toBe(true);
+
+    const revoke = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: INV_B });
+    expect(revoke.json['status']).toBe('revoked');
+    const third = await inventory();
+    const after = (third.json['codes'] as { supplierId: string }[]).map((r) => r.supplierId);
+    expect(after.includes(INV_B)).toBe(false);
+    expect(after.includes(INV_A)).toBe(true); // the neighbour's door untouched
+  });
+
+  it('the inventory never interferes with the doors it lists: a code minted before the read still opens /mine', async () => {
+    const mint = await opsPost('/fulfillment/supplier-code', { supplierId: INV_A });
+    const code = mint.json['code'] as string;
+    await inventory();
+    const res = await mine(code);
+    expect(res.status).toBe(200);
+    expect(res.json['ok']).toBe(true);
+  });
+});

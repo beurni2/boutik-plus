@@ -2,7 +2,7 @@ import { makeHealthFetch } from '@boutik/observability';
 import { isOpaqueMediaKey, MEDIA_KEY_PREFIX } from '../src/media-key.js';
 import { resolveMediaStore, type R2BucketLike } from '../src/media-store.js';
 import { ProductMediaService } from '../src/media.js';
-import { rejectUnauthorizedWrite, type MediaWriteAuthEnv } from './auth.js';
+import { rejectUnauthorizedRevoke, rejectUnauthorizedWrite, type MediaWriteAuthEnv } from './auth.js';
 
 /**
  * BOUTIK-MEDIA-1 — THE MEDIA READ ROUTE, `GET /media/{token}`.
@@ -197,7 +197,14 @@ export const REVOKE_PATH = '/media/revoke';
 /**
  * MEDIA-REVOKE-1 — `POST /media/revoke`, the founder's byte cleanup after a
  * product delete (*"continue the cleaning of the bytes after the delete"*,
- * 2026-07-27). Body `{ ref }`; behind the SAME write gate as the upload.
+ * 2026-07-27). Body `{ ref }`.
+ *
+ * GATE CORRECTION (MEDIA-KEY-SPLIT, 2026-08-02): this comment once said
+ * *"behind the SAME write gate as the upload"* — true when written, and
+ * exactly the property the fournisseur verifier's M1 exposed as a hole: the
+ * upload key ships inside app bundles, so "same gate" handed every bundle
+ * reader a delete credential. Revoke now answers ONLY to the founder's
+ * MEDIA_REVOKE_SECRET (see auth.ts / the entry's per-path gate).
  *
  * WHAT IT PROMISES — BOUNDED-LATENCY REVOCATION, NEVER INSTANT TAKEDOWN (the
  * standing 2026-07-24 wording): the origin object dies now, the serving colo is
@@ -257,6 +264,19 @@ export default {
 };
 
 async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
+    const { pathname } = new URL(request.url);
+
+    // MEDIA-KEY-SPLIT — the REVOKE gate first, on its exact path, BEFORE the
+    // write gate can ever see the request: revoke answers to the founder-only
+    // MEDIA_REVOKE_SECRET, and the upload key (which ships in app bundles)
+    // opens nothing here. Gate before any dispatch or storage touch, one
+    // identical 401 — the standing laws, per capability now.
+    if (request.method === 'POST' && pathname === REVOKE_PATH) {
+      const denied = await rejectUnauthorizedRevoke(request, env);
+      if (denied) return denied;
+      return handleMediaRevoke(request, env);
+    }
+
     // THE WRITE GATE, at the one deployed entry, BEFORE any dispatch or storage
     // touch — so a rejected upload never reaches R2 and the 401 is never an
     // existence oracle. Reads (GET) short-circuit through untouched: the media
@@ -264,12 +284,8 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
     const denied = await rejectUnauthorizedWrite(request, env);
     if (denied) return denied;
 
-    const { pathname } = new URL(request.url);
     if (request.method === 'POST' && pathname === UPLOAD_PATH) {
       return handleMediaUpload(request, env);
-    }
-    if (request.method === 'POST' && pathname === REVOKE_PATH) {
-      return handleMediaRevoke(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`

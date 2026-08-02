@@ -13,11 +13,21 @@ import {
 } from './service';
 import {
   CHASE_AFTER_MIN,
+  CODES_IDLE,
   RELANCE_IDLE,
   ageMinutes,
+  codesReadOf,
+  codesView,
+  mintAvis,
+  mintSettled,
+  mintStart,
   operationsView,
   relanceSettled,
   relanceStart,
+  revokeSettled,
+  revokeStart,
+  type CodesRead,
+  type CodesUi,
   type OperationsRead,
   type OperationsRow,
   type RelanceUi,
@@ -119,6 +129,11 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   // optimistic: a call is « enregistré » only once the book says so (Law 7 —
   // queued is pending, never done). The transitions are `view.ts`'s.
   const [relanceUi, setRelanceUi] = useState<RelanceUi>(RELANCE_IDLE);
+  // CONSOLE-3 — the code inventory: its own read (codes change on the
+  // founder's acts, not by the minute) and its own one-at-a-time write state.
+  const [codesRead, setCodesRead] = useState<CodesRead>({ kind: 'loading' });
+  const [codesUi, setCodesUi] = useState<CodesUi>(CODES_IDLE);
+  const [codeDraft, setCodeDraft] = useState('');
 
   // `force` exists because of a real defect the verifier caught: the 60-second
   // background re-read holds `inFlight`, so the re-read AFTER a successful
@@ -137,6 +152,50 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     } finally {
       inFlight.current = false;
     }
+  };
+
+  const loadCodes = async (): Promise<void> => {
+    if (service === null) return;
+    const read = codesReadOf(await service.listCodes(opsKey).catch(() => ({ ok: false, reason: 'unreachable' } as const)));
+    // ONE door, one sentence: a refused key on the codes read escalates the
+    // whole board, exactly as the orders read does.
+    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    else setCodesRead(read);
+  };
+
+  const settleCodes = async (settlement: ReturnType<typeof mintSettled>): Promise<void> => {
+    setCodesUi(settlement.ui);
+    if (settlement.then === 'refresh') await loadCodes();
+    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
+  };
+
+  const creerCode = async (supplierId: string): Promise<void> => {
+    if (service === null) return;
+    const started = mintStart(codesUi);
+    if (started === null) return;
+    setCodesUi(started);
+    let result;
+    try {
+      result = await service.mintCode(opsKey, supplierId);
+    } catch {
+      result = { ok: false, reason: 'unreachable' } as const;
+    }
+    if (result.ok) setCodeDraft('');
+    await settleCodes(mintSettled(result));
+  };
+
+  const couperCode = async (supplierId: string): Promise<void> => {
+    if (service === null) return;
+    const started = revokeStart(codesUi, supplierId);
+    if (started === null) return;
+    setCodesUi(started);
+    let result;
+    try {
+      result = await service.revokeCode(opsKey, supplierId);
+    } catch {
+      result = { ok: false, reason: 'unreachable' } as const;
+    }
+    await settleCodes(revokeSettled(supplierId, result));
   };
 
   // Impure substance only — every decision below is `view.ts`'s, by value.
@@ -158,9 +217,12 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
 
   useEffect(() => {
     void load();
+    void loadCodes();
     // The board keeps itself honest without being asked: a quiet re-read every
     // minute, so an order paid while the tab sat open appears on its own and
-    // the age figures stay true. One interval, cleared on unmount.
+    // the age figures stay true. One interval, cleared on unmount. (The code
+    // inventory re-reads on the founder's own acts instead — codes change by
+    // his hand, not by the clock.)
     const h = setInterval(() => {
       void load();
     }, REFRESH_EVERY_MS);
@@ -301,7 +363,148 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           </View>
         </>
       )}
+
+      {/* ── CONSOLE-3 — Codes fournisseurs: who holds a door, since when.
+             Mint warns (never blocks) on a supplier the book has never seen —
+             the phantom-door footgun, closed where it fires. Present on the
+             EMPTY board too: the first code is minted before the first sale. ── */}
+      {(view.kind === 'board' || view.kind === 'empty') && (
+        <SCodes
+          read={codesRead}
+          ui={codesUi}
+          draft={codeDraft}
+          avis={codeDraft.trim() === '' ? null : mintAvis(read.kind === 'ok' ? read.rows : [], codesRead.kind === 'ok' ? codesRead.codes : [], codeDraft.trim())}
+          onDraft={setCodeDraft}
+          onCreer={() => { void creerCode(codeDraft.trim()); }}
+          onCouper={(supplierId) => { void couperCode(supplierId); }}
+          onVu={() => setCodesUi(CODES_IDLE)}
+          onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
+        />
+      )}
     </ScrollView>
+  );
+}
+
+/* ───────────────── CONSOLE-3 — the code inventory section ────────────────── */
+
+/**
+ * The founder's door registry, on the board he already trusts. Calm registers:
+ * a fresh code is a HANDOVER moment — it renders big, with the one sentence
+ * that matters (« il ne s'affichera plus »), and leaves only when he says so.
+ * One write at a time, nothing shown as done before the book answers.
+ */
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRetry }: {
+  read: CodesRead;
+  ui: CodesUi;
+  draft: string;
+  avis: ReturnType<typeof mintAvis> | null;
+  onDraft: (v: string) => void;
+  onCreer: () => void;
+  onCouper: (supplierId: string) => void;
+  onVu: () => void;
+  onRetry: () => void;
+}) {
+  const vue = codesView(read);
+  if (vue === null) return null; // bad_key escalated the whole board already
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('operations.codes_titre')}</Text>
+      <View style={{ marginTop: 6 }}>
+        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.codes_sens')}</Text>
+      </View>
+
+      {vue.kind === 'loading' && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
+        </View>
+      )}
+      {vue.kind === 'failed' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 8 }}>
+            <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} />
+          </View>
+        </View>
+      )}
+      {vue.kind === 'empty' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t(vue.message)}</Banner>
+        </View>
+      )}
+      {vue.kind === 'liste' &&
+        vue.codes.map((c) => (
+          <Card key={c.supplierId} variant="Llist" style={{ marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.supplierId}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+                  {t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
+                </Text>
+              </View>
+              {ui.busy === `revoke:${c.supplierId}` ? (
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_coupure_encours')}</Text>
+              ) : (
+                <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+              )}
+            </View>
+            {ui.echec === c.supplierId && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_coupure_echec')}</Text>
+              </View>
+            )}
+          </Card>
+        ))}
+
+      {ui.nouveau !== null && (
+        <Card variant="Llist" style={{ marginTop: 10 }}>
+          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
+            {t('operations.code_nouveau_pour').replace('{id}', ui.nouveau.supplierId)}
+          </Text>
+          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
+            {ui.nouveau.code}
+          </Text>
+          <View style={{ marginTop: 6 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_nouveau_note')}</Text>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft label={t('operations.code_nouveau_vu')} icon="check" onPress={onVu} />
+          </View>
+        </Card>
+      )}
+
+      <View style={{ marginTop: 14 }}>
+        <Input label={t('operations.code_saisie')} value={draft} onChangeText={onDraft} />
+      </View>
+      {avis === 'inconnu' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t('operations.code_avis_inconnu')}</Banner>
+        </View>
+      )}
+      {avis === 'remplace' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t('operations.code_avis_remplace')}</Banner>
+        </View>
+      )}
+      <View style={{ marginTop: 10 }}>
+        {ui.busy === 'mint' ? (
+          <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.code_creation_encours')}</Text>
+        ) : (
+          <BtnSoft
+            label={t('operations.code_creer')}
+            icon="check"
+            onPress={() => {
+              if (draft.trim() === '') return;
+              onCreer();
+            }}
+          />
+        )}
+        {ui.echec === 'mint' && (
+          <View style={{ marginTop: 6 }}>
+            <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_creation_echec')}</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
