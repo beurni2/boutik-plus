@@ -261,6 +261,9 @@ importers:
         specifier: git+https://github.com/beurni2/platform-contracts.git#bd32ab20e496a00e79b53a3c6d93332967205553&path:packages/contracts
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/bd32ab20e496a00e79b53a3c6d93332967205553#path:packages/contracts
     devDependencies:
+      '@boutik/fulfillment-service':
+        specifier: workspace:*
+        version: link:../fulfillment-service
       '@cloudflare/workers-types':
         specifier: ^4.20250705.0
         version: 4.20260702.1
