@@ -34,19 +34,41 @@ export interface DispatchServicePort {
   listLivraisons(cleC: string): Promise<LivraisonsResult>;
 }
 
+/**
+ * THE WAIT IS BOUNDED, AND THAT IS A HONESTY PROPERTY, NOT A PERFORMANCE ONE
+ * (founder-found, 2026-08-02: he typed his key and the section sat on
+ * « Lecture des livraisons… » with nothing behind it).
+ *
+ * This read crosses to ANOTHER Worker, through a browser, over a Ouaga link.
+ * A request that never answers leaves an unbounded promise, and an unbounded
+ * promise leaves the screen claiming « we are reading » forever — a sentence
+ * that becomes false the moment it stops being true, with no way for the
+ * screen to ever learn that. Bounded, the same act ends in a NAMED failure he
+ * can act on (« Réessayez »). Twelve seconds: long enough for a slow 2G
+ * round-trip, short enough that nobody stares at a lie.
+ */
+export const DISPATCH_TIMEOUT_MS = 12_000;
+
 export function resolveDispatchService(): DispatchServicePort | null {
   const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
   if (base === undefined || base === '') return null;
   const trimmed = base.replace(/\/+$/, '');
   return {
     async listLivraisons(cleC: string): Promise<LivraisonsResult> {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
       let res: Response;
       try {
         res = await fetch(`${trimmed}/checkout/dispatch`, {
           headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
+          signal: ctl.signal,
         });
       } catch {
+        // a refused connection, a blocked CORS answer, or OUR OWN abort — all
+        // the same honest sentence: we could not read, try again
         return { ok: false, reason: 'unreachable' };
+      } finally {
+        clearTimeout(timer);
       }
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
       if (!res.ok) return { ok: false, reason: 'unreachable' };

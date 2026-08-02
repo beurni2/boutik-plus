@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  DISPATCH_TIMEOUT_MS,
   clearStoredCleC,
   readStoredCleC,
   resolveDispatchService,
@@ -784,5 +785,43 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     expect(used.length).toBeGreaterThan(5);
     const keys = new Set(catalog.map((e) => e.key));
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+});
+
+/* ═══ BC-1c r2 — the section can NEVER sit on « Lecture… » forever ═══ */
+
+describe('BC-1c — every read ends in a NAMED state (founder-found: the door sat on « Lecture des livraisons… »)', () => {
+  it('a HANGING service is bounded: the wait aborts and the screen gets « unreachable », never an eternal loading', async () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'https://shop.example');
+    vi.useFakeTimers();
+    try {
+      // a fetch that never answers but HONOURS the abort signal — exactly what
+      // the browser's own fetch does on a dead link
+      vi.stubGlobal('fetch', (_url: string, init?: RequestInit) =>
+        new Promise((_res, rej) => {
+          init?.signal?.addEventListener('abort', () => rej(new Error('aborted')));
+        }));
+      const pending = resolveDispatchService()!.listLivraisons('cle-c');
+      await vi.advanceTimersByTimeAsync(DISPATCH_TIMEOUT_MS + 50);
+      expect(await pending).toEqual({ ok: false, reason: 'unreachable' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('[source-text check] the screen has no silent exit: an unresolved service NAMES itself, and the door asks for its read directly (never via a state change React can skip)', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    // the old `if (service === null) return;` under a loading state is gone
+    expect(source).not.toMatch(/if \(service === null\) return;\s*\n\s*seq\.current/);
+    expect(source).toContain("if (service === null) {\n      setRead({ kind: 'not_configured' });");
+    // re-entering the SAME key must still read: the press calls load itself
+    expect(source).toContain('void load(v);');
+    // and the mount read no longer hangs off a [cleC] dependency
+    expect(source).not.toContain('void load(cleC);\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [cleC]);');
+  });
+
+  it('the timeout is REAL time, not a knob a slow link can widen — and it is bounded well under a minute', () => {
+    expect(DISPATCH_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000);
+    expect(DISPATCH_TIMEOUT_MS).toBeLessThanOrEqual(30_000);
   });
 });

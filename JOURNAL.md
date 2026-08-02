@@ -2453,3 +2453,15 @@ Fresh-context verifier: security core CLEAN (allowlists, gate order incl. path v
 ## 2026-08-02 — RELEASED: BC-1c (console side) — main `fc517bb`, web-deploy verified
 
 Guarded ff-merge main ab0cf81 → **fc517bb** (CI run 30732619344 success on the exact sha); **web-deploy** 30733099350 success on fc517bb — the console now carries the « Livraisons » section behind its own key-C door. Until the founder sets repo secret `EXPO_PUBLIC_SHOP_CHECKOUT_BASE` and re-runs web-deploy, the section says its honest « non configuré » sentence; until he mints CHECKOUT_OPS_SECRET on the Shop+ Worker, the door refuses everyone — both fail-closed by construction. The B+I-15 gate carve-out (three exact file+pattern pairs, excusals printed every run, negative fixture proven red) is the ruling made enforceable, not an exemption.
+
+### BC-1c r2 — FOUNDER-FOUND: « Lecture des livraisons… » forever (fixed, mutation-proven)
+
+He typed key C and the section sat on its loading sentence with nothing behind it. Deploy logs read first: `EXPO_PUBLIC_SHOP_CHECKOUT_BASE` IS set (masked in the export env — so the service resolved), storefront-deploy PROVENANCE OK + smoke green at f83e4ab. So the fault was MINE, in the screen, and it was three strands of one defect — **an unbounded promise is an unbounded lie**:
+
+1. **No bounded wait on the dispatch fetch.** A request that never answers left the promise pending and the screen claiming « we are reading » forever, with no way to ever learn otherwise. Now `AbortController` at `DISPATCH_TIMEOUT_MS = 12_000` → the abort rejects → the port's existing catch names it `unreachable` → « Impossible de lire les livraisons. Réessayez. » Every other hang-capable call in this ecosystem already had this (revokeImage's 10 s); this one shipped without it.
+2. **`load()` returned SILENTLY on an unresolved service** while the door's button had already set `loading` — so an unconfigured build could never reach its own « non configuré » sentence. Now that path NAMES itself.
+3. **The read hung off a `[cleC]` effect dependency** — re-entering the SAME key value makes React bail out of the update, the effect never fires, and the loading state strands. The mount read is now mount-only and the press asks for its read DIRECTLY.
+
+**Proven:** stripping `signal: ctl.signal` turns the new hang test red (fake timers + a fetch that honours abort); restored 52/52 on the file, **575/575** suite, board **ALL GATES GREEN**. The lesson generalises and is now law here: *a screen may not enter a waiting state it has no mechanism to leave.*
+
+**Also read from the same logs:** `EXPO_PUBLIC_MEDIA_REVOKE_KEY` is still EMPTY — the GitHub-side media command did not land; photo revoke stays 401 (fail-closed) until both halves exist.

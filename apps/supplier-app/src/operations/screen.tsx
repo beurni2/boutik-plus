@@ -433,8 +433,19 @@ function SLivraisons() {
   );
   const seq = useRef(0);
 
+  /**
+   * EVERY PATH OUT OF THIS FUNCTION NAMES A STATE (founder-found: the section
+   * sat on « Lecture des livraisons… » forever). The old version RETURNED
+   * SILENTLY when the service was unresolved — while the door's button had
+   * already set `loading` — so an unconfigured build could never reach its own
+   * honest « non configuré » sentence. A silent return under a loading state
+   * is a promise the screen cannot keep.
+   */
   const load = async (key: string): Promise<void> => {
-    if (service === null) return;
+    if (service === null) {
+      setRead({ kind: 'not_configured' });
+      return;
+    }
     seq.current += 1;
     const mine = seq.current;
     const res = await service.listLivraisons(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
@@ -443,10 +454,18 @@ function SLivraisons() {
     else setRead({ kind: res.reason === 'bad_key' ? 'bad_key' : 'failed' });
   };
 
+  /**
+   * MOUNT ONLY — and every later read is an EXPLICIT call, never a state
+   * change this effect has to notice. The `[cleC]` dependency it replaces was
+   * the second way to strand the section: re-entering the SAME key value made
+   * React bail out of the update, the effect never fired, and the `loading`
+   * the button had just set stayed on screen with nothing behind it.
+   */
   useEffect(() => {
-    if (cleC !== null) void load(cleC);
+    const stored = readStoredCleC();
+    if (stored !== null) void load(stored);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleC]);
+  }, []);
 
   const vue = cleC === null ? null : livraisonsVue(read);
 
@@ -472,6 +491,8 @@ function SLivraisons() {
                 storeCleC(v);
                 setRead({ kind: 'loading' });
                 setCleC(v);
+                // the read is asked for HERE, not inferred from a state change
+                void load(v);
               }}
             />
           </View>
