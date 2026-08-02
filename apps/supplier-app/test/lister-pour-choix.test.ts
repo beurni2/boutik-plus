@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync as readSrc } from 'node:fs';
-import { chipChoisi, chipsFournisseurs, pourFournisseurHintKey, type FournisseursRead } from '../src/v2/lister-pour-choix';
+import { chipChoisi, chipsFournisseurs, lireFournisseurs, pourFournisseurHintKey, type FournisseursRead } from '../src/v2/lister-pour-choix';
 import { supplierPourPublication } from '../src/v2/lister-pour';
 
 /**
@@ -82,6 +82,46 @@ describe('chipChoisi — the marked chip IS the supplier that publishes', () => 
     // The wrapper's ONE value feeds the screen and the session alike.
     expect(lister).toContain('session.current.pourFournisseur = v;');
     expect(lister).toContain('value: pour,');
+  });
+});
+
+/**
+ * « Un instant… » must never be the last word. Three ways the read dies, one
+ * honest destination — and the hanging body is the one this project's own
+ * environment makes routine.
+ */
+describe('lireFournisseurs — the read is BOUNDED, and every failure is named', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a successful read becomes the liste, ids in wire order', async () => {
+    const ops = { listCodes: async () => ({ ok: true, codes: [{ supplierId: 'b', mintedAt: 't' }, { supplierId: 'a', mintedAt: 't' }] }) as const };
+    await expect(lireFournisseurs(ops, 'KEY')).resolves.toEqual({ kind: 'liste', ids: ['b', 'a'] });
+  });
+
+  it('a refused key and an unreachable service both land on echec — never on a stuck loader', async () => {
+    for (const reason of ['bad_key', 'unreachable'] as const) {
+      const ops = { listCodes: async () => ({ ok: false, reason }) as const };
+      await expect(lireFournisseurs(ops, 'KEY')).resolves.toEqual({ kind: 'echec' });
+    }
+  });
+
+  it('a THROWN read lands on echec, never an unhandled rejection', async () => {
+    const ops = { listCodes: async () => { throw new Error('boom'); } };
+    await expect(lireFournisseurs(ops, 'KEY')).resolves.toEqual({ kind: 'echec' });
+  });
+
+  it('a read that NEVER settles gives up at the ceiling — « Un instant… » is not forever', async () => {
+    vi.useFakeTimers();
+    const ops = { listCodes: () => new Promise<never>(() => {/* never settles — the hanging body */}) };
+    const promesse = lireFournisseurs(ops, 'KEY', 12_000);
+    let fini = false;
+    void promesse.then(() => { fini = true; });
+    await vi.advanceTimersByTimeAsync(11_999);
+    expect(fini, 'gave up before the ceiling').toBe(false); // and it waited the full bound
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(promesse).resolves.toEqual({ kind: 'echec' });
   });
 });
 

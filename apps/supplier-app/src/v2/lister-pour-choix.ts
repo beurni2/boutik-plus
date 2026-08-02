@@ -12,6 +12,9 @@
  */
 
 import { supplierPourPublication } from './lister-pour';
+// TYPE-ONLY (erased at build): naming the console's result shape here must
+// never drag the operations client into a bundle that does not already have it.
+import type { CodesResult } from '../operations/service';
 
 export type FournisseursRead =
   /** No ops key in this browser — the console tab has not been opened here. */
@@ -36,6 +39,39 @@ export interface ChoixFournisseur {
 export function chipsFournisseurs(ids: readonly string[], sienId: string): readonly ChoixFournisseur[] {
   const autres = [...new Set(ids)].filter((id) => id !== sienId && id !== '').sort((a, b) => a.localeCompare(b, 'fr'));
   return [{ id: '', labelKey: 'publier.pour_chips_vous' }, ...autres.map((id) => ({ id, labelKey: null }))];
+}
+
+/**
+ * THE READ ITSELF, BOUNDED — extracted from the effect so it can be tested
+ * (verifier finding: `chargement` had no ceiling, and the missing bound was
+ * the one fix in this round that no mutation could catch while it lived
+ * inside a React effect).
+ *
+ * Three ways to fail, ONE honest destination: a refused key, an unreachable
+ * service, and a body that never finishes streaming — routine on patchy data,
+ * the environment Law 7 names first — all become `echec`, which the screen
+ * states plainly and offers to retry. What must never happen is « Un instant… »
+ * standing for ever, which is a loading sentence lying about a dead read.
+ */
+export async function lireFournisseurs(
+  ops: { listCodes(opsKey: string): Promise<CodesResult> },
+  opsKey: string,
+  delaiMs = 12_000,
+): Promise<FournisseursRead> {
+  const echec: FournisseursRead = { kind: 'echec' };
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  const borne = new Promise<FournisseursRead>((resolve) => {
+    minuteur = setTimeout(() => resolve(echec), delaiMs);
+  });
+  const lecture = ops
+    .listCodes(opsKey)
+    .then((res): FournisseursRead => (res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : echec))
+    .catch((): FournisseursRead => echec);
+  try {
+    return await Promise.race([lecture, borne]);
+  } finally {
+    clearTimeout(minuteur);
+  }
 }
 
 /**

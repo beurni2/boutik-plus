@@ -64,7 +64,7 @@ import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } f
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 import { cleEchecHttp, supplierPourPublication } from './lister-pour';
-import { chipsFournisseurs, type FournisseursRead } from './lister-pour-choix';
+import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './lister-pour-choix';
 import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
 
 
@@ -184,32 +184,15 @@ export function SListerReal({ st, d, captures, session }: {
       return undefined;
     }
     setFournisseurs({ kind: 'chargement' });
-    // A BOUNDED WAIT (verifier finding): `listCodes` cannot reject, but a body
-    // that never finishes streaming — routine on patchy data, the environment
-    // Law 7 names first — left « Un instant… » on screen for ever. 12 s is the
-    // same bound the console's dispatch read already uses.
-    const minuteur = setTimeout(() => {
-      if (alive) setFournisseurs({ kind: 'echec' });
-    }, 12_000);
-    void ops
-      .listCodes(opsKey)
-      .then((res) => {
-        if (!alive) return;
-        clearTimeout(minuteur);
-        // `bad_key` and `unreachable` both land on `echec`: either way the list
-        // cannot be shown, and the fallback field + hint say exactly that.
-        setFournisseurs(res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : { kind: 'echec' });
-      })
-      // Belt and braces: an unexpected throw must land on the NAMED failure,
-      // never leave the loading sentence standing for ever.
-      .catch(() => {
-        if (!alive) return;
-        clearTimeout(minuteur);
-        setFournisseurs({ kind: 'echec' });
-      });
+    // The bounded read lives in `lister-pour-choix.ts` where it is TESTED —
+    // 12 s ceiling, refusals and throws alike landing on the named `echec`
+    // (`bad_key` and `unreachable` both: either way the list cannot be shown,
+    // and the hint + « Réessayer » say exactly that).
+    void lireFournisseurs(ops, opsKey).then((res) => {
+      if (alive) setFournisseurs(res);
+    });
     return () => {
       alive = false;
-      clearTimeout(minuteur);
     };
   }, [relire]);
   const [attachNote, setAttachNote] = useState<'sending' | 'done' | string | null>(null);
