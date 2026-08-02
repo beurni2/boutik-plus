@@ -674,18 +674,19 @@ export async function forwardSupplierAct(
 }
 
 /** The founder's code administration (mint/revoke) — his ops key ran at the
- *  composition root; only the body's supplierId crosses. */
+ *  composition root. The body crosses VERBATIM so the object's exact-key
+ *  check REFUSES a smuggled field instead of this layer silently stripping
+ *  it — the refuse-don't-ignore law, which this forwarder's first cut broke
+ *  (the verifier's M-K mutation stayed green precisely because the strip
+ *  here had dead-lettered the check there). */
 export async function forwardOpsCodeAdmin(
   request: Request,
   env: FulfillmentEnv,
   path: '/code/mint' | '/code/revoke',
 ): Promise<Response> {
-  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = await request.text();
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
-  return stub.fetch(`https://do${path}`, {
-    method: 'POST',
-    body: JSON.stringify({ supplierId: body?.['supplierId'] }),
-  });
+  return stub.fetch(`https://do${path}`, { method: 'POST', body });
 }
 
 /**

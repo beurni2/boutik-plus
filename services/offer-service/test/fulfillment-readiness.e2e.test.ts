@@ -480,3 +480,41 @@ describe('the record’s bytes and the TTL ceiling', () => {
     }
   });
 });
+
+describe('the coverage the rewrite dropped — re-pinned (verifier M1/M2/M3)', () => {
+  it('a smuggled extra field on /accept is REFUSED malformed — the exact-key check is pinned again', async () => {
+    const { codeA } = await world();
+    await intake('ord-r-repin-1');
+    const res = await act('/fulfillment/accept', { orderId: 'ord-r-repin-1', acceptedAt: '2020-01-01T00:00:00.000Z' }, codeA);
+    expect(res.status).toBe(400);
+    expect(res.json['reason']).toBe('malformed');
+    // …and the honest act still works after the refusal
+    const ok = await act('/fulfillment/accept', { orderId: 'ord-r-repin-1' }, codeA);
+    expect(ok.json['status']).toBe('accepted');
+  });
+
+  it('/ready and /mine are IN the credential matrix: write key (both forms), ops key, intake secret — all 401', async () => {
+    const { codeA, challenge } = await acceptAndChallenge('ord-r-repin-2');
+    for (const bearer of [WRITE_SECRET, OPS_SECRET, FULFILL_SECRET]) {
+      const ready = await act('/fulfillment/ready', readyPayload('ord-r-repin-2', challenge), bearer);
+      expect(ready.status, `ready ${bearer.slice(0, 12)}`).toBe(401);
+      const res = await mine(bearer);
+      expect(res.status, `mine ${bearer.slice(0, 12)}`).toBe(401);
+    }
+    const asHeader = await mf.dispatchFetch('http://o/fulfillment/ready', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify(readyPayload('ord-r-repin-2', challenge)),
+    });
+    expect(asHeader.status).toBe(401);
+    // nothing was consumed by any refused attempt — the true owner still readies
+    const ok = await act('/fulfillment/ready', readyPayload('ord-r-repin-2', challenge), codeA);
+    expect(ok.json['status']).toBe('ready');
+  });
+
+  it('a smuggled extra field on MINT is REFUSED malformed — the ops door keeps the same discipline', async () => {
+    const res = await opsPost('/fulfillment/supplier-code', { supplierId: 'supplier-x', note: 'smuggled' });
+    expect(res.status).toBe(400);
+    expect(res.json['reason']).toBe('malformed');
+  });
+});
