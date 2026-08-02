@@ -203,7 +203,7 @@ capture mint-path-entropy-negative fail bash scripts/gates/show-mint-path-entrop
 # no evidence artifact and nothing in CI ever proved it could fail — the exact
 # gap this file's own header legislates against ("Every gate has a negative
 # fixture and this script SHOWS each one failing once per run").
-EXPECTED_CANON="3.2.0"
+EXPECTED_CANON="3.3.0"
 CANON_VERSION="$(node -p "require('@platform/contracts/package.json').version")"
 log "canon declared: $EXPECTED_CANON · canon installed: $CANON_VERSION"
 

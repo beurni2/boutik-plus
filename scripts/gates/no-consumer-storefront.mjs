@@ -32,5 +32,18 @@ runScanGate({
     { file: 'apps/supplier-app/src/operations/dispatch-service.ts', pattern: 'checkout-route', ruling: 'BC-1c founder-approved dispatch read of Shop+' },
     { file: 'apps/supplier-app/src/operations/dispatch-service.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the READ TARGET' },
     { file: 'apps/supplier-app/test/operations-console.test.ts', pattern: 'checkout-route', ruling: 'the dispatch client’s own wire pins' },
+    /**
+     * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
+     * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
+     * `fulfillment.ready.v1` to the Shop+ Worker, whose deployed name is
+     * `storefront-service` — so the binding must say that word to address it.
+     * This is the SAME class as the BC-1c carve-out above, in the other
+     * direction: naming another Worker is not exposing a storefront here. No
+     * buyer surface, no checkout, no cart, no order created in Boutik+ — and
+     * `checkout` and `cart` remain banned in these files, so only the word
+     * that names the target is excused.
+     */
+    { file: 'services/offer-service/worker/fulfillment-do.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET' },
+    { file: 'services/offer-service/test/readiness-return.e2e.test.ts', pattern: 'storefront', ruling: 'the return leg’s own delivery pins' },
   ],
 });
