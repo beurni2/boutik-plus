@@ -1936,5 +1936,185 @@
     "fr": "il y a plus d'une heure",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.titre",
+    "fr": "Mes commandes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.chargement",
+    "fr": "Un instant…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.non_configure",
+    "fr": "L'application n'est pas encore reliée au service.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.code_refuse",
+    "fr": "Ce code n'est pas reconnu. Vérifiez-le avec l'équipe Boutik+.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.echec",
+    "fr": "Impossible de joindre le service. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.vide",
+    "fr": "Aucune commande pour l'instant. Dès qu'un client paie, elle apparaît ici.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.code_explication",
+    "fr": "Entrez votre code personnel Boutik+. Il vous a été remis en main propre.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.code_libelle",
+    "fr": "Votre code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.code_ouvrir",
+    "fr": "Ouvrir mes commandes",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.code_reste_ici",
+    "fr": "Votre code reste sur ce téléphone, rien d'autre.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.code_ressaisir",
+    "fr": "Entrer le code à nouveau",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.a_faire",
+    "fr": "À traiter : {n}",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.etape_accepter",
+    "fr": "Accepter la commande",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.accepter_encours",
+    "fr": "Acceptation…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.accepter_echec",
+    "fr": "L'acceptation n'a pas marché. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_preparer",
+    "fr": "Colis prêt — envoyer la photo",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.etape_prete",
+    "fr": "Prêt, preuve reçue",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.pret_photo",
+    "fr": "Choisir la photo du colis",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.pret_envoyer",
+    "fr": "Envoyer la preuve",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.pret_envoi",
+    "fr": "Envoi de la preuve…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_defi_perime",
+    "fr": "Le délai est passé. Appuyez à nouveau sur « Envoyer la preuve ».",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_termes",
+    "fr": "La commande ne correspond pas. Appelez l'équipe Boutik+.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_pas_acceptee",
+    "fr": "Acceptez d'abord la commande.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_deja",
+    "fr": "C'est déjà fait : la preuve est reçue.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_impossible",
+    "fr": "Impossible pour cette commande. Appelez l'équipe Boutik+.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_echec",
+    "fr": "L'envoi n'a pas marché. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.pret_photo_echec",
+    "fr": "La photo n'a pas pu partir. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.paye_il_y_a",
+    "fr": "Payée il y a {n} min",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.paye_long",
+    "fr": "Payée il y a plus d'une heure",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]
