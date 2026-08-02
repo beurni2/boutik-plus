@@ -2410,3 +2410,16 @@ The NEGATIVE is the v2 root: the same scan must FAIL on the founder's own export
 **Dead strings removed:** `fournisseur.paye_il_y_a` + `paye_long` (never rendered) — catalog 352.
 
 **Evidence (this session's tool results):** typecheck clean · fournisseur-core 18/18 · supplier-app suite **561/561 (42 files)** · both source-pin mutations red on exactly their pin, restored file green · artifact-gate mutation exit 1 (`/media/revoke` + `revokeImage` FOUND) · **run-gates board exit 0 — ALL GATES GREEN**, fournisseur positive OK on the real artifact, v2 negative fired on all five fingerprints. CI dispatch next; on green the whole readiness chain (1a + 1b-i + 1b-ii) merges and deploys as ONE release: offer Worker → web console → fournisseur Pages.
+
+## 2026-08-02 — RELEASED: the whole readiness chain (1a + 1b-i + 1b-ii), one release, three deploys
+
+**Merge:** guarded ff-merge `main` 2ccdc2f → **9c850a4** (the exact CI-validated sha; run 30729413260 success, head_sha equal — verified myself before merging, founder's « boutik+ ci green » cross-checked, never trusted alone).
+
+**Deploys, in dependency order, each verdict read from its own log:**
+1. **offer-deploy** run 30729657240 success — provenance line read verbatim: « PROVENANCE OK — live Worker is 9c850a4… speaking canon 3.2.0 », health 200, timestamps this run. The fulfillment routes (accept / ready-challenge / ready / code mint+revoke / mine) are LIVE.
+2. **web-deploy** run 30729708635 success on 9c850a4 — the founder's console with the En préparation board.
+3. **fournisseur-web-deploy** run 30729711980 success on 9c850a4 — FIRST deploy of Pages project `boutik-plus-fournisseur` (created this run), live at boutik-plus-fournisseur.pages.dev. The assert step's verdict read from the log: cold export (« Bundler cache is empty »), empty-secret guards passed, controls `boutik.fournisseur.code` + `/fulfillment/mine` FOUND, OFFER_BASE + MEDIA_BASE inlined, all five banned fingerprints (`/offers/assets` `/offers/delete` `/offers` `/media/revoke` `revokeImage`) ABSENT → « capability ruling holds on the deployed artifact ». 354 modules, 1.02 MB bundle, 3 files.
+
+**The founder ruling is now enforced at three layers on the live artifact:** the export env never receives the offers write key (workflow), the bundle measurably carries no offers/revoke client (gate + deploy assert), and every fulfillment act is re-gated server-side by the personal code (1b-i). Suppliers get commandes → accepter → photo proof → follow-up; authoring stays the founder's alone.
+
+**Disclosed to the founder with the release:** (a) media-KEY residue — the shared upload key rides the supplier bundle (upload is granted); an extractor could curl media-service directly incl. revoke, until the media-service key split slice (upload-key vs founder-only revoke) — exposure begins only when codes/URL are distributed; (b) mint has no supplier-existence guard and no code inventory — a typo'd supplierId mints a working code for a phantom; CONSOLE-3 candidate.
