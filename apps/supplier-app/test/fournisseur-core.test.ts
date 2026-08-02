@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearStoredCode,
@@ -147,6 +149,24 @@ describe('the port — Bearer code, refusals by status, malformed rows dropped',
     expect(await resolveFournisseurService()!.listMine('k')).toEqual({ ok: false, reason: 'bad_code' });
   });
 
+  it('a MALFORMED fulfillment mark drops the WHOLE ROW — demoting it to « no mark » would re-arm « Accepter » on an already-accepted order (verifier N4)', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const good = row('ord-clean', '2026-08-02T08:00:00.000Z', { fulfillment: { acceptedAt: '2026-08-02T08:05:00.000Z' } });
+    stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, orders: [
+        good,
+        { ...row('ord-mark-junk', '2026-08-02T08:00:00.000Z'), fulfillment: 'accepted' },
+        { ...row('ord-mark-badiso', '2026-08-02T08:00:00.000Z'), fulfillment: { acceptedAt: 'pas une date' } },
+        { ...row('ord-mark-empty', '2026-08-02T08:00:00.000Z'), fulfillment: {} },
+      ] })),
+    );
+    const res = await resolveFournisseurService()!.listMine('k');
+    if (!res.ok) throw new Error(res.reason);
+    // only the clean row survives — and it keeps its mark, so its card shows
+    // « Produit prêt », never a second « Accepter »
+    expect(res.orders).toEqual([good]);
+  });
+
   it('accept: body is EXACTLY {orderId} (identity is the header, never a body byte); 404 → not_yours_or_unknown', async () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
     const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'accepted', acceptedAt: 'x' })));
@@ -187,5 +207,61 @@ describe('the port — Bearer code, refusals by status, malformed rows dropped',
     expect([...bag.keys()]).toEqual(['boutik.fournisseur.code']);
     clearStoredCode();
     expect(bag.size).toBe(0);
+  });
+});
+
+describe('[source-text checks] the screen’s wiring the pure tests cannot see (verifier M1/M2/M3)', () => {
+  const app = readFileSync(join(import.meta.dirname, '..', 'src/fournisseur/FournisseurApp.tsx'), 'utf8');
+  const uploader = readFileSync(join(import.meta.dirname, '..', 'src/fournisseur/media-upload.ts'), 'utf8');
+
+  it('the photo funnel: the picker’s STRIPPED derivative is what previews, and its bytes are what upload — no laxer path for readiness proof', () => {
+    // choisirPhoto hands the reducer the derivative (EXIF/XMP/IPTC-stripped,
+    // post-condition-checked), never shot.original
+    expect(app).toContain('pretChoisir(pret, orderId, shot.derivative.uri)');
+    expect(app).not.toContain('shot.original');
+    // envoyer reads bytes from that SAME previewUri
+    expect(app).toContain('await bytesFromUri(previewUri)');
+  });
+
+  it('the upload seam is the UPLOAD-ONLY module — rewiring to resolveMediaService re-ships the revoke client (verifier M1)', () => {
+    expect(app).toContain("import { resolveReadinessUpload } from './media-upload'");
+    // the ban is on the IMPORT (prose may NAME the finding — the B+I-15
+    // false-positive lesson): no import statement may reach resolveMediaService
+    // or its module, on any line
+    expect(app).not.toMatch(/import[\s\S]{0,200}?resolveMediaService/);
+    expect(app).not.toMatch(/from '\.\.\/supply\/media'/);
+    // and the module's WHOLE import surface is pinned verbatim — the pure
+    // wire vocabulary, crypto, one type; never '../supply/media', the module
+    // whose class carries the revoke client. Any new import (of anything)
+    // must come explain itself here.
+    expect(uploader.split('\n').filter((l) => l.startsWith('import '))).toEqual([
+      "import * as Crypto from 'expo-crypto';",
+      "import { MEDIA_WRITE_KEY_HEADER, hexOfDigest, readUploadResult } from '../supply/media-wire';",
+      "import type { MediaRefInput } from '../supply/assets';",
+    ]);
+  });
+
+  it('the challenge is fetched at SEND, before the upload — the whole act sits inside one 10-minute window', () => {
+    const envoyer = app.slice(app.indexOf('const envoyer'));
+    const challengeAt = envoyer.indexOf('service.challenge(code, commande.orderId)');
+    const uploadAt = envoyer.indexOf('await upload(bytes)');
+    const readyAt = envoyer.indexOf('service.ready(code,');
+    expect(challengeAt).toBeGreaterThan(-1);
+    expect(uploadAt).toBeGreaterThan(challengeAt);
+    expect(readyAt).toBeGreaterThan(uploadAt);
+  });
+
+  it('only the NEWEST read writes the screen — removing the token check lets a stale interval read re-arm « Accepter » after an accept (verifier M3)', () => {
+    expect(app).toContain('readSeq.current += 1');
+    expect(app).toContain('if (seq !== readSeq.current) return;');
+    // and the post-act re-reads stay FORCED past the in-flight guard
+    expect(app).toContain("if (issue.then === 'refresh') await load(true)");
+    expect(app).toContain('if (res.ok) await load(true)');
+  });
+
+  it('every fournisseur.* key the screen renders exists in the catalog', () => {
+    const used = [...app.matchAll(/t\('(fournisseur\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(5); // the extraction itself must see the screen
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
   });
 });

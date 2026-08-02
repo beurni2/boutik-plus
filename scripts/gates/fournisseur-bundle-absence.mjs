@@ -41,7 +41,12 @@ const rootArg = process.argv.includes('--root')
   ? process.argv[process.argv.indexOf('--root') + 1]
   : 'fournisseur';
 
-const FORBIDDEN = ['/offers/assets', '/offers/delete'];
+// '/offers' bare: zero legitimate occurrences in the fournisseur bundle
+// (measured), so a future split of the create client cannot ride
+// unfingerprinted (verifier N1). '/media/revoke' + 'revokeImage': the
+// verifier's M1 — the revoke client is a destructive capability the ruling
+// never granted; upload-only is the law of this artifact.
+const FORBIDDEN = ['/offers/assets', '/offers/delete', '/offers', '/media/revoke', 'revokeImage'];
 const SECONDARY = ['HttpSupplyService', 'DemoSupplyService'];
 const REQUIRED =
   rootArg === 'fournisseur'

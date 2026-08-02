@@ -2106,18 +2106,6 @@
     "screenClass": "status"
   },
   {
-    "key": "fournisseur.paye_il_y_a",
-    "fr": "Payée il y a {n} min",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "fournisseur.paye_long",
-    "fr": "Payée il y a plus d'une heure",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
     "key": "fournisseur.pret_attestation",
     "fr": "En envoyant, vous confirmez : le colis est complet et disponible.",
     "register": "money",

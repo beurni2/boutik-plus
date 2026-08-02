@@ -64,12 +64,16 @@ jobs:
         working-directory: apps/supplier-app
         env:
           OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+          MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+          MEDIA_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
         run: |
           # Empty-secret guard first (the W5 blind spot: grep -F "" matches everything).
-          if [ -z "$OFFER_BASE" ]; then
-            echo "::error::EXPO_PUBLIC_OFFER_BASE is unset — fix the repo secret before deploying"
-            exit 1
-          fi
+          for v in OFFER_BASE MEDIA_BASE MEDIA_KEY; do
+            if [ -z "${!v}" ]; then
+              echo "::error::the secret behind $v is unset — a fournisseur app without it ships a photo flow that can never work"
+              exit 1
+            fi
+          done
           # CONTROLS — the scan must SEE the fournisseur's own literals.
           for want in "boutik.fournisseur.code" "/fulfillment/mine"; do
             if ! grep -rqF "$want" dist-fournisseur/_expo/static/js/web/; then
@@ -77,12 +81,14 @@ jobs:
               exit 1
             fi
           done
-          if ! grep -rqF "$OFFER_BASE" dist-fournisseur/_expo/static/js/web/; then
-            echo "::error::EXPO_PUBLIC_OFFER_BASE did not inline — the export would ship « non configuré »"
-            exit 1
-          fi
+          for v in OFFER_BASE MEDIA_BASE; do
+            if ! grep -rqF "${!v}" dist-fournisseur/_expo/static/js/web/; then
+              echo "::error::the value behind $v did not inline — the export would ship a broken app"
+              exit 1
+            fi
+          done
           # THE RULING — the offers client's routes must be ABSENT.
-          for banned in "/offers/assets" "/offers/delete"; do
+          for banned in "/offers/assets" "/offers/delete" "/offers" "/media/revoke" "revokeImage"; do
             if grep -rqF "$banned" dist-fournisseur/_expo/static/js/web/; then
               echo "::error::$banned FOUND in the fournisseur artifact — the authoring client rode in; do not deploy"
               exit 1

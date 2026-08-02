@@ -8,7 +8,7 @@ import { formatF } from '../v2/money';
 import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
 import { bytesFromUri } from '../supply/uri-bytes';
-import { resolveMediaService } from '../supply/media';
+import { resolveReadinessUpload } from './media-upload';
 import {
   clearStoredCode,
   readStoredCode,
@@ -105,6 +105,12 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
     service === null ? { kind: 'not_configured' } : { kind: 'loading' },
   );
   const inFlight = useRef(false);
+  /** MONOTONIC READ TOKEN (verifier M3): load(force) bypasses the in-flight
+   *  guard, so a background interval read and a post-act forced read can
+   *  RACE — and if the stale response lands last, a just-accepted order
+   *  re-renders its accept button for up to a minute on exactly the slow
+   *  phones this app targets. Only the NEWEST read may write the screen. */
+  const readSeq = useRef(0);
   const [pret, setPret] = useState<PretUi>(PRET_REPOS);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [acceptEchec, setAcceptEchec] = useState<string | null>(null);
@@ -112,8 +118,11 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
   const load = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
     inFlight.current = true;
+    readSeq.current += 1;
+    const seq = readSeq.current;
     try {
       const res = await service.listMine(code);
+      if (seq !== readSeq.current) return; // a newer read owns the screen
       if (res.ok) setRead({ kind: 'ok', rows: res.orders });
       else setRead({ kind: res.reason === 'bad_code' ? 'bad_code' : 'failed' });
     } finally {
@@ -169,13 +178,15 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
       if (!ch.ok) {
         issue = pretIssue(commande.orderId, { ok: false, reason: ch.reason === 'unreachable' ? 'unreachable' : ch.reason });
       } else {
-        // 2. the stripped bytes, through the media seam.
-        const media = resolveMediaService();
-        if (media === null) {
+        // 2. the stripped bytes, through the UPLOAD-ONLY seam (verifier M1:
+        //    resolveMediaService carried revokeImage + /media/revoke into the
+        //    artifact — a destructive capability the ruling never granted).
+        const upload = resolveReadinessUpload();
+        if (upload === null) {
           issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' });
         } else {
           const bytes = await bytesFromUri(previewUri);
-          const up = await media.uploadImage(bytes);
+          const up = await upload(bytes);
           if (!up.ok) {
             issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' });
           } else {

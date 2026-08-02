@@ -182,16 +182,23 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     typeof r['zoneTo'] === 'string' &&
     typeof r['sellerBasePrice'] === 'number' && Number.isSafeInteger(r['sellerBasePrice']);
   if (!ok) return null;
+  // A MALFORMED fulfillment mark drops the WHOLE ROW (verifier N4): demoting
+  // it to « no mark » would re-render a live « Accepter » button on an order
+  // the book already holds as accepted — a half-formed line asking for a
+  // duplicate act. Same strictness as every other malformed field.
   const f = r['fulfillment'];
   let fulfillment: CommandeRow['fulfillment'];
-  if (f !== null && typeof f === 'object') {
+  if (f !== undefined) {
+    if (f === null || typeof f !== 'object') return null;
     const fr = f as Record<string, unknown>;
     const validIso = (v: unknown): v is string => typeof v === 'string' && v !== '' && !Number.isNaN(Date.parse(v));
     const acceptedAt = validIso(fr['acceptedAt']) ? fr['acceptedAt'] : undefined;
     const readyAt = validIso(fr['readyAt']) ? fr['readyAt'] : undefined;
-    if (acceptedAt !== undefined || readyAt !== undefined) {
-      fulfillment = { ...(acceptedAt !== undefined ? { acceptedAt } : {}), ...(readyAt !== undefined ? { readyAt } : {}) };
+    if ((fr['acceptedAt'] !== undefined && acceptedAt === undefined) || (fr['readyAt'] !== undefined && readyAt === undefined)) {
+      return null;
     }
+    if (acceptedAt === undefined && readyAt === undefined) return null;
+    fulfillment = { ...(acceptedAt !== undefined ? { acceptedAt } : {}), ...(readyAt !== undefined ? { readyAt } : {}) };
   }
   return {
     orderId: r['orderId'] as string,
