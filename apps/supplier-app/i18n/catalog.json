@@ -2046,6 +2046,12 @@
     "screenClass": "status"
   },
   {
+    "key": "operations.code_noter_dabord",
+    "fr": "Notez d'abord le code affiché.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.titre",
     "fr": "Mes commandes",
     "register": "neutral",

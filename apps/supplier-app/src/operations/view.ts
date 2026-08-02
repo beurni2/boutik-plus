@@ -206,19 +206,27 @@ export interface CodesUi {
   readonly busy: 'mint' | `revoke:${string}` | null;
   /** The one-time plaintext answer, until the founder dismisses it. */
   readonly nouveau: { readonly supplierId: string; readonly code: string } | null;
-  /** Which act failed (mint → 'mint', revoke → the supplierId). */
-  readonly echec: string | null;
+  /** Which act failed — namespaced like `busy`, so a supplier literally
+   *  named « mint » can never light the wrong sentence (verifier note). */
+  readonly echec: 'mint' | `revoke:${string}` | null;
 }
 
 export const CODES_IDLE: CodesUi = { busy: null, nouveau: null, echec: null };
 
+/**
+ * A LIVE one-time code BLOCKS every other act (verifier MAJOR-1): the
+ * plaintext exists nowhere but that card, and « the card leaves only when he
+ * says so » was a lie while any next tap silently destroyed it mid-handover.
+ * Now the founder must tap « C'est noté » first — the screen says so in words
+ * where the buttons were, never a dead tap.
+ */
 export function mintStart(ui: CodesUi): CodesUi | null {
-  if (ui.busy !== null) return null;
+  if (ui.busy !== null || ui.nouveau !== null) return null;
   return { busy: 'mint', nouveau: null, echec: null };
 }
 
 export function revokeStart(ui: CodesUi, supplierId: string): CodesUi | null {
-  if (ui.busy !== null) return null;
+  if (ui.busy !== null || ui.nouveau !== null) return null;
   return { busy: `revoke:${supplierId}`, nouveau: null, echec: null };
 }
 
@@ -242,7 +250,7 @@ export function revokeSettled(supplierId: string, result: RevokeResult): CodesSe
   // the row must leave the screen, and the stored truth is how.
   if (result.ok) return { ui: CODES_IDLE, then: 'refresh' };
   if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
-  return { ui: { busy: null, nouveau: null, echec: supplierId }, then: 'none' };
+  return { ui: { busy: null, nouveau: null, echec: `revoke:${supplierId}` }, then: 'none' };
 }
 
 export function codesReadOf(result: CodesResult): CodesRead {

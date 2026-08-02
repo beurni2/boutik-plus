@@ -79,6 +79,10 @@ jobs:
           OFFER_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
           MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
           MEDIA_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
+          # env-indirected like its four siblings (verifier: a secret value
+          # interpolated straight into bash can BREAK the script — the exact
+          # accident this warning-only step must never cause)
+          REVOKE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}
         run: |
           # AN EMPTY SECRET IS THE SENTINEL'S OWN BLIND SPOT (W5 verifier,
           # demonstrated): grep -F "" matches everything, so an unset secret
@@ -95,7 +99,7 @@ jobs:
           # Worker fails closed regardless (no MEDIA_REVOKE_SECRET ⇒ every
           # revoke 401s). This line just tells the founder WHY photo cleanup
           # refuses, instead of letting it look like a bug.
-          if [ -z "${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}" ]; then
+          if [ -z "$REVOKE_KEY" ]; then
             echo "::warning::EXPO_PUBLIC_MEDIA_REVOKE_KEY is unset — photo revoke will answer 401 until it and media-service's MEDIA_REVOKE_SECRET are both set"
           fi
           if ! grep -rqF "$OFFER_BASE" dist-web/_expo/static/js/web/; then

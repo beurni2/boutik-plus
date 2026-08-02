@@ -49,6 +49,10 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
     // and the resolver reads the founder-only env, defaulting to '' (the wire
     // then answers its own 401 — fail-closed at the service, never simulated)
     expect(media).toContain("process.env.EXPO_PUBLIC_MEDIA_REVOKE_KEY ?? ''");
+    // and the resolver WIRES that env into the revoke slot — passing the
+    // upload key there would 401 the founder's revoke forever while every
+    // string pin above stayed green (verifier MINOR-6)
+    expect(media).toContain('new HttpMediaService(base, key, revokeKey)');
   });
 
   it('every exit is a TYPED result — network, http, and unreadable each named, reader-guarded success', () => {

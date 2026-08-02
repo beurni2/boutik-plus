@@ -517,6 +517,12 @@ describe('the coverage the rewrite dropped — re-pinned (verifier M1/M2/M3)', (
     expect(res.status).toBe(400);
     expect(res.json['reason']).toBe('malformed');
   });
+
+  it('and on REVOKE too — the exact-key check guards both admin doors (verifier MINOR-7)', async () => {
+    const res = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: 'supplier-x', note: 'smuggled' });
+    expect(res.status).toBe(400);
+    expect(res.json['reason']).toBe('malformed');
+  });
 });
 
 /* ═══════════ CONSOLE-3 — the code INVENTORY (who holds a door) ═══════════ */

@@ -154,9 +154,18 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     }
   };
 
+  /** MONOTONIC READ TOKEN (verifier MAJOR-2, the readSeq class's third
+   *  application): a mint's refresh and a revoke's refresh can race, and the
+   *  stale response landing last would re-render a REVOKED door as active on
+   *  the one screen whose question is « who holds a door? ». Only the newest
+   *  read may write the section. */
+  const codesSeq = useRef(0);
   const loadCodes = async (): Promise<void> => {
     if (service === null) return;
+    codesSeq.current += 1;
+    const seq = codesSeq.current;
     const read = codesReadOf(await service.listCodes(opsKey).catch(() => ({ ok: false, reason: 'unreachable' } as const)));
+    if (seq !== codesSeq.current) return; // a newer read owns the section
     // ONE door, one sentence: a refused key on the codes read escalates the
     // whole board, exactly as the orders read does.
     if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
@@ -373,7 +382,14 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           read={codesRead}
           ui={codesUi}
           draft={codeDraft}
-          avis={codeDraft.trim() === '' ? null : mintAvis(read.kind === 'ok' ? read.rows : [], codesRead.kind === 'ok' ? codesRead.codes : [], codeDraft.trim())}
+          avis={
+            // the pre-flight speaks ONLY from data it truly has (verifier
+            // MINOR-3): with the codes read failed, « remplace » could never
+            // be said — so nothing is said, never a confidently wrong avis
+            codeDraft.trim() === '' || read.kind !== 'ok' || codesRead.kind !== 'ok'
+              ? null
+              : mintAvis(read.rows, codesRead.codes, codeDraft.trim())
+          }
           onDraft={setCodeDraft}
           onCreer={() => { void creerCode(codeDraft.trim()); }}
           onCouper={(supplierId) => { void couperCode(supplierId); }}
@@ -443,11 +459,15 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
               </View>
               {ui.busy === `revoke:${c.supplierId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_coupure_encours')}</Text>
+              ) : ui.nouveau !== null ? (
+                // a live one-time code blocks every other act — in words, never
+                // a dead tap (verifier MAJOR-1)
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
               ) : (
                 <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
               )}
             </View>
-            {ui.echec === c.supplierId && (
+            {ui.echec === `revoke:${c.supplierId}` && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_coupure_echec')}</Text>
               </View>
@@ -488,6 +508,8 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
       <View style={{ marginTop: 10 }}>
         {ui.busy === 'mint' ? (
           <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.code_creation_encours')}</Text>
+        ) : ui.nouveau !== null ? (
+          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
         ) : (
           <BtnSoft
             label={t('operations.code_creer')}

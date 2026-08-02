@@ -606,7 +606,21 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
     // no_code refreshes too: the list claimed a door the book no longer holds
     expect(revokeSettled('supplier-2', { ok: true, status: 'no_code' })).toEqual({ ui: CODES_IDLE, then: 'refresh' });
     expect(revokeSettled('supplier-2', { ok: false, reason: 'bad_key' })).toEqual({ ui: CODES_IDLE, then: 'bad_key' });
-    expect(revokeSettled('supplier-2', { ok: false, reason: 'unreachable' }).ui.echec).toBe('supplier-2');
+    // namespaced like `busy`, so a supplier literally named « mint » can never
+    // light the mint-failure sentence (verifier note)
+    expect(revokeSettled('mint', { ok: false, reason: 'unreachable' }).ui.echec).toBe('revoke:mint');
+  });
+
+  it('a LIVE one-time code BLOCKS every other act — the plaintext exists nowhere else, and only « C\'est noté » may end the handover (verifier MAJOR-1)', () => {
+    const holding = mintSettled({ ok: true, code: 'BF-AAAA-BBBB-CCCC-DDDD', supplierId: 'supplier-a', mintedAt: 'x' }).ui;
+    expect(holding.nouveau).not.toBeNull();
+    // day-one batch provisioning is exactly this sequence: mint A, then reach
+    // for B — the reducer refuses until the card is dismissed
+    expect(mintStart(holding)).toBeNull();
+    expect(revokeStart(holding, 'supplier-b')).toBeNull();
+    // dismissal (CODES_IDLE) reopens both acts
+    expect(mintStart(CODES_IDLE)).not.toBeNull();
+    expect(revokeStart(CODES_IDLE, 'supplier-b')).not.toBeNull();
   });
 
   it('codesReadOf: ok carries the rows; bad_key and unreachable keep their own kinds', () => {
@@ -634,8 +648,14 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
     expect(mint.code).toBe('BF-X');
     expect(JSON.parse(String(stubCall(spy)?.body))).toEqual({ supplierId: 'supplier-2' });
 
-    stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'no_code' })));
+    // the revoke WIRE is pinned like the mint's (verifier MINOR-5): the exact
+    // path, and a body of EXACTLY {supplierId} — the book's exact-key check
+    // refuses anything more, so a port that smuggled would fail every revoke
+    spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'no_code' })));
     expect(await resolveOperationsService()!.revokeCode('cle-ops', 'supplier-x')).toEqual({ ok: true, status: 'no_code' });
+    const [revokeUrl, revokeInit] = spy.mock.calls[0]!;
+    expect(revokeUrl).toBe('https://offer.example/fulfillment/supplier-code/revoke');
+    expect(JSON.parse(String(revokeInit?.body))).toEqual({ supplierId: 'supplier-x' });
 
     for (const call of [
       () => resolveOperationsService()!.listCodes('k'),
@@ -655,6 +675,15 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
     expect(source).toMatch(/read\.kind === 'bad_key'\) setRead\(\{ kind: 'bad_key' \}\)/);
     // the plaintext renders from the reducer's one-time state, never from a store
     expect(source).toContain('ui.nouveau.code');
+    // only the NEWEST codes read writes the section — the readSeq class's
+    // third application (verifier MAJOR-2)
+    expect(source).toContain('codesSeq.current += 1');
+    expect(source).toContain('if (seq !== codesSeq.current) return;');
+    // the avis is computed ONLY from a successful codes read (verifier MINOR-3)
+    expect(source).toContain("codesRead.kind !== 'ok'");
+    // while a one-time code is live, the other acts show the noter-d'abord
+    // sentence in place of their buttons — never a dead tap (MAJOR-1's UI half)
+    expect((source.match(/code_noter_dabord/g) ?? []).length).toBe(2);
   });
 });
 
