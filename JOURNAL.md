@@ -2465,3 +2465,7 @@ He typed key C and the section sat on its loading sentence with nothing behind i
 **Proven:** stripping `signal: ctl.signal` turns the new hang test red (fake timers + a fetch that honours abort); restored 52/52 on the file, **575/575** suite, board **ALL GATES GREEN**. The lesson generalises and is now law here: *a screen may not enter a waiting state it has no mechanism to leave.*
 
 **Also read from the same logs:** `EXPO_PUBLIC_MEDIA_REVOKE_KEY` is still EMPTY — the GitHub-side media command did not land; photo revoke stays 401 (fail-closed) until both halves exist.
+
+### BC-1c — LIVE VERIFIED by the founder (2026-08-02)
+
+After the bounded-read fix deployed (web-deploy 30734700368 on `38fd09f`), he entered key C and the section answered « Aucune commande pour l'instant. » **That sentence is the end-to-end proof**, and every link in it is exercised: the console resolved its Shop+ base · the browser's preflight and exact-origin CORS passed · `CHECKOUT_OPS_SECRET` (value C) was ACCEPTED — a wrong key answers « Cette clé n'est pas la bonne », a hang now answers « Impossible de lire… » within 12 s, and neither appeared · the Worker's DispatchIndexDO answered 200 with an empty list · the screen rendered the honest empty state rather than a spinner or a fake row. The dispatch door is live and correct; the list is empty because no buyer has yet checked out with a contact.
