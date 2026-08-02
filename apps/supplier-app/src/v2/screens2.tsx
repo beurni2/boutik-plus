@@ -129,7 +129,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos, photosHint }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly placeholder: string; readonly onChange: (v: string) => void } | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -304,6 +304,27 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint }: { st: S
                 <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{formatF(w.C)}</Text>
               </View>
             </Card>
+            {/* LISTER-POUR-1b — WHOM THIS PUBLICATION IS FOR (founder order
+                2026-08-02: « I want to be the one listing the products for
+                other suppliers »). On the RECAP step deliberately: aiming a
+                product at another supplier is part of « vérifiez », the last
+                full statement before publishing. UNCONTROLLED on purpose
+                (`defaultValue`): the truth lives in the shell-held session —
+                typing here never dispatches to the machine — and the wrong id
+                cannot land anyway: the service refuses an unknown supplier by
+                name (LISTER-POUR-1a'), and that refusal is shown in his words. */}
+            {fournisseur !== undefined && (
+              <Card style={{ marginTop: 12, padding: 16 }}>
+                <Input
+                  label={tr('publier.pour_fournisseur_label')}
+                  defaultValue={fournisseur.value}
+                  onChangeText={fournisseur.onChange}
+                />
+                <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>
+                  {tr('publier.pour_fournisseur_hint')}
+                </Text>
+              </Card>
+            )}
             {/* ALL THREE PHOTOGRAPHS, not just the hero (founder device ruling
                 2026-07-26: *"able to see all photos taken"*). These are the
                 SHIPPED bytes — the same data URIs the Studio previewed — so

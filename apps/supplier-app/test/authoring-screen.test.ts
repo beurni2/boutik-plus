@@ -43,7 +43,10 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     // an offer that cannot exist. Both asserted by value in
     // test/preview-rounding.test.ts; asserted here as the wiring.
     expect(lister).toMatch(
-      /return <S20Wizard st=\{st\} d=\{dd\} money=\{money\} heroUri=\{heroUri\} photos=\{photos\} photosHint=\{t\('publier\.roles_hint'\)\} \/>;/,
+      // PIN EVOLVED (LISTER-POUR-1b): the render grew the `fournisseur` aim
+      // and went multi-line; the LAW is unchanged — view 'add' renders HIS
+      // S20Wizard with his machine state, never a new form.
+      /<S20Wizard[\s\S]{0,400}st=\{st\}[\s\S]{0,400}fournisseur=\{\{/,
     );
   });
 
@@ -58,7 +61,10 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     expect(shell).toMatch(/const listing = useRef<ListingSession>/);
     expect(shell).toMatch(/onApproved=\{\(set\) => \{ captures\.current = set; \}\}/);
     // …and OPEN_WIZ genuinely clears both — the comment's claim is code now
-    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{\s*\n\s*captures\.current = null;\s*\n\s*listing\.current = \{ codeTouched: false, suffixBytes: null \};/);
+    // PIN EVOLVED (LISTER-POUR-1b): the session gained `pourFournisseur`,
+    // and the reset MUST cover it — product A aimed at another supplier must
+    // not silently aim product B there too. The pin now asserts that.
+    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{[\s\S]{0,400}captures\.current = null;[\s\S]{0,400}listing\.current = \{ codeTouched: false, suffixBytes: null, pourFournisseur: '' \};/);
   });
 
   it('ONE TAP leaves the outcome pane — never four dead taps then a destroyed completion path', () => {
@@ -297,7 +303,10 @@ describe('every user-facing string on the new surfaces is catalog-backed', () =>
   it('only the http cause claims the service answered; network and device get their own designed states', () => {
     expect(lister).toMatch(/pub\.cause === 'network' \?[\s\S]{0,120}t\('publier\.echec_reseau'\)/);
     expect(lister).toMatch(/pub\.cause === 'device' \?[\s\S]{0,120}t\('publier\.echec_appareil'\)/);
-    expect(lister).toMatch(/pub\.cause === 'http' \? 'publier\.echec' : 'publier\.echec_illisible'/);
+    // PIN EVOLVED (LISTER-POUR-1b): http failures now route through
+    // `cleEchecHttp` so `unknown_supplier` speaks its own catalog sentence;
+    // the LAW is unchanged — only the http cause claims the service answered.
+    expect(lister).toMatch(/pub\.cause === 'http' \? cleEchecHttp\(pub\.reason\) : 'publier\.echec_illisible'/);
   });
 
   it('an idempotent answer does NOT render the plain success line', () => {

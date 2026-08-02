@@ -63,6 +63,7 @@ import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
 import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } from '../studio/roles';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
+import { cleEchecHttp, supplierPourPublication } from './lister-pour';
 
 
 /** Set at authoring — the founder is the only supplier. HARD GATE in authoring.ts. */
@@ -127,6 +128,9 @@ function formFromWiz(wiz: S['wiz']): AuthoringForm {
 export interface ListingSession {
   codeTouched: boolean;
   suffixBytes: Uint8Array | null;
+  /** LISTER-POUR-1b — whom this publication is FOR. Shell-owned like the two
+   *  above (SListerReal unmounts on the studio round-trip); '' means himself. */
+  pourFournisseur: string;
 }
 
 export function SListerReal({ st, d, captures, session }: {
@@ -213,7 +217,9 @@ export function SListerReal({ st, d, captures, session }: {
       const now = new Date().toISOString();
       const win = offerWindow(now);
       const ctx: AuthoringContext = {
-        supplierId: SUPPLIER_ID,
+        // LISTER-POUR-1b: his own id unless the recap field names another —
+        // and a wrong one refuses server-side (unknown_supplier), never lands.
+        supplierId: supplierPourPublication(session.current.pourFournisseur, SUPPLIER_ID),
         ...identity.current,
         now,
         effective: win.effective,
@@ -441,7 +447,7 @@ export function SListerReal({ st, d, captures, session }: {
                 <Banner tone="warn">{t('publier.echec_appareil')}</Banner>
               ) : (
                 <Banner tone="danger">
-                  {`${t(pub.cause === 'http' ? 'publier.echec' : 'publier.echec_illisible')}\n${pub.reason}`}
+                  {`${t(pub.cause === 'http' ? cleEchecHttp(pub.reason) : 'publier.echec_illisible')}\n${pub.reason}`}
                 </Banner>
               )}
               <View style={{ marginTop: 22 }}>
@@ -524,7 +530,21 @@ export function SListerReal({ st, d, captures, session }: {
         }));
   const heroIdx = assigned === null ? null : publishOrder(assigned)?.hero ?? null;
   const heroUri = set === null || heroIdx === null ? undefined : set.photos[heroIdx]?.derivative.uri;
-  return <S20Wizard st={st} d={dd} money={money} heroUri={heroUri} photos={photos} photosHint={t('publier.roles_hint')} />;
+  return (
+    <S20Wizard
+      st={st}
+      d={dd}
+      money={money}
+      heroUri={heroUri}
+      photos={photos}
+      photosHint={t('publier.roles_hint')}
+      fournisseur={{
+        value: session.current.pourFournisseur,
+        placeholder: SUPPLIER_ID,
+        onChange: (v: string) => { session.current.pourFournisseur = v; },
+      }}
+    />
+  );
 }
 
 export { type CaptureSet };

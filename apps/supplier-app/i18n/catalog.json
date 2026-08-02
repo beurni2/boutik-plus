@@ -1692,6 +1692,24 @@
     "screenClass": "general"
   },
   {
+    "key": "publier.pour_fournisseur_label",
+    "fr": "Publier pour quel fournisseur ?",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.pour_fournisseur_hint",
+    "fr": "Laissez vide pour publier pour vous. Pour un autre fournisseur, écrivez son identifiant exact.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.err_fournisseur_inconnu",
+    "fr": "Ce fournisseur n’est pas encore connu ici. Créez d’abord son code personnel, puis publiez à nouveau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "operations.titre",
     "fr": "Opérations",
     "register": "neutral",
