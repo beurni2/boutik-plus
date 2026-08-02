@@ -11,6 +11,7 @@
  * render-only ([DEMO] T16 walks the happy path only).
  */
 import { fee, net, formatF } from './money';
+import { variantesParDefaut } from './categorie-details';
 import { SEED_ORDERS, SEED_PRODUCTS, type Order, type OrderStatus, type Product } from './seed';
 import { TILE_GRADIENT } from '../ui/v2/palette';
 
@@ -267,8 +268,17 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
     }
     case 'DISMISS_OVERLAY':
       return { s: { ...s, sheet: null, celebr: null }, fx };
-    case 'WIZ_SET':
+    case 'WIZ_SET': {
+      // CAPTURE-PAR-CATEGORIE-1: choosing a category re-fills `sizes` ONLY
+      // while it still holds the PREVIOUS category's own default — the moment
+      // he has typed anything, his text outranks every default. (WIZ_RESET's
+      // 'S, M, L' is exactly variantesParDefaut('Mode femme'), the reset cat,
+      // so a fresh wizard swaps too.)
+      if (typeof a.patch.cat === 'string' && a.patch.sizes === undefined && s.wiz.sizes === variantesParDefaut(s.wiz.cat)) {
+        return { s: { ...s, wiz: { ...s.wiz, ...a.patch, sizes: variantesParDefaut(a.patch.cat) } }, fx };
+      }
       return { s: { ...s, wiz: { ...s.wiz, ...a.patch } }, fx };
+    }
     case 'WIZ_NEXT': {
       if (s.wiz.step < 4) {
         if (disabled.wizContinue(s)) return { s, fx }; // §4.4

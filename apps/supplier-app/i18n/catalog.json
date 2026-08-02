@@ -1699,7 +1699,31 @@
   },
   {
     "key": "publier.pour_fournisseur_hint",
-    "fr": "Laissez vide pour publier pour vous. Pour un autre fournisseur, écrivez son identifiant exact.",
+    "fr": "« Vous » : le produit sera publié pour vous. Touchez un fournisseur pour publier pour lui.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.pour_chips_vous",
+    "fr": "Vous",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.pour_chargement_hint",
+    "fr": "Un instant — lecture de la liste des fournisseurs…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.pour_sans_cle_hint",
+    "fr": "Pas de liste ici : votre clé n’est pas enregistrée sur cet appareil. Laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.pour_echec_hint",
+    "fr": "La liste n’a pas pu être lue. Laissez vide pour vous, ou écrivez l’identifiant exact du fournisseur.",
     "register": "neutral",
     "screenClass": "instruction"
   },
@@ -1708,6 +1732,78 @@
     "fr": "Ce fournisseur n’est pas encore connu ici. Créez d’abord son code personnel, puis publiez à nouveau.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "publier.variantes_tailles",
+    "fr": "Tailles",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_tailles_ex",
+    "fr": "Ex. S, M, L",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.variantes_pointures",
+    "fr": "Pointures",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_pointures_ex",
+    "fr": "Ex. 37, 38, 39",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.variantes_modeles",
+    "fr": "Modèles ou couleurs",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_modeles_ex",
+    "fr": "Ex. grand modèle, rouge, noir",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.variantes_coupe",
+    "fr": "Coupe ou motif",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_coupe_ex",
+    "fr": "Ex. 3 mètres, motif wax",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.variantes_contenances",
+    "fr": "Contenances ou teintes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_contenances_ex",
+    "fr": "Ex. 50 ml, teinte claire",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.variantes_generique",
+    "fr": "Variantes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.variantes_generique_ex",
+    "fr": "Ex. tailles, modèles, couleurs",
+    "register": "neutral",
+    "screenClass": "instruction"
   },
   {
     "key": "operations.titre",

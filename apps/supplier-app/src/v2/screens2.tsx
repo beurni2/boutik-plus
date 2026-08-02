@@ -17,6 +17,8 @@ import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
+import { varianteChamp } from './categorie-details';
+import { pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
 import { SEED_RELEVES } from './seed';
@@ -129,7 +131,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void } | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[] } | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -150,6 +152,10 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
   const noNet = money.kind === 'refused';
   /** The verify step's full-screen photo inspection (founder ruling 2026-07-26). */
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
+  /** LISTER-POUR-2 — the picker's local mirror of the shell-held selection.
+   * The truth lives in the shell session (survives the studio round-trip);
+   * this state exists ONLY so a chip tap re-renders. One-way: tap → both. */
+  const [pourSel, setPourSel] = useState(fournisseur !== undefined ? fournisseur.value : '');
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
   return (
     <View style={{ flex: 1 }}>
@@ -188,8 +194,13 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 product he adds. Canon still requires a zone on the
                 ProductVersion, so the wrapper now supplies the seller-level
                 value — see `SUPPLIER_ZONE` in `supply/service.ts`. */}
+            {/* CAPTURE-PAR-CATEGORIE-1 — the field wears the CATEGORY'S clothes
+                (Pointures for Chaussures, Coupe ou motif for Tissus…) and the
+                machine pre-fills S/M/L only for clothing. Free text either way:
+                the canon field stays `variantsNote`, no schema invented. */}
             <View style={{ marginTop: 16 }}>
-              <Input label="Variantes (tailles…)" value={w.sizes} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { sizes: t } })} />
+              <Input label={tr(varianteChamp(w.cat).labelKey)} value={w.sizes} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { sizes: t } })} />
+              <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr(varianteChamp(w.cat).exempleKey)}</Text>
             </View>
             <Overline style={{ marginTop: 16 }}>Stock disponible</Overline>
             <View style={{ marginTop: 8 }}>
@@ -278,7 +289,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               {([
                 ['Catégorie', w.cat],
                 ['Code produit', w.code.trim() === '' ? '—' : w.code],
-                ['Variantes', w.sizes.trim() === '' ? '—' : w.sizes],
+                [tr(varianteChamp(w.cat).labelKey), w.sizes.trim() === '' ? '—' : w.sizes],
                 ['Stock disponible', `${w.stock}`],
                 ['Prix de base', formatF(w.B)],
               ] as const).map(([label, value]) => (
@@ -304,24 +315,48 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{formatF(w.C)}</Text>
               </View>
             </Card>
-            {/* LISTER-POUR-1b — WHOM THIS PUBLICATION IS FOR (founder order
+            {/* LISTER-POUR-1b/2 — WHOM THIS PUBLICATION IS FOR (founder orders
                 2026-08-02: « I want to be the one listing the products for
-                other suppliers »). On the RECAP step deliberately: aiming a
-                product at another supplier is part of « vérifiez », the last
-                full statement before publishing. UNCONTROLLED on purpose
-                (`defaultValue`): the truth lives in the shell-held session —
-                typing here never dispatches to the machine — and the wrong id
-                cannot land anyway: the service refuses an unknown supplier by
-                name (LISTER-POUR-1a'), and that refusal is shown in his words. */}
+                other suppliers », then « show the list of the available active
+                fournisseur and I select the one I want »). On the RECAP step
+                deliberately: aiming a product at another supplier is part of
+                « vérifiez », the last full statement before publishing.
+                When the roster READ succeeded the choice is CHIPS — « Vous »
+                first, one per other active supplier; every other read state
+                falls back to the 1b typed field under an honestly NAMED hint
+                (no key here / list unreadable / still loading), never an empty
+                picker pretending there are no suppliers. The typed field stays
+                UNCONTROLLED (`defaultValue`): the truth lives in the shell-held
+                session — and a wrong id cannot land anyway: the service refuses
+                an unknown supplier by name (LISTER-POUR-1a'), shown in his words. */}
             {fournisseur !== undefined && (
               <Card style={{ marginTop: 12, padding: 16 }}>
-                <Input
-                  label={tr('publier.pour_fournisseur_label')}
-                  defaultValue={fournisseur.value}
-                  onChangeText={fournisseur.onChange}
-                />
+                {fournisseur.read.kind === 'liste' ? (
+                  <>
+                    <Overline>{tr('publier.pour_fournisseur_label')}</Overline>
+                    <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
+                      {fournisseur.chips.map((c) => (
+                        <ChipCategory
+                          key={c.id === '' ? '(vous)' : c.id}
+                          label={c.labelKey !== null ? tr(c.labelKey) : c.id}
+                          active={pourSel === c.id}
+                          onPress={() => {
+                            setPourSel(c.id);
+                            fournisseur.onChange(c.id);
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Input
+                    label={tr('publier.pour_fournisseur_label')}
+                    defaultValue={fournisseur.value}
+                    onChangeText={fournisseur.onChange}
+                  />
+                )}
                 <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>
-                  {tr('publier.pour_fournisseur_hint')}
+                  {tr(pourFournisseurHintKey(fournisseur.read))}
                 </Text>
               </Card>
             )}

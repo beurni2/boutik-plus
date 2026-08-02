@@ -31,7 +31,7 @@
  * « Ajouter les photos » — re-uploading only what failed, then attaching via
  * the completion path (`attachAssets`), no republish, same offer.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { bytesFromUri } from '../supply/uri-bytes';
 import { ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
@@ -64,6 +64,8 @@ import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } f
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 import { cleEchecHttp, supplierPourPublication } from './lister-pour';
+import { chipsFournisseurs, type FournisseursRead } from './lister-pour-choix';
+import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
 
 
 /** Set at authoring — the founder is the only supplier. HARD GATE in authoring.ts. */
@@ -146,6 +148,32 @@ export function SListerReal({ st, d, captures, session }: {
   const mediaService = useMemo(() => resolveMediaService(), []);
   const [pub, setPub] = useState<PublishState | null>(null);
   const [pending, setPending] = useState<PendingPhotos | null>(null);
+  /** LISTER-POUR-2 — the ACTIVE-supplier roster for the picker. CONSOLE-3's
+   * code inventory read with the founder's ops key from HIS browser
+   * (`boutik.operateur.cle`) — an active code is what makes a supplier active,
+   * so the inventory IS the list he asked for. No key stored here (any other
+   * device) ⇒ `sans_cle`, and the recap keeps the 1b typed field instead.
+   * Refetched per mount; the studio round-trip remounts this wrapper, which is
+   * one extra GET and an always-fresh list. */
+  const [fournisseurs, setFournisseurs] = useState<FournisseursRead>({ kind: 'chargement' });
+  useEffect(() => {
+    let alive = true;
+    const opsKey = readStoredOpsKey();
+    const ops = resolveOperationsService();
+    if (opsKey === null || ops === null) {
+      setFournisseurs({ kind: 'sans_cle' });
+      return undefined;
+    }
+    void ops.listCodes(opsKey).then((res) => {
+      if (!alive) return;
+      // `bad_key` and `unreachable` both land on `echec`: either way the list
+      // cannot be shown, and the fallback field + hint say exactly that.
+      setFournisseurs(res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : { kind: 'echec' });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [attachNote, setAttachNote] = useState<'sending' | 'done' | string | null>(null);
   const inFlight = useRef(false);
   const identity = useRef<OfferIdentity | null>(null);
@@ -541,6 +569,16 @@ export function SListerReal({ st, d, captures, session }: {
       fournisseur={{
         value: session.current.pourFournisseur,
         onChange: (v: string) => { session.current.pourFournisseur = v; },
+        read: fournisseurs,
+        // The CURRENT selection is folded into the roster before chipping:
+        // a value typed under a fallback state (then remounted into `liste`)
+        // keeps a chip — the active marking never silently mismatches the id
+        // that will actually publish. `chipsFournisseurs` dedupes, folds his
+        // own id into « Vous », filters '', sorts the rest.
+        chips: chipsFournisseurs(
+          [...(fournisseurs.kind === 'liste' ? fournisseurs.ids : []), session.current.pourFournisseur],
+          SUPPLIER_ID,
+        ),
       }}
     />
   );

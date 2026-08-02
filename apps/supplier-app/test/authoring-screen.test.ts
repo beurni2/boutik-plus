@@ -105,9 +105,16 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
   });
 
   it('the verify step details every value he typed, each on its own labelled row', () => {
-    for (const label of ['Catégorie', 'Code produit', 'Variantes', 'Stock disponible', 'Prix de base']) {
+    for (const label of ['Catégorie', 'Code produit', 'Stock disponible', 'Prix de base']) {
       expect(screens2, `verify row missing: ${label}`).toContain(`'${label}'`);
     }
+    // EVOLVED (CAPTURE-PAR-CATEGORIE-1): the variantes row no longer carries a
+    // literal label — it wears the CATEGORY'S label (Pointures, Coupe ou
+    // motif…), the same key the step-1 field uses, so recap and field can
+    // never disagree about what the free text means.
+    expect(screens2, 'verify variantes row missing').toContain(
+      "[tr(varianteChamp(w.cat).labelKey), w.sizes.trim() === '' ? '—' : w.sizes]",
+    );
   });
 });
 
