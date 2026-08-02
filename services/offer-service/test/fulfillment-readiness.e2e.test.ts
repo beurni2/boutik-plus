@@ -278,7 +278,7 @@ describe('B6.2 — « Produit prêt »: the strict canon confirmation, the live 
     expect(ok.json['status']).toBe('ready');
   });
 
-  it('a consumed challenge REFUSES BY NAME when a different payload retries it', async () => {
+  it('a consumed challenge today resolves to already_ready — the consumed-by-name refusal awaits reopenForCorrection', async () => {
     const challenge = await acceptAndChallenge('ord-r-consumed-1');
     const first = await post('/fulfillment/ready', readyPayload('ord-r-consumed-1', challenge));
     expect(first.json['status']).toBe('ready');
@@ -324,5 +324,53 @@ describe('the credential matrix and the record’s bytes', () => {
     const afterRaw = (await opsList()).orders.find((o) => o['orderId'] === 'ord-r-bytes-1');
     const { fulfillment: _f, ...after } = afterRaw as Record<string, unknown>;
     expect(after).toEqual(before);
+  });
+});
+
+describe('the TTL knob cannot WEAKEN canon (verifier A9)', () => {
+  it('a knob larger than the canon TTL clamps to canon — a 31-year challenge is unexpressible by construction', async () => {
+    // Its own runtime with a hostile knob and its own persist dir (the
+    // SQLITE_BUSY isolation law).
+    const { mkdtempSync: mk, rmSync: rm } = await import('node:fs');
+    const { tmpdir: td } = await import('node:os');
+    const { join: j } = await import('node:path');
+    const { Miniflare: MF } = await import('miniflare');
+    const dir = mk(j(td(), 'fulfillment-ttlclamp-'));
+    const hostile = new MF({
+      modules: true, scriptPath: SCRIPT,
+      durableObjects: { OFFER: 'OfferDO', FULFILLMENT: 'FulfillmentDO' },
+      durableObjectsPersist: dir,
+      bindings: {
+        OFFER_WRITE_SECRET: WRITE_SECRET, FULFILLMENT_WRITE_SECRET: FULFILL_SECRET,
+        FULFILLMENT_OPS_SECRET: OPS_SECRET, READINESS_TTL_MS: '999999999999',
+      },
+    });
+    try {
+      const seedRes = await hostile.dispatchFetch('http://o/offers', {
+        method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+        body: JSON.stringify(SEED),
+      });
+      if (seedRes.status !== 200) throw new Error(await seedRes.text());
+      await hostile.dispatchFetch('http://o/fulfillment/order-confirmed', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FULFILL_SECRET}` },
+        body: JSON.stringify(confirmedEvent('ord-r-clamp-1')),
+      });
+      const doPost = async (path: string, body: unknown) => {
+        const res = await hostile.dispatchFetch(`http://o${path}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
+          body: JSON.stringify(body),
+        });
+        return (await res.json()) as Record<string, unknown>;
+      };
+      await doPost('/fulfillment/accept', { orderId: 'ord-r-clamp-1', supplierId: SUPPLIER });
+      const before = Date.now();
+      const ch = await doPost('/fulfillment/ready/challenge', { orderId: 'ord-r-clamp-1', supplierId: SUPPLIER });
+      const expiresMs = Date.parse(ch['expiresAt'] as string);
+      expect(expiresMs - before).toBeLessThanOrEqual(READINESS_CHALLENGE_TTL_MS + 60_000);
+      expect(expiresMs - before).toBeGreaterThan(0);
+    } finally {
+      await hostile.dispose();
+      rm(dir, { recursive: true, force: true });
+    }
   });
 });

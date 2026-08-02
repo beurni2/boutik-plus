@@ -179,13 +179,16 @@ export class FulfillmentDO {
     private readonly env?: { readonly READINESS_TTL_MS?: string },
   ) {}
 
-  /** The 10-minute canon TTL — overridable ONLY downward-visible via an env
-   *  var so the e2e can prove expiry without waiting ten real minutes.
-   *  Production never sets it; anything unparseable falls to the canon value. */
+  /** The 10-minute canon TTL, and CANON IS THE CEILING BY CONSTRUCTION: the
+   *  env knob exists so the e2e can prove expiry in milliseconds, and it can
+   *  only SHORTEN the window — the verifier set it to 999999999999 and minted
+   *  a challenge valid ~31 years, which would have silently weakened one of
+   *  the four custody secrets on a single env typo. Clamped, that class of
+   *  misconfiguration is unexpressible. Unset/unparseable → canon. */
   private readinessTtlMs(): number {
     const raw = this.env?.READINESS_TTL_MS;
     const n = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
-    return Number.isSafeInteger(n) && n > 0 ? n : READINESS_CHALLENGE_TTL_MS;
+    return Number.isSafeInteger(n) && n > 0 ? Math.min(n, READINESS_CHALLENGE_TTL_MS) : READINESS_CHALLENGE_TTL_MS;
   }
 
   async fetch(request: Request): Promise<Response> {

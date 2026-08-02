@@ -294,6 +294,16 @@ describe('READINESS-WIRE-1a — the REAL signal supersedes the chase AND the cal
     expect(fr.get('operations.prep_accepte')?.toLowerCase()).toContain('accept');
     expect(fr.get('operations.prep_accepte')?.toLowerCase().includes('prêt')).toBe(false); // acceptance never reads as ready
   });
+
+  it('[source-text check] the chip conditional binds readyAt→prêt and its absence→accepté — a swap would claim readiness without evidence (verifier N1)', () => {
+    // A verifier swapped the two branches and the whole suite stayed green;
+    // the failure would be an accepted-but-not-ready order rendering « Colis
+    // prêt, photo à l'appui » — the exact confusion B+I-06 exists to prevent.
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    expect(source).toContain(
+      "row.fulfillment.readyAt !== undefined ? t('operations.prep_pret') : t('operations.prep_accepte')",
+    );
+  });
 });
 
 describe('the relance INTERACTION — the decision the screen used to own, now asserted by value', () => {
