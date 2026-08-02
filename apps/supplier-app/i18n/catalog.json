@@ -1957,7 +1957,7 @@
   },
   {
     "key": "fournisseur.code_refuse",
-    "fr": "Ce code n'est pas reconnu. Vérifiez-le avec l'équipe Boutik+.",
+    "fr": "Ce code n'est pas le bon. Voyez ça avec l'équipe Boutik+.",
     "register": "money",
     "screenClass": "status"
   },
@@ -2089,7 +2089,7 @@
   },
   {
     "key": "fournisseur.pret_impossible",
-    "fr": "Impossible pour cette commande. Appelez l'équipe Boutik+.",
+    "fr": "Ça ne marche pas pour cette commande. Appelez l'équipe Boutik+.",
     "register": "money",
     "screenClass": "status"
   },
@@ -2116,5 +2116,11 @@
     "fr": "Payée il y a plus d'une heure",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.pret_attestation",
+    "fr": "En envoyant, vous confirmez : le colis est complet et disponible.",
+    "register": "money",
+    "screenClass": "general"
   }
 ]

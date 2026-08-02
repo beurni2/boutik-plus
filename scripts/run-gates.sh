@@ -139,6 +139,12 @@ capture no-demo-in-app-graph-positive pass node scripts/gates/no-demo-in-app-gra
 log "gate: bundle-absence — the demo adapter is absent from the REAL exported bundle (measured, must pass)"
 capture bundle-absence-positive pass node scripts/gates/bundle-absence.mjs
 
+log "gate: fournisseur-bundle-absence — the fournisseur artifact carries NO offers client (founder capability ruling 2026-08-02, measured, must pass)"
+capture fournisseur-bundle-absence-positive pass node scripts/gates/fournisseur-bundle-absence.mjs
+
+log "gate: fournisseur-bundle-absence — NEGATIVE (the v2 root legitimately carries X-Write-Key; the same scan must FAIL on it)"
+capture fournisseur-bundle-absence-negative fail node scripts/gates/fournisseur-bundle-absence.mjs --root v2
+
 log "gate: no-consumer-storefront — services/ + apps/ (must pass)"
 capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-storefront.mjs
 

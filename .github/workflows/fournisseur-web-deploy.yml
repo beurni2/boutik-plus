@@ -1,0 +1,101 @@
+name: fournisseur-web-deploy
+
+# READINESS-WIRE-1b-ii — deploy the FOURNISSEUR surface (fulfillment-only) to
+# its own Cloudflare Pages project.
+#
+# FOUNDER RULING (2026-08-02, verbatim in JOURNAL): « i do not want other
+# suppliers boutik+ webapp be able to list new products, only my webapp have
+# that capability, their webapp will be only able to accept commandes, upload
+# photo prove of readiness , and see all the follow up until product is
+# delivered ». THIS WORKFLOW IS THAT RULING'S DEPLOY-TIME HALF:
+#   · EXPO_PUBLIC_OFFER_WRITE_KEY IS NEVER IN THIS FILE. The fournisseur
+#     bundle cannot inline a secret this job never receives. Do not add it —
+#     adding it here hands every supplier the authoring credential.
+#   · The absence scan below runs on the EXACT dist this job deploys: the
+#     offers client's route literals must be ABSENT, the fournisseur's own
+#     literals PRESENT (control), or the deploy fails before wrangler runs.
+#
+# MANUAL ONLY (workflow_dispatch): a deploy is a deliberate act — the standing
+# ruling. COLD export always (`--clear`): Metro's transform cache is not keyed
+# on EXPO_PUBLIC_* values (cost a live debugging round 2026-07-26; re-measured
+# 2026-08-02 while building the artifact gate).
+#
+# SECRETS — pre-existing only: EXPO_PUBLIC_OFFER_BASE, EXPO_PUBLIC_MEDIA_BASE,
+# EXPO_PUBLIC_MEDIA_WRITE_KEY (media upload IS a granted capability: « upload
+# photo prove of readiness »), CLOUDFLARE_API_TOKEN,
+# PLATFORM_CONTRACTS_READ_TOKEN. Deliberately NOT: the offers write key.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fournisseur-web-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Authorize read access to platform-contracts (CI-only)
+        run: git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
+      - name: Authorize read access to platform-contracts (CI-only, SSH forms)
+        run: |
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "git@github.com:beurni2/platform-contracts"
+          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
+      - run: pnpm install --frozen-lockfile
+      - name: Export the fournisseur web bundle (COLD — see header; NO offers write key in env)
+        working-directory: apps/supplier-app
+        env:
+          EXPO_PUBLIC_ROOT: fournisseur
+          EXPO_PUBLIC_OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+          EXPO_PUBLIC_MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+          EXPO_PUBLIC_MEDIA_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
+        run: npx expo export --platform web --clear --output-dir dist-fournisseur
+      - name: Assert the capability ruling ON THE EXACT DIST THIS JOB DEPLOYS
+        working-directory: apps/supplier-app
+        env:
+          OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
+        run: |
+          # Empty-secret guard first (the W5 blind spot: grep -F "" matches everything).
+          if [ -z "$OFFER_BASE" ]; then
+            echo "::error::EXPO_PUBLIC_OFFER_BASE is unset — fix the repo secret before deploying"
+            exit 1
+          fi
+          # CONTROLS — the scan must SEE the fournisseur's own literals.
+          for want in "boutik.fournisseur.code" "/fulfillment/mine"; do
+            if ! grep -rqF "$want" dist-fournisseur/_expo/static/js/web/; then
+              echo "::error::control $want not found — the scan cannot see, refusing to deploy"
+              exit 1
+            fi
+          done
+          if ! grep -rqF "$OFFER_BASE" dist-fournisseur/_expo/static/js/web/; then
+            echo "::error::EXPO_PUBLIC_OFFER_BASE did not inline — the export would ship « non configuré »"
+            exit 1
+          fi
+          # THE RULING — the offers client's routes must be ABSENT.
+          for banned in "/offers/assets" "/offers/delete"; do
+            if grep -rqF "$banned" dist-fournisseur/_expo/static/js/web/; then
+              echo "::error::$banned FOUND in the fournisseur artifact — the authoring client rode in; do not deploy"
+              exit 1
+            fi
+          done
+          echo "capability ruling holds on the deployed artifact: authoring client absent, fournisseur literals present"
+      - name: Ensure the Pages project exists (idempotent — create errors if present)
+        working-directory: apps/supplier-app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 pages project create boutik-plus-fournisseur --production-branch=main || true
+      - name: Deploy to Cloudflare Pages
+        working-directory: apps/supplier-app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 pages deploy dist-fournisseur --project-name boutik-plus-fournisseur --branch=main --commit-hash="${{ github.sha }}"

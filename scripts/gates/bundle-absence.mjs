@@ -80,8 +80,17 @@ let artifacts = [];
 try {
   execFileSync(
     'npx',
-    ['expo', 'export', '--platform', 'android', '--output-dir', out],
-    { cwd: APP, stdio: 'pipe', encoding: 'utf8', env: { ...process.env, CI: '1' } },
+    // COLD always (--clear): Metro's transform cache is not keyed on
+    // EXPO_PUBLIC_* (measured 2026-08-02 building the fournisseur gate).
+    // ROOT=v2 EXPLICITLY: this gate has always measured the PUBLISHED app,
+    // which is the v2 root (expo-preview defaults root to v2). Before
+    // READINESS-WIRE-1b-ii the entry imported AppV2 statically so v2 rode
+    // every export regardless; the three-way lazy fold ended that, and an
+    // export without ROOT now folds to the E1 arm alone — this gate's
+    // controls would vanish and it would refuse (exit 2) on a bundle nobody
+    // publishes. Same subject as ever, now stated instead of incidental.
+    ['expo', 'export', '--platform', 'android', '--clear', '--output-dir', out],
+    { cwd: APP, stdio: 'pipe', encoding: 'utf8', env: { ...process.env, CI: '1', EXPO_PUBLIC_ROOT: 'v2' } },
   );
 
   const walk = (dir, acc = []) => {
