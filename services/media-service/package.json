@@ -23,7 +23,7 @@
   "dependencies": {
     "@boutik/observability": "workspace:*",
     "@boutik/service-auth": "workspace:*",
-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#58e249bde9ceb52d3fed06f8ded115d29b2b7c34&path:packages/contracts"
+    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#bc73cca4eeab452c201625954ae142e4fea47160&path:packages/contracts"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
