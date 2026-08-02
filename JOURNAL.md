@@ -2443,3 +2443,9 @@ Fresh-context verifier: security core CLEAN (allowlists, gate order incl. path v
 - Notes accepted, no action: silent byte-orphaning on revoke failure is the standing journalled design; bad_key mid-handover clears the plaintext by construction (verified safe).
 
 **Evidence:** supplier-app **568/568** · offer-service **179/179** · media-service **70/70** · copy-lint 371/0 · both MAJOR fixes proven red under their exact mutations, restored green · gates board re-running for the push.
+
+## 2026-08-02 — RELEASED: CONSOLE-3 + MEDIA-KEY-SPLIT (founder: « merge and deploy all three, I approve the proposal »)
+
+**Merge:** guarded ff-merge `main` 9c850a4 → **ab0cf81** (CI run 30730932476 success on the exact sha — verified myself before merging). **Three deploys on main, each verdict read from its own log:** offer-deploy 30731025020 — « PROVENANCE OK — live Worker is ab0cf81… speaking canon 3.2.0 » (the code-inventory route live); media-deploy 30731025759 — split Worker deployed (version 5e0c977b); web-deploy 30731026331 — console live with the Codes section + revoke client. **Revoke stays fail-closed 401** until the founder sets MEDIA_REVOKE_SECRET (wrangler, piped) + EXPO_PUBLIC_MEDIA_REVOKE_KEY (repo secret) and both media-deploy + web-deploy re-run — restated in the release report.
+
+**BUYER-CONTACT-1 proposal APPROVED verbatim** (no-echo on the public order view · third key value C on the Shop+ Worker · one console, two doors · dispatch index at create + confirmed-filter at read). Building as BC-1a (Shop+ service), BC-1b (buyer PWA fields), BC-1c (console dispatch section).
