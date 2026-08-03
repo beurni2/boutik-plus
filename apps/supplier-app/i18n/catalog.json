@@ -1806,6 +1806,18 @@
     "screenClass": "label"
   },
   {
+    "key": "publier.pour_mon_code_absent_hint",
+    "fr": "Vous n\u2019avez pas encore de code personnel. Cr\u00e9ez le v\u00f4tre dans Op\u00e9rations, puis publiez.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.err_mon_code_absent",
+    "fr": "Vous n\u2019avez pas encore de code personnel. Cr\u00e9ez le v\u00f4tre dans Op\u00e9rations, puis publiez \u00e0 nouveau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.err_fournisseur_inconnu",
     "fr": "Ce fournisseur n’est pas encore connu ici. Créez d’abord son code personnel, puis publiez à nouveau.",
     "register": "neutral",

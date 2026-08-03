@@ -571,7 +571,7 @@ export function SListerReal({ st, d, captures, session }: {
                 <Banner tone="warn">{t('publier.echec_appareil')}</Banner>
               ) : (
                 <Banner tone="danger">
-                  {`${t(pub.cause === 'http' ? cleEchecHttp(pub.reason) : 'publier.echec_illisible')}\n${pub.reason}`}
+                  {`${t(pub.cause === 'http' ? cleEchecHttp(pub.reason, SUPPLIER_ID) : 'publier.echec_illisible')}\n${pub.reason}`}
                 </Banner>
               )}
               <View style={{ marginTop: 22 }}>

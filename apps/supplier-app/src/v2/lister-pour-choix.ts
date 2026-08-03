@@ -102,8 +102,22 @@ export function chipChoisi(valeur: string, sienId: string): string {
  * with no other supplier is its own state (verifier MAJOR): telling him to
  * « touchez un fournisseur » when there is none to touch is an undesigned
  * empty state wearing the populated state's sentence.
+ *
+ * HIS OWN MISSING CODE OUTRANKS BOTH (founder report 2026-08-03: he published
+ * with « Vous » selected and the service refused — `unknown_supplier` — because
+ * his own id held no active code). « Vous » is drawn unconditionally, so the
+ * chip promised a publication the gate was always going to refuse, and nothing
+ * on the screen said so. The roster IS the answer: it lists exactly the
+ * suppliers holding an active code, and the publish gate reads the same
+ * registry — so his id missing from a SUCCESSFUL read means « Vous » will
+ * refuse, and the screen can say it before he spends the upload.
+ *
+ * ONLY ON A SUCCESSFUL READ. `sans_cle` and `echec` know nothing about who
+ * holds a code, and a screen that discouraged publishing on ignorance would
+ * block a legitimate publish every time the console key is absent from this
+ * browser — the exact instrument law the auto-hide watcher follows.
  */
-export function pourFournisseurHintKey(read: FournisseursRead, autres: number): string {
+export function pourFournisseurHintKey(read: FournisseursRead, autres: number, sienId: string): string {
   switch (read.kind) {
     case 'sans_cle':
       return 'publier.pour_sans_cle_hint';
@@ -112,6 +126,7 @@ export function pourFournisseurHintKey(read: FournisseursRead, autres: number): 
     case 'echec':
       return 'publier.pour_echec_hint';
     case 'liste':
+      if (!read.ids.includes(sienId)) return 'publier.pour_mon_code_absent_hint';
       return autres > 0 ? 'publier.pour_fournisseur_hint' : 'publier.pour_liste_vide_hint';
   }
 }

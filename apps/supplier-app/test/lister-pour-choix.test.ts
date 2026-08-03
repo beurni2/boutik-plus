@@ -126,28 +126,50 @@ describe('lireFournisseurs — the read is BOUNDED, and every failure is named',
 });
 
 describe('pourFournisseurHintKey — every read state names its own sentence', () => {
+  const MOI = 'supplier-founder-001';
   const cases: readonly [FournisseursRead, number, string][] = [
     [{ kind: 'sans_cle' }, 0, 'publier.pour_sans_cle_hint'],
     [{ kind: 'chargement' }, 0, 'publier.pour_chargement_hint'],
     [{ kind: 'echec' }, 0, 'publier.pour_echec_hint'],
-    [{ kind: 'liste', ids: ['supplier-aicha-002'] }, 1, 'publier.pour_fournisseur_hint'],
+    [{ kind: 'liste', ids: [MOI, 'supplier-aicha-002'] }, 1, 'publier.pour_fournisseur_hint'],
     // A SUCCESSFUL read with nobody else is its OWN state (verifier MAJOR): it
     // must not tell him to touch a fournisseur chip that does not exist.
-    [{ kind: 'liste', ids: [] }, 0, 'publier.pour_liste_vide_hint'],
+    [{ kind: 'liste', ids: [MOI] }, 0, 'publier.pour_liste_vide_hint'],
+    // FOUNDER REPORT 2026-08-03 — a successful roster WITHOUT his own id: the
+    // « Vous » chip is drawn anyway and the publish gate will refuse it.
+    [{ kind: 'liste', ids: ['supplier-aicha-002'] }, 1, 'publier.pour_mon_code_absent_hint'],
   ];
 
-  it('maps each of the five states to a distinct key', () => {
+  it('maps each of the six states to a distinct key', () => {
     const keys = cases.map(([read, autres, key]) => {
-      expect(pourFournisseurHintKey(read, autres)).toBe(key);
+      expect(pourFournisseurHintKey(read, autres, MOI)).toBe(key);
       return key;
     });
-    expect(new Set(keys).size).toBe(5);
+    expect(new Set(keys).size).toBe(6);
   });
 
   it('the empty roster never wears the populated sentence', () => {
-    const vide = pourFournisseurHintKey({ kind: 'liste', ids: [] }, 0);
-    const plein = pourFournisseurHintKey({ kind: 'liste', ids: ['x'] }, 1);
+    const vide = pourFournisseurHintKey({ kind: 'liste', ids: [MOI] }, 0, MOI);
+    const plein = pourFournisseurHintKey({ kind: 'liste', ids: [MOI, 'x'] }, 1, MOI);
     expect(vide).not.toBe(plein);
+  });
+
+  it('HIS MISSING CODE outranks both roster sentences — « Vous » must not promise a refused publish', () => {
+    // With others present and without: the same warning either way, because the
+    // default selection (« Vous ») is the one that will be refused.
+    expect(pourFournisseurHintKey({ kind: 'liste', ids: [] }, 0, MOI)).toBe('publier.pour_mon_code_absent_hint');
+    expect(pourFournisseurHintKey({ kind: 'liste', ids: ['a', 'b'] }, 2, MOI)).toBe('publier.pour_mon_code_absent_hint');
+    // …and it clears the moment his code exists.
+    expect(pourFournisseurHintKey({ kind: 'liste', ids: ['a', MOI] }, 1, MOI)).toBe('publier.pour_fournisseur_hint');
+  });
+
+  it('IGNORANCE NEVER WARNS — no key and no roster read cannot claim his code is missing', () => {
+    // The instrument law: `sans_cle` and `echec` know nothing about who holds a
+    // code. Warning there would discourage a publish that would have succeeded,
+    // on every browser where the console key was never entered.
+    expect(pourFournisseurHintKey({ kind: 'sans_cle' }, 0, MOI)).toBe('publier.pour_sans_cle_hint');
+    expect(pourFournisseurHintKey({ kind: 'echec' }, 0, MOI)).toBe('publier.pour_echec_hint');
+    expect(pourFournisseurHintKey({ kind: 'chargement' }, 0, MOI)).toBe('publier.pour_chargement_hint');
   });
 
   it('every key the picker can emit EXISTS in the catalog, non-empty, register-tagged', () => {

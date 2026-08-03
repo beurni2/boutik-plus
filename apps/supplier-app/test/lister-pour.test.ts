@@ -26,12 +26,39 @@ describe('LISTER-POUR-1b — whom the publication is for', () => {
     expect(supplierPourPublication('Supplier-AICHA-002', 'supplier-founder-001')).toBe('Supplier-AICHA-002');
   });
 
+  const MOI = 'supplier-founder-001';
+
   it('the unknown-supplier refusal maps to ITS OWN sentence; everything else keeps the generic frame', () => {
-    expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier","supplierId":"supplier-typo"}')).toBe(
+    expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier","supplierId":"supplier-typo"}', MOI)).toBe(
       'publier.err_fournisseur_inconnu',
     );
-    expect(cleEchecHttp('HTTP 401: unauthorized')).toBe('publier.echec');
-    expect(cleEchecHttp('HTTP 500: boom')).toBe('publier.echec');
+    expect(cleEchecHttp('HTTP 401: unauthorized', MOI)).toBe('publier.echec');
+    expect(cleEchecHttp('HTTP 500: boom', MOI)).toBe('publier.echec');
+  });
+
+  // FOUNDER REPORT 2026-08-03 — the exact body he was shown, verbatim. He had
+  // published for HIMSELF (« Vous »), and « Ce fournisseur n'est pas encore
+  // connu ici » is true of a stranger, not of him.
+  it('WHEN THE REFUSED ID IS HIS OWN, the sentence speaks in his terms', () => {
+    const sien = 'HTTP 400: {"error":"unknown_supplier","supplierId":"supplier-founder-001"}';
+    expect(cleEchecHttp(sien, MOI)).toBe('publier.err_mon_code_absent');
+    // …and the SAME body is the other sentence for a different studio identity:
+    // the branch keys on the id, never on the shape of the reason.
+    expect(cleEchecHttp(sien, 'supplier-aicha-002')).toBe('publier.err_fournisseur_inconnu');
+  });
+
+  it('an UNREADABLE body never claims HIS code is missing — the safe side of the fork', () => {
+    // Sending him to mint a code he already holds would invalidate the one he
+    // is using (a re-mint replaces it), so the fallback is the other sentence.
+    expect(cleEchecHttp('HTTP 400: unknown_supplier', MOI)).toBe('publier.err_fournisseur_inconnu');
+    expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier"}', MOI)).toBe('publier.err_fournisseur_inconnu');
+    // A near-miss id is a stranger, not him — no prefix or case leniency.
+    expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier","supplierId":"supplier-founder-0011"}', MOI)).toBe(
+      'publier.err_fournisseur_inconnu',
+    );
+    expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier","supplierId":"SUPPLIER-FOUNDER-001"}', MOI)).toBe(
+      'publier.err_fournisseur_inconnu',
+    );
   });
 
   it('every key this slice can emit EXISTS in the catalog, with its register and screenClass', () => {
@@ -42,7 +69,12 @@ describe('LISTER-POUR-1b — whom the publication is for', () => {
       screenClass: string;
     }>;
     const byKey = new Map(cat.map((e) => [e.key, e]));
-    for (const k of ['publier.pour_fournisseur_label', 'publier.pour_fournisseur_hint', 'publier.err_fournisseur_inconnu']) {
+    for (const k of [
+      'publier.pour_fournisseur_label',
+      'publier.pour_fournisseur_hint',
+      'publier.err_fournisseur_inconnu',
+      'publier.err_mon_code_absent',
+    ]) {
       const entry = byKey.get(k);
       expect(entry, `missing catalog key: ${k}`).toBeDefined();
       expect(entry!.fr.length).toBeGreaterThan(0);
@@ -53,5 +85,12 @@ describe('LISTER-POUR-1b — whom the publication is for', () => {
     const refus = byKey.get('publier.err_fournisseur_inconnu')!.fr;
     expect(refus.toLowerCase().includes('séquestre')).toBe(false);
     expect(refus.includes('code personnel')).toBe(true);
+    // His own sentence says WHOSE code and WHERE to make it — and never calls
+    // him « ce fournisseur », the wording that sent him looking for a stranger.
+    const sien = byKey.get('publier.err_mon_code_absent')!.fr;
+    expect(sien.includes('code personnel')).toBe(true);
+    expect(sien.includes('Opérations')).toBe(true);
+    expect(sien.toLowerCase().includes('ce fournisseur')).toBe(false);
+    expect(sien).not.toBe(refus); // two cases, two sentences
   });
 });

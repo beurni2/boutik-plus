@@ -403,7 +403,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   />
                 )}
                 <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>
-                  {tr(pourFournisseurHintKey(fournisseur.read, fournisseur.chips.length - 1))}
+                  {tr(pourFournisseurHintKey(fournisseur.read, fournisseur.chips.length - 1, fournisseur.sienId))}
                 </Text>
                 {fournisseur.read.kind === 'echec' && (
                   <View style={{ marginTop: 12 }}>

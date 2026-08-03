@@ -321,10 +321,15 @@ describe('every user-facing string on the new surfaces is catalog-backed', () =>
   it('only the http cause claims the service answered; network and device get their own designed states', () => {
     expect(lister).toMatch(/pub\.cause === 'network' \?[\s\S]{0,120}t\('publier\.echec_reseau'\)/);
     expect(lister).toMatch(/pub\.cause === 'device' \?[\s\S]{0,120}t\('publier\.echec_appareil'\)/);
-    // PIN EVOLVED (LISTER-POUR-1b): http failures now route through
-    // `cleEchecHttp` so `unknown_supplier` speaks its own catalog sentence;
-    // the LAW is unchanged — only the http cause claims the service answered.
-    expect(lister).toMatch(/pub\.cause === 'http' \? cleEchecHttp\(pub\.reason\) : 'publier\.echec_illisible'/);
+    // PIN EVOLVED TWICE. (LISTER-POUR-1b): http failures route through
+    // `cleEchecHttp` so `unknown_supplier` speaks its own catalog sentence.
+    // (2026-08-03, founder report): the mapper now also receives HIS OWN id,
+    // so a refusal naming him reads « vous n'avez pas encore de code
+    // personnel » instead of calling him « ce fournisseur ». The LAW is
+    // unchanged — only the http cause claims the service answered.
+    expect(lister).toMatch(
+      /pub\.cause === 'http' \? cleEchecHttp\(pub\.reason, SUPPLIER_ID\) : 'publier\.echec_illisible'/,
+    );
   });
 
   it('an idempotent answer does NOT render the plain success line', () => {
