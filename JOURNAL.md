@@ -2719,3 +2719,12 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 **Tapping a chip RE-READS with the new scope** rather than slicing a stale merge, so what is on screen is always what the service just answered. Pinned.
 
 **Evidence:** supplier-app **646/646** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` (the fournisseur artifact gate included).
+
+**MERGED AND DEPLOYED (2026-08-03, founder « Go, merge and deploy »).** CI green on the branch first (**30795285807**, `b4f33ac`); main fast-forwarded `b2b3489..b4f33ac`, ancestry checked, sha from `git rev-parse`.
+
+**Two deploys, both success — and only two:** `git diff --name-only b2b3489..b4f33ac` is supplier-app + catalog + tests + journal, no service touched, so offer/media/storefront stay where they are (offer-service already carries `videoRef` from this morning's deploy).
+
+· **web-deploy 30795917078** (`b4f33ac`) — the console: PRODUITS-PAR-FOURNISSEUR chips live. Cold-export sentinel green.
+· **fournisseur-web-deploy 30795924362** (`b4f33ac`) — the supplier surface at `boutik-plus-fournisseur.pages.dev`, now playing the clip. **« Assert the capability ruling ON THE EXACT DIST THIS JOB DEPLOYS » passed** — video added NO forbidden capability to that artifact, which is the property that lets the link be handed to a supplier at all.
+
+**Unchanged and still pending:** the reseller app's `eas build` (« opportunités » and « ma vitrine » stay on photographs until the founder runs it).
