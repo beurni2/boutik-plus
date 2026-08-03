@@ -31,6 +31,13 @@ import {
 } from './components';
 
 type D = (a: A) => void;
+
+/** VIDEO-PRODUIT-1c — the picked clip's three honest states, decided by the
+ *  wrapper (`supply/video.ts`); this frozen screen renders what it is handed. */
+export type VideoEtat =
+  | { readonly kind: 'aucune' }
+  | { readonly kind: 'choisie'; readonly durationSec: number }
+  | { readonly kind: 'refusee'; readonly key: string };
 const scrollTabs = SCROLL.tabs;
 const scrollStacked = SCROLL.stacked;
 const wizScroll = SCROLL.wizard;
@@ -131,7 +138,7 @@ const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beaut
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[]; readonly onRetry: () => void; readonly sienId: string } | undefined }) {
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur, video }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[]; readonly onRetry: () => void; readonly sienId: string } | undefined; video?: { readonly etat: VideoEtat; readonly onPick: () => void; readonly onRetirer: () => void } | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -269,6 +276,45 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
             ) : (
               <View style={{ marginTop: 14 }}>
                 <C07BtnPrimary label="Ouvrir Boutik+ Studio" icon="camera" onPress={() => d({ t: 'OPEN_STUDIO' })} />
+              </View>
+            )}
+            {/* VIDEO-PRODUIT-1c (founder order 2026-08-02: « a short video of
+                like 6 second max ») — the OPTIONAL clip lives on the media
+                step with the photos. Three honest states, decided by the
+                wrapper: none yet (the quiet add control — photos stay the
+                primary act of this screen), chosen (its measured seconds said
+                back), refused (the reason's own sentence and the control to
+                try another). */}
+            {video !== undefined && (
+              <View style={{ marginTop: 18 }}>
+                <Overline>{tr('publier.video_titre')}</Overline>
+                {video.etat.kind === 'choisie' ? (
+                  <>
+                    <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: P.successBg }}>
+                      <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
+                      <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
+                        {`${tr('publier.video_prete')} · ${video.etat.durationSec} s`}
+                      </Text>
+                    </View>
+                    <View style={{ marginTop: 10 }}>
+                      <BtnSoft label={tr('publier.video_retirer')} onPress={video.onRetirer} />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {video.etat.kind === 'refusee' && (
+                      <View style={{ marginTop: 10 }}>
+                        <Banner tone="warn">{tr(video.etat.key)}</Banner>
+                      </View>
+                    )}
+                    <View style={{ marginTop: 10 }}>
+                      <BtnSoft label={tr('publier.video_ajouter')} onPress={video.onPick} />
+                    </View>
+                    <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 8 }]}>
+                      {tr('publier.video_hint')}
+                    </Text>
+                  </>
+                )}
               </View>
             )}
           </>

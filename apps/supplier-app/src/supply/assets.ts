@@ -36,6 +36,12 @@ export interface MediaRefInput {
   readonly mimeType: string;
 }
 
+/** VIDEO-PRODUIT (canon v3.4.0) — mirrors canon `ProductVideoRefSchema`:
+ *  the MediaRef plus the integer duration canon bounds at 1..6. */
+export interface ProductVideoInput extends MediaRefInput {
+  readonly durationSec: number;
+}
+
 /** Mirrors canon `ProductAssets` (§5.6) — strict, master private. */
 export interface ProductAssetsInput {
   readonly masterRef: MediaRefInput;
@@ -43,6 +49,9 @@ export interface ProductAssetsInput {
   readonly heroVertical: MediaRefInput;
   readonly proof: MediaRefInput;
   readonly detail: readonly MediaRefInput[];
+  /** VIDEO-PRODUIT — optional, exactly as canon types it. Welded on by
+   *  `supply/video.ts` after upload, never assembled from roles. */
+  readonly video?: ProductVideoInput;
   readonly hashes: readonly string[];
   readonly processingVersion: string;
 }

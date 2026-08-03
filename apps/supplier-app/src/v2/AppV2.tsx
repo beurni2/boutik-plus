@@ -77,7 +77,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
         captures.current = null;
         // `pourFournisseur` resets WITH the rest: product A aimed at another
         // supplier must not silently aim product B there too.
-        listing.current = { codeTouched: false, suffixBytes: null, pourFournisseur: '' };
+        listing.current = { codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null };
       }
       const out = reduce(stRef.current as S, a);
       stRef.current = out.s;
@@ -103,7 +103,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // inside it would reset and the suggestion would overwrite his edited code
   // (verifier finding). Both are cleared in d() when a new wizard opens.
   const captures = useRef<CaptureSet | null>(null);
-  const listing = useRef<ListingSession>({ codeTouched: false, suffixBytes: null, pourFournisseur: '' });
+  const listing = useRef<ListingSession>({ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null });
   // PRODUITS-READ-1 — the last successful list, held at the SHELL so it survives
   // the tab switch that unmounts SProduitsReal. A ref, so it dies with the
   // process: a list of offers that no longer exist is a fabrication with a

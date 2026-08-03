@@ -65,6 +65,9 @@ import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 import { cleEchecHttp, supplierPourPublication } from './lister-pour';
 import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './lister-pour-choix';
+import { avecVideo, decideVideoChoisie, videoRefusKey } from '../supply/video';
+import { pickVideo } from '../studio/pick-video';
+import type { VideoEtat } from './screens2';
 import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
 
 
@@ -133,6 +136,12 @@ export interface ListingSession {
   /** LISTER-POUR-1b — whom this publication is FOR. Shell-owned like the two
    *  above (SListerReal unmounts on the studio round-trip); '' means himself. */
   pourFournisseur: string;
+  /** VIDEO-PRODUIT-1c — the picked ≤ 6 s clip, ALREADY judged by
+   *  `decideVideoChoisie` (only an accepted clip is ever stored here).
+   *  Shell-owned for the same reason as the rest: it must survive the studio
+   *  round-trip. `durationSec` is the device's ceiling — the service re-measures
+   *  at upload and canon re-refuses at parse. */
+  video: { bytes: Uint8Array; durationSec: number } | null;
 }
 
 export function SListerReal({ st, d, captures, session }: {
@@ -174,6 +183,34 @@ export function SListerReal({ st, d, captures, session }: {
   const choisirPour = (v: string): void => {
     session.current.pourFournisseur = v; // the shell's copy — survives the studio
     setPour(v);
+  };
+  /** VIDEO-PRODUIT-1c — the screen state DERIVES from the shell session at
+   *  mount (a clip picked before the studio round-trip is still « choisie »);
+   *  a refusal is transient screen state, never stored. */
+  const [videoEtat, setVideoEtat] = useState<VideoEtat>(
+    session.current.video !== null ? { kind: 'choisie', durationSec: session.current.video.durationSec } : { kind: 'aucune' },
+  );
+  /** The honest sentence when the product published but the clip did not ride. */
+  const [videoNote, setVideoNote] = useState<string | null>(null);
+  const onPickVideo = async (): Promise<void> => {
+    const out = await pickVideo();
+    if (!out.ok) {
+      // A dismissed sheet changes nothing; a platform without the picker says so.
+      if (out.reason === 'indisponible') setVideoEtat({ kind: 'refusee', key: 'publier.video_indisponible' });
+      return;
+    }
+    const choix = decideVideoChoisie(out.video.durationSeconds, out.video.bytes.length);
+    if (!choix.ok) {
+      session.current.video = null;
+      setVideoEtat({ kind: 'refusee', key: videoRefusKey(choix.reason) });
+      return;
+    }
+    session.current.video = { bytes: out.video.bytes, durationSec: choix.durationSec };
+    setVideoEtat({ kind: 'choisie', durationSec: choix.durationSec });
+  };
+  const onRetirerVideo = (): void => {
+    session.current.video = null;
+    setVideoEtat({ kind: 'aucune' });
   };
   useEffect(() => {
     let alive = true;
@@ -261,6 +298,7 @@ export function SListerReal({ st, d, captures, session }: {
     if (inFlight.current) return;
     inFlight.current = true;
     setPub({ kind: 'sending' });
+    setVideoNote(null); // a retry re-earns its own note
     try {
       identity.current = retainIdentity(identity.current, mintCommandId);
       const now = new Date().toISOString();
@@ -327,9 +365,24 @@ export function SListerReal({ st, d, captures, session }: {
         const assembled = assembleAssets(uploads);
         if (assembled.ok) {
           assets = assembled.assets;
+          // VIDEO-PRODUIT-1c — the clip rides ON the assembled photo assets
+          // (canon requires the photo roles, so a video cannot exist without
+          // them). Upload now, weld on success; a failed upload NEVER blocks
+          // the publish — the product goes out and the pane says the video
+          // did not ride, in its own sentence.
+          if (session.current.video !== null) {
+            const up = await mediaService.uploadVideo(session.current.video.bytes);
+            if (up.ok) assets = avecVideo(assets, up.value);
+            else setVideoNote('publier.video_echec_envoi');
+          }
         } else {
           leftover = { uploads, bytes }; // publish without photos; complete after
         }
+      }
+      // A clip with NO photographs has nowhere to live (canon's photo roles
+      // are required) — said plainly rather than silently dropped.
+      if (session.current.video !== null && assets === undefined) {
+        setVideoNote('publier.video_sans_photos');
       }
 
       const outcome = await publish(offerService, formFromWiz(st.wiz), ctx, assets);
@@ -370,10 +423,20 @@ export function SListerReal({ st, d, captures, session }: {
         setAttachNote(t('publier.photos_encore'));
         return;
       }
+      // VIDEO-PRODUIT-1c — the completion path carries the clip too: if the
+      // photos failed at publish, the video never rode (canon requires the
+      // photo roles), so it uploads HERE with them. Same law as publish: a
+      // failed video upload never blocks the photos' attach.
+      let assetsToAttach = assembled.assets;
+      if (session.current.video !== null) {
+        const up = await mediaService.uploadVideo(session.current.video.bytes);
+        if (up.ok) assetsToAttach = avecVideo(assetsToAttach, up.value);
+        else setVideoNote('publier.video_echec_envoi');
+      }
       const res: ServiceResult<AttachAssetsOutcome> = await offerService.attachAssets({
         commandId: `${identity.current.commandId}-assets`, // stable per attempt → the attach is idempotent too
         offerId: identity.current.offerId,
-        assets: assembled.assets,
+        assets: assetsToAttach,
       });
       if (res.ok && (res.value.status === 'attached' || res.value.status === 'idempotent')) {
         setPending(null);
@@ -463,6 +526,11 @@ export function SListerReal({ st, d, captures, session }: {
                   <Banner tone="warn">{t('publier.photos_non_config')}</Banner>
                 </View>
               ) : null}
+              {videoNote !== null && (
+                <View style={{ marginTop: 18 }}>
+                  <Banner tone="warn">{t(videoNote)}</Banner>
+                </View>
+              )}
               <Text style={[bodySub, { marginTop: 18 }]}>{t('publier.validite')}</Text>
               <View style={{ marginTop: 22 }}>
                 <BtnGhost label={t('publier.retour')} onPress={exitToProduits} />
@@ -600,6 +668,11 @@ export function SListerReal({ st, d, captures, session }: {
         // publishes. `chipsFournisseurs` dedupes, folds his own id into
         // « Vous », filters '', sorts the rest.
         chips: chipsFournisseurs([...(fournisseurs.kind === 'liste' ? fournisseurs.ids : []), pour], SUPPLIER_ID),
+      }}
+      video={{
+        etat: videoEtat,
+        onPick: () => { void onPickVideo(); },
+        onRetirer: onRetirerVideo,
       }}
     />
   );

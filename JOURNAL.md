@@ -2615,3 +2615,15 @@ Founder asked for the fresh-context pass, then « fix whatever it finds ». The 
 ### V-1d, producer half (2026-08-03): `videoRef` on the wire, guarded
 
 `buildSupplyProjection` emits the video's BARE ref exactly as `assetRefs` carries the images — conditionally spread (no video ⇒ absent key), the rich MediaRef never travels (no hash, no duration: the 6 s bound was enforced by canon parse when the assets were STORED). `assertServableValue`'s value-side identity teeth now sweep `videoRef` together with `assetRefs`. **Mutation-proven both ways** (drop the guard coverage → 1 fails; drop the emission → 2 fail), offer-service **198/198**. Remaining in the family: V-1c (capture + attach in the listing flow), V-1d shop half (storefront intake → customer product view → reseller fiche), V-1e (playback: vitrine hero, muted scroll-play, poster, pause off-screen).
+
+## 2026-08-03 — VIDEO-PRODUIT V-1c: the ≤ 6 s clip in the listing flow
+
+**The pick** (webapp — the founder's listing surface; native answers the honest « indisponible »): a plain file input accepting MP4, the browser's OWN decoder measures the duration off a blob URI (`loadedmetadata`, bounded 10 s — a decoder that never answers is an unreadable clip, not a hung screen). All browser APIs behind one structural seam on `globalThis` (RN's TS lib has no DOM — the `operations/service.ts` pattern).
+
+**The decisions, pure (`supply/video.ts`):** canon's integer is the CEILING of the measure — « 6 seconds max » can never round down into a 7th second (6.05 s ⇒ 7 ⇒ refused; 5.3 s ⇒ 6 ⇒ passes); unreadable refuses (`illisible`), over 12 MB refuses (`trop_lourde`), each refusal its own catalog sentence. Three gates, one bound: device decides whether to upload at all, the service re-measures from `mvhd`, canon re-refuses at parse.
+
+**The UI** (S20Wizard, additive `video` prop — the `fournisseur` pattern): on the Photos step, under the Studio block, three honest states — quiet « Ajouter une vidéo » with the selling-register hint, « Vidéo prête · X s » with « Retirer », or the refusal's sentence with the retry control. Photos stay the step's primary act.
+
+**The ride:** the clip lives in the SHELL session (survives the studio round-trip; resets on OPEN_WIZ — a clip picked for product A never rides product B, pin evolved). At publish it uploads and WELDS onto assembled photo assets — `durationSec` = ceil of the SERVICE's measured clock, never the device's; canon requires the photo roles, so no photos ⇒ the honest « la vidéo part avec les photos » note, and the completion path uploads + welds it with them. A failed video upload NEVER blocks a publish — the product goes out and the pane says the video did not ride.
+
+**Evidence:** supplier-app **617/617** (5 new in `supply-video.test.ts`: ceil/bound/honesty, byte ceiling at the mirror, every key exists, weld verbatim + pure) · `tsc --noEmit` clean · **gates board exit 0, ALL GATES GREEN** (fournisseur artifact unaffected — the video path lives behind the v2 fold). Remaining: V-1d shop half (intake → customer view → reseller fiche) · V-1e playback.

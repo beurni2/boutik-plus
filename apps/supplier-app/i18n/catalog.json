@@ -1362,6 +1362,72 @@
     "screenClass": "status"
   },
   {
+    "key": "publier.video_titre",
+    "fr": "Vidéo courte (6 s max, en plus des photos)",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.video_ajouter",
+    "fr": "Ajouter une vidéo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.video_hint",
+    "fr": "Elle passera en premier sur la boutique. Filmez court et près du produit.",
+    "register": "selling",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.video_prete",
+    "fr": "Vidéo prête",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_retirer",
+    "fr": "Retirer la vidéo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.video_trop_longue",
+    "fr": "La vidéo dépasse 6 secondes. Filmez plus court.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_trop_lourde",
+    "fr": "La vidéo est trop lourde. Filmez plus court, en qualité normale.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_illisible",
+    "fr": "Cette vidéo ne peut pas être lue. Essayez une autre.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_indisponible",
+    "fr": "La vidéo s’ajoute depuis la version web de Boutik+.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_echec_envoi",
+    "fr": "La vidéo n’est pas partie. Le produit est publié sans elle.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.video_sans_photos",
+    "fr": "La vidéo part avec les photos. Ajoutez les photos, puis renvoyez-la.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.validite",
     "fr": "Cette offre reste en ligne un an.",
     "register": "neutral",
