@@ -2611,3 +2611,7 @@ Founder asked for the fresh-context pass, then « fix whatever it finds ». The 
 **Evidence:** media-service **81/81** (11 new: mvhd v0+v1 to the millisecond · malformed answers null four ways · 6,0/6,04 pass and 6,2 refuses too_long · photo refuses · unreadable refuses and stores NOTHING · empty/oversized · route 401s byte-gated · 201 with measured duration and lying Content-Type ignored · GET serves video/mp4 · misplaced ftyp is not a video) · **gates board exit 0, ALL GATES GREEN**, `canon-pin-declared: OK — declared 3.4.0 === resolved 3.4.0`.
 
 **Next in the family:** V-1c capture+attach (Boutik+ listing) · V-1d the wire (producer emits `videoRef`, Shop+ carries it) · V-1e playback (vitrine hero, muted scroll-play, poster, pause off-screen).
+
+### V-1d, producer half (2026-08-03): `videoRef` on the wire, guarded
+
+`buildSupplyProjection` emits the video's BARE ref exactly as `assetRefs` carries the images — conditionally spread (no video ⇒ absent key), the rich MediaRef never travels (no hash, no duration: the 6 s bound was enforced by canon parse when the assets were STORED). `assertServableValue`'s value-side identity teeth now sweep `videoRef` together with `assetRefs`. **Mutation-proven both ways** (drop the guard coverage → 1 fails; drop the emission → 2 fail), offer-service **198/198**. Remaining in the family: V-1c (capture + attach in the listing flow), V-1d shop half (storefront intake → customer product view → reseller fiche), V-1e (playback: vitrine hero, muted scroll-play, poster, pause off-screen).
