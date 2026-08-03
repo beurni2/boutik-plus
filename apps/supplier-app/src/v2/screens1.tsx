@@ -16,6 +16,7 @@ import { flowOf, flowLabel, OFF_FLOW, SEG_OF, disabled, type S, type A, type Seg
 import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
+import { FicheVideo } from './fiche-video';
 import { galleryPhotos, hiddenSentence, photoSlot, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
@@ -235,6 +236,9 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
     // on success the parent unmounts this fiche — no state to set here.
   };
   const photos = galleryPhotos(row.assetRefs, mediaBase);
+  // VIDEO-PARTOUT — his clip, on his own product page (founder order
+  // 2026-08-03). Absolutized through the SAME media base as the photographs.
+  const clipUri = row.videoRef === undefined || row.videoRef === '' ? undefined : `${mediaBase}/${row.videoRef}`;
   // TABS pad, not stacked: this screen lives INSIDE the Produits tab, so the
   // dock overlays it — the 60px stacked pad hid the detail card's last rows
   // behind the dock (founder report 2026-07-27); the 150 tabs pad clears it.
@@ -246,6 +250,7 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
           <Banner tone="warn">{tr(hiddenSentence(row.hiddenReason as HiddenReason))}</Banner>
         </View>
       )}
+      <FicheVideo src={clipUri} poster={photos[0]?.uri} />
       {photos.length === 0 ? (
         <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.sub), { marginTop: 14 }]}>
           {tr('produits.sans_photo')}

@@ -1566,6 +1566,12 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.video_presente",
+    "fr": "Ce produit a une vid\u00e9o courte.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "produits.sans_photo",
     "fr": "Sans photo",
     "register": "neutral",

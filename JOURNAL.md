@@ -2675,3 +2675,19 @@ CI green on both branch heads before any merge: boutik **30778803823** (`5fff2cb
 **Evidence:** supplier-app **627/627** · `tsc --noEmit` exit 0 · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` · copy-lint **431 entries, 0 violations** (the two new sentences included) · both fixes MUTATION-PROVEN (drop the id fork → 2 fail; drop the roster check → 1 fail; 3 total, files restored byte-identical). Pinned behaviourally, not by string-match: near-miss ids (`…-0011`, upper-case) are strangers, and the three ignorance states keep their own sentences.
 
 **MERGED AND DEPLOYED (2026-08-03, founder go-ahead « merge and deploy »).** CI green on `cde787a` (run **30781452888**; the code commit `6e2c881` green too at **30781433431**) → main fast-forwarded `5fff2cb..cde787a` → **web-deploy 30781684183** on `cde787a`, success (cold-export sentinel green). ONE deploy only: `git diff --name-only 5fff2cb..cde787a` is supplier-app + catalog + tests + this journal — no service touched, so media/offer/storefront stay where they are. The founder's own unblock is unchanged and his alone: mint a code for `supplier-founder-001` in Opérations.
+
+## 2026-08-03 — VIDEO-PARTOUT (5/5): the clip on « Mes produits », his own surface
+
+**Founder order:** « and on produits from my boutik+ as well. » The last of the five surfaces, and the one that matters most for a reason beyond display: **before it existed, no screen anywhere could answer « did my clip ride? »** — which is exactly what cost a long hunt through live JSON earlier today, and what led me to a wrong diagnosis I had to correct. His own product list is where he looks first, so it is where that truth belongs.
+
+**The thread:** `SupplierOfferRow` (offer-service `supplier-list.ts`) emits `videoRef` from the SAME stored assets the photographs come from — no re-derivation, no second rule; the app's boundary validator accepts a non-empty string and nothing else (a blank or a non-string is NO clip, never a key with nothing behind it); the fiche builds the url through the SAME `mediaBase` as the photos.
+
+**Platform-split, the `studio/pick-video` pattern:** `fiche-video.web.tsx` renders a REAL `<video>` (RNW renders to the DOM) with the full honesty kit — muted · loop · playsinline · `preload="metadata"` · the hero photograph as poster. `fiche-video.tsx` (native, what tsc and vitest resolve) has no `<video>` and no media module, so it states the truth it CAN state: « Ce produit a une vidéo courte. » A silent nothing there would recreate the very gap this surface exists to close. Both halves share one prop contract, and both return `null` with no clip.
+
+**DELIBERATELY NOT `data-role="video-hero"`** — that role is the buyer PWA's scroll-observer contract. This screen shows one clip and has no observer; borrowing the role would imply machinery that does not exist here. Pinned.
+
+**A pin caught ME, again, and the fix is the point:** the test forbidding that role scanned the raw source — and this file's own COMMENT explains why the role is absent, so the explanation read as the violation. The pin now strips comments before scanning (the repo idiom). A test that reads prose instead of code is a test that lies in both directions.
+
+**Evidence:** supplier-app **632/632** · offer-service **198/198** · tsc exit 0 both · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` · copy-lint **432 entries, 0 violations**.
+
+**THE FAMILY IS COMPLETE** — five surfaces: buyer vitrine (every card) · opportunités wire · opportunités + ma vitrine (reseller app, `expo-video`) · buyer product page C1 · Boutik+ « Mes produits ». **Deploy note that has not changed: the reseller app needs a NATIVE BUILD, not an OTA update.**

@@ -47,6 +47,16 @@ export interface SupplierOfferRow {
    * honest empty for an offer published without photographs.
    */
   readonly assetRefs: readonly string[];
+  /**
+   * VIDEO-PARTOUT (founder order 2026-08-03: the clip shows « on produits from
+   * my boutik+ as well ») — the ≤ 6 s clip's BARE ref, from the same stored
+   * assets the photographs come from. Absent when the product has none.
+   *
+   * IT IS ALSO THE ANSWER TO « DID MY CLIP RIDE? » — the question that cost a
+   * long hunt when no surface anywhere could show it. His own list is where he
+   * looks first, so it is where the truth belongs.
+   */
+  readonly videoRef?: string;
   /** His variants, HIS TYPED WORDS, verbatim. Absent when he typed none. */
   readonly variantsNote?: string;
   /**
@@ -99,6 +109,8 @@ export function buildSupplierList(
       resellerCommission: entry.offer.resellerCommission,
       available: entry.available,
       assetRefs: wireAssetRefs(entry.assets),
+      // The stored assets are the one truth; no re-derivation, no second rule.
+      ...(entry.assets?.video !== undefined ? { videoRef: entry.assets.video.ref } : {}),
       ...(entry.variantsNote === undefined ? {} : { variantsNote: entry.variantsNote }),
       ...(built.ok ? {} : { hiddenReason: built.reason }),
     };

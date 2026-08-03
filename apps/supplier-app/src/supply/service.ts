@@ -167,6 +167,13 @@ export interface SupplierOfferRow {
   readonly available: number;
   /** Wire order, hero FIRST, master excluded. `[]` when the offer has no photographs. */
   readonly assetRefs: readonly string[];
+  /**
+   * VIDEO-PARTOUT (founder order 2026-08-03) — the ≤ 6 s clip's ref when the
+   * product has one. This is ALSO the answer to « did my clip ride? »: before
+   * it existed, no surface anywhere could say, and the question cost a long
+   * hunt through live data. Absent ⇒ the product genuinely has no clip.
+   */
+  readonly videoRef?: string;
   /** His typed words, verbatim. Absent when he typed none. */
   readonly variantsNote?: string;
   /**
@@ -216,6 +223,9 @@ export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
     items.push({
       offerId, productVersionId, name, category, basePrice, resellerCommission, available,
       assetRefs: r['assetRefs'] as string[],
+      // Validated at the boundary like every other field: a non-string or a
+      // blank is NO clip, never a key that exists with nothing behind it.
+      ...(typeof r['videoRef'] === 'string' && r['videoRef'] !== '' ? { videoRef: r['videoRef'] } : {}),
       ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
       ...(HIDDEN_REASONS.includes(r['hiddenReason'] as HiddenReason)
         ? { hiddenReason: r['hiddenReason'] as HiddenReason }
