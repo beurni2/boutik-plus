@@ -1,3 +1,4 @@
+import { PRODUCT_VIDEO_MAX_SEC } from '@platform/contracts';
 import { assertOpaqueMediaKey, mintMediaKey } from './media-key.js';
 import type { MediaStore, StoredObject } from './media-store.js';
 
@@ -77,6 +78,106 @@ export function imageDimensions(bytes: Uint8Array, fmt: ImageFormat): { width: n
   return null;
 }
 
+/* ---------------------------------------------------------------- video -- */
+
+/**
+ * VIDEO-PRODUIT-1b (founder order 2026-08-02, « Go video » 2026-08-03) — the
+ * service accepts ONE kind of moving image: a short MP4, the founder's 6-second
+ * bound MEASURED HERE from the container's own `mvhd` box, never trusted from a
+ * caller's claim. Same doctrine as the image path: magic bytes decide the type,
+ * pure JS reads the header, deterministic only (loi 5 — recorded media, stored
+ * and played, like the voice notes).
+ *
+ * MP4 ONLY, deliberately: phones emit MP4, and the duration bound must be REAL
+ * — a container we cannot read the duration of is a container we do not accept,
+ * because accepting it would turn the founder's bound into a suggestion.
+ */
+
+/** Engineering ceiling, like IMAGE_MAX_BYTES: ~2 MB/s of 6 s footage covers a
+ *  phone's 720p H.264 comfortably; the capture UI says to film short and close.
+ *  The CLIENTE's data cost is governed by playback (`preload="metadata"`, plays
+ *  only in view), not by this bound. */
+export const VIDEO_MAX_BYTES = 12 * 1024 * 1024;
+
+/** The founder's bound (canon `PRODUCT_VIDEO_MAX_SEC`) + encoder jitter: a
+ *  camera's « 6 second » clip routinely measures 6.02–6.05 s. Anything past
+ *  this is a longer video, refused by name. */
+export const VIDEO_MAX_SECONDS = PRODUCT_VIDEO_MAX_SEC + 0.05;
+
+/** Magic sniff: an MP4-family container opens with a `ftyp` box at offset 4. */
+export function sniffMp4(bytes: Uint8Array): boolean {
+  return bytes.length >= 12 && startsWith(bytes, [0x66, 0x74, 0x79, 0x70], 4);
+}
+
+/**
+ * The container's OWN duration — a pure top-level box walk to `moov`, then its
+ * children to `mvhd` (v0 and v1 layouts), `duration / timescale`. `null` on any
+ * malformation, and null is a REFUSAL upstream: the bound stays real.
+ */
+export function mp4DurationSeconds(bytes: Uint8Array): number | null {
+  const walk = (from: number, to: number, want: string): { at: number; header: number; size: number } | null => {
+    let i = from;
+    while (i + 8 <= to) {
+      let size = be32(bytes, i);
+      const type = String.fromCharCode(bytes[i + 4]!, bytes[i + 5]!, bytes[i + 6]!, bytes[i + 7]!);
+      let header = 8;
+      if (size === 1) {
+        if (i + 16 > to) return null;
+        size = be32(bytes, i + 8) * 2 ** 32 + be32(bytes, i + 12); // 64-bit largesize
+        header = 16;
+      } else if (size === 0) {
+        size = to - i; // "to end of file"
+      }
+      // A negative or undersized box is a malformed container, never a loop.
+      if (size < header) return null;
+      if (type === want) return { at: i, header, size };
+      i += size;
+    }
+    return null;
+  };
+  const moov = walk(0, bytes.length, 'moov');
+  if (moov === null) return null;
+  const moovEnd = Math.min(moov.at + moov.size, bytes.length);
+  const mvhd = walk(moov.at + moov.header, moovEnd, 'mvhd');
+  if (mvhd === null) return null;
+  const p = mvhd.at + mvhd.header;
+  if (p >= moovEnd) return null;
+  const version = bytes[p]!;
+  if (version === 0) {
+    // version(1) flags(3) creation(4) modification(4) timescale(4) duration(4)
+    if (p + 20 > moovEnd) return null;
+    const timescale = be32(bytes, p + 12);
+    const duration = be32(bytes, p + 16);
+    return timescale > 0 ? duration / timescale : null;
+  }
+  if (version === 1) {
+    // version(1) flags(3) creation(8) modification(8) timescale(4) duration(8)
+    if (p + 32 > moovEnd) return null;
+    const timescale = be32(bytes, p + 20);
+    const duration = be32(bytes, p + 24) * 2 ** 32 + be32(bytes, p + 28);
+    return timescale > 0 ? duration / timescale : null;
+  }
+  return null;
+}
+
+export type VideoRejectReason = 'empty' | 'too_large' | 'unsupported_type' | 'unreadable_duration' | 'too_long';
+
+export interface StoredVideo {
+  /** The OPAQUE object key — this is what travels as `ProductAssets.video.ref`. */
+  readonly key: string;
+  readonly url: string;
+  readonly contentType: string;
+  /** The MEASURED duration (fractional seconds) — the caller derives canon's
+   *  integer `durationSec` from this, never from its own clock. */
+  readonly durationSeconds: number;
+  readonly byteLength: number;
+  readonly uploadedAt: string;
+}
+
+export type VideoUploadOutcome =
+  | { readonly ok: true; readonly video: StoredVideo }
+  | { readonly ok: false; readonly reason: VideoRejectReason };
+
 /* --------------------------------------------------------------- upload -- */
 
 export type RejectReason = 'empty' | 'unsupported_type' | 'too_large' | 'bad_dimensions';
@@ -137,6 +238,37 @@ export class ProductMediaService {
         contentType,
         width: dims.width,
         height: dims.height,
+        byteLength: bytes.length,
+        uploadedAt: at,
+      },
+    };
+  }
+
+  /**
+   * VIDEO-PRODUIT-1b — validate + store ONE short MP4. The founder's 6-second
+   * bound is measured from the container's own `mvhd`, never from a claim; an
+   * unreadable duration is a refusal, because accepting it would turn the
+   * bound into a suggestion. Same key law as images: fresh opaque key, no
+   * caller input, an upload never overwrites.
+   */
+  async uploadVideo(bytes: Uint8Array, at: string): Promise<VideoUploadOutcome> {
+    if (bytes.length === 0) return { ok: false, reason: 'empty' };
+    if (bytes.length > VIDEO_MAX_BYTES) return { ok: false, reason: 'too_large' };
+    if (!sniffMp4(bytes)) return { ok: false, reason: 'unsupported_type' };
+    const durationSeconds = mp4DurationSeconds(bytes);
+    if (durationSeconds === null || durationSeconds <= 0) return { ok: false, reason: 'unreadable_duration' };
+    if (durationSeconds > VIDEO_MAX_SECONDS) return { ok: false, reason: 'too_long' };
+
+    const contentType = 'video/mp4';
+    const key = mintMediaKey(); // fresh CSPRNG token — never derived, never sequential
+    const stored: StoredObject = await this.store.put(key, bytes, contentType); // SERVER-SIDE write
+    return {
+      ok: true,
+      video: {
+        key: stored.key,
+        url: stored.url,
+        contentType,
+        durationSeconds,
         byteLength: bytes.length,
         uploadedAt: at,
       },

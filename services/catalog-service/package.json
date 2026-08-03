@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@boutik/observability": "workspace:*",
-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#bc73cca4eeab452c201625954ae142e4fea47160&path:packages/contracts",
+    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/contracts",
     "zod": "^4.1.5"
   },
   "devDependencies": {

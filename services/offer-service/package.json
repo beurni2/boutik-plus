@@ -23,12 +23,12 @@
   "dependencies": {
     "@boutik/observability": "workspace:*",
     "@boutik/service-auth": "workspace:*",
-    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#bc73cca4eeab452c201625954ae142e4fea47160&path:packages/contracts"
+    "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/contracts"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#bc73cca4eeab452c201625954ae142e4fea47160&path:packages/certification",
+    "@platform/certification": "git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/certification",
     "@cloudflare/workers-types": "^4.20250705.0",
     "esbuild": "^0.25.5",
     "miniflare": "^4.20250705.0",

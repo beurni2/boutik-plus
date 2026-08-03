@@ -190,6 +190,37 @@ export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, n
   return Response.json({ ref: key, contentType, width, height, byteLength }, { status: 201 });
 }
 
+/** VIDEO-PRODUIT-1b — the video upload path. Like `/media/revoke`, `video`
+ *  can never collide with an opaque key read (keys are `media/{token}` with a
+ *  CSPRNG token shape), and the method differs anyway. */
+export const VIDEO_UPLOAD_PATH = '/media/video';
+
+/**
+ * `POST /media/video` — the ONLY way a MOVING image enters the bucket. Same
+ * laws as `POST /media`, restated because each carries weight here too: the
+ * body IS the video (raw bytes, no multipart, no filename); the declared
+ * Content-Type is IGNORED (the `ftyp` sniff decides, the stored type derives
+ * from the bytes); NO caller input reaches the key; and behind the SAME write
+ * gate as the image upload — a video is exactly as sensitive as a photo, no
+ * more (the revoke split's founder-only secret is about DELETION, not entry).
+ * The response adds ONE fact images do not have: `durationSeconds`, MEASURED
+ * from the container — the caller derives canon's integer `durationSec` from
+ * it, never from its own clock.
+ */
+export async function handleVideoUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
+  const store = resolveMediaStore(env);
+  const service = new ProductMediaService(store);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const outcome = await service.uploadVideo(bytes, now);
+  if (!outcome.ok) {
+    // The validator's TYPED reason, verbatim — empty · too_large ·
+    // unsupported_type · unreadable_duration · too_long — never a bare 400.
+    return Response.json({ error: 'rejected', reason: outcome.reason }, { status: 400 });
+  }
+  const { key, contentType, durationSeconds, byteLength } = outcome.video;
+  return Response.json({ ref: key, contentType, durationSeconds, byteLength }, { status: 201 });
+}
+
 /** The revoke route's path. Not a key read: `revoke` can never match the opaque
  * key shape, and the method differs anyway. */
 export const REVOKE_PATH = '/media/revoke';
@@ -286,6 +317,10 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
 
     if (request.method === 'POST' && pathname === UPLOAD_PATH) {
       return handleMediaUpload(request, env);
+    }
+    // VIDEO-PRODUIT-1b — behind the same write gate above; dispatch only.
+    if (request.method === 'POST' && pathname === VIDEO_UPLOAD_PATH) {
+      return handleVideoUpload(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
