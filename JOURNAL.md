@@ -2645,3 +2645,19 @@ Founder asked for the fresh-context pass, then « fix whatever it finds ». The 
 **Minors:** the service's typed 400 reason now surfaces in its OWN sentence at BOTH weld sites (`videoEchecKey`, mapping tested — « trop longue » no longer reads as a network failure) · `video_sans_photos` narrowed to `captures === null` (on the leftover branch the completion path carries the clip — the note there was a false alarm) · the « Vidéo prête » chip drops the number (the stored int is canon's CEILING; « 6 s » about a 5,3 s clip is a false measure) · `video_hint` names the vitrine.
 
 **Evidence:** media-service **83/83** (lying-mvhd · poisoned track · v1 high-bit · 6.04 refuses · bound === 6) · supplier-app **623/623** · tsc clean both · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` · three mutants installed and killed, file restored byte-identical each time. Shop half of the round (M4) journalled in shop-plus.
+
+### MERGED AND DEPLOYED (2026-08-03, founder order « everything green merge and deploy all »)
+
+CI green on both branch heads before any merge: boutik **30778803823** (`5fff2cb`) · shop **30778805075** (`1ae7720`). Both mains fast-forwarded (ancestry checked, shas from `git rev-parse`, never typed): boutik `0286b7c..5fff2cb` · shop `06a8516..1ae7720`.
+
+**Deploy order honoured — the consumer before the producer.** Shop's projection parse is `.strict()`, so storefront-service had to accept `videoRef` before boutik's offer-service could emit it:
+
+1. shop **storefront-deploy 30779091630** (`1ae7720`) — success, incl. « Assert the live Worker speaks the canon this job bundled » + checkout smoke.
+2. shop **pwa-preview 30779147409** + **expo-preview 30779148196** (`1ae7720`) — both success (the push-triggered pair 30779088759 / 30779088778 also green on the same sha).
+3. boutik **media-deploy 30779149158** (`5fff2cb`) — success: `/media/video` is live, with the canon-aligned 6 s bound.
+4. boutik **offer-deploy 30779150725** (`5fff2cb`) — success, incl. « Assert the live Worker is the bundle this job built ». The producer now emits `videoRef` into a consumer that already accepts it.
+5. boutik **web-deploy 30779217951** (`5fff2cb`) — success: the listing surface with the video capture UI, cold-export sentinel green.
+
+`fournisseur-web-deploy.yml` deliberately untouched (the video path lives behind the v2 fold; its bundle gate stays clean). I could not smoke the live Workers from this session — the agent proxy refuses workers.dev (`CONNECT tunnel failed, 403`) — so the live evidence is the deploy jobs' own in-job assertions, which are stronger than an external curl.
+
+**What only the founder can confirm on a real phone:** a ≤ 6 s clip picked on the listing surface uploads, rides with the photos, and appears as the vitrine's hero card, playing muted on scroll and pausing off-screen.
