@@ -104,14 +104,35 @@ describe('CADRE-SUPPLIER — the clip is bounded, and his photos are reachable',
   const code = web.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const carte = readFileSync(join(__dirname, '..', 'src', 'fournisseur', 'FournisseurApp.tsx'), 'utf8');
 
-  it('THE CLIP HAS A HEIGHT CAP — `width: 100%` alone lets a portrait clip own the screen', () => {
-    // The exact defect: no height bound at all, so a tall clip renders taller
-    // than it is wide and pushes name, price and actions below the fold.
-    expect(code).toMatch(/maxHeight: 320/);
-    // …and `cover` at the cap, or a clip taller than 320 letterboxes inside
-    // its own frame — fixing the size while breaking the look.
-    expect(code).toMatch(/objectFit: 'cover'/);
+  it('THE CLIP WEARS THE PHOTOGRAPH’S FRAME — asserted against the photo’s OWN style', () => {
+    // PIN EVOLVED (founder order 2026-08-03: « make it be like photo frame but
+    // playing the video »). The first fix was a bare `maxHeight`, and he was
+    // right to reject it: it stopped the clip filling the screen but left it a
+    // DIFFERENT SHAPE from the photographs beside it.
+    //
+    // This does not hardcode the frame twice. It READS the photo's real style
+    // out of screens1.tsx and requires the clip to carry the same four values,
+    // so if the photo's frame ever changes and the clip's does not, THIS fails
+    // rather than the founder noticing months later.
+    const photo = /style=\{\{ width: '100%', maxWidth: PHOTO_COLUMN_MAX[^}]*\}\}/.exec(fiche)?.[0] ?? '';
+    expect(photo, 'the photo style moved — re-anchor this pin').not.toBe('');
+    expect(photo).toContain('aspectRatio: 1');
+    expect(photo).toContain('borderRadius: GEO.r.iconTile');
+
+    // …and now the clip, value for value.
     expect(code).toMatch(/width: '100%'/);
+    expect(code).toMatch(/maxWidth: PHOTO_FRAME_MAX/);
+    expect(code).toMatch(/aspectRatio: 1/);
+    expect(code).toMatch(/borderRadius: GEO\.r\.iconTile/);
+    // `cover` is the photo's `resizeMode="cover"` in DOM vocabulary — without
+    // it a non-square clip letterboxes inside the square frame.
+    expect(code).toMatch(/objectFit: 'cover'/);
+    // the column cap is the SAME NUMBER the photo uses (680), not a lookalike
+    const photoMax = /const PHOTO_COLUMN_MAX = (\d+);/.exec(fiche)?.[1];
+    const clipMax = /const PHOTO_FRAME_MAX = (\d+);/.exec(web)?.[1];
+    expect(clipMax, 'the clip and the photo cap at different widths').toBe(photoMax);
+    // and the old cap is gone — a leftover maxHeight would fight the square
+    expect(code).not.toMatch(/maxHeight/);
   });
 
   it('ONE COMPONENT SERVES BOTH SCREENS — which is why the cap fixes both reports', () => {

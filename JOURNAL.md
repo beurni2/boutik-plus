@@ -2760,3 +2760,21 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 **Scope:** supplier webapp only. No service, no wire, no canon — `web-deploy` and `fournisseur-web-deploy` are the two surfaces affected.
 
 **MERGED AND DEPLOYED 2026-08-03** (founder: « Go »). CI `30843280533` green on `702dd75` → fast-forward `ed50a86..702dd75` on main (guard passed) → **both supplier surfaces, because both render the capped component**: `web-deploy` `30844779832` success · `fournisseur-web-deploy` `30844787455` success. No service redeployed — nothing server-side changed.
+
+### CADRE-PHOTO + HERO-UNIQUE — the clip wears the photo's frame; one hero card
+
+**Founder, 2026-08-03:** « The video frame on both sides are still not great make it be like photo frame but playing the video. And there is 2 hero cards on photos, Hero and Hero (vertical) remove one. »
+
+**1 · MY FIRST FIX WAS THE WRONG SHAPE OF FIX, and he was right to reject it.** I answered « too big » with a bare `maxHeight: 320`. That stops a clip filling the screen but leaves it **a different shape from every photograph beside it**, so the fiche read as two competing frames. The instruction he gave — « like photo frame but playing the video » — is better than what I built.
+
+The clip now carries the photo's own four values, copied from `screens1.tsx`: `width: '100%'` · `maxWidth: 680` · `aspectRatio: 1` · `borderRadius: GEO.r.iconTile`, with `objectFit: 'cover'` as the DOM spelling of the photo's `resizeMode="cover"`. It is simply one more tile in his gallery that happens to move.
+
+**THE PIN READS THE PHOTO'S REAL STYLE** rather than hardcoding the frame a second time: it greps the photo's `style={{ … }}` out of `screens1.tsx` and requires the clip to match, **including comparing the two 680 constants by value**. If the photo's frame changes and the clip's does not, that test fails — instead of the founder noticing months later. It also asserts `maxHeight` is *gone*, since a leftover cap would fight the square.
+
+**2 · THE TWO HERO CARDS WERE ONE PHOTOGRAPH SHOWN TWICE.** His Studio takes a single hero shot; `crops.ts` renders two centred crops of it — square and 4:5 — because canon's `ProductAssets` requires `heroSquare` AND `heroVertical`. The gallery listed both, so the duplicate he saw was real.
+
+**WHAT I CHANGED AND WHAT I DELIBERATELY DID NOT.** `galleryPhotos` stops LISTING index 1; labels become `['Héro', 'Preuve', …Détail n]`. **The vertical crop is still captured, still uploaded, still on the wire, still in `ProductAssets`** — Shop+ may render it, and removing it would be a **`contracts/` change, a §7 hard stop that is not mine to make**. He asked to stop seeing two cards, not to stop producing the asset; those are different acts and only one of them was ordered.
+
+**THE POSITIONAL INDEX IS SAFE, verified not assumed:** canon's schema is strict — `masterRef`, `heroSquare`, `heroVertical`, `proof` all REQUIRED — so a product has either NO refs or the full order `[heroSquare, heroVertical, proof, …detail]`. There is no partial `ProductAssets`, so position 1 is the vertical hero whenever it exists. Pinned three ways: the vertical never appears in the output, **exactly one** card is dropped (so a détail is never swallowed with it), and the two-ref short list still labels correctly.
+
+**Evidence:** supplier-app **656/656** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**. **Mutation-verified five ways** — square removed ⇒ fails; clip capped at a different width from the photo ⇒ fails; radius removed ⇒ fails; the vertical hero listed again ⇒ 3 fail; two cards dropped instead of one ⇒ fails.

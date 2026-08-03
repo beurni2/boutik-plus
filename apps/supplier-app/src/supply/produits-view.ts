@@ -130,11 +130,36 @@ export interface GalleryPhoto {
   readonly label: string;
   readonly uri: string;
 }
-const GALLERY_LABELS = ['Héro', 'Héro (vertical)', 'Preuve'] as const;
+/**
+ * THE VERTICAL HERO IS NOT LISTED (founder order 2026-08-03: « there is 2 hero
+ * cards on photos, Hero and Hero (vertical) remove one »).
+ *
+ * He was looking at ONE PHOTOGRAPH SHOWN TWICE. His Studio flow takes a single
+ * hero shot and `crops.ts` renders two centred crops of it — square and 4:5 —
+ * because canon's `ProductAssets` requires `heroSquare` AND `heroVertical`. So
+ * the gallery listed the same picture under two labels, which reads as a
+ * duplicate because it IS one.
+ *
+ * WHAT THIS CHANGES AND WHAT IT DELIBERATELY DOES NOT: this is a LISTING rule
+ * on one screen. **The vertical crop is still captured, still uploaded, still
+ * on the wire, still in `ProductAssets`** — Shop+'s surfaces may render it, and
+ * removing it would be a `contracts/` change, which is not mine to make. He
+ * asked to stop seeing two cards; he did not ask to stop producing the asset,
+ * and the two are very different acts.
+ *
+ * THE INDEX IS SAFE, not a guess: canon's schema is strict — masterRef,
+ * heroSquare, heroVertical and proof are all REQUIRED, so a published product
+ * has either NO refs or the full wire order `[heroSquare, heroVertical, proof,
+ * …detail]`. There is no partial `ProductAssets`, so position 1 is the vertical
+ * hero whenever position 1 exists at all.
+ */
+const HERO_VERTICAL_INDEX = 1;
+const GALLERY_LABELS = ['Héro', 'Preuve'] as const;
 export function galleryPhotos(assetRefs: readonly string[], mediaBase: string | null): readonly GalleryPhoto[] {
   if (mediaBase === null) return [];
   return assetRefs
     .filter((ref) => ref.trim() !== '' && !ref.startsWith('private/'))
+    .filter((_ref, i) => i !== HERO_VERTICAL_INDEX)
     .map((ref, i) => ({
       label: GALLERY_LABELS[i] ?? `Détail ${i - GALLERY_LABELS.length + 1}`,
       uri: `${mediaBase}/${ref}`,

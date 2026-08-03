@@ -312,10 +312,39 @@ describe('EVERY KEY THIS SLICE CAN EMIT RESOLVES — t() throws, so a typo is a 
 describe('THE FICHE GALLERY — wire order, labelled by position, master never rendered', () => {
   const REFS = ['media/hero-sq', 'media/hero-vert', 'media/proof', 'media/d1', 'media/d2'];
 
-  it('maps every ref in wire order with its role label', () => {
+  it('maps every LISTED ref in wire order — the vertical hero is not one of them', () => {
+    // PIN EVOLVED (founder order 2026-08-03: « there is 2 hero cards on photos,
+    // Hero and Hero (vertical) remove one »). His Studio takes ONE hero shot;
+    // crops.ts renders two crops of it because canon requires heroSquare AND
+    // heroVertical. Listing both showed him the same photograph twice.
     const out = galleryPhotos(REFS, 'https://m.example');
-    expect(out.map((p) => p.label)).toEqual(['Héro', 'Héro (vertical)', 'Preuve', 'Détail 1', 'Détail 2']);
+    expect(out.map((p) => p.label)).toEqual(['Héro', 'Preuve', 'Détail 1', 'Détail 2']);
     expect(out[0]!.uri).toBe('https://m.example/media/hero-sq');
+    // the vertical crop appears NOWHERE in the listing…
+    expect(JSON.stringify(out)).not.toContain('hero-vert');
+    // …and exactly one card is dropped, so a détail is never swallowed with it
+    expect(out).toHaveLength(REFS.length - 1);
+  });
+
+  it('THE ASSET STILL EXISTS — this is a listing rule, not a contracts change', () => {
+    // What the founder asked for was to stop SEEING two cards. The vertical
+    // crop is still captured, uploaded and carried on the wire: canon's
+    // ProductAssets requires it and Shop+ may render it. Removing it from the
+    // wire would be a `contracts/` change and is not mine to make — so this
+    // asserts the boundary: the INPUT still carries the ref, the OUTPUT hides
+    // it. If a later edit "cleans up" by dropping the ref upstream, the input
+    // side of this test is where that shows.
+    const out = galleryPhotos(REFS, 'https://m.example');
+    expect(REFS).toContain('media/hero-vert'); // still on the wire, by construction
+    expect(out.some((p) => p.uri.includes('hero-vert'))).toBe(false); // just not listed
+  });
+
+  it('a SHORT list still labels correctly — hero + proof only, no phantom détail', () => {
+    // The index it drops is positional, so the two-ref case is the one that
+    // would break first if the wire order ever stopped being guaranteed.
+    const out = galleryPhotos(['media/hero-sq', 'media/hero-vert'], 'https://m.example');
+    expect(out.map((p) => p.label)).toEqual(['Héro']);
+    expect(out.map((p) => p.uri)).toEqual(['https://m.example/media/hero-sq']);
   });
 
   it('no photographs is an EMPTY gallery — never placeholder tiles', () => {

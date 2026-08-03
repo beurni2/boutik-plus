@@ -2,6 +2,10 @@ import { createElement } from 'react';
 import { View } from 'react-native';
 import { GEO } from '../ui/v2/tokens';
 
+/** The photo column cap, mirrored from screens1.tsx so the clip shares the
+ *  photograph's frame on wide screens instead of stretching past it. */
+const PHOTO_FRAME_MAX = 680;
+
 /**
  * VIDEO-PARTOUT — the clip on HIS OWN product page, WEB half (the real one).
  *
@@ -25,7 +29,7 @@ export function FicheVideo({
 }): React.ReactElement | null {
   if (src === undefined || src === '') return null;
   return (
-    <View style={{ marginTop: 14, borderRadius: GEO.r.banner, overflow: 'hidden' }}>
+    <View style={{ marginTop: 14, alignItems: 'center' }}>
       {createElement('video', {
         src,
         ...(poster !== undefined && poster !== '' ? { poster } : {}),
@@ -34,23 +38,32 @@ export function FicheVideo({
         autoPlay: true,
         playsInline: true,
         preload: 'metadata',
-        // THE HEIGHT CAP (founder report 2026-08-03: « when I tap the video
-        // product to see it, the frame becomes too big and filling the screen
-        // which is inappropriate to see »). `width: 100%` with no height bound
-        // means a PORTRAIT clip renders taller than it is wide — on a phone
-        // that is most of the screen, and the name, the price and the actions
-        // all fall below the fold. He is looking at a product record, not
-        // watching a film.
+        // THE PHOTO'S FRAME, EXACTLY (founder order 2026-08-03: « make it be
+        // like photo frame but playing the video »).
         //
-        // 320px keeps the clip to well under half a phone screen, so the facts
-        // around it stay visible without scrolling. `objectFit: cover` matters
-        // at the cap: without it a clip taller than 320 letterboxes inside its
-        // own frame instead of filling it.
+        // A `maxHeight` was the first attempt and he was right to reject it: a
+        // cap stops a clip filling the screen but leaves it a DIFFERENT SHAPE
+        // from every photograph beside it, so the fiche read as two competing
+        // frames. These four values are copied from the photo's own style in
+        // screens1.tsx — same width rule, same 680 column cap, same square, same
+        // radius — so the clip is simply one more tile in his gallery that
+        // happens to move. `objectFit: cover` is the photo's `resizeMode`.
         //
-        // ONE COMPONENT, BOTH SCREENS — this is why his report named « produits »
-        // AND « mes produits »: the fiche and the fournisseur card render the
-        // same element, so they were the same bug and this is the same fix.
-        style: { width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' },
+        // KEEP THESE IN STEP WITH THE PHOTO. If the photo's frame changes and
+        // this does not, the two drift apart again and the report comes back;
+        // the pin in fiche-video.test.ts asserts they match, value by value.
+        //
+        // ONE COMPONENT, BOTH SCREENS — the fiche and the fournisseur card
+        // render this same element, which is why his report named « produits »
+        // AND « mes produits », and why one change answers both.
+        style: {
+          width: '100%',
+          maxWidth: PHOTO_FRAME_MAX,
+          aspectRatio: 1,
+          objectFit: 'cover',
+          borderRadius: GEO.r.iconTile,
+          display: 'block',
+        },
       })}
     </View>
   );
