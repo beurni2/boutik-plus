@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ProductAssetsSchema, ProductVersionSchema, SupplierOfferSchema, SupplyProjectionSchema, type ProductAssets } from '@platform/contracts';
 import { ASSET_REFS_MAX, buildSupplyProjection, wireAssetRefs } from '../src/projection.js';
 import { decideCreateOffer, type CreateOfferCommand } from '../src/offer-core.js';
-import { assertServableValue } from '../src/supply-endpoint.js';
+import { assertServableValue, SupplyLeakError } from '../src/supply-endpoint.js';
 
 /**
  * BOUTIK-MEDIA-1 (producer half) — the product's real images on the wire.
@@ -170,5 +170,39 @@ describe('the images reach the wire, and the guards still hold on a NON-empty ar
     const built = buildSupplyProjection(next.product, next.offer, next.available, NOW, next.assets);
     if (!built.ok) return;
     expect(built.projection.assetRefs).toEqual([]);
+  });
+});
+
+describe("VIDEO-PRODUIT (v3.4.0) — the short video's ref rides the wire, bare and identity-checked", () => {
+  const withVideo = (videoRef: string): ProductAssets =>
+    ProductAssetsSchema.parse({
+      ...assetsWith(1),
+      video: { ref: videoRef, sha256: 'b'.repeat(64), mimeType: 'video/mp4', durationSec: 6 },
+    });
+
+  it("assets WITH a video project videoRef = the video's own ref — the rich MediaRef never travels", () => {
+    const out = buildSupplyProjection(product, offer, 5, NOW, withVideo('media/44444444-4444-4444-8444-444444444444'));
+    if (!out.ok) throw new Error('expected ok');
+    expect(out.projection.videoRef).toBe('media/44444444-4444-4444-8444-444444444444');
+    expect(SupplyProjectionSchema.parse(out.projection).videoRef).toBe('media/44444444-4444-4444-8444-444444444444');
+    // The 6 s bound was enforced at STORE time (canon parse of ProductAssets);
+    // the wire carries no duration and no hash to leak or to re-check.
+    expect(JSON.stringify(out.projection)).not.toContain('durationSec');
+    expect(JSON.stringify(out.projection)).not.toContain('b'.repeat(64));
+  });
+
+  it('assets WITHOUT a video project an ABSENT key — never an explicit undefined', () => {
+    const out = buildSupplyProjection(product, offer, 5, NOW, assetsWith(1));
+    if (!out.ok) throw new Error('expected ok');
+    expect('videoRef' in out.projection).toBe(false);
+  });
+
+  it('the out-guard value-side teeth COVER videoRef: a ref encoding the supplier id throws, a clean one passes whole', () => {
+    const leaky = buildSupplyProjection(product, offer, 5, NOW, withVideo(`media/${SUPPLIER_ID}/clip.mp4`));
+    if (!leaky.ok) throw new Error('expected ok');
+    expect(() => assertServableValue(leaky.projection, SUPPLIER_ID)).toThrow(SupplyLeakError);
+    const clean = buildSupplyProjection(product, offer, 5, NOW, withVideo('media/55555555-5555-4555-8555-555555555555'));
+    if (!clean.ok) throw new Error('expected ok');
+    expect(assertServableValue(clean.projection, SUPPLIER_ID).videoRef).toBe('media/55555555-5555-4555-8555-555555555555');
   });
 });

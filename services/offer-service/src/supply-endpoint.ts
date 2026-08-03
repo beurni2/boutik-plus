@@ -69,7 +69,13 @@ export type ServeOutcome =
 export function assertServableValue(value: SupplyProjection, supplierId: string): SupplyProjection {
   const parsed = SupplyProjectionSchema.parse(value); // strict — throws on any extra key
   sweepIdentityKeys(parsed); // key-based teeth
-  assertAssetRefsIdentityFree(parsed.assetRefs, supplierId); // value-based teeth (canon v2.0.0)
+  // VIDEO-PRODUIT (canon v3.4.0): `videoRef` is the same AssetRef class as
+  // `assetRefs` and carries the same first-class rule — it MUST NEVER encode
+  // supplier identity — so it passes through the same value-side teeth.
+  assertAssetRefsIdentityFree(
+    [...parsed.assetRefs, ...(parsed.videoRef !== undefined ? [parsed.videoRef] : [])],
+    supplierId,
+  ); // value-based teeth (canon v2.0.0; videoRef since v3.4.0)
   return parsed;
 }
 

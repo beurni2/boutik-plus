@@ -144,6 +144,14 @@ export function buildSupplyProjection(
     // nothing ». There is no default here on purpose — a default would be this
     // service answering a question it cannot answer.
     ...(sellerTier !== undefined ? { sellerTier } : {}),
+    // VIDEO-PRODUIT (canon v3.4.0) — the short video's bare display ref,
+    // exactly as assetRefs carries the images: the ref alone, never the rich
+    // MediaRef (sha256/mimeType/durationSec stay producer-side — the 6 s bound
+    // was enforced at parse when the assets were STORED, so the wire needs no
+    // duration to re-check). Spread conditionally: no video ⇒ ABSENT key,
+    // canon's optional — never an explicit undefined. The out-guard's
+    // value-side identity check covers this ref too (supply-endpoint.ts).
+    ...(assets?.video !== undefined ? { videoRef: assets.video.ref } : {}),
   };
   return { ok: true, projection };
 }
