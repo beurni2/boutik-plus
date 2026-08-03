@@ -88,3 +88,61 @@ describe('the Produits LIST row plays the clip, not only the fiche', () => {
     expect(comps).toMatch(/photo\.kind === 'photo' && !broken && clipUri !== undefined/);
   });
 });
+
+/**
+ * CADRE-SUPPLIER (founder report 2026-08-03): « On produits when I tap the
+ * video product to see it, the frame becomes too big and filling the screen
+ * which is inappropriate to see and it's the same thing on the supplier's mes
+ * produits screen too and on there I can not tap to see other photos. »
+ *
+ * Two defects, and the first one's shape is the reason he saw it twice: both
+ * screens render THIS component, so an unbounded clip was one bug reported as
+ * two. The second is its own miss — the fournisseur card carried every capture
+ * on the wire and offered no way to open any of them.
+ */
+describe('CADRE-SUPPLIER — the clip is bounded, and his photos are reachable', () => {
+  const code = web.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const carte = readFileSync(join(__dirname, '..', 'src', 'fournisseur', 'FournisseurApp.tsx'), 'utf8');
+
+  it('THE CLIP HAS A HEIGHT CAP — `width: 100%` alone lets a portrait clip own the screen', () => {
+    // The exact defect: no height bound at all, so a tall clip renders taller
+    // than it is wide and pushes name, price and actions below the fold.
+    expect(code).toMatch(/maxHeight: 320/);
+    // …and `cover` at the cap, or a clip taller than 320 letterboxes inside
+    // its own frame — fixing the size while breaking the look.
+    expect(code).toMatch(/objectFit: 'cover'/);
+    expect(code).toMatch(/width: '100%'/);
+  });
+
+  it('ONE COMPONENT SERVES BOTH SCREENS — which is why the cap fixes both reports', () => {
+    expect(fiche).toContain('<FicheVideo');
+    expect(carte).toContain('<FicheVideo');
+  });
+
+  it('THE FOURNISSEUR CARD OPENS HIS PHOTOS — the identity thumb is a tap target', () => {
+    expect(carte).toContain('galleryPhotos(produit.assetRefs, mediaBase)');
+    expect(carte).toContain('<PhotoViewer photo={viewing} onClose={() => setViewing(null)} />');
+    // the 74px thumbnail opens the first photo…
+    expect(carte).toMatch(/onPress=\{\(\) => setViewing\(photos\[0\] \?\? null\)\}/);
+    // …and it must not offer a tap when there is nothing to open, which is the
+    // dead-affordance the honest-states law forbids.
+    expect(carte).toContain('disabled={photos.length === 0}');
+  });
+
+  it('EVERY OTHER CAPTURE IS REACHABLE — the actual sentence he wrote', () => {
+    // A strip of all photos, each its own tap target. Rendered only when there
+    // is more than one: repeating the single photo above it would be noise.
+    expect(carte).toMatch(/photos\.length > 1 &&/);
+    expect(carte).toMatch(/photos\.map\(\(ph\) => \([\s\S]{0,200}onPress=\{\(\) => setViewing\(ph\)\}/);
+  });
+
+  it('IT REUSES THE FICHE’S OWN VIEWER — the two surfaces cannot drift apart', () => {
+    // Both screens open photos through the same `galleryPhotos` + `PhotoViewer`
+    // pair, so labels, ordering and the private-ref filter stay identical.
+    expect(fiche).toContain('galleryPhotos(');
+    expect(fiche).toContain('PhotoViewer');
+    expect(carte).toContain('PhotoViewer');
+    // …and no second viewer was invented for this card
+    expect(carte).not.toContain('<Modal');
+  });
+});

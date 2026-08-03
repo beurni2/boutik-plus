@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input, PageTitle } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, Input, PageTitle, PhotoViewer } from '../v2/components';
 import { formatF } from '../v2/money';
 import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
@@ -28,7 +28,7 @@ import {
   type PretUi,
   type ProduitsRead,
 } from './view';
-import { photoSlot } from '../supply/produits-view';
+import { galleryPhotos, photoSlot, type GalleryPhoto } from '../supply/produits-view';
 import { FicheVideo } from '../v2/fiche-video';
 import type { ProduitVue } from './view';
 
@@ -202,6 +202,19 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
 function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: string | null }) {
   const slot = photoSlot(produit.assetRefs, mediaBase);
   const enLigne = produit.hiddenReason === undefined;
+  /**
+   * PHOTOS TAPPABLES (founder report 2026-08-03: « on there I can not tap to
+   * see other photos »). He was right: this card showed ONE 74px thumbnail and
+   * nothing opened, while the wire has carried every capture all along —
+   * `produit.assetRefs` is the same list his Produits fiche walks.
+   *
+   * Reuses `galleryPhotos` + `PhotoViewer`, the two pieces the fiche already
+   * uses, rather than inventing a viewer for this screen: one photo-opening
+   * behaviour in the app means the two surfaces cannot drift apart, and it adds
+   * no new French — the labels come from `galleryPhotos` as they do there.
+   */
+  const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
+  const photos = galleryPhotos(produit.assetRefs, mediaBase);
   return (
     <Card style={{ marginTop: 12, padding: 14 }}>
       {/* VIDEO-PARTOUT — his own clip, on his own surface. Under the row so the
@@ -209,7 +222,14 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
           the same photograph the thumbnail shows, so nothing flashes. */}
       <View style={{ flexDirection: 'row', gap: 12 }}>
         {slot.kind === 'photo' ? (
-          <Image source={{ uri: slot.uri }} style={{ width: 74, height: 74, borderRadius: 10 }} resizeMode="cover" />
+          // The identity thumbnail is now the tap target onto the first photo.
+          <Pressable
+            onPress={() => setViewing(photos[0] ?? null)}
+            accessibilityRole="button"
+            disabled={photos.length === 0}
+          >
+            <Image source={{ uri: slot.uri }} style={{ width: 74, height: 74, borderRadius: 10 }} resizeMode="cover" />
+          </Pressable>
         ) : (
           <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: P.borderCard, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={role({ f: 'IS', w: 400, s: 10 }, P.sub)}>{t(slot.message)}</Text>
@@ -226,10 +246,23 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
           </Text>
         </View>
       </View>
+      {/* …and EVERY OTHER capture, so « other photos » is not a promise the
+          identity thumbnail alone cannot keep. Only when there is more than
+          one: a strip repeating the single photo above it would be noise. */}
+      {photos.length > 1 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          {photos.map((ph) => (
+            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button">
+              <Image source={{ uri: ph.uri }} style={{ width: 56, height: 56, borderRadius: 8 }} resizeMode="cover" />
+            </Pressable>
+          ))}
+        </View>
+      )}
       <FicheVideo
         src={produit.videoRef === undefined || produit.videoRef === '' || mediaBase === null ? undefined : `${mediaBase}/${produit.videoRef}`}
         poster={slot.kind === 'photo' ? slot.uri : undefined}
       />
+      <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
     </Card>
   );
 }

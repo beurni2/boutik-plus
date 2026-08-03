@@ -2740,3 +2740,21 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 **Evidence:** supplier-app **649/649** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**.
 
 **MERGED AND DEPLOYED 2026-08-03** (founder: « On green merge and deploy »). CI `30796373532` green on `ed50a86` → fast-forward `b4f33ac..ed50a86` on main (guard: `merge-base --is-ancestor` passed) → **`web-deploy` run `30798270378` from main: success**. No service touched — supplier webapp only, so `offer-deploy`/`media-deploy`/`fournisseur-web-deploy` were correctly NOT run.
+
+### CADRE-SUPPLIER — the clip stops filling the screen, and his photos open
+
+**Founder, 2026-08-03:** « On produits when I tap the video product to see it, the frame becomes too big and filling the screen which is inappropriate to see and it's the same thing on the supplier's mes produits screen too and on there I can not tap to see other photos. »
+
+**Two defects. The first was ONE bug he correctly reported as two.** `fiche-video.web.tsx` styled the element `{ width: '100%', display: 'block' }` — **no height bound of any kind**. A portrait clip therefore renders taller than it is wide, which on a phone is most of the screen, pushing the name, the price and the actions below the fold. He is reading a product record, not watching a film. **Both the Produits fiche and the fournisseur card render that same component**, which is exactly why he saw it on both screens — so one cap fixes both reports.
+
+**`maxHeight: 320` + `objectFit: 'cover'`.** 320 keeps the clip to well under half a phone screen so the facts around it stay visible without scrolling. **`cover` is not decoration here:** without it a clip taller than the cap letterboxes inside its own frame — fixing the size while breaking the look. Both pinned; dropping either fails.
+
+**Second defect — « I can not tap to see other photos » — was a real miss of mine.** The fournisseur card rendered ONE 74px thumbnail and nothing opened, while `produit.assetRefs` has carried every capture all along: the same list his Produits fiche already walks. The card now opens them.
+
+**REUSED, NOT REBUILT:** `galleryPhotos` + `PhotoViewer`, the exact pair the fiche uses. One photo-opening behaviour in the app means the two surfaces cannot drift on labels, ordering or the `private/` filter — and it added **no new French**, since the labels come from `galleryPhotos`. Pinned that no second viewer was invented (`not.toContain('<Modal')`).
+
+**The identity thumbnail is now the tap target** onto the first photo, and **`disabled={photos.length === 0}`** so it never offers a tap that leads nowhere — the dead affordance the honest-states law forbids, and the one this change could most easily have introduced. A strip of every capture sits under the row, **only when there is more than one**: a strip repeating the single photo above it is noise.
+
+**Evidence:** supplier-app **654/654** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**. **Mutation-verified five ways** — cap removed ⇒ fails; `objectFit` dropped ⇒ fails; the strip removed ⇒ fails; the viewer removed ⇒ fails; the `disabled` guard removed ⇒ fails.
+
+**Scope:** supplier webapp only. No service, no wire, no canon — `web-deploy` and `fournisseur-web-deploy` are the two surfaces affected.
