@@ -5,10 +5,14 @@ import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
 import { S03Produits, SOffreFiche } from './screens1';
+import { ChipCategory } from './components';
 import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { mintCommandId } from '../offline/commandId';
 import { resolveMediaBase, resolveMediaService } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
+import { chipsProduits, fournisseursALire, fusionner, montreAttribution, type RangeeAttribuee } from './produits-filtre';
+import { lireFournisseurs } from './lister-pour-choix';
+import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
 import type { A, S } from './machine';
 
 /**
@@ -60,19 +64,58 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
    * offer has no entry in `st.products`, and the id-miss guard is not a fiche. */
   const [openOffer, setOpenOffer] = useState<SupplierOfferRow | null>(null);
   const inFlight = useRef(false);
+  // PRODUITS-PAR-FOURNISSEUR (founder order 2026-08-03) — he lists FOR every
+  // supplier and monitors all of them, so his own Produits screen filters by
+  // whose product it is. The roster is the SAME code inventory the publish
+  // picker reads with his ops key; no key in this browser ⇒ no chips, and the
+  // screen is exactly what it was before (his own products), never an empty
+  // filter row implying suppliers he cannot see.
+  const [roster, setRoster] = useState<readonly string[]>([]);
+  const [choix, setChoix] = useState<string>('');
+  /** Whose product each row is — only ever the id the READ was scoped to. */
+  const [attribue, setAttribue] = useState<readonly RangeeAttribuee[]>([]);
 
-  const load = async (): Promise<void> => {
+  useEffect(() => {
+    let alive = true;
+    const opsKey = readStoredOpsKey();
+    const ops = resolveOperationsService();
+    if (opsKey === null || ops === null) return undefined;
+    void lireFournisseurs(ops, opsKey).then((res) => {
+      if (alive && res.kind === 'liste') setRoster(res.ids);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const load = async (cible: string = choix): Promise<void> => {
     if (service === null || inFlight.current) return;
     inFlight.current = true;
     setRead({ kind: 'loading' });
     try {
-      const res = await service.listOffers(supplierId);
-      if (res.ok) {
-        cache.current = { rows: res.value.items, asOf: res.value.asOf };
-        setRead({ kind: 'ok', rows: res.value.items });
-      } else {
-        setRead({ kind: 'failed' });
+      // « Tous » is COMPOSED from reads he is entitled to make — the service
+      // requires a scope and answers 400 without one (see produits-filtre.ts).
+      const cibles = fournisseursALire(cible, roster, supplierId);
+      const blocs: { supplierId: string; rows: readonly SupplierOfferRow[] }[] = [];
+      let asOf: string | null = null;
+      for (const id of cibles) {
+        const res = await service.listOffers(id);
+        // ONE FAILED READ FAILS THE SCREEN, deliberately: a partial list that
+        // silently omits a supplier's products is the silent-disappearance
+        // family this project refuses. He retries and sees everything or a
+        // named failure — never a quiet half-truth.
+        if (!res.ok) {
+          setRead({ kind: 'failed' });
+          return;
+        }
+        blocs.push({ supplierId: id, rows: res.value.items });
+        asOf = res.value.asOf;
       }
+      const merged = fusionner(blocs);
+      setAttribue(merged);
+      const rows = merged.map((m) => m.row);
+      cache.current = { rows, asOf };
+      setRead({ kind: 'ok', rows });
     } finally {
       inFlight.current = false;
     }
@@ -145,7 +188,44 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     );
   }
 
-  if (view.kind === 'list') return <S03Produits rows={view.rows} mediaBase={mediaBase} d={d} header onOpen={setOpenOffer} />;
+  // PRODUITS-PAR-FOURNISSEUR — the chip row, ABOVE the list. `chipsProduits`
+  // answers [] when he is the only supplier, and then nothing renders: a filter
+  // that cannot filter is chrome. Tapping re-reads with the new scope, so the
+  // list on screen is always the list the service just answered — never a
+  // client-side slice of a stale merge pretending to be a fresh read.
+  const chips = chipsProduits(roster, supplierId);
+  const filtre =
+    chips.length === 0 ? null : (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 }}>
+        {chips.map((c) => (
+          <ChipCategory
+            key={c.id}
+            label={c.labelKey !== null ? t(c.labelKey) : c.id}
+            active={choix === c.id}
+            onPress={() => {
+              setChoix(c.id);
+              void load(c.id);
+            }}
+          />
+        ))}
+      </View>
+    );
+
+  if (view.kind === 'list') {
+    return (
+      <S03Produits
+        rows={view.rows}
+        mediaBase={mediaBase}
+        d={d}
+        header
+        onOpen={setOpenOffer}
+        filtre={filtre}
+        {...(montreAttribution(attribue.map((a) => a.supplierId))
+          ? { attribution: attribue.map((a) => a.supplierId) }
+          : {})}
+      />
+    );
+  }
 
   if (view.kind === 'failed') {
     return (

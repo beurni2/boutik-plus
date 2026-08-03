@@ -2697,3 +2697,25 @@ CI green on both branch heads before any merge: boutik **30778803823** (`5fff2cb
 Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) · shop **pwa-preview 30788357213** (`0ecb42f`) · boutik **offer-deploy 30788338727** (`b2b3489`, live-bundle assertion green) · boutik **web-deploy 30788391413** (`b2b3489`, cold-export sentinel green).
 
 **expo-preview DELIBERATELY NOT DISPATCHED — it would have crashed the reseller app.** That workflow runs `eas update`, an OTA JavaScript push. The new JS imports `expo-video`, whose NATIVE half is absent from the installed binary, so the app would fail at launch on the founder's phone. The safe order is: `eas build` → install the new binary → only then is the OTA channel usable again. Not run: a build produces an installable artifact and may need store/credential decisions that are the founder's. **« Opportunités » and « ma vitrine » therefore remain on photographs until that rebuild; every other surface is live.**
+
+## 2026-08-03 — the supplier surface plays the clip · PRODUITS-PAR-FOURNISSEUR
+
+**Two founder orders, one slice.**
+
+### 1. « Put the video as well on the supplier surface »
+
+**It was already arriving and being thrown away.** `/offers/mine` routes to the SAME `buildSupplierList` projection as the founder's own list (worker/index.ts → `offerRouter /offers?supplierId=<derived>`), so today's `videoRef` addition rode that wire the moment offer-service deployed. The fournisseur half only stopped discarding it: `ProduitRow.videoRef`, boundary-validated (a blank or non-string is NO clip), rendered through the SAME `FicheVideo` platform split the founder's fiche uses. The fournisseur artifact is a webapp, so its web half draws the real element. **The artifact capability gate stayed green** — the clip added no forbidden fingerprint.
+
+### 2. « Differentiate products from the suppliers … supplier A … supplier B … my own … All »
+
+**« Tous » is COMPOSED, never requested.** `GET /offers?supplierId=…` REQUIRES the scope and answers 400 `missing_supplier_id` without it (offer-do.ts) — deliberately, because an unscoped list of every offer on the platform is a capability nobody asked for, and the index DO carries no supplierId to build one from. So the screen fans out over the reads he is already entitled to make, one per supplier, and merges. **No new server capability, no new auth surface.**
+
+**The roster is the SAME code inventory the publish picker reads** with his ops key — an active personal code is what makes a supplier real, so the two screens cannot disagree about who exists. No key in this browser ⇒ no chips at all, and Produits is byte-identical to what it was.
+
+**Decisions pure and pinned first** (`produits-filtre.ts`, 14 tests): chips « Tous · Vous · others » with his own id folded into « Vous », and **[] when he is the only supplier — a filter that cannot filter is chrome**; the fan-out plan, deterministic (himself first, then others sorted — loi 5, no ranking); the merge, which **tags every row with the id the READ was scoped to, never a field on the row** — a scoped list carries no `supplierId`, so reading one would silently attribute every product to nobody (pinned with `expect('supplierId' in row).toBe(false)`); and the attribution line, shown ONLY when more than one supplier is on screen.
+
+**ONE FAILED READ FAILS THE SCREEN**, deliberately: a partial list that quietly omits a supplier's products is the silent-disappearance family this project refuses. He retries and sees everything, or a named failure — never a half-truth. Pinned.
+
+**Tapping a chip RE-READS with the new scope** rather than slicing a stale merge, so what is on screen is always what the service just answered. Pinned.
+
+**Evidence:** supplier-app **646/646** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` (the fournisseur artifact gate included).

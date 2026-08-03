@@ -85,3 +85,39 @@ describe('every key these chips can emit EXISTS in the catalog', () => {
     }
   });
 });
+
+/**
+ * THE WIRING, pinned at the source (the repo idiom for screens with no RN
+ * renderer): the decisions above are only worth anything if the screen
+ * actually uses them.
+ */
+describe('the Produits screen wires the decisions, not a second copy of them', () => {
+  const wrapper = readFileSync(join(__dirname, '..', 'src', 'v2', 'produits-real.tsx'), 'utf8');
+  const screen = readFileSync(join(__dirname, '..', 'src', 'v2', 'screens1.tsx'), 'utf8');
+
+  it('the read FANS OUT through the plan — never an unscoped list request', () => {
+    expect(wrapper).toContain('fournisseursALire(cible, roster, supplierId)');
+    expect(wrapper).toContain('service.listOffers(id)');
+    // the service refuses an unscoped read (400 missing_supplier_id), so an
+    // empty-string scope must never be constructed as a way to ask for "all".
+    expect(wrapper).not.toMatch(/listOffers\(\s*''\s*\)/);
+  });
+
+  it('ONE FAILED READ FAILS THE SCREEN — no partial list silently omitting a supplier', () => {
+    expect(wrapper).toMatch(/if \(!res\.ok\) \{[\s\S]{0,120}setRead\(\{ kind: 'failed' \}\);[\s\S]{0,40}return;/);
+  });
+
+  it('tapping a chip RE-READS with the new scope, never slices a stale merge', () => {
+    expect(wrapper).toMatch(/setChoix\(c\.id\);[\s\S]{0,60}void load\(c\.id\)/);
+  });
+
+  it('the attribution is passed ONLY when more than one supplier is on screen', () => {
+    expect(wrapper).toContain('montreAttribution(attribue.map((a) => a.supplierId))');
+  });
+
+  it('no roster ⇒ no chip row, and the screen renders exactly as before', () => {
+    // chipsProduits answers [] and the wrapper renders null for it.
+    expect(wrapper).toMatch(/chips\.length === 0 \? null :/);
+    expect(screen).toContain('{filtre}');
+  });
+});

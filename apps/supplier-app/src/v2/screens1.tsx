@@ -151,13 +151,24 @@ export function S02Accueil({ st, d, shopName, ownerName }: { st: S; d: D; shopNa
  * `st.products` holds no entry for one, so a tap would land on the id-miss
  * guard. A dead tap is worse than no tap; the detail screen is its own slice.
  */
-export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
+export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attribution }: {
   rows: readonly SupplierOfferRow[];
   mediaBase: string | null;
   d: D;
   header?: boolean;
   /** Opens the offer's fiche (founder device ruling 2026-07-26). */
   onOpen?: ((r: SupplierOfferRow) => void) | undefined;
+  /** PRODUITS-PAR-FOURNISSEUR — the supplier chip row, composed by the wrapper
+   *  (it owns the roster and the ops key). Absent ⇒ nothing renders, and this
+   *  screen is byte-identical to what it was. */
+  filtre?: React.ReactNode;
+  /**
+   * WHOSE product each row is, positionally aligned with `rows`. Present ONLY
+   * when more than one supplier is on screen (`montreAttribution`) — a label
+   * repeating the same id on every row of a single-supplier list teaches
+   * nothing. Absent ⇒ no line, exactly as before.
+   */
+  attribution?: readonly string[];
 }) {
   const live = rows.filter((r) => r.hiddenReason === undefined).length;
   // ONE COLUMN, LARGE CARDS (founder device ruling 2026-07-26: « make it more
@@ -169,18 +180,24 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
   // card column centers at the same cap the fiche uses; inert on phones).
   const body = (
     <View style={{ marginTop: 14, gap: GEO.gap.grid, width: '100%', maxWidth: PHOTO_COLUMN_MAX, alignSelf: 'center' }}>
-      {rows.map((r) => (
-        <OfferTile
-          key={r.offerId}
-          name={r.name}
-          priceF={formatF(r.basePrice)}
-          stock={r.available}
-          variants={r.variantsNote}
-          photo={photoSlot(r.assetRefs, mediaBase)}
-          hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
-          large
-          {...(onOpen === undefined ? {} : { onPress: () => onOpen(r) })}
-        />
+      {rows.map((r, i) => (
+        <View key={r.offerId}>
+          {attribution?.[i] !== undefined && (
+            <Text style={[role({ f: 'IS', w: 700, s: 11.5 }, P.sub), { marginBottom: 5 }]} numberOfLines={1}>
+              {attribution[i]}
+            </Text>
+          )}
+          <OfferTile
+            name={r.name}
+            priceF={formatF(r.basePrice)}
+            stock={r.available}
+            variants={r.variantsNote}
+            photo={photoSlot(r.assetRefs, mediaBase)}
+            hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
+            large
+            {...(onOpen === undefined ? {} : { onPress: () => onOpen(r) })}
+          />
+        </View>
       ))}
     </View>
   );
@@ -191,6 +208,7 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen }: {
       <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 4 }]}>
         {`${live} en ligne · photos sans prix incrusté`}
       </Text>
+      {filtre}
       <View style={{ marginTop: 16 }}>
         <BtnSoft label="Lister un produit — gratuit" icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
       </View>
