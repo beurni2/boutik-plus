@@ -15,7 +15,10 @@ export interface PickedVideo {
 
 export type PickVideoOutcome =
   | { readonly ok: true; readonly video: PickedVideo }
-  | { readonly ok: false; readonly reason: 'annule' | 'indisponible' };
+  /** `trop_lourde` fires on the FILE SIZE, before a byte is buffered (verifier
+   *  M3: a 200 MB pick used to be read fully into memory — twice — before the
+   *  refusal could render, on the 1 GB Androids this project targets). */
+  | { readonly ok: false; readonly reason: 'annule' | 'indisponible' | 'trop_lourde' };
 
 export async function pickVideo(): Promise<PickVideoOutcome> {
   return { ok: false, reason: 'indisponible' };

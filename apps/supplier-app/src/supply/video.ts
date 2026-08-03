@@ -62,7 +62,23 @@ export function avecVideo(assets: ProductAssetsInput, uploaded: VideoRefInput): 
     ref: uploaded.ref,
     sha256: uploaded.sha256,
     mimeType: uploaded.mimeType,
-    durationSec: Math.ceil(uploaded.durationSeconds),
+    // CLAMPED (verifier BLOCKER 2026-08-03): the service's accept set now
+    // equals canon's, but this weld must be UNABLE to produce an integer canon
+    // refuses regardless of what any measurement says — a 6.02 s measure must
+    // weld to 6, never ceil to the 7 that turned a publish into a raw 500.
+    durationSec: Math.min(VIDEO_MAX_SEC, Math.max(1, Math.ceil(uploaded.durationSeconds))),
   };
   return { ...assets, video };
+}
+
+/**
+ * The service's TYPED refusal, surfaced in his own words (verifier minor: every
+ * failure used to collapse into « la vidéo n'est pas partie », so a too-long
+ * clip read as a network problem). The reason rides the HTTP 400 body verbatim.
+ */
+export function videoEchecKey(httpReason: string): string {
+  if (httpReason.includes('"too_long"')) return 'publier.video_trop_longue';
+  if (httpReason.includes('"too_large"')) return 'publier.video_trop_lourde';
+  if (httpReason.includes('"unsupported_type"') || httpReason.includes('"unreadable_duration"')) return 'publier.video_illisible';
+  return 'publier.video_echec_envoi';
 }

@@ -282,9 +282,11 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 like 6 second max ») — the OPTIONAL clip lives on the media
                 step with the photos. Three honest states, decided by the
                 wrapper: none yet (the quiet add control — photos stay the
-                primary act of this screen), chosen (its measured seconds said
-                back), refused (the reason's own sentence and the control to
-                try another). */}
+                primary act of this screen), chosen (the calm « prête » — no
+                number: the stored `durationSec` is canon's CEILING, and saying
+                « 6 s » about a 5,3 s clip is a false measure — verifier minor
+                2026-08-03), refused (the reason's own sentence and the control
+                to try another). */}
             {video !== undefined && (
               <View style={{ marginTop: 18 }}>
                 <Overline>{tr('publier.video_titre')}</Overline>
@@ -293,7 +295,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                     <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: P.successBg }}>
                       <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
                       <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
-                        {`${tr('publier.video_prete')} · ${video.etat.durationSec} s`}
+                        {tr('publier.video_prete')}
                       </Text>
                     </View>
                     <View style={{ marginTop: 10 }}>

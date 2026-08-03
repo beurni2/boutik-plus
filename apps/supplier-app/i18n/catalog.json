@@ -1375,7 +1375,7 @@
   },
   {
     "key": "publier.video_hint",
-    "fr": "Elle passera en premier sur la boutique. Filmez court et près du produit.",
+    "fr": "Elle passera en premier sur la vitrine. Filmez court et près du produit.",
     "register": "selling",
     "screenClass": "instruction"
   },

@@ -56,7 +56,10 @@ export function sniffImage(bytes: Uint8Array): ImageFormat | null {
 }
 
 const be16 = (b: Uint8Array, at: number): number => (b[at]! << 8) | b[at + 1]!;
-const be32 = (b: Uint8Array, at: number): number => (b[at]! << 24) | (b[at + 1]! << 16) | (b[at + 2]! << 8) | b[at + 3]!;
+// UNSIGNED (verifier M2): the signed `|` version returned negatives for a set
+// high bit, so a 64-bit mvhd-v1 duration UNDERSTATED — a 16 s clip measured
+// 5.4 s and was accepted. `>>> 0` makes every word unsigned before composing.
+const be32 = (b: Uint8Array, at: number): number => (((b[at]! << 24) | (b[at + 1]! << 16) | (b[at + 2]! << 8) | b[at + 3]!) >>> 0);
 
 /** Read intrinsic dimensions from the header — pure JS, no image library. */
 export function imageDimensions(bytes: Uint8Array, fmt: ImageFormat): { width: number; height: number } | null {
@@ -99,10 +102,12 @@ export function imageDimensions(bytes: Uint8Array, fmt: ImageFormat): { width: n
  *  only in view), not by this bound. */
 export const VIDEO_MAX_BYTES = 12 * 1024 * 1024;
 
-/** The founder's bound (canon `PRODUCT_VIDEO_MAX_SEC`) + encoder jitter: a
- *  camera's « 6 second » clip routinely measures 6.02–6.05 s. Anything past
- *  this is a longer video, refused by name. */
-export const VIDEO_MAX_SECONDS = PRODUCT_VIDEO_MAX_SEC + 0.05;
+/** The founder's bound, EXACTLY canon's (verifier BLOCKER 2026-08-03): an
+ *  earlier +0.05 « jitter window » accepted measures in (6.0, 6.05] whose
+ *  welded integer ceiled to 7 — an unrepresentable canon value that turned a
+ *  publish into a raw 500. The accept set here must equal the representable
+ *  set: anything the door lets through can be welded and parsed everywhere. */
+export const VIDEO_MAX_SECONDS = PRODUCT_VIDEO_MAX_SEC;
 
 /** Magic sniff: an MP4-family container opens with a `ftyp` box at offset 4. */
 export function sniffMp4(bytes: Uint8Array): boolean {
@@ -110,12 +115,21 @@ export function sniffMp4(bytes: Uint8Array): boolean {
 }
 
 /**
- * The container's OWN duration — a pure top-level box walk to `moov`, then its
- * children to `mvhd` (v0 and v1 layouts), `duration / timescale`. `null` on any
- * malformation, and null is a REFUSAL upstream: the bound stays real.
+ * The container's OWN duration — a pure box walk, `null` on any malformation,
+ * and null is a REFUSAL upstream: the bound stays real.
+ *
+ * THE MOVIE HEADER IS A CLAIM, NOT A MEASUREMENT (verifier M1): players play
+ * TRACKS, and a container whose `mvhd` says 5 s over a 60 s `mdhd` track
+ * plays for 60. So this reads `mvhd` AND every `trak/mdia/mdhd`, and answers
+ * the MAXIMUM — the longest clock anything in the file claims. A track whose
+ * header cannot be read poisons the whole answer to null (a bound you can
+ * dodge by malforming one track is a suggestion).
  */
 export function mp4DurationSeconds(bytes: Uint8Array): number | null {
-  const walk = (from: number, to: number, want: string): { at: number; header: number; size: number } | null => {
+  interface Box { at: number; header: number; size: number }
+  const BAD: Box = { at: -1, header: 0, size: 0 };
+  const walkAll = (from: number, to: number, want: string): Box[] | null => {
+    const found: Box[] = [];
     let i = from;
     while (i + 8 <= to) {
       let size = be32(bytes, i);
@@ -128,36 +142,56 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
       } else if (size === 0) {
         size = to - i; // "to end of file"
       }
-      // A negative or undersized box is a malformed container, never a loop.
+      // An undersized box is a malformed container, never a loop.
       if (size < header) return null;
-      if (type === want) return { at: i, header, size };
+      if (type === want) found.push({ at: i, header, size });
       i += size;
+    }
+    return found;
+  };
+  const one = (from: number, to: number, want: string): Box => {
+    const all = walkAll(from, to, want);
+    return all === null || all.length === 0 ? BAD : all[0]!;
+  };
+  /** mvhd/mdhd share one layout family: version byte, then timescale+duration
+   *  at v0 offsets 12/16 (32-bit) or v1 offsets 20/24 (timescale 32, duration
+   *  64). Returns seconds, or null on any malformation. */
+  const headerSeconds = (box: Box, end: number): number | null => {
+    const p = box.at + box.header;
+    if (box.at < 0 || p >= end) return null;
+    const version = bytes[p]!;
+    if (version === 0) {
+      if (p + 20 > end) return null;
+      const timescale = be32(bytes, p + 12);
+      const duration = be32(bytes, p + 16);
+      return timescale > 0 ? duration / timescale : null;
+    }
+    if (version === 1) {
+      if (p + 32 > end) return null;
+      const timescale = be32(bytes, p + 20);
+      const duration = be32(bytes, p + 24) * 2 ** 32 + be32(bytes, p + 28);
+      return timescale > 0 ? duration / timescale : null;
     }
     return null;
   };
-  const moov = walk(0, bytes.length, 'moov');
-  if (moov === null) return null;
+  const moov = one(0, bytes.length, 'moov');
+  if (moov.at < 0) return null;
   const moovEnd = Math.min(moov.at + moov.size, bytes.length);
-  const mvhd = walk(moov.at + moov.header, moovEnd, 'mvhd');
-  if (mvhd === null) return null;
-  const p = mvhd.at + mvhd.header;
-  if (p >= moovEnd) return null;
-  const version = bytes[p]!;
-  if (version === 0) {
-    // version(1) flags(3) creation(4) modification(4) timescale(4) duration(4)
-    if (p + 20 > moovEnd) return null;
-    const timescale = be32(bytes, p + 12);
-    const duration = be32(bytes, p + 16);
-    return timescale > 0 ? duration / timescale : null;
+  const mvhdSec = headerSeconds(one(moov.at + moov.header, moovEnd, 'mvhd'), moovEnd);
+  if (mvhdSec === null) return null;
+  const traks = walkAll(moov.at + moov.header, moovEnd, 'trak');
+  if (traks === null) return null;
+  let max = mvhdSec;
+  for (const trak of traks) {
+    const trakEnd = Math.min(trak.at + trak.size, moovEnd);
+    const mdia = one(trak.at + trak.header, trakEnd, 'mdia');
+    if (mdia.at < 0) return null; // a track with no media header is malformed
+    const mdiaEnd = Math.min(mdia.at + mdia.size, trakEnd);
+    const sec = headerSeconds(one(mdia.at + mdia.header, mdiaEnd, 'mdhd'), mdiaEnd);
+    if (sec === null) return null; // an unreadable track clock poisons the answer
+    if (sec > max) max = sec;
   }
-  if (version === 1) {
-    // version(1) flags(3) creation(8) modification(8) timescale(4) duration(8)
-    if (p + 32 > moovEnd) return null;
-    const timescale = be32(bytes, p + 20);
-    const duration = be32(bytes, p + 24) * 2 ** 32 + be32(bytes, p + 28);
-    return timescale > 0 ? duration / timescale : null;
-  }
-  return null;
+  return max;
 }
 
 export type VideoRejectReason = 'empty' | 'too_large' | 'unsupported_type' | 'unreadable_duration' | 'too_long';

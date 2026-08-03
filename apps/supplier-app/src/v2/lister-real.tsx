@@ -65,7 +65,7 @@ import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 import { cleEchecHttp, supplierPourPublication } from './lister-pour';
 import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './lister-pour-choix';
-import { avecVideo, decideVideoChoisie, videoRefusKey } from '../supply/video';
+import { avecVideo, decideVideoChoisie, videoEchecKey, videoRefusKey } from '../supply/video';
 import { pickVideo } from '../studio/pick-video';
 import type { VideoEtat } from './screens2';
 import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
@@ -195,8 +195,10 @@ export function SListerReal({ st, d, captures, session }: {
   const onPickVideo = async (): Promise<void> => {
     const out = await pickVideo();
     if (!out.ok) {
-      // A dismissed sheet changes nothing; a platform without the picker says so.
+      // A dismissed sheet changes nothing; a platform without the picker says
+      // so; an oversized file is refused by its SIZE, before a byte buffers.
       if (out.reason === 'indisponible') setVideoEtat({ kind: 'refusee', key: 'publier.video_indisponible' });
+      if (out.reason === 'trop_lourde') setVideoEtat({ kind: 'refusee', key: videoRefusKey('trop_lourde') });
       return;
     }
     const choix = decideVideoChoisie(out.video.durationSeconds, out.video.bytes.length);
@@ -373,15 +375,20 @@ export function SListerReal({ st, d, captures, session }: {
           if (session.current.video !== null) {
             const up = await mediaService.uploadVideo(session.current.video.bytes);
             if (up.ok) assets = avecVideo(assets, up.value);
-            else setVideoNote('publier.video_echec_envoi');
+            // The service's typed 400 reason surfaces in its OWN sentence —
+            // « trop longue » must never read as a network failure.
+            else setVideoNote(up.cause === 'http' ? videoEchecKey(up.reason) : 'publier.video_echec_envoi');
           }
         } else {
           leftover = { uploads, bytes }; // publish without photos; complete after
         }
       }
       // A clip with NO photographs has nowhere to live (canon's photo roles
-      // are required) — said plainly rather than silently dropped.
-      if (session.current.video !== null && assets === undefined) {
+      // are required) — said plainly rather than silently dropped. ONLY when
+      // no photos were captured at all: on the leftover branch the completion
+      // path carries the clip with the retried photos, so this sentence there
+      // would be a false alarm (verifier finding 2026-08-03).
+      if (captures.current === null && session.current.video !== null) {
         setVideoNote('publier.video_sans_photos');
       }
 
@@ -431,7 +438,7 @@ export function SListerReal({ st, d, captures, session }: {
       if (session.current.video !== null) {
         const up = await mediaService.uploadVideo(session.current.video.bytes);
         if (up.ok) assetsToAttach = avecVideo(assetsToAttach, up.value);
-        else setVideoNote('publier.video_echec_envoi');
+        else setVideoNote(up.cause === 'http' ? videoEchecKey(up.reason) : 'publier.video_echec_envoi');
       }
       const res: ServiceResult<AttachAssetsOutcome> = await offerService.attachAssets({
         commandId: `${identity.current.commandId}-assets`, // stable per attempt → the attach is idempotent too

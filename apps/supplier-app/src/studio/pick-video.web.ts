@@ -15,6 +15,7 @@
  * answers the honest « indisponible ».
  */
 
+import { VIDEO_APP_MAX_BYTES } from '../supply/video';
 import type { PickedVideo, PickVideoOutcome } from './pick-video';
 
 interface VideoElLike {
@@ -27,6 +28,8 @@ interface VideoElLike {
 }
 
 interface FileLike {
+  /** Read BEFORE any buffering — the size gate must not cost the memory it guards. */
+  readonly size: number;
   arrayBuffer(): Promise<ArrayBuffer>;
 }
 
@@ -97,6 +100,10 @@ export async function pickVideo(): Promise<PickVideoOutcome> {
     input.click();
   });
   if (file === null) return { ok: false, reason: 'annule' };
+  // VERIFIER M3 — refuse an oversized pick BEFORE buffering it: `file.size`
+  // is metadata; `arrayBuffer()` is the whole clip in memory, twice (once
+  // here, once as the measuring Blob), held in the shell ref afterwards.
+  if (file.size > VIDEO_APP_MAX_BYTES) return { ok: false, reason: 'trop_lourde' };
   const bytes = new Uint8Array(await file.arrayBuffer());
   const video: PickedVideo = { bytes, durationSeconds: await measureDuration(bytes) };
   return { ok: true, video };

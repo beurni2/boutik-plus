@@ -65,6 +65,15 @@ function mvhdV1(timescale: number, duration: number): Uint8Array {
 
 const FTYP = boxOf('ftyp', new Uint8Array([0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0])); // brand "isom"
 
+/** mdhd shares mvhd's layout family — same forge, its own type tag. */
+function mdhdV0(timescale: number, duration: number): Uint8Array {
+  const p = new Uint8Array(100);
+  w32(p, 12, timescale);
+  w32(p, 16, duration);
+  return boxOf('mdhd', p);
+}
+const trakOf = (mdhd: Uint8Array): Uint8Array => boxOf('trak', boxOf('mdia', mdhd));
+
 /** A minimal true-to-spec container: ftyp, then moov carrying the mvhd. */
 const mp4Of = (seconds: number, v: 0 | 1 = 0): Uint8Array =>
   concat(FTYP, boxOf('moov', (v === 0 ? mvhdV0 : mvhdV1)(1_000, Math.round(seconds * 1_000))));
@@ -124,14 +133,45 @@ describe('uploadVideo — the founder’s bound is MEASURED, every refusal named
     expect(objects.get(out.video.key)?.contentType).toBe('video/mp4'); // the STORE holds the derived type
   });
 
-  it('exactly 6,0 s passes; encoder jitter (6,04 s) passes; 6,2 s is too_long — the bound is real', async () => {
+  it('exactly 6,0 s passes; 6,04 s REFUSES — the accept set IS canon\u2019s representable set', async () => {
+    // Verifier BLOCKER 2026-08-03: a « jitter window » past 6.0 accepted clips
+    // whose welded integer ceiled to 7 — unrepresentable in canon, so the
+    // publish 500\u2019d. Anything this door admits must weld to \u2264 6.
     const { bucket } = stubBucket();
     const svc = service(bucket);
     expect((await svc.uploadVideo(mp4Of(6.0), AT)).ok).toBe(true);
-    expect((await svc.uploadVideo(mp4Of(6.04), AT)).ok).toBe(true);
-    const long = await svc.uploadVideo(mp4Of(6.2), AT);
-    expect(long).toEqual({ ok: false, reason: 'too_long' });
-    expect(VIDEO_MAX_SECONDS).toBeLessThan(6.2); // the jitter window never stretches to a real 7th second
+    expect(await svc.uploadVideo(mp4Of(6.04), AT)).toEqual({ ok: false, reason: 'too_long' });
+    expect(await svc.uploadVideo(mp4Of(6.2), AT)).toEqual({ ok: false, reason: 'too_long' });
+    expect(VIDEO_MAX_SECONDS).toBe(6); // canon\u2019s own number, no window
+  });
+
+  it('a LYING mvhd cannot understate: the longest TRACK clock wins (verifier M1)', async () => {
+    // mvhd says 5 s; a track\u2019s own mdhd says 60 s — players play tracks,
+    // so the measure is 60 and the door refuses.
+    const lying = concat(FTYP, boxOf('moov', concat(mvhdV0(1_000, 5_000), trakOf(mdhdV0(1_000, 60_000)))));
+    expect(mp4DurationSeconds(lying)).toBe(60);
+    const { bucket } = stubBucket();
+    expect(await service(bucket).uploadVideo(lying, AT)).toEqual({ ok: false, reason: 'too_long' });
+    // …and a track whose clock cannot be read POISONS the answer to null.
+    const poisoned = concat(FTYP, boxOf('moov', concat(mvhdV0(1_000, 5_000), trakOf(mdhdV0(0, 60_000)))));
+    expect(mp4DurationSeconds(poisoned)).toBeNull();
+  });
+
+  it('the 64-bit v1 duration is read UNSIGNED — a high bit no longer understates (verifier M2)', async () => {
+    // timescale 400 000 000, duration hi=1 lo=0x80000000 \u2248 16.106 s: the
+    // signed read answered 5.369 s and ACCEPTED it.
+    const payload = new Uint8Array(112);
+    payload[0] = 1;
+    w32(payload, 20, 400_000_000);
+    w32(payload, 24, 1);
+    w32(payload, 28, 0x80000000);
+    const fixed = concat(FTYP, boxOf('moov', boxOf('mvhd', payload)));
+    const measured = mp4DurationSeconds(fixed);
+    expect(measured).not.toBeNull();
+    expect(measured!).toBeGreaterThan(16);
+    expect(measured!).toBeLessThan(16.2);
+    const { bucket } = stubBucket();
+    expect(await service(bucket).uploadVideo(fixed, AT)).toEqual({ ok: false, reason: 'too_long' });
   });
 
   it('a PHOTO on the video route refuses as unsupported_type — the sniff decides, not the route name', async () => {
