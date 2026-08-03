@@ -2627,3 +2627,21 @@ Founder asked for the fresh-context pass, then « fix whatever it finds ». The 
 **The ride:** the clip lives in the SHELL session (survives the studio round-trip; resets on OPEN_WIZ — a clip picked for product A never rides product B, pin evolved). At publish it uploads and WELDS onto assembled photo assets — `durationSec` = ceil of the SERVICE's measured clock, never the device's; canon requires the photo roles, so no photos ⇒ the honest « la vidéo part avec les photos » note, and the completion path uploads + welds it with them. A failed video upload NEVER blocks a publish — the product goes out and the pane says the video did not ride.
 
 **Evidence:** supplier-app **617/617** (5 new in `supply-video.test.ts`: ceil/bound/honesty, byte ceiling at the mirror, every key exists, weld verbatim + pure) · `tsc --noEmit` clean · **gates board exit 0, ALL GATES GREEN** (fournisseur artifact unaffected — the video path lives behind the v2 fold). Remaining: V-1d shop half (intake → customer view → reseller fiche) · V-1e playback.
+
+## 2026-08-03 — VIDEO-PRODUIT family verifier round: FAIL → fixed (B1 + M1–M5 + minors)
+
+**Fresh-context verifier over the whole family (founder order), verdict FAIL.** Every finding fixed on this branch, each fix pinned by a test that dies on the tempting wrong build:
+
+**B1 (blocker) — the three gates disagreed.** The device gate ceiled the browser measure to ≤ 6, the service gate accepted raw ≤ 6.05 (jitter window), canon refuses > 6 — so a camera clip measuring 6.02 s passed the door, welded `durationSec: 7`, and canon 500'd the publish; on the completion path the same clip 400'd and BLOCKED the photos. Fix, both ends: `VIDEO_MAX_SECONDS = PRODUCT_VIDEO_MAX_SEC` (the service accept set IS canon's representable set — the jitter window died with it), and the weld clamps `Math.min(6, Math.max(1, ceil))` so no measurement can produce an integer canon refuses.
+
+**M1 — the lying mvhd.** The duration came from `moov/mvhd` alone — a header CLAIM. A forged 5 s mvhd over a 60 s track passed. Now: read mvhd AND every `trak/mdia/mdhd`, answer the MAX (tracks are what plays); any unreadable track clock poisons to `null` → refusal.
+
+**M2 — signed be32.** The box reader assembled 32-bit values with signed shifts; a v1 duration with the high bit set went NEGATIVE and understated into acceptance. `>>> 0` throughout; pinned with a v1 high-bit fixture (~16.1 s must refuse).
+
+**M3 — the 200 MB buffer.** The web pick called `arrayBuffer()` before any size check — the whole clip in memory twice on a 1 GB Android before the refusal could render. `file.size` (metadata) now gates BEFORE buffering; new `trop_lourde` pick outcome, its own sentence.
+
+**M5 — the weld ceil was unpinned.** A constant-6 mutation stayed green. New pins: 2.3 ⇒ 3 · 6.02 ⇒ 6 · 0.4 ⇒ 1; both mutants (constant weld, clamp dropped) verified dead, then reverted.
+
+**Minors:** the service's typed 400 reason now surfaces in its OWN sentence at BOTH weld sites (`videoEchecKey`, mapping tested — « trop longue » no longer reads as a network failure) · `video_sans_photos` narrowed to `captures === null` (on the leftover branch the completion path carries the clip — the note there was a false alarm) · the « Vidéo prête » chip drops the number (the stored int is canon's CEILING; « 6 s » about a 5,3 s clip is a false measure) · `video_hint` names the vitrine.
+
+**Evidence:** media-service **83/83** (lying-mvhd · poisoned track · v1 high-bit · 6.04 refuses · bound === 6) · supplier-app **623/623** · tsc clean both · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` · three mutants installed and killed, file restored byte-identical each time. Shop half of the round (M4) journalled in shop-plus.
