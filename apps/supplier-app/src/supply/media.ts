@@ -43,6 +43,21 @@ export interface MediaServicePort {
    * idempotent, so a replay after a lost answer converges.
    */
   revokeImage(ref: string): Promise<ServiceResult<RevokedImage>>;
+  /**
+   * VIDEO-PRODUIT-1c — upload the ≤ 6 s product clip. The service MEASURES the
+   * duration from the container's own header and refuses too_long/unreadable
+   * by name; the returned `durationSeconds` is the measured value the caller
+   * turns into canon's integer `durationSec` (ceil) — never its own clock.
+   */
+  uploadVideo(bytes: Uint8Array): Promise<ServiceResult<VideoRefInput>>;
+}
+
+/** What the video door answers: the MediaRef fields + the MEASURED duration. */
+export interface VideoRefInput {
+  readonly ref: string;
+  readonly sha256: string;
+  readonly mimeType: string;
+  readonly durationSeconds: number;
 }
 
 /** The OS digest over the exact bytes — lowercase hex, canon's sha256 shape. */
@@ -106,6 +121,49 @@ export class HttpMediaService implements MediaServicePort {
       return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     }
     return { ok: true, value: { ref: image.ref, sha256, mimeType: image.contentType } };
+  }
+
+  async uploadVideo(bytes: Uint8Array): Promise<ServiceResult<VideoRefInput>> {
+    // Same laws as uploadImage: hash BEFORE upload over the same bytes; raw
+    // body; the service's typed refusals travel verbatim (too_long,
+    // unreadable_duration, too_large, unsupported_type — his screen says why).
+    const sha256 = await sha256Hex(bytes);
+    let res: Response;
+    try {
+      res = await fetch(`${this.base.replace(/\/+$/, '')}/media/video`, {
+        method: 'POST',
+        headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
+        body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
+      });
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    if (!res.ok) {
+      return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    // Strict read, the port's standing law: a half-formed answer is unreadable.
+    const r = parsed as Record<string, unknown> | null;
+    if (
+      r === null || typeof r !== 'object' ||
+      typeof r['ref'] !== 'string' || r['ref'] === '' ||
+      typeof r['contentType'] !== 'string' || r['contentType'] === '' ||
+      typeof r['durationSeconds'] !== 'number' || !(r['durationSeconds'] > 0)
+    ) {
+      return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    }
+    return { ok: true, value: { ref: r['ref'], sha256, mimeType: r['contentType'], durationSeconds: r['durationSeconds'] } };
   }
 
   async revokeImage(ref: string): Promise<ServiceResult<RevokedImage>> {
