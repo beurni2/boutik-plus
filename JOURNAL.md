@@ -2728,3 +2728,13 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 · **fournisseur-web-deploy 30795924362** (`b4f33ac`) — the supplier surface at `boutik-plus-fournisseur.pages.dev`, now playing the clip. **« Assert the capability ruling ON THE EXACT DIST THIS JOB DEPLOYS » passed** — video added NO forbidden capability to that artifact, which is the property that lets the link be handed to a supplier at all.
 
 **Unchanged and still pending:** the reseller app's `eas build` (« opportunités » and « ma vitrine » stay on photographs until the founder runs it).
+
+### Founder report « video is not playing … only the buyer's pwa » — PLACEMENT, not plumbing
+
+**Diagnosed by reading, not guessing.** The url join was never wrong: `photoSlot` builds `${mediaBase}/${ref}` and the clip used the identical join, so photos and clips could not disagree about where media lives. The cause was **where I put the element**: on Boutik+ the clip lived in `SOffreFiche` ONLY (screens1.tsx:271), so the Produits **LIST** — the screen he actually watches — showed nothing until he tapped into a product. The supplier surface already played it on the card. My own inconsistency between two surfaces built in the same slice.
+
+**Fix:** `OfferTile` takes an optional `clipUri` and plays the clip IN PLACE OF the photograph, with that photograph as poster. So a glance at Produits now shows which products carry a clip, no tapping. The photo branch is untouched for every product without one, and `!broken` guards BOTH branches — an image that failed to load falls to the designed placeholder rather than a player floating on nothing.
+
+**Three pins added** so the two surfaces cannot drift apart again: the row passes its clip through the SAME media base as its photograph (and passes NO clip prop when the base is null, matching `photoSlot`'s « unavailable »); the tile plays it with the photo as poster; the broken-photo guard covers the clip branch too.
+
+**Evidence:** supplier-app **649/649** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**.

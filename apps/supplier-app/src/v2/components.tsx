@@ -6,6 +6,7 @@
  * first (founder order 2026-07-17).
  */
 import { useState, type ReactNode } from 'react';
+import { FicheVideo } from './fiche-video';
 import { Image, Modal, Pressable, Text, TextInput, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Rect, Stop, Circle } from 'react-native-svg';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
@@ -395,7 +396,7 @@ export function PhotoViewer({ photo, onClose }: { photo: { uri: string; label: s
 /** Full-width card image height (founder: « more bigger so I can see clearly »). App-local geometry. */
 const OFFER_IMG_LARGE = 210;
 
-export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, style, onPress, large }: {
+export function OfferTile({ name, priceF, stock, variants, photo, clipUri, hiddenNote, style, onPress, large }: {
   name: string;
   priceF: string;
   stock: number;
@@ -403,6 +404,13 @@ export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, st
   /** THREE facts, not two — a photograph, an honest absence, or « we cannot
    * fetch it ». Decided purely in `supply/produits-view.ts`. */
   photo: PhotoSlot;
+  /**
+   * VIDEO-PARTOUT — the ≤ 6 s clip's absolute url when this product has one.
+   * It plays IN PLACE OF the photograph (the photo stays its poster), so the
+   * founder sees at a glance which products carry a clip without tapping into
+   * each fiche. Absent ⇒ the photograph alone, exactly as before.
+   */
+  clipUri?: string | undefined;
   /** Present ⇒ Shop+ is not showing this offer, and this is the sentence for why. */
   hiddenNote?: string | undefined;
   style?: StyleProp<ViewStyle>;
@@ -416,7 +424,9 @@ export function OfferTile({ name, priceF, stock, variants, photo, hiddenNote, st
   const Wrap = onPress === undefined ? View : Pressable;
   return (
     <Wrap style={[s.tile, style]} {...(onPress === undefined ? {} : { onPress, accessibilityRole: 'button' as const })}>
-      {photo.kind === 'photo' && !broken ? (
+      {photo.kind === 'photo' && !broken && clipUri !== undefined && clipUri !== '' ? (
+        <FicheVideo src={clipUri} poster={photo.uri} />
+      ) : photo.kind === 'photo' && !broken ? (
         <Image
           source={{ uri: photo.uri }}
           // LARGE CARDS SHOW THE WHOLE PHOTOGRAPH (founder live report

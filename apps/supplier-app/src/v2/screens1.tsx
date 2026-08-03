@@ -189,6 +189,9 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
           )}
           <OfferTile
             name={r.name}
+            {...(r.videoRef === undefined || r.videoRef === '' || mediaBase === null
+              ? {}
+              : { clipUri: `${mediaBase}/${r.videoRef}` })}
             priceF={formatF(r.basePrice)}
             stock={r.available}
             variants={r.variantsNote}

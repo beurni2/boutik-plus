@@ -58,3 +58,33 @@ describe('the fiche wires it to the REAL row, through the same media base as the
     expect(fiche).toContain('<FicheVideo src={clipUri} poster={photos[0]?.uri} />');
   });
 });
+
+/**
+ * FOUNDER REPORT 2026-08-03 — « video is not playing … only the buyer's pwa ».
+ * The cause was PLACEMENT, not plumbing: on Boutik+ the clip lived on the fiche
+ * only, so the Produits LIST — the screen he actually watches — showed nothing
+ * until he tapped into a product. The supplier surface already played it on the
+ * card. These pin the list row, so the two surfaces cannot drift apart again.
+ */
+describe('the Produits LIST row plays the clip, not only the fiche', () => {
+  const screens = readFileSync(join(__dirname, '..', 'src', 'v2', 'screens1.tsx'), 'utf8');
+  const comps = readFileSync(join(__dirname, '..', 'src', 'v2', 'components.tsx'), 'utf8');
+
+  it('the row passes its clip through the SAME media base as its photograph', () => {
+    expect(screens).toContain('clipUri: `${mediaBase}/${r.videoRef}`');
+    // no base ⇒ no clip prop at all, exactly as photoSlot answers « unavailable »
+    expect(screens).toMatch(/r\.videoRef === undefined \|\| r\.videoRef === '' \|\| mediaBase === null/);
+  });
+
+  it('the tile plays the clip WITH the photograph as poster, and falls back to the photo', () => {
+    expect(comps).toContain('<FicheVideo src={clipUri} poster={photo.uri} />');
+    // the photo branch survives untouched for every product without a clip
+    expect(comps).toMatch(/photo\.kind === 'photo' && !broken \? \(\s*<Image/);
+  });
+
+  it('a broken photograph still wins over the clip — the tile never shows a player over a dead frame', () => {
+    // `!broken` guards BOTH branches: an image that failed to load falls to the
+    // designed placeholder rather than a video floating on nothing.
+    expect(comps).toMatch(/photo\.kind === 'photo' && !broken && clipUri !== undefined/);
+  });
+});
