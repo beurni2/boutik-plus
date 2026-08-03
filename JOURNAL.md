@@ -2758,3 +2758,5 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 **Evidence:** supplier-app **654/654** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**. **Mutation-verified five ways** — cap removed ⇒ fails; `objectFit` dropped ⇒ fails; the strip removed ⇒ fails; the viewer removed ⇒ fails; the `disabled` guard removed ⇒ fails.
 
 **Scope:** supplier webapp only. No service, no wire, no canon — `web-deploy` and `fournisseur-web-deploy` are the two surfaces affected.
+
+**MERGED AND DEPLOYED 2026-08-03** (founder: « Go »). CI `30843280533` green on `702dd75` → fast-forward `ed50a86..702dd75` on main (guard passed) → **both supplier surfaces, because both render the capped component**: `web-deploy` `30844779832` success · `fournisseur-web-deploy` `30844787455` success. No service redeployed — nothing server-side changed.
