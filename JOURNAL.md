@@ -2691,3 +2691,9 @@ CI green on both branch heads before any merge: boutik **30778803823** (`5fff2cb
 **Evidence:** supplier-app **632/632** · offer-service **198/198** · tsc exit 0 both · **gates board exit 0, ALL GATES GREEN**, whole-log zero `GATE FAILED` · copy-lint **432 entries, 0 violations**.
 
 **THE FAMILY IS COMPLETE** — five surfaces: buyer vitrine (every card) · opportunités wire · opportunités + ma vitrine (reseller app, `expo-video`) · buyer product page C1 · Boutik+ « Mes produits ». **Deploy note that has not changed: the reseller app needs a NATIVE BUILD, not an OTA update.**
+
+**MERGED AND DEPLOYED (2026-08-03, founder « Yes go ahead »).** CI green on both branch heads first: boutik **30788049438** (`b2b3489`) · shop **30788044527** (`0ecb42f`). Mains fast-forwarded `cde787a..b2b3489` (boutik) and `1ae7720..0ecb42f` (shop), ancestry checked, shas from `git rev-parse`.
+
+Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) · shop **pwa-preview 30788357213** (`0ecb42f`) · boutik **offer-deploy 30788338727** (`b2b3489`, live-bundle assertion green) · boutik **web-deploy 30788391413** (`b2b3489`, cold-export sentinel green).
+
+**expo-preview DELIBERATELY NOT DISPATCHED — it would have crashed the reseller app.** That workflow runs `eas update`, an OTA JavaScript push. The new JS imports `expo-video`, whose NATIVE half is absent from the installed binary, so the app would fail at launch on the founder's phone. The safe order is: `eas build` → install the new binary → only then is the OTA channel usable again. Not run: a build produces an installable artifact and may need store/credential decisions that are the founder's. **« Opportunités » and « ma vitrine » therefore remain on photographs until that rebuild; every other surface is live.**
