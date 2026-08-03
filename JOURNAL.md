@@ -2738,3 +2738,5 @@ Four deploys, all success: shop **storefront-deploy 30788356017** (`0ecb42f`) ·
 **Three pins added** so the two surfaces cannot drift apart again: the row passes its clip through the SAME media base as its photograph (and passes NO clip prop when the base is null, matching `photoSlot`'s « unavailable »); the tile plays it with the photo as poster; the broken-photo guard covers the clip branch too.
 
 **Evidence:** supplier-app **649/649** · tsc exit 0 · **gates board exit 0, ALL GATES GREEN**.
+
+**MERGED AND DEPLOYED 2026-08-03** (founder: « On green merge and deploy »). CI `30796373532` green on `ed50a86` → fast-forward `b4f33ac..ed50a86` on main (guard: `merge-base --is-ancestor` passed) → **`web-deploy` run `30798270378` from main: success**. No service touched — supplier webapp only, so `offer-deploy`/`media-deploy`/`fournisseur-web-deploy` were correctly NOT run.
