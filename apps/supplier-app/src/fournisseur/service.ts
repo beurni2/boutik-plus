@@ -54,6 +54,13 @@ export interface ProduitRow {
   readonly basePrice: number;
   readonly available: number;
   readonly assetRefs: readonly string[];
+  /**
+   * VIDEO-PARTOUT (founder order 2026-08-03: « Put the video as well on the
+   * supplier surface »). It ALREADY arrived on this wire — `/offers/mine` runs
+   * the same `buildSupplierList` projection as the founder's own list — so this
+   * field only stops discarding it. Absent ⇒ the product has no clip.
+   */
+  readonly videoRef?: string;
   readonly variantsNote?: string;
   /** ABSENT means live to resellers right now; present names WHY it is not —
    *  the refusal ladder's own reason, never a local re-derivation. */
@@ -243,6 +250,9 @@ function readProduitRow(value: unknown): ProduitRow | null {
     basePrice: r['basePrice'] as number,
     available: r['available'] as number,
     assetRefs: r['assetRefs'] as readonly string[],
+    // Boundary-validated like every other field: a non-string or a blank is NO
+    // clip, never a key that exists with nothing behind it.
+    ...(typeof r['videoRef'] === 'string' && r['videoRef'] !== '' ? { videoRef: r['videoRef'] } : {}),
     ...(r['variantsNote'] === undefined ? {} : { variantsNote: r['variantsNote'] as string }),
     ...(r['hiddenReason'] === undefined ? {} : { hiddenReason: r['hiddenReason'] as Exclude<ProduitRow['hiddenReason'], undefined> }),
   };

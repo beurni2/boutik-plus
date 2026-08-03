@@ -1572,6 +1572,18 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.filtre_tous",
+    "fr": "Tous",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.filtre_vous",
+    "fr": "Vous",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "produits.sans_photo",
     "fr": "Sans photo",
     "register": "neutral",

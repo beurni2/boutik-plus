@@ -29,6 +29,7 @@ import {
   type ProduitsRead,
 } from './view';
 import { photoSlot } from '../supply/produits-view';
+import { FicheVideo } from '../v2/fiche-video';
 import type { ProduitVue } from './view';
 
 /**
@@ -203,6 +204,9 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
   const enLigne = produit.hiddenReason === undefined;
   return (
     <Card style={{ marginTop: 12, padding: 14 }}>
+      {/* VIDEO-PARTOUT — his own clip, on his own surface. Under the row so the
+          photo/name/price line he already reads keeps its shape; the poster is
+          the same photograph the thumbnail shows, so nothing flashes. */}
       <View style={{ flexDirection: 'row', gap: 12 }}>
         {slot.kind === 'photo' ? (
           <Image source={{ uri: slot.uri }} style={{ width: 74, height: 74, borderRadius: 10 }} resizeMode="cover" />
@@ -222,6 +226,10 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
           </Text>
         </View>
       </View>
+      <FicheVideo
+        src={produit.videoRef === undefined || produit.videoRef === '' || mediaBase === null ? undefined : `${mediaBase}/${produit.videoRef}`}
+        poster={slot.kind === 'photo' ? slot.uri : undefined}
+      />
     </Card>
   );
 }
