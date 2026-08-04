@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DELIVERY_FAILURE_REASONS } from '@platform/contracts';
 import {
   DISPATCH_TIMEOUT_MS,
+  MOTIFS_GRAVES,
+  MOTIFS_ORDINAIRES,
+  MOTIFS_REFUS,
+  PREMIER_GRAVE,
   clearStoredCleC,
+  libelleMotif,
   readStoredCleC,
   resolveDispatchService,
+  resolveRefusService,
   storeCleC,
 } from '../src/operations/dispatch-service';
 import {
@@ -823,5 +830,201 @@ describe('BC-1c — every read ends in a NAMED state (founder-found: the door sa
   it('the timeout is REAL time, not a knob a slow link can widen — and it is bounded well under a minute', () => {
     expect(DISPATCH_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000);
     expect(DISPATCH_TIMEOUT_MS).toBeLessThanOrEqual(30_000);
+  });
+});
+
+/* ═════ SP6.3 — recording ONE doorstep refusal from the console (§6.4) ═════ */
+
+describe('SP6.3 — the refusal vocabulary the console offers: canon’s, minus the one reason that is not hers', () => {
+  it('MOTIFS_REFUS is EXACTLY canon’s delivery-failure set minus provider_failure — a canon addition turns this red rather than silently un-recordable', () => {
+    // DERIVED, NOT RESTATED. The console's list is hand-ordered (a tired thumb
+    // meets the everyday reasons first), so its ORDER is ours — but its
+    // MEMBERSHIP is canon's, and this is where the two are held together. The
+    // day `DELIVERY_FAILURE_REASONS` grows an eighth buyer reason, the operator
+    // must be able to pick it; without this line he simply never could.
+    const canon = DELIVERY_FAILURE_REASONS.filter((r) => r !== 'provider_failure');
+    expect(new Set(MOTIFS_REFUS)).toEqual(new Set(canon));
+    expect(MOTIFS_REFUS).toHaveLength(canon.length); // no duplicates hiding in the set
+  });
+
+  it('provider_failure is NOT offerable — our own provider dying is never a reason to move HER standing', () => {
+    // §6.4: « Honest absence / provider failure do NOT escalate ». honest_absence
+    // is on the list because a rider must be able to record a true absence;
+    // provider_failure is not, because it is not a thing that happened at her
+    // door and no operator standing there should be able to name it.
+    expect((MOTIFS_REFUS as readonly string[]).includes('provider_failure')).toBe(false);
+    expect(DELIVERY_FAILURE_REASONS).toContain('provider_failure'); // …and canon DOES have it: the exclusion is a choice, not an omission
+  });
+
+  it('the two GRAVE reasons are last and contiguous, and PREMIER_GRAVE points at the seam the screen draws', () => {
+    expect(MOTIFS_GRAVES).toEqual(['repeated_abuse', 'fraud']);
+    // the composition, not a re-typed list: ordinary block, then grave block
+    expect(MOTIFS_REFUS).toEqual([...MOTIFS_ORDINAIRES, ...MOTIFS_GRAVES]);
+    // …and no grave reason leaks into the ordinary block, which is what makes
+    // « the last two » a true description of where the divider goes
+    for (const grave of MOTIFS_GRAVES) expect(MOTIFS_ORDINAIRES).not.toContain(grave);
+    expect(PREMIER_GRAVE).toBe(MOTIFS_GRAVES[0]);
+    expect(MOTIFS_REFUS.indexOf(PREMIER_GRAVE)).toBe(MOTIFS_ORDINAIRES.length);
+    // the seam is not at either end: there IS an ordinary block above it and a
+    // grave block below (a fixture where MOTIFS_ORDINAIRES were empty would
+    // make the index assertion above pass while the divider meant nothing)
+    expect(MOTIFS_ORDINAIRES.length).toBeGreaterThan(0);
+    expect(MOTIFS_GRAVES.length).toBeGreaterThan(0);
+  });
+
+  it('conformity_mismatch IS offerable and sits in the ORDINARY block — an operator facing a wrong article must have a true option', () => {
+    // §6.4 never counts it against her (pinned in commerce-core). If it were
+    // missing here, an honest operator would reach for « elle a changé d'avis »
+    // and a buyer would take a fault for OUR mistake; if it were down among the
+    // grave two, the screen would frame our error as her abuse.
+    expect(MOTIFS_ORDINAIRES).toContain('conformity_mismatch');
+    expect(MOTIFS_GRAVES).not.toContain('conformity_mismatch');
+    expect(MOTIFS_REFUS.indexOf('conformity_mismatch')).toBeLessThan(MOTIFS_REFUS.indexOf(PREMIER_GRAVE));
+  });
+
+  it('every reason has its own catalog sentence — distinct, non-empty, and none of them naming the system’s word for it', () => {
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    const labels: string[] = [];
+    for (const motif of MOTIFS_REFUS) {
+      const key = libelleMotif(motif);
+      expect(key, motif).toBe(`refus.${motif}`);
+      const label = fr.get(key);
+      expect(label, `${key} missing from catalog`).toBeTruthy();
+      // the operator reads French, never the wire code: a label that leaked
+      // « conformity_mismatch » onto the screen would fail the 5-second test
+      expect(label, key).not.toContain(motif);
+      labels.push(label!);
+    }
+    // two reasons that read identically would make the grave tap invisible
+    expect(new Set(labels).size).toBe(MOTIFS_REFUS.length);
+  });
+
+  it('the wrong-article reassurance exists and says it does NOT count against her — the sentence that makes the true reason the easy one', () => {
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    const note = (fr.get('refus.note_conformite') ?? '').toLowerCase();
+    expect(note).not.toBe('');
+    expect(note).toContain('jamais');
+    expect(note).toContain('elle');
+  });
+});
+
+describe('SP6.3 — the refusal port: one field crosses, and the buyer is never one of them', () => {
+  const CHECKOUT = 'EXPO_PUBLIC_SHOP_CHECKOUT_BASE';
+
+  it('POSTs to /checkout/dispatch/{orderId}/refusal on the SHOP base with key C, and a body of EXACTLY {reason}', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example/');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true })));
+    expect(await resolveRefusService()!.signalerRefus('cle-c', 'ord-7', 'change_of_mind')).toEqual({ ok: true });
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('https://shop.example/checkout/dispatch/ord-7/refusal'); // trailing slash trimmed
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-c');
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    expect(body).toEqual({ reason: 'change_of_mind' });
+    // THE CONTROL ASSERTION, and the reason this route exists in this shape:
+    // the buyer is keyed from the ORDER server-side, so no field here may name
+    // her. `toEqual` above already forbids extras — this states it as the
+    // property, so a future field added « harmlessly » reads as the violation
+    // it is rather than as a fixture that needs updating.
+    expect(Object.keys(body)).toEqual(['reason']);
+    expect(Object.keys(body)).not.toContain('phone');
+  });
+
+  it('the orderId is percent-encoded — a slash in an id can never walk out of its path segment', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true })));
+    await resolveRefusService()!.signalerRefus('k', 'ord/../evil', 'fraud');
+    expect(spy.mock.calls[0]![0]).toBe('https://shop.example/checkout/dispatch/ord%2F..%2Fevil/refusal');
+  });
+
+  it('401 → bad_key · BOTH 422s → sans_contact · 400/500/thrown → unreachable, and none of them claims success', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    const port = resolveRefusService()!;
+    for (const [reply, expected] of [
+      [async () => new Response('no', { status: 401 }), 'bad_key'],
+      // the route's two named 422s mean the same thing to a console: there is
+      // no buyer to key a ladder to, and retrying will not change that
+      [async () => new Response(JSON.stringify({ ok: false, reason: 'no_contact_on_order' }), { status: 422 }), 'sans_contact'],
+      [async () => new Response(JSON.stringify({ ok: false, reason: 'phone_not_keyable' }), { status: 422 }), 'sans_contact'],
+      [async () => new Response(JSON.stringify({ ok: false, reason: 'unknown_field' }), { status: 400 }), 'unreachable'],
+      [async () => new Response(JSON.stringify({ ok: false, reason: 'not_found' }), { status: 404 }), 'unreachable'],
+      [async () => new Response(JSON.stringify({ ok: false, reason: 'ladder_unavailable' }), { status: 503 }), 'unreachable'],
+      [async () => new Response('boom', { status: 500 }), 'unreachable'],
+      [() => Promise.reject(new Error('down')), 'unreachable'],
+    ] as const) {
+      stubFetch(reply as () => Promise<Response>);
+      expect(await port.signalerRefus('k', 'ord-1', 'honest_absence'), expected).toEqual({ ok: false, reason: expected });
+    }
+  });
+
+  it('a HANGING write is bounded like the read — « un instant… » can never be forever', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', (_url: string, init?: RequestInit) =>
+        new Promise((_res, rej) => {
+          init?.signal?.addEventListener('abort', () => rej(new Error('aborted')));
+        }));
+      const pending = resolveRefusService()!.signalerRefus('cle-c', 'ord-1', 'fraud');
+      await vi.advanceTimersByTimeAsync(DISPATCH_TIMEOUT_MS + 50);
+      expect(await pending).toEqual({ ok: false, reason: 'unreachable' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unset base resolves to NOTHING — the row shows no refusal action rather than a dead one', () => {
+    vi.stubEnv(CHECKOUT, '');
+    expect(resolveRefusService()).toBeNull();
+  });
+});
+
+describe('SP6.3 — [source-text checks] the card wires it, and a lost answer never invites an instant re-tap', () => {
+  const screenSource = () =>
+    readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+
+  it('every dispatchable card carries the refusal fold, and « has a number » comes from the ROW, not from hope', () => {
+    const source = screenSource();
+    expect(source).toContain('<SignalerRefus orderId={row.orderId} cleC={cleC} aUnNumero={row.contact !== null} />');
+    // no number, no key, no service → the fold renders NOTHING. An action that
+    // could only fail is worse than no action on a console.
+    expect(source).toContain('if (!aUnNumero || cleC === null || service === null) return null;');
+  });
+
+  it('THE REASON LIST DISAPPEARS AFTER A FAILED ATTEMPT — a lost response may mean the note landed, and two ordinary faults cost her a month', () => {
+    const source = screenSource();
+    // `etat === 'repos'`, never `etat !== 'envoi'`: the second form re-offers
+    // all seven buttons under the failure banner, one tap from double-counting
+    // a refusal that already reached the ladder.
+    expect(source).toContain("{etat === 'repos' &&\n        MOTIFS_REFUS.map((motif) => (");
+    expect(source).not.toContain("{etat !== 'envoi' &&");
+    // …and he is TOLD why, rather than left to guess at a dead form
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    const echec = (fr.get('refus.echec') ?? '').toLowerCase();
+    expect(echec).not.toBe('');
+    expect(echec).toContain('peut-être'); // the honest word: we do not know
+    // it must NOT claim the note was not recorded — we cannot know that
+    expect(echec).not.toContain("rien n'a été");
+  });
+
+  it('the divider is DERIVED from the grave block — reordering the list can never leave the gap on the wrong row', () => {
+    const source = screenSource();
+    expect(source).toContain('marginTop: motif === PREMIER_GRAVE ? 18 : 8');
+    expect(source).not.toContain("motif === 'repeated_abuse' ?"); // the old hand-typed seam
+  });
+
+  it('every refus.* key the fold renders exists in the catalog — including the seven reached through libelleMotif', () => {
+    const source = screenSource();
+    const keys = new Set(catalog.map((e) => e.key));
+    const litteraux = [...source.matchAll(/t\('(refus\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
+    expect(litteraux.length).toBeGreaterThan(4); // the extraction itself must see the fold
+    for (const k of litteraux) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+    // the reason labels never appear as literals — they are computed. The list
+    // regex above cannot see them, so they are checked through the SAME
+    // function the screen calls.
+    expect(source).toContain('t(libelleMotif(motif))');
+    for (const motif of MOTIFS_REFUS) {
+      expect(keys.has(libelleMotif(motif)), `${libelleMotif(motif)} missing`).toBe(true);
+    }
   });
 });

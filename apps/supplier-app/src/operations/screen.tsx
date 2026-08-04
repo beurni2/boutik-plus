@@ -18,6 +18,11 @@ import {
   storeCleC,
   type DispatchServicePort,
   type LivraisonRow,
+  MOTIFS_REFUS,
+  PREMIER_GRAVE,
+  libelleMotif,
+  resolveRefusService,
+  type MotifRefus,
 } from './dispatch-service';
 import {
   CHASE_AFTER_MIN,
@@ -549,7 +554,7 @@ function SLivraisons() {
               <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('livraisons.a_livrer_vide')}</Text>
             </View>
           ) : (
-            vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} />)
+            vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} cleC={cleC} />)
           )}
           {vue.sansContact.length > 0 && (
             <View style={{ marginTop: 10 }}>
@@ -573,8 +578,14 @@ function SLivraisons() {
 }
 
 /** One course: the quartier LOUDEST (it is where the rider goes), then the
- *  number — big, selectable — then the repère in the buyer's own words. */
-function CarteLivraison({ row }: { row: LivraisonRow }) {
+ *  number — big, selectable — then the repère in the buyer's own words.
+ *
+ *  SP6.3 — and, folded UNDER the card rather than beside it, the one thing he
+ *  needs when the rider calls back to say it did not work. It is closed by
+ *  default: the ordinary outcome of a dispatch row is a delivery, and a refusal
+ *  form sitting open on every row would make failure look like the expected
+ *  shape of the screen. */
+function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null }) {
   return (
     <Card variant="Llist" style={{ marginTop: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -596,6 +607,7 @@ function CarteLivraison({ row }: { row: LivraisonRow }) {
       <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.sub), { marginTop: 4 }]} numberOfLines={1}>
         {row.orderId}
       </Text>
+      <SignalerRefus orderId={row.orderId} cleC={cleC} aUnNumero={row.contact !== null} />
     </Card>
   );
 }
@@ -838,3 +850,120 @@ function relanceSentence(atIso: string, nowMs: number): string {
 }
 
 export { CHASE_AFTER_MIN };
+
+/**
+ * SP6.3 — ONE DOORSTEP REFUSAL, RECORDED (§6.4).
+ *
+ * ═══ WHAT THIS COSTS A BUYER, WHICH IS WHY IT IS BUILT THE WAY IT IS ═══
+ *
+ * Tapping one of these moves a real woman's standing: two ordinary faults and
+ * « payer à la livraison » closes for her for a month. So the affordance is
+ * deliberately quiet, deliberately two taps, and deliberately says what each
+ * reason means in her words rather than the system's.
+ *
+ * THE GRAVE TWO SIT APART. « Abus répété » and « Fraude » end her access to the
+ * door entirely and cannot be walked back by the ladder itself; they are last,
+ * after a divider, so a tired thumb does not land on them.
+ *
+ * « L'article n'était pas le bon » IS ON THE LIST AND CARRIES A SENTENCE
+ * SAYING IT NEVER COUNTS AGAINST HER. Without it, an honest operator facing a
+ * genuine wrong-item refusal has no true option and picks « elle a changé
+ * d'avis » — and a buyer is punished for our mistake. The reassurance is not
+ * decoration; it is what makes choosing the true reason the easy thing to do.
+ */
+function SignalerRefus({
+  orderId,
+  cleC,
+  aUnNumero,
+}: {
+  orderId: string;
+  cleC: string | null;
+  aUnNumero: boolean;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [etat, setEtat] = useState<'repos' | 'envoi' | 'fait' | 'echec' | 'sans_contact'>('repos');
+  const service = useMemo(() => resolveRefusService(), []);
+
+  // NO NUMBER, NO LADDER — and the row says so instead of offering an action
+  // that could only fail. The order is still dispatchable by other means; it is
+  // only the refusal record that has nothing to attach to.
+  if (!aUnNumero || cleC === null || service === null) return null;
+
+  if (etat === 'fait') {
+    return (
+      <View style={{ marginTop: 8 }}>
+        <Text style={role({ f: 'IS', w: 600, s: 12 }, P.ink)}>{t('refus.enregistre')}</Text>
+      </View>
+    );
+  }
+
+  if (!ouvert) {
+    return (
+      <View style={{ marginTop: 10 }}>
+        <BtnSoft label={t('refus.ouvrir')} icon="retry" onPress={() => setOuvert(true)} />
+      </View>
+    );
+  }
+
+  const choisir = (motif: MotifRefus) => {
+    setEtat('envoi');
+    void service.signalerRefus(cleC, orderId, motif).then((res) => {
+      if (res.ok) {
+        setEtat('fait');
+        return;
+      }
+      setEtat(res.reason === 'sans_contact' ? 'sans_contact' : 'echec');
+    });
+  };
+
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={role({ f: 'IS', w: 600, s: 13 }, P.ink)}>{t('refus.titre')}</Text>
+      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{t('refus.aide')}</Text>
+
+      {etat === 'envoi' && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 8 }]}>{t('refus.envoi')}</Text>
+      )}
+      {etat === 'echec' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t('refus.echec')}</Banner>
+        </View>
+      )}
+      {etat === 'sans_contact' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t('refus.sans_contact')}</Banner>
+        </View>
+      )}
+
+      {/*
+        THE LIST DISAPPEARS THE MOMENT AN ATTEMPT ENDS BADLY, and that is a
+        SAFETY property, not a styling one. `POST …/refusal` carries no
+        idempotency key, so a lost response is indistinguishable from a lost
+        request: the note may already have landed. Two ordinary faults close her
+        door for a month, so an instant re-tap can cost a buyer a month for one
+        real refusal. He must reopen deliberately — and the sentence tells him
+        why. (Idempotency on that route is flagged to the founder, JOURNAL.)
+      */}
+      {etat === 'repos' &&
+        MOTIFS_REFUS.map((motif) => (
+          <View
+            key={motif}
+            // THE DIVIDER BEFORE THE GRAVE TWO. `repeated_abuse` opens the pair
+            // that ends her access to the door; the wider gap is the pause.
+            style={{ marginTop: motif === PREMIER_GRAVE ? 18 : 8 }}
+          >
+            <BtnSoft label={t(libelleMotif(motif))} icon="check" onPress={() => choisir(motif)} />
+            {motif === 'conformity_mismatch' && (
+              <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.sub), { marginTop: 4 }]}>
+                {t('refus.note_conformite')}
+              </Text>
+            )}
+          </View>
+        ))}
+
+      <View style={{ marginTop: 14 }}>
+        <BtnSoft label={t('refus.fermer')} icon="retry" onPress={() => { setOuvert(false); setEtat('repos'); }} />
+      </View>
+    </View>
+  );
+}

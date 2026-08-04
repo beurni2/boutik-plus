@@ -2602,5 +2602,101 @@
     "fr": "{n} commande(s) pas encore payée(s) — elles montent ici dès que l'opérateur confirme.",
     "register": "money",
     "screenClass": "general"
+  },
+  {
+    "key": "refus.titre",
+    "fr": "La livraison n'a pas pu se faire ?",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.aide",
+    "fr": "Dites ce qui s'est passé. Cela suit la cliente, pas la commande.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "refus.honest_absence",
+    "fr": "Absente, sans faute de sa part",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.unusable_location",
+    "fr": "Adresse introuvable",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.insufficient_balance",
+    "fr": "Elle n'avait pas l'argent",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.change_of_mind",
+    "fr": "Elle a changé d'avis",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.conformity_mismatch",
+    "fr": "L'article n'était pas le bon",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.repeated_abuse",
+    "fr": "Abus répété",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.fraud",
+    "fr": "Fraude",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.note_conformite",
+    "fr": "Un mauvais article, c'est notre faute. Cela ne compte jamais contre elle.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "refus.enregistre",
+    "fr": "C'est noté.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refus.echec",
+    "fr": "Pas de réponse. La note est peut-être déjà partie : vérifiez avant de recommencer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refus.sans_contact",
+    "fr": "Pas de numéro utilisable sur cette commande. Rien n'a été noté.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refus.envoi",
+    "fr": "Un instant…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refus.ouvrir",
+    "fr": "Signaler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "refus.fermer",
+    "fr": "Retour",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

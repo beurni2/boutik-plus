@@ -144,3 +144,114 @@ export function clearStoredCleC(): void {
     // nothing to clear
   }
 }
+
+/* ─────────── SP6.3 — recording ONE doorstep refusal (§6.4), key C ─────────── */
+
+/**
+ * §6.4's classification vocabulary, in the order the founder should meet it.
+ *
+ * ORDINARY FIRST, GRAVE LAST, and that ordering is a design decision rather
+ * than a list: the everyday reasons a delivery fails in Ouagadougou — she was
+ * out, the address could not be found, she did not have the money that day —
+ * sit at the top where a tired operator taps without thinking. « Abus répété »
+ * and « Fraude » are the two that end her access to the door, so they sit apart
+ * at the bottom where nobody reaches them by accident.
+ *
+ * `conformity_mismatch` IS ON THIS LIST and must stay on it. When the article
+ * was wrong, that is OUR failure and the ladder must record it as such —
+ * §6.4 never counts it against her (asserted in `commerce-core`). Leaving it
+ * off would push an honest operator to pick « elle a changé d'avis » for a
+ * refusal she was entitled to, which is exactly how a buyer ends up punished
+ * for our mistake.
+ */
+export type MotifRefus =
+  | 'honest_absence'
+  | 'unusable_location'
+  | 'insufficient_balance'
+  | 'change_of_mind'
+  | 'conformity_mismatch'
+  | 'repeated_abuse'
+  | 'fraud';
+
+/** The two that END her access to the door. Declared apart because the screen
+ *  places them apart, and because « last » must not be a coincidence of how
+ *  someone happened to type the list. */
+export const MOTIFS_GRAVES: readonly MotifRefus[] = ['repeated_abuse', 'fraud'];
+
+/** The everyday ones, in the order a tired thumb should meet them. */
+export const MOTIFS_ORDINAIRES: readonly MotifRefus[] = [
+  'honest_absence',
+  'unusable_location',
+  'insufficient_balance',
+  'change_of_mind',
+  'conformity_mismatch',
+];
+
+/** ORDINARY, then GRAVE — composed, so the two blocks cannot interleave. */
+export const MOTIFS_REFUS: readonly MotifRefus[] = [...MOTIFS_ORDINAIRES, ...MOTIFS_GRAVES];
+
+/** Where the screen opens its gap. Derived, so it can never point at the
+ *  wrong row after someone reorders the list. */
+export const PREMIER_GRAVE: MotifRefus = MOTIFS_GRAVES[0]!;
+
+/** The catalog key for one reason — strings never inline (Ten Laws #6). */
+export function libelleMotif(motif: MotifRefus): string {
+  return `refus.${motif}`;
+}
+
+export type RefusResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'sans_contact' };
+
+/**
+ * Record one refusal against the buyer of ONE ORDER.
+ *
+ * THE BUYER IS NOT A PARAMETER, and that is the point: the Shop+ route reads
+ * her number off the order itself, server-side. This client cannot name her
+ * even if it wanted to — a console typo can pick the wrong ORDER (visible on
+ * screen, and correctable) but can never reach a stranger's history.
+ */
+export interface RefusServicePort {
+  signalerRefus(cleC: string, orderId: string, motif: MotifRefus): Promise<RefusResult>;
+}
+
+export function resolveRefusService(): RefusServicePort | null {
+  const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
+  if (base === undefined || base === '') return null;
+  const trimmed = base.replace(/\/+$/, '');
+  return {
+    async signalerRefus(cleC: string, orderId: string, motif: MotifRefus): Promise<RefusResult> {
+      // The same bound the dispatch read carries, for the same reason: a write
+      // that never answers leaves the screen claiming « un instant » forever.
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/checkout/dispatch/${encodeURIComponent(orderId)}/refusal`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleC}`,
+          },
+          // EXACTLY ONE FIELD. The route's allowlist refuses anything else BY
+          // NAME — including a `phone`, which is the whole point of its shape.
+          body: JSON.stringify({ reason: motif }),
+          signal: ctl.signal,
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      } finally {
+        clearTimeout(timer);
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      // 422 IS THE ROUTE'S « THIS ORDER HAS NO USABLE NUMBER » — both of its
+      // reasons (`no_contact_on_order`, `phone_not_keyable`) mean the same
+      // thing to a console: there is nobody to key a ladder to, retrying will
+      // not change that, and saying « your network » about it would be false.
+      if (res.status === 422) return { ok: false, reason: 'sans_contact' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      return { ok: true };
+    },
+  };
+}
