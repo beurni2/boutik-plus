@@ -2844,3 +2844,17 @@ The clip now carries the photo's own four values, copied from `screens1.tsx`: `w
 **MERGED AND DEPLOYED:** CI `30956384685` green on `89460ef` → fast-forward `62bc3cc..89460ef` → `web-deploy` `30956529579` success. **Deploy order held**: the Worker (accounts routes, migration v7, run `30956401727`) went out before the console that calls them.
 
 **FOUNDER OVERRIDE LOGGED (parity with the Shop+ JOURNAL):** SP0.2 credentials are name + email + password + phone, by his explicit instruction 2026-08-04 — a departure from the plan's phone-alias, his to make and made.
+
+## 2026-08-04 · REFUS-IDEMPOTENCE-1 (console half) — two sentences that had become lies
+
+Shop+ now derives an idempotency key from the order on `POST /checkout/dispatch/{orderId}/refusal` (founder ruling « A », logged in the shop-plus journal). Two of its consequences land on this console, and until this commit the console described both incorrectly.
+
+**409 was reported as a network fault.** `signalerRefus` ended with `if (!res.ok) return 'unreachable'`, so the route's new « this order already carries a DIFFERENT note » answer would have told the founder to check a connection that had just answered him deliberately. It now maps to its own `deja_note` and renders its own designed state: « Cette commande a déjà une note. Votre nouveau choix n'a rien changé. » The failure that sentence prevents is precise — an operator pressing « Fraude » to correct « Elle a changé d'avis », seeing a calm screen, and believing the graver note landed.
+
+**`refus.echec` still told him to doubt the retry.** It read « la note est peut-être déjà partie : vérifiez avant de recommencer » — true before the key, false after it. Re-sending the same reason is now counted once by the server, so the sentence offers the retry: « Vous pouvez réessayer : la même note ne sera pas comptée deux fois. » The pin that guarded the old wording (« must contain *peut-être* ») was rewritten to guard the new property, and given a second assertion **at the client seam** — the copy cannot outlive the 409 mapping it rests on.
+
+**A replay is plain success here, deliberately.** The route answers a same-reason retry 200 with `replay: true`; the client does not special-case it, because turning the one outcome the key exists to produce into a screen anomaly would waste the guarantee.
+
+**What did NOT change:** the reason list still disappears after a failed attempt. The risk it guards shrank but did not vanish — a blind re-tap can still land on the wrong REASON, which is refused (409) rather than applied, and a tired thumb near « Fraude » deserves the pause. The stale comment claiming the route carries no idempotency key is replaced with what is now true.
+
+**Evidence:** supplier-app **704/704** (702 + 2 new) · typecheck exit 0 · gates board exit 0 · **5 mutations, 5 killed** — 409 falling back to « unreachable » ⇒ red · « déjà noté » folded into the failure banner ⇒ red · the state decided but never painted ⇒ red · the retry sentence reverting to doubt ⇒ red · the « déjà » sentence dropping « n'a rien changé » ⇒ red.
