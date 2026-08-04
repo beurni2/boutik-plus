@@ -2804,3 +2804,9 @@ The clip now carries the photo's own four values, copied from `screens1.tsx`: `w
 **`no-wallet-no-funds` tripped on my own prose, FOURTH time this session** — the word « WITHDRAWN » in a comment and a test title, both about a list of buttons. Reworded both; the guard stays blunt. **The code bends around the scan, never the reverse** — I have now written that sentence four times and should simply stop reaching for the word.
 
 **One unrequested change reverted before committing:** the catalog rewrite had re-encoded three pre-existing raw U+00A0 bytes as ` ` escapes. JSON-identical values, no rule behind it, three lines of noise in a review. Put back. The diff is exactly the 16 new `refus.*` keys.
+
+**MERGED AND DEPLOYED 2026-08-04** (founder: « once everything is green merge and deploy all »). CI `30929615481` green on `0ef1848` → fast-forward `c599684..0ef1848` on main (ancestor guard passed) → **`web-deploy` `30930280462`: success**.
+
+**DEPLOY ORDER WAS NOT INCIDENTAL:** Shop+ `storefront-deploy` `30930138512` went out FIRST and its provenance + smoke steps passed, so `POST /checkout/dispatch/{orderId}/refusal` existed before the console that calls it shipped. A console deployed first would have offered him seven buttons that answered 401 from the write gate.
+
+**NOT VERIFIED LIVE, and I am not going to imply otherwise:** I did not call the refusal route against production. Outbound from this sandbox to the Worker is still refused by the egress proxy (`CONNECT tunnel failed, response 403`, curl exit 56) — standing environment policy, not a transient failure. What IS proven: both CI runs green on the exact merged shas, both deploys green, and the route covered by miniflare e2e. **The first real refusal he records is the live proof, and it is his to make.**
