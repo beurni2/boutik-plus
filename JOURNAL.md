@@ -2828,3 +2828,19 @@ The clip now carries the photo's own four values, copied from `screens1.tsx`: `w
 **Evidence:** supplier-app **689/689** · tsc exit 0 · **gates board exit 0, zero `GATE FAILED (expected pass)`**.
 
 **Mutation-verified, 10 mutations, 10 killed** — a live one-time code no longer blocking a mint ⇒ red · `bad_key` printing its own second sentence ⇒ red · `no_code` no longer refreshing (a cut row stays on screen) ⇒ red · the revoke failure marker losing its namespace ⇒ 2 red · a second field smuggled into the mint body ⇒ red · malformed rows rendered instead of dropped ⇒ red · a mint answer without a code counted as success ⇒ red · the section rendering without key C ⇒ red · the « already has a code » warning claiming from an unread list ⇒ red · the timeout removed ⇒ red.
+
+### RESELLER-ACCOUNTS-1c — the console sees every revendeuse (roster · pause · suivi)
+
+**Founder order, 2026-08-04:** the roster (« i can see the list of all resellers and can decide to pause their access ») and the monitoring board (« a leaderboard where i can monitor reseller's activities, their sales, their gains »).
+
+**THE ROSTER**, inside Livraisons on the same key C: every account — name, `rs-` id, phone, state (« Attend son code · Accès ouvert · Accès coupé »), « Code déjà donné, pas encore utilisé » while a handout is in flight. **One act per state**: « Donner son code » (pending; one-time-card discipline — the plaintext exists once, blocks every act, « C'est noté » dismisses), « Couper l'accès » (active), « Rouvrir l'accès » (paused). The server owns the machine: a stale row's act answers `wrong_state` and the list re-reads to stored truth. A row in a state this console does not know is **dropped, never guessed** — rendering it would offer an act the server must refuse.
+
+**LE SUIVI** (« Suivi des revendeuses », deliberately not « palmarès »): per revendeuse, her confirmed-sale **COUNT** and her net — copies of frozen quote nets summed server-side (SP-I04). Sorted by the count it shows, then net, then id — **deterministic and explainable in one sentence; a bigger net never outranks more sales, because the count is the truth and money is the detail** (the reputation law's spirit, applied to the founder's own board). A partial read says « Lecture partielle » on its row; negative or fractional francs are dropped — a monitoring board never displays an impossible figure.
+
+**SELF-FOUND DEFECT, fixed in the same commit and pinned:** the ACCESS-GATE-1 codes section shipped earlier today was **never loaded on mount or key entry** — it sat on « Lecture… » with nothing behind it, the exact stranded-loading class the founder himself caught on Livraisons on 2026-08-02. All key-C sections now load at both call sites, source-text-pinned on all six calls. This got past both the tests AND the founder because the section is below the fold and he had not scrolled; the pin exists so the class cannot return.
+
+**Evidence:** supplier-app **702/702** · tsc exit 0 · gates board exit 0 · **6 mutations, 6 killed** (live code no longer blocking pause ⇒ red · `wrong_state` not re-reading ⇒ red · unknown state rendered ⇒ red · suivi sorting by net first ⇒ red · impossible franc reaching the board ⇒ red · mount loads dropped ⇒ red).
+
+**MERGED AND DEPLOYED:** CI `30956384685` green on `89460ef` → fast-forward `62bc3cc..89460ef` → `web-deploy` `30956529579` success. **Deploy order held**: the Worker (accounts routes, migration v7, run `30956401727`) went out before the console that calls them.
+
+**FOUNDER OVERRIDE LOGGED (parity with the Shop+ JOURNAL):** SP0.2 credentials are name + email + password + phone, by his explicit instruction 2026-08-04 — a departure from the plan's phone-alias, his to make and made.
