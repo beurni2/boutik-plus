@@ -2806,5 +2806,161 @@
     "fr": "Cette revendeuse a déjà un code. En créer un nouveau coupe l'ancien tout de suite.",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "comptes.titre",
+    "fr": "Revendeuses Shop+",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.sens",
+    "fr": "Chaque compte, son état. Vous décidez qui entre et qui attend.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "comptes.chargement",
+    "fr": "Lecture des comptes…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.echec",
+    "fr": "Comptes illisibles pour le moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.vide",
+    "fr": "Personne ne s'est encore inscrit.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.etat_pending",
+    "fr": "Attend son code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.etat_active",
+    "fr": "Accès ouvert",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.etat_paused",
+    "fr": "Accès coupé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.code_en_route",
+    "fr": "Code déjà donné, pas encore utilisé",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.donner_code",
+    "fr": "Donner son code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.couper",
+    "fr": "Couper l'accès",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.rouvrir",
+    "fr": "Rouvrir l'accès",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.acte_encours",
+    "fr": "Un instant…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.acte_echec",
+    "fr": "Ça n'a pas abouti. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.inscrit_le",
+    "fr": "Inscrite le {d}",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "comptes.code_pour",
+    "fr": "Code d'accès pour {id}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.code_note",
+    "fr": "Notez-le maintenant : il ne s'affichera plus, et il ne sert qu'une fois.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "comptes.noter_dabord",
+    "fr": "Notez d'abord le code",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.vu",
+    "fr": "C'est noté",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "suivi.titre",
+    "fr": "Suivi des revendeuses",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "suivi.sens",
+    "fr": "Ventes confirmées et gains nets, par revendeuse. Des comptes exacts, jamais une note.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "suivi.chargement",
+    "fr": "Lecture du suivi…",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.echec",
+    "fr": "Suivi illisible pour le moment.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.vide",
+    "fr": "Aucune revendeuse à suivre pour l'instant.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.ventes_n",
+    "fr": "{n} vente(s)",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "suivi.incomplet",
+    "fr": "Lecture partielle",
+    "register": "money",
+    "screenClass": "status"
   }
 ]

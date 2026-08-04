@@ -13,6 +13,7 @@ import {
   readStoredCleC,
   resolveDispatchService,
   resolveAccesService,
+  resolveComptesService,
   resolveRefusService,
   storeCleC,
 } from '../src/operations/dispatch-service';
@@ -26,6 +27,12 @@ import {
   accesVue,
   livraisonsVue,
   type AccesUi,
+  COMPTES_IDLE,
+  acteSettled,
+  acteStart,
+  codeAccesSettled,
+  comptesVue,
+  type ComptesUi,
 } from '../src/operations/view';
 import {
   clearStoredOpsKey,
@@ -1223,6 +1230,148 @@ describe('ACCESS-GATE-1 — [source-text checks] the section is mounted behind k
     const keys = new Set(catalog.map((e) => e.key));
     const used = [...screenSource().matchAll(/t\('(acces\.[a-z_]+)'\)/g)].map((m) => m[1]!);
     expect(used.length).toBeGreaterThan(8);
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+});
+
+/* ═════ RESELLER-ACCOUNTS-1c — the roster, the pause, the suivi ═════ */
+
+describe('RESELLER-ACCOUNTS — the roster decides, one act at a time, and the code card owns the screen', () => {
+  const ROW: import('../src/operations/dispatch-service').CompteRow = {
+    accountId: 'rs-1234', name: 'Awa Traoré', email: 'awa@example.bf', phone: '+226 70 00 00 01',
+    state: 'pending_access', createdAt: '2026-08-04T10:00:00.000Z', accessCodePending: false,
+  };
+
+  it('every read state maps to a designed sentence; bad_key renders NOTHING (one key, one sentence)', () => {
+    expect(comptesVue({ kind: 'loading' })).toEqual({ kind: 'loading', message: 'comptes.chargement' });
+    expect(comptesVue({ kind: 'failed' })).toEqual({ kind: 'failed', message: 'comptes.echec' });
+    expect(comptesVue({ kind: 'ok', comptes: [] })).toEqual({ kind: 'empty', message: 'comptes.vide' });
+    expect(comptesVue({ kind: 'bad_key' })).toBeNull();
+    expect(comptesVue({ kind: 'ok', comptes: [ROW] })).toEqual({ kind: 'liste', comptes: [ROW] });
+  });
+
+  it('a LIVE one-time code blocks every other act — pause included: a paused row mid-handout would strand the code', () => {
+    const vivant: ComptesUi = { busy: null, nouveau: { accountId: 'rs-1', code: 'SPA-XXXX' }, echec: null };
+    for (const acte of ['code:rs-2', 'pause:rs-2', 'resume:rs-2'] as const) {
+      expect(acteStart(vivant, acte), acte).toBeNull();
+    }
+    const occupe: ComptesUi = { busy: 'pause:rs-9', nouveau: null, echec: null };
+    expect(acteStart(occupe, 'code:rs-1')).toBeNull();
+    // CONTROL — from idle every verb starts
+    expect(acteStart(COMPTES_IDLE, 'pause:rs-1')).toEqual({ busy: 'pause:rs-1', nouveau: null, echec: null });
+  });
+
+  it('a minted code stays on screen AND the list refreshes — the roster must show « code en route » from stored truth', () => {
+    const s = codeAccesSettled('rs-1', { ok: true, accountId: 'rs-1', code: 'SPA-AAAA' });
+    expect(s.then).toBe('refresh');
+    expect(s.ui.nouveau).toEqual({ accountId: 'rs-1', code: 'SPA-AAAA' });
+  });
+
+  it('wrong_state / not_pending / not_found all RE-READ — the list was stale about her, and the stored truth corrects the row', () => {
+    expect(acteSettled('pause:rs-1', { ok: false, reason: 'wrong_state' }).then).toBe('refresh');
+    expect(acteSettled('resume:rs-1', { ok: false, reason: 'not_found' }).then).toBe('refresh');
+    expect(codeAccesSettled('rs-1', { ok: false, reason: 'not_pending' }).then).toBe('refresh');
+    // a network failure does NOT re-read — nothing changed, the sentence is enough
+    expect(acteSettled('pause:rs-1', { ok: false, reason: 'unreachable' }).then).toBe('none');
+    // and the failure marker is namespaced to the exact act
+    expect(acteSettled('pause:rs-1', { ok: false, reason: 'unreachable' }).ui.echec).toBe('pause:rs-1');
+  });
+
+  it('a refused key on any act escalates the SECTION, never a local sentence', () => {
+    expect(acteSettled('pause:rs-1', { ok: false, reason: 'bad_key' }).then).toBe('bad_key');
+    expect(codeAccesSettled('rs-1', { ok: false, reason: 'bad_key' }).then).toBe('bad_key');
+  });
+});
+
+describe('RESELLER-ACCOUNTS — the ports parse strictly and answer honestly', () => {
+  const CHECKOUT = 'EXPO_PUBLIC_SHOP_CHECKOUT_BASE';
+
+  it('the roster read drops a malformed row and NEVER invents a state', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, accounts: [
+      { accountId: 'rs-1', name: 'Awa', email: 'a@b.bf', phone: '70', state: 'active', createdAt: 'x', accessCodePending: false },
+      { accountId: 'rs-2', name: 'Fanta', email: 'f@b.bf', phone: '70', state: 'banned', createdAt: 'x' },
+      { accountId: '', name: 'Vide', email: '', phone: '', state: 'active', createdAt: 'x' },
+      null,
+    ] })));
+    const res = await resolveComptesService()!.listComptes('k');
+    if (!res.ok) throw new Error(res.reason);
+    // « banned » is not a state this console knows — rendering it would offer
+    // an act the server must refuse; DROPPED beats guessed
+    expect(res.comptes.map((c) => c.accountId)).toEqual(['rs-1']);
+  });
+
+  it('pause/resume: 409 is wrong_state (honest), 404 not_found, 401 bad_key — and the suivi sorts by the COUNT it shows', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    const port = resolveComptesService()!;
+    stubFetch(async () => new Response(JSON.stringify({ ok: false, reason: 'wrong_state' }), { status: 409 }));
+    expect(await port.pause('k', 'rs-1')).toEqual({ ok: false, reason: 'wrong_state' });
+    stubFetch(async () => new Response('no', { status: 401 }));
+    expect(await port.resume('k', 'rs-1')).toEqual({ ok: false, reason: 'bad_key' });
+
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, lignes: [
+      { accountId: 'rs-a', name: 'A', state: 'active', ventes: 1, netFcfa: 9_000, incomplet: false },
+      { accountId: 'rs-b', name: 'B', state: 'active', ventes: 3, netFcfa: 2_000, incomplet: false },
+      { accountId: 'rs-c', name: 'C', state: 'active', ventes: 3, netFcfa: 5_000, incomplet: true },
+    ] })));
+    const suivi = await port.listSuivi('k');
+    if (!suivi.ok) throw new Error(suivi.reason);
+    // COUNT DESC first — a bigger net never outranks more delivered-real sales
+    // (the reputation law's spirit: the count is the truth, money is detail) —
+    // then net desc, then id, so the board never reshuffles between reads.
+    expect(suivi.lignes.map((l) => l.accountId)).toEqual(['rs-c', 'rs-b', 'rs-a']);
+  });
+
+  it('a suivi line with a NEGATIVE or fractional franc is dropped — a monitoring board must never display an impossible figure', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    stubFetch(async () => new Response(JSON.stringify({ ok: true, lignes: [
+      { accountId: 'rs-ok', name: 'A', state: 'active', ventes: 1, netFcfa: 500, incomplet: false },
+      { accountId: 'rs-neg', name: 'B', state: 'active', ventes: 1, netFcfa: -500, incomplet: false },
+      { accountId: 'rs-frac', name: 'C', state: 'active', ventes: 0.5, netFcfa: 100, incomplet: false },
+    ] })));
+    const suivi = await resolveComptesService()!.listSuivi('k');
+    if (!suivi.ok) throw new Error(suivi.reason);
+    expect(suivi.lignes.map((l) => l.accountId)).toEqual(['rs-ok']);
+  });
+
+  it('the mint body is EXACTLY {accountId} — the DO refuses a second field by name', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, accountId: 'rs-1', code: 'SPA-1' })));
+    await resolveComptesService()!.codeAcces('cle-c', 'rs-1');
+    const body = JSON.parse(String(spy.mock.calls[0]![1]?.body)) as Record<string, unknown>;
+    expect(Object.keys(body)).toEqual(['accountId']);
+  });
+
+  it('unset base resolves to NOTHING', () => {
+    vi.stubEnv(CHECKOUT, '');
+    expect(resolveComptesService()).toBeNull();
+  });
+});
+
+describe('RESELLER-ACCOUNTS — [source-text checks] the sections load when the key is known', () => {
+  const screenSource = () =>
+    readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+
+  it('EVERY key-C section loads on mount AND on key entry — the stranded-loading defect, pinned at both call sites', () => {
+    const source = screenSource();
+    // the mount effect and the key button must EACH ask for all four reads —
+    // the acces section shipped without this and sat on « Lecture… » forever
+    for (const call of ['void loadAcces(stored)', 'void loadComptes(stored)', 'void loadSuivi(stored)',
+                        'void loadAcces(v)', 'void loadComptes(v)', 'void loadSuivi(v)']) {
+      expect(source, call).toContain(call);
+    }
+  });
+
+  it('the roster offers exactly ONE act per state, and the suivi renders the net through formatF', () => {
+    const source = screenSource();
+    expect(source).toContain("c.state === 'pending_access' ? t('comptes.donner_code') : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir')");
+    expect(source).toContain('formatF(l.netFcfa)');
+  });
+
+  it('every comptes.* and suivi.* key the console renders exists in the catalog', () => {
+    const keys = new Set(catalog.map((e) => e.key));
+    const used = [...screenSource().matchAll(/t\('((?:comptes|suivi)\.[a-z_]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(12);
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
   });
 });

@@ -25,6 +25,11 @@ import {
   type MotifRefus,
   resolveAccesService,
   type AccesServicePort,
+  resolveComptesService,
+  type CompteRow,
+  type ComptesServicePort,
+  type EtatCompte,
+  type SuiviLigne,
 } from './dispatch-service';
 import {
   CHASE_AFTER_MIN,
@@ -58,6 +63,19 @@ import {
   type AccesRead,
   type AccesSettlement,
   type AccesUi,
+  COMPTES_IDLE,
+  acteSettled,
+  acteStart,
+  codeAccesSettled,
+  comptesReadOf,
+  comptesVue,
+  suiviReadOf,
+  suiviVue,
+  type ActeCompte,
+  type ComptesRead,
+  type ComptesSettlement,
+  type ComptesUi,
+  type SuiviRead,
 } from './view';
 
 /**
@@ -463,6 +481,57 @@ function SLivraisons() {
    *  code as live — on the one list whose question is « who can get in? ». */
   const accesSeq = useRef(0);
 
+  /* ── RESELLER-ACCOUNTS-1c — the roster + the suivi, same key C ── */
+  const comptes = useMemo<ComptesServicePort | null>(() => resolveComptesService(), []);
+  const [comptesRead, setComptesRead] = useState<ComptesRead>({ kind: 'loading' });
+  const [comptesUi, setComptesUi] = useState<ComptesUi>(COMPTES_IDLE);
+  const comptesSeq = useRef(0);
+  const [suiviRead, setSuiviRead] = useState<SuiviRead>({ kind: 'loading' });
+  const suiviSeq = useRef(0);
+
+  const loadComptes = async (key: string): Promise<void> => {
+    if (comptes === null) { setComptesRead({ kind: 'failed' }); return; }
+    comptesSeq.current += 1;
+    const mine = comptesSeq.current;
+    const res = await comptes.listComptes(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    if (mine !== comptesSeq.current) return;
+    const read = comptesReadOf(res);
+    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    else setComptesRead(read);
+  };
+
+  const loadSuivi = async (key: string): Promise<void> => {
+    if (comptes === null) { setSuiviRead({ kind: 'failed' }); return; }
+    suiviSeq.current += 1;
+    const mine = suiviSeq.current;
+    const res = await comptes.listSuivi(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    if (mine !== suiviSeq.current) return;
+    const read = suiviReadOf(res);
+    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    else setSuiviRead(read);
+  };
+
+  const settleCompte = async (settlement: ComptesSettlement, key: string): Promise<void> => {
+    setComptesUi(settlement.ui);
+    if (settlement.then === 'refresh') { await loadComptes(key); await loadSuivi(key); }
+    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
+  };
+
+  const agirCompte = async (acte: ActeCompte, accountId: string, key: string): Promise<void> => {
+    if (comptes === null) return;
+    const started = acteStart(comptesUi, acte);
+    if (started === null) return; // a live one-time code blocks every other act
+    setComptesUi(started);
+    if (acte.startsWith('code:')) {
+      const res = await comptes.codeAcces(key, accountId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+      await settleCompte(codeAccesSettled(accountId, res), key);
+    } else {
+      const verbe = acte.startsWith('pause:') ? comptes.pause : comptes.resume;
+      const res = await verbe(key, accountId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+      await settleCompte(acteSettled(acte, res), key);
+    }
+  };
+
   const loadAcces = async (key: string): Promise<void> => {
     if (acces === null) {
       setAccesRead({ kind: 'failed' });
@@ -536,7 +605,16 @@ function SLivraisons() {
    */
   useEffect(() => {
     const stored = readStoredCleC();
-    if (stored !== null) void load(stored);
+    if (stored !== null) {
+      void load(stored);
+      // ACCESS-GATE-1 fix (self-found): the acces section was never LOADED on
+      // mount — it sat on « Lecture… » with nothing behind it, the exact
+      // stranded-loading class the founder once caught on Livraisons. Every
+      // section behind this key loads the moment the key is known.
+      void loadAcces(stored);
+      void loadComptes(stored);
+      void loadSuivi(stored);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -564,8 +642,11 @@ function SLivraisons() {
                 storeCleC(v);
                 setRead({ kind: 'loading' });
                 setCleC(v);
-                // the read is asked for HERE, not inferred from a state change
+                // every read is asked for HERE, not inferred from a state change
                 void load(v);
+                void loadAcces(v);
+                void loadComptes(v);
+                void loadSuivi(v);
               }}
             />
           </View>
@@ -641,6 +722,21 @@ function SLivraisons() {
           </View>
 
           {cleC !== null && (
+            <SComptes
+              read={comptesRead}
+              ui={comptesUi}
+              onActe={(acte, id) => { void agirCompte(acte, id, cleC); }}
+              onVu={() => setComptesUi(COMPTES_IDLE)}
+              onRetry={() => { setComptesRead({ kind: 'loading' }); void loadComptes(cleC); }}
+            />
+          )}
+          {cleC !== null && (
+            <SSuivi
+              read={suiviRead}
+              onRetry={() => { setSuiviRead({ kind: 'loading' }); void loadSuivi(cleC); }}
+            />
+          )}
+          {cleC !== null && (
             <SAcces
               read={accesRead}
               ui={accesUi}
@@ -661,6 +757,154 @@ function SLivraisons() {
           )}
         </>
       )}
+    </View>
+  );
+}
+
+/**
+ * RESELLER-ACCOUNTS-1c — THE ROSTER: every account, its state, one act per row.
+ *
+ * The 5-second test for its owner: a row answers « who is she, can she get in,
+ * and what can I do about it » — one action per state. « Donner son code » on
+ * a pending row (the one-time card discipline applies), « Couper l'accès » on
+ * an active one, « Rouvrir l'accès » on a paused one. The server enforces the
+ * state machine; a stale row's act comes back `wrong_state` and the list
+ * re-reads to the stored truth.
+ */
+function etatCompteKey(state: EtatCompte): string {
+  return state === 'pending_access' ? 'comptes.etat_pending' : state === 'active' ? 'comptes.etat_active' : 'comptes.etat_paused';
+}
+
+function SComptes({ read, ui, onActe, onVu, onRetry }: {
+  read: ComptesRead;
+  ui: ComptesUi;
+  onActe: (acte: ActeCompte, accountId: string) => void;
+  onVu: () => void;
+  onRetry: () => void;
+}) {
+  const vue = comptesVue(read);
+  if (vue === null) return null;
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('comptes.titre')}</Text>
+      <View style={{ marginTop: 6 }}>
+        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.sens')}</Text>
+      </View>
+
+      {vue.kind === 'loading' && (
+        <View style={{ marginTop: 8 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
+      )}
+      {vue.kind === 'failed' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 8 }}><BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} /></View>
+        </View>
+      )}
+      {vue.kind === 'empty' && (
+        <View style={{ marginTop: 8 }}><Banner tone="info">{t(vue.message)}</Banner></View>
+      )}
+
+      {vue.kind === 'liste' && vue.comptes.map((c) => {
+        const acte: ActeCompte =
+          c.state === 'pending_access' ? `code:${c.accountId}` : c.state === 'active' ? `pause:${c.accountId}` : `resume:${c.accountId}`;
+        const label =
+          c.state === 'pending_access' ? t('comptes.donner_code') : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir');
+        return (
+          <Card key={c.accountId} variant="Llist" style={{ marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.name}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={1}>
+                  {c.accountId} · {c.phone}
+                </Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+                  {t(etatCompteKey(c.state))} · {t('comptes.inscrit_le').replace('{d}', c.createdAt.slice(0, 10))}
+                </Text>
+                {c.accessCodePending && (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('comptes.code_en_route')}</Text>
+                )}
+              </View>
+              {ui.busy === acte ? (
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('comptes.acte_encours')}</Text>
+              ) : ui.nouveau !== null ? (
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.noter_dabord')}</Text>
+              ) : (
+                <BtnSoft label={label} onPress={() => onActe(acte, c.accountId)} />
+              )}
+            </View>
+            {ui.echec === acte && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('comptes.acte_echec')}</Text>
+              </View>
+            )}
+          </Card>
+        );
+      })}
+
+      {ui.nouveau !== null && (
+        <Card variant="Llist" style={{ marginTop: 10 }}>
+          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
+            {t('comptes.code_pour').replace('{id}', ui.nouveau.accountId)}
+          </Text>
+          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
+            {ui.nouveau.code}
+          </Text>
+          <View style={{ marginTop: 6 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.code_note')}</Text>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft label={t('comptes.vu')} icon="check" onPress={onVu} />
+          </View>
+        </Card>
+      )}
+    </View>
+  );
+}
+
+/**
+ * RESELLER-ACCOUNTS-1c — LE SUIVI. Exact counts and copied nets, per
+ * revendeuse, sorted by the count it shows — deterministic, explainable in
+ * one sentence, and NEVER a score (the reputation law's own precedent).
+ * A partial read says « Lecture partielle » on its row instead of quietly
+ * showing a smaller number as the whole truth.
+ */
+function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
+  const vue = suiviVue(read);
+  if (vue === null) return null;
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('suivi.titre')}</Text>
+      <View style={{ marginTop: 6 }}>
+        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('suivi.sens')}</Text>
+      </View>
+
+      {vue.kind === 'loading' && (
+        <View style={{ marginTop: 8 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
+      )}
+      {vue.kind === 'failed' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 8 }}><BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} /></View>
+        </View>
+      )}
+      {vue.kind === 'empty' && (
+        <View style={{ marginTop: 8 }}><Banner tone="info">{t(vue.message)}</Banner></View>
+      )}
+
+      {vue.kind === 'liste' && vue.lignes.map((l: SuiviLigne) => (
+        <Card key={l.accountId} variant="Llist" style={{ marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{l.name}</Text>
+              <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+                {t('suivi.ventes_n').replace('{n}', String(l.ventes))}
+                {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
+              </Text>
+            </View>
+            <Text style={role({ f: 'BG', w: 800, s: 16 }, P.ink)}>{formatF(l.netFcfa)}</Text>
+          </View>
+        </Card>
+      ))}
     </View>
   );
 }

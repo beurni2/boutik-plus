@@ -1,6 +1,12 @@
 import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevokeResult } from './service';
 import type {
   AccesCodeRow,
+  CodeAccesResult,
+  CompteActeResult,
+  CompteRow,
+  ComptesResult,
+  SuiviLigne,
+  SuiviResult,
   AccesListResult,
   AccesMintResult,
   AccesRevokeResult,
@@ -410,5 +416,113 @@ export function accesRevokeSettled(resellerId: string, result: AccesRevokeResult
 
 export function accesReadOf(result: AccesListResult): AccesRead {
   if (result.ok) return { kind: 'ok', codes: result.codes };
+  return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
+}
+
+/* ── RESELLER-ACCOUNTS-1c — the roster + suivi, PURE decisions ── */
+
+/**
+ * The roster's one-write-at-a-time machine, the SAME discipline as the two
+ * code inventories above and for the same reasons — with THREE verbs instead
+ * of two, each namespaced by accountId so no account's act can light another
+ * account's sentence.
+ */
+
+export type ComptesRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'bad_key' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly comptes: readonly CompteRow[] };
+
+export type ComptesVue =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | { readonly kind: 'liste'; readonly comptes: readonly CompteRow[] };
+
+export function comptesVue(read: ComptesRead): ComptesVue | null {
+  if (read.kind === 'bad_key') return null; // one key, one sentence — the section escalates
+  if (read.kind === 'loading') return { kind: 'loading', message: 'comptes.chargement' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'comptes.echec' };
+  if (read.comptes.length === 0) return { kind: 'empty', message: 'comptes.vide' };
+  return { kind: 'liste', comptes: read.comptes };
+}
+
+export type ActeCompte = `code:${string}` | `pause:${string}` | `resume:${string}`;
+
+export interface ComptesUi {
+  readonly busy: ActeCompte | null;
+  /** The one-time admission code, until he says he has written it down. */
+  readonly nouveau: { readonly accountId: string; readonly code: string } | null;
+  readonly echec: ActeCompte | null;
+}
+
+export const COMPTES_IDLE: ComptesUi = { busy: null, nouveau: null, echec: null };
+
+/** A LIVE one-time code blocks every other act — the plaintext exists nowhere
+ *  but that card, and a re-render mid-handover destroys it. */
+export function acteStart(ui: ComptesUi, acte: ActeCompte): ComptesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  return { busy: acte, nouveau: null, echec: null };
+}
+
+export type ComptesSettlement =
+  | { readonly ui: ComptesUi; readonly then: 'refresh' }
+  | { readonly ui: ComptesUi; readonly then: 'bad_key' }
+  | { readonly ui: ComptesUi; readonly then: 'none' };
+
+export function codeAccesSettled(accountId: string, result: CodeAccesResult): ComptesSettlement {
+  if (result.ok) {
+    return { ui: { busy: null, nouveau: { accountId: result.accountId, code: result.code }, echec: null }, then: 'refresh' };
+  }
+  if (result.reason === 'bad_key') return { ui: COMPTES_IDLE, then: 'bad_key' };
+  // not_pending / not_found: the LIST was stale about her state — re-read so
+  // the row shows the truth; the failure sentence still names the act.
+  if (result.reason === 'not_pending' || result.reason === 'not_found') {
+    return { ui: { busy: null, nouveau: null, echec: `code:${accountId}` }, then: 'refresh' };
+  }
+  return { ui: { busy: null, nouveau: null, echec: `code:${accountId}` }, then: 'none' };
+}
+
+export function acteSettled(acte: ActeCompte, result: CompteActeResult): ComptesSettlement {
+  if (result.ok) return { ui: COMPTES_IDLE, then: 'refresh' };
+  if (result.reason === 'bad_key') return { ui: COMPTES_IDLE, then: 'bad_key' };
+  // wrong_state re-reads TOO: the book said her state is not what the list
+  // shows, and the stored truth is how the row corrects itself.
+  if (result.reason === 'wrong_state' || result.reason === 'not_found') {
+    return { ui: { busy: null, nouveau: null, echec: acte }, then: 'refresh' };
+  }
+  return { ui: { busy: null, nouveau: null, echec: acte }, then: 'none' };
+}
+
+export function comptesReadOf(result: ComptesResult): ComptesRead {
+  if (result.ok) return { kind: 'ok', comptes: result.comptes };
+  return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
+}
+
+/* le suivi — a read-only board; its only decision is the honest shell */
+
+export type SuiviRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'bad_key' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly lignes: readonly SuiviLigne[] };
+
+export type SuiviVue =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | { readonly kind: 'liste'; readonly lignes: readonly SuiviLigne[] };
+
+export function suiviVue(read: SuiviRead): SuiviVue | null {
+  if (read.kind === 'bad_key') return null;
+  if (read.kind === 'loading') return { kind: 'loading', message: 'suivi.chargement' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'suivi.echec' };
+  if (read.lignes.length === 0) return { kind: 'empty', message: 'suivi.vide' };
+  return { kind: 'liste', lignes: read.lignes };
+}
+
+export function suiviReadOf(result: SuiviResult): SuiviRead {
+  if (result.ok) return { kind: 'ok', lignes: result.lignes };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }

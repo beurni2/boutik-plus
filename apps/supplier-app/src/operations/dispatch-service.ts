@@ -392,3 +392,184 @@ export function resolveAccesService(): AccesServicePort | null {
     },
   };
 }
+
+/* ── RESELLER-ACCOUNTS-1c — the account roster + suivi, Shop+ Worker, key C ── */
+
+/**
+ * FOUNDER ORDER, 2026-08-04: « on the console i can see the list of all
+ * resellers and can decide to pause their access » + « a leaderboard where i
+ * can monitor reseller's activities, their sales, their gains ».
+ *
+ * A row is the Worker's `AccountView` — name, contact, state, whether a code
+ * handout is in flight. NO credential field exists on this wire by
+ * construction (pinned server-side on raw bytes).
+ */
+export type EtatCompte = 'pending_access' | 'active' | 'paused';
+
+export interface CompteRow {
+  readonly accountId: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly state: EtatCompte;
+  readonly createdAt: string;
+  readonly accessCodePending: boolean;
+}
+
+/** One suivi line: an EXACT COUNT and a summed net copied off frozen quotes —
+ *  never a score, never a rank (deterministic-only; the sort is the count). */
+export interface SuiviLigne {
+  readonly accountId: string;
+  readonly name: string;
+  readonly state: string;
+  readonly ventes: number;
+  readonly netFcfa: number;
+  readonly incomplet: boolean;
+}
+
+export type ComptesResult =
+  | { readonly ok: true; readonly comptes: readonly CompteRow[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type CompteActeResult =
+  | { readonly ok: true; readonly state?: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'wrong_state' | 'not_found' };
+
+export type CodeAccesResult =
+  | { readonly ok: true; readonly accountId: string; readonly code: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'not_pending' | 'not_found' };
+
+export type SuiviResult =
+  | { readonly ok: true; readonly lignes: readonly SuiviLigne[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export interface ComptesServicePort {
+  listComptes(cleC: string): Promise<ComptesResult>;
+  codeAcces(cleC: string, accountId: string): Promise<CodeAccesResult>;
+  pause(cleC: string, accountId: string): Promise<CompteActeResult>;
+  resume(cleC: string, accountId: string): Promise<CompteActeResult>;
+  listSuivi(cleC: string): Promise<SuiviResult>;
+}
+
+const ETATS_COMPTE: readonly string[] = ['pending_access', 'active', 'paused'];
+
+function readCompteRow(raw: unknown): CompteRow | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r['accountId'] !== 'string' || r['accountId'] === '') return null;
+  if (typeof r['name'] !== 'string' || r['name'] === '') return null;
+  if (typeof r['email'] !== 'string') return null;
+  if (typeof r['phone'] !== 'string') return null;
+  if (typeof r['state'] !== 'string' || !ETATS_COMPTE.includes(r['state'])) return null;
+  if (typeof r['createdAt'] !== 'string') return null;
+  return {
+    accountId: r['accountId'], name: r['name'], email: r['email'], phone: r['phone'],
+    state: r['state'] as EtatCompte, createdAt: r['createdAt'],
+    accessCodePending: r['accessCodePending'] === true,
+  };
+}
+
+function readSuiviLigne(raw: unknown): SuiviLigne | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r['accountId'] !== 'string' || r['accountId'] === '') return null;
+  if (typeof r['name'] !== 'string') return null;
+  if (typeof r['state'] !== 'string') return null;
+  if (typeof r['ventes'] !== 'number' || !Number.isInteger(r['ventes']) || r['ventes'] < 0) return null;
+  if (typeof r['netFcfa'] !== 'number' || !Number.isInteger(r['netFcfa']) || r['netFcfa'] < 0) return null;
+  return {
+    accountId: r['accountId'], name: r['name'], state: r['state'],
+    ventes: r['ventes'], netFcfa: r['netFcfa'], incomplet: r['incomplet'] === true,
+  };
+}
+
+export function resolveComptesService(): ComptesServicePort | null {
+  const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
+  if (base === undefined || base === '') return null;
+  const trimmed = base.replace(/\/+$/, '');
+
+  async function appel(chemin: string, cleC: string, init: RequestInit = {}) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${trimmed}${chemin}`, {
+        ...init,
+        headers: {
+          Accept: 'application/json',
+          ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          Authorization: `Bearer ${cleC}`,
+        },
+        signal: ctl.signal,
+      });
+      return { status: res.status, body: (await res.json().catch(() => null)) as Record<string, unknown> | null };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const acte = async (chemin: string, cleC: string, accountId: string): Promise<CompteActeResult> => {
+    const res = await appel(chemin, cleC, { method: 'POST', body: JSON.stringify({ accountId }) });
+    if (res === null) return { ok: false, reason: 'unreachable' };
+    if (res.status === 401) return { ok: false, reason: 'bad_key' };
+    if (res.status === 404) return { ok: false, reason: 'not_found' };
+    // wrong_state is HONEST, not a failure to hide: pausing a pending account,
+    // resuming an active one — the book said no, and the row must re-read.
+    if (res.status === 409) return { ok: false, reason: 'wrong_state' };
+    if (res.body?.['ok'] !== true) return { ok: false, reason: 'unreachable' };
+    return { ok: true, ...(typeof res.body['state'] === 'string' ? { state: res.body['state'] } : {}) };
+  };
+
+  return {
+    async listComptes(cleC: string): Promise<ComptesResult> {
+      const res = await appel('/reseller/accounts', cleC);
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.body?.['ok'] !== true || !Array.isArray(res.body['accounts'])) return { ok: false, reason: 'unreachable' };
+      const comptes: CompteRow[] = [];
+      for (const raw of res.body['accounts']) {
+        const row = readCompteRow(raw);
+        if (row !== null) comptes.push(row);
+      }
+      return { ok: true, comptes };
+    },
+
+    async codeAcces(cleC: string, accountId: string): Promise<CodeAccesResult> {
+      const res = await appel('/reseller/accounts/access-code', cleC, {
+        method: 'POST',
+        body: JSON.stringify({ accountId }),
+      });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404) return { ok: false, reason: 'not_found' };
+      if (res.status === 409) return { ok: false, reason: 'not_pending' };
+      const code = res.body?.['code'];
+      const id = res.body?.['accountId'];
+      if (res.body?.['ok'] !== true || typeof code !== 'string' || typeof id !== 'string') {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, accountId: id, code };
+    },
+
+    pause: (cleC, accountId) => acte('/reseller/accounts/pause', cleC, accountId),
+    resume: (cleC, accountId) => acte('/reseller/accounts/resume', cleC, accountId),
+
+    async listSuivi(cleC: string): Promise<SuiviResult> {
+      const res = await appel('/reseller/suivi', cleC);
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.body?.['ok'] !== true || !Array.isArray(res.body['lignes'])) return { ok: false, reason: 'unreachable' };
+      const lignes: SuiviLigne[] = [];
+      for (const raw of res.body['lignes']) {
+        const l = readSuiviLigne(raw);
+        if (l !== null) lignes.push(l);
+      }
+      // THE ORDER IS AN EXACT COUNT, DESCENDING — deterministic and explainable
+      // in one sentence, per the reputation law's own precedent. Ties break by
+      // net then id so the board never reshuffles between reads.
+      lignes.sort((a, b) => b.ventes - a.ventes || b.netFcfa - a.netFcfa || (a.accountId < b.accountId ? -1 : 1));
+      return { ok: true, lignes };
+    },
+  };
+}
