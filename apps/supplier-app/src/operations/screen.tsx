@@ -1339,7 +1339,7 @@ function SignalerRefus({
   aUnNumero: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
-  const [etat, setEtat] = useState<'repos' | 'envoi' | 'fait' | 'echec' | 'sans_contact'>('repos');
+  const [etat, setEtat] = useState<'repos' | 'envoi' | 'fait' | 'echec' | 'sans_contact' | 'deja'>('repos');
   const service = useMemo(() => resolveRefusService(), []);
 
   // NO NUMBER, NO LADDER — and the row says so instead of offering an action
@@ -1370,7 +1370,14 @@ function SignalerRefus({
         setEtat('fait');
         return;
       }
-      setEtat(res.reason === 'sans_contact' ? 'sans_contact' : 'echec');
+      if (res.reason === 'sans_contact') {
+        setEtat('sans_contact');
+        return;
+      }
+      // REFUS-IDEMPOTENCE-1 — « already noted » is neither a success nor a
+      // network fault, so it gets its own sentence rather than being folded
+      // into one of the two things it is not.
+      setEtat(res.reason === 'deja_note' ? 'deja' : 'echec');
     });
   };
 
@@ -1392,15 +1399,22 @@ function SignalerRefus({
           <Banner tone="info">{t('refus.sans_contact')}</Banner>
         </View>
       )}
+      {etat === 'deja' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t('refus.deja')}</Banner>
+        </View>
+      )}
 
       {/*
-        THE LIST DISAPPEARS THE MOMENT AN ATTEMPT ENDS BADLY, and that is a
-        SAFETY property, not a styling one. `POST …/refusal` carries no
-        idempotency key, so a lost response is indistinguishable from a lost
-        request: the note may already have landed. Two ordinary faults close her
-        door for a month, so an instant re-tap can cost a buyer a month for one
-        real refusal. He must reopen deliberately — and the sentence tells him
-        why. (Idempotency on that route is flagged to the founder, JOURNAL.)
+        THE LIST DISAPPEARS THE MOMENT AN ATTEMPT ENDS BADLY, and it STAYS that
+        way after REFUS-IDEMPOTENCE-1 — for a smaller reason, honestly stated.
+        The route now derives an idempotency key from the order, so re-tapping
+        the SAME reason after a lost response is harmless and the sentence says
+        so. What a blind re-tap can still get wrong is the reason itself: a
+        different one is refused (409, « déjà une note ») rather than applied,
+        and a tired thumb landing on « Fraude » instead of « Elle a changé
+        d'avis » deserves the pause either way. Two ordinary faults close her
+        door for a month; deliberate reopening costs one tap and is worth it.
       */}
       {etat === 'repos' &&
         MOTIFS_REFUS.map((motif) => (

@@ -201,7 +201,11 @@ export function libelleMotif(motif: MotifRefus): string {
 
 export type RefusResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'sans_contact' };
+  /** REFUS-IDEMPOTENCE-1 — this order already carries a note, and the reason
+   *  just chosen is a DIFFERENT one. Its own outcome because the console must
+   *  not call it « pas de réponse »: nothing was lost, something was refused,
+   *  and the operator needs to know which. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'sans_contact' | 'deja_note' };
 
 /**
  * Record one refusal against the buyer of ONE ORDER.
@@ -250,6 +254,15 @@ export function resolveRefusService(): RefusServicePort | null {
       // thing to a console: there is nobody to key a ladder to, retrying will
       // not change that, and saying « your network » about it would be false.
       if (res.status === 422) return { ok: false, reason: 'sans_contact' };
+      // REFUS-IDEMPOTENCE-1 — 409 is « this order already has a note, and it
+      // says something else ». Falling through to `unreachable` would tell him
+      // to check his network about a call the server answered deliberately.
+      //
+      // A REPLAY OF THE SAME REASON IS NOT HERE, and never will be: the route
+      // answers it 200 with the first decision, so a retry after a dropped
+      // response lands on the success branch below — which is the entire point
+      // of the key, and why this client does not special-case it.
+      if (res.status === 409) return { ok: false, reason: 'deja_note' };
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       return { ok: true };
     },

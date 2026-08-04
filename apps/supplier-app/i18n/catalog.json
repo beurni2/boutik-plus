@@ -2671,7 +2671,13 @@
   },
   {
     "key": "refus.echec",
-    "fr": "Pas de réponse. La note est peut-être déjà partie : vérifiez avant de recommencer.",
+    "fr": "Pas de réponse. Vous pouvez réessayer : la même note ne sera pas comptée deux fois.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "refus.deja",
+    "fr": "Cette commande a déjà une note. Votre nouveau choix n'a rien changé.",
     "register": "neutral",
     "screenClass": "status"
   },

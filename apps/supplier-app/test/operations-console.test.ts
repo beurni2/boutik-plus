@@ -967,10 +967,34 @@ describe('SP6.3 — the refusal port: one field crosses, and the buyer is never 
       [async () => new Response(JSON.stringify({ ok: false, reason: 'ladder_unavailable' }), { status: 503 }), 'unreachable'],
       [async () => new Response('boom', { status: 500 }), 'unreachable'],
       [() => Promise.reject(new Error('down')), 'unreachable'],
+      // REFUS-IDEMPOTENCE-1 — 409 is a DELIBERATE server answer (« this order
+      // already carries a different note »), so calling it « unreachable »
+      // would send him to check a network that is working perfectly.
+      [
+        async () =>
+          new Response(JSON.stringify({ ok: false, reason: 'already_recorded', recorded: 'change_of_mind' }), { status: 409 }),
+        'deja_note',
+      ],
     ] as const) {
       stubFetch(reply as () => Promise<Response>);
       expect(await port.signalerRefus('k', 'ord-1', 'honest_absence'), expected).toEqual({ ok: false, reason: expected });
     }
+  });
+
+  /**
+   * REFUS-IDEMPOTENCE-1 — THE RETRY THIS SLICE MAKES SAFE.
+   *
+   * The route answers a replay of the SAME reason 200 (carrying `replay:
+   * true`), so the client must land on plain success. A client that treated
+   * the extra field as an anomaly would turn the one outcome the key exists to
+   * produce into an error on screen.
+   */
+  it('A REPLAY READS AS SUCCESS — a retry after a lost response is not an error to report', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, replay: true, rung: 'first_fault_recorded', record: {} })),
+    );
+    expect(await resolveRefusService()!.signalerRefus('k', 'ord-1', 'change_of_mind')).toEqual({ ok: true });
   });
 
   it('a HANGING write is bounded like the read — « un instant… » can never be forever', async () => {
@@ -1014,13 +1038,39 @@ describe('SP6.3 — [source-text checks] the card wires it, and a lost answer ne
     // a refusal that already reached the ladder.
     expect(source).toContain("{etat === 'repos' &&\n        MOTIFS_REFUS.map((motif) => (");
     expect(source).not.toContain("{etat !== 'envoi' &&");
-    // …and he is TOLD why, rather than left to guess at a dead form
+    // …and he is TOLD what to do, rather than left to guess at a dead form.
+    //
+    // REFUS-IDEMPOTENCE-1 CHANGED WHAT IS TRUE HERE, so it changed the
+    // sentence and this pin with it. Before the key, a lost response meant « we
+    // cannot know whether it landed » and the copy had to say « peut-être ».
+    // Now the route derives its key from the order: re-sending the SAME reason
+    // is answered with the first decision and counts once. The copy must offer
+    // the retry, and must still never claim the note was not recorded — that
+    // remains unknowable from here.
     const fr = new Map(catalog.map((e) => [e.key, e.fr]));
     const echec = (fr.get('refus.echec') ?? '').toLowerCase();
     expect(echec).not.toBe('');
-    expect(echec).toContain('peut-être'); // the honest word: we do not know
-    // it must NOT claim the note was not recorded — we cannot know that
+    expect(echec).toContain('réessayer');
     expect(echec).not.toContain("rien n'a été");
+    // AND THE GUARANTEE THE RETRY RESTS ON IS THE SERVER'S, not this
+    // sentence's: the ladder refuses to count the same order twice. Pinned at
+    // the client seam so the copy cannot outlive the behaviour it promises.
+    const service = readFileSync(join(import.meta.dirname, '..', 'src/operations/dispatch-service.ts'), 'utf8');
+    expect(service).toContain("if (res.status === 409) return { ok: false, reason: 'deja_note' };");
+  });
+
+  it('« DÉJÀ NOTÉ » IS ITS OWN DESIGNED STATE — never a success, never « check your network »', () => {
+    const source = screenSource();
+    // the mapping, and the render — a state decided but not painted is not a state
+    expect(source).toContain("setEtat(res.reason === 'deja_note' ? 'deja' : 'echec')");
+    expect(source).toContain("{etat === 'deja' && (");
+    expect(source).toContain("{t('refus.deja')}");
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    const deja = (fr.get('refus.deja') ?? '').toLowerCase();
+    expect(deja).not.toBe('');
+    // it must say the new choice did NOT take — the whole failure it prevents
+    // is an operator believing his correction landed
+    expect(deja).toContain("n'a rien changé");
   });
 
   it('the divider is DERIVED from the grave block — reordering the list can never leave the gap on the wrong row', () => {
