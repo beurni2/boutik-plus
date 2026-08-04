@@ -23,6 +23,8 @@ import {
   libelleMotif,
   resolveRefusService,
   type MotifRefus,
+  resolveAccesService,
+  type AccesServicePort,
 } from './dispatch-service';
 import {
   CHASE_AFTER_MIN,
@@ -46,6 +48,16 @@ import {
   type OperationsRead,
   type OperationsRow,
   type RelanceUi,
+  ACCES_IDLE,
+  accesMintSettled,
+  accesMintStart,
+  accesReadOf,
+  accesRevokeSettled,
+  accesRevokeStart,
+  accesVue,
+  type AccesRead,
+  type AccesSettlement,
+  type AccesUi,
 } from './view';
 
 /**
@@ -438,6 +450,62 @@ function SLivraisons() {
   );
   const seq = useRef(0);
 
+  /* ── ACCESS-GATE-1 — the reseller ACCESS codes, on the SAME key C ──────────
+     Same Worker, same credential, same section: he is minting a code for a new
+     revendeuse from the console he already opened with that key, so a second
+     door here would be a second thing to type for no added protection. */
+  const acces = useMemo<AccesServicePort | null>(() => resolveAccesService(), []);
+  const [accesRead, setAccesRead] = useState<AccesRead>({ kind: 'loading' });
+  const [accesUi, setAccesUi] = useState<AccesUi>(ACCES_IDLE);
+  const [accesDraft, setAccesDraft] = useState('');
+  /** The readSeq law, fourth application: a mint's refresh and a revoke's
+   *  refresh can race, and the stale answer landing last would re-render a CUT
+   *  code as live — on the one list whose question is « who can get in? ». */
+  const accesSeq = useRef(0);
+
+  const loadAcces = async (key: string): Promise<void> => {
+    if (acces === null) {
+      setAccesRead({ kind: 'failed' });
+      return;
+    }
+    accesSeq.current += 1;
+    const mine = accesSeq.current;
+    const res = await acces.listAcces(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    if (mine !== accesSeq.current) return;
+    setAccesRead(accesReadOf(res));
+  };
+
+  const settleAcces = async (settlement: AccesSettlement, key: string): Promise<void> => {
+    setAccesUi(settlement.ui);
+    if (settlement.then === 'refresh') await loadAcces(key);
+    // A refused key here refuses the whole section's door, exactly as the
+    // livraisons read does — one key, one sentence.
+    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
+  };
+
+  const creerAcces = async (resellerId: string, key: string): Promise<void> => {
+    if (acces === null || resellerId === '') return;
+    const started = accesMintStart(accesUi);
+    if (started === null) return; // a live one-time code blocks every other act
+    setAccesUi(started);
+    const res = await acces
+      .mintAcces(key, resellerId)
+      .catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    setAccesDraft('');
+    await settleAcces(accesMintSettled(res), key);
+  };
+
+  const couperAcces = async (resellerId: string, key: string): Promise<void> => {
+    if (acces === null) return;
+    const started = accesRevokeStart(accesUi, resellerId);
+    if (started === null) return;
+    setAccesUi(started);
+    const res = await acces
+      .revokeAcces(key, resellerId)
+      .catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    await settleAcces(accesRevokeSettled(resellerId, res), key);
+  };
+
   /**
    * EVERY PATH OUT OF THIS FUNCTION NAMES A STATE (founder-found: the section
    * sat on « Lecture des livraisons… » forever). The old version RETURNED
@@ -571,7 +639,153 @@ function SLivraisons() {
           <View style={{ marginTop: 12 }}>
             <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
           </View>
+
+          {cleC !== null && (
+            <SAcces
+              read={accesRead}
+              ui={accesUi}
+              draft={accesDraft}
+              dejaUnCode={
+                // Said only from data he truly has: with the list unread, we
+                // cannot know whether she already holds a code, so nothing is
+                // said rather than a confidently wrong warning.
+                accesRead.kind === 'ok' &&
+                accesRead.codes.some((c) => c.resellerId === accesDraft.trim())
+              }
+              onDraft={setAccesDraft}
+              onCreer={() => { void creerAcces(accesDraft.trim(), cleC); }}
+              onCouper={(id) => { void couperAcces(id, cleC); }}
+              onVu={() => setAccesUi(ACCES_IDLE)}
+              onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
+            />
+          )}
         </>
+      )}
+    </View>
+  );
+}
+
+/**
+ * ACCESS-GATE-1 — WHO CAN GET INTO SHOP+, AND SINCE WHEN.
+ *
+ * Founder order, 2026-08-04: a new revendeuse gets a code from him and types it
+ * once to enter the app. This is where that code is made.
+ *
+ * THE PLAINTEXT APPEARS EXACTLY ONCE, and this card is the only place it will
+ * ever exist — the Worker keeps only its SHA-256. So a live code BLOCKS every
+ * other act until he taps « C'est noté »: any re-render would destroy it while
+ * he is reading it out over the phone, and the screen says so in words where
+ * the buttons were rather than leaving a dead tap.
+ */
+function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu, onRetry }: {
+  read: AccesRead;
+  ui: AccesUi;
+  draft: string;
+  dejaUnCode: boolean;
+  onDraft: (v: string) => void;
+  onCreer: () => void;
+  onCouper: (resellerId: string) => void;
+  onVu: () => void;
+  onRetry: () => void;
+}) {
+  const vue = accesVue(read);
+  if (vue === null) return null; // bad_key already spoke once, for the section
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('acces.titre')}</Text>
+      <View style={{ marginTop: 6 }}>
+        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.sens')}</Text>
+      </View>
+
+      {vue.kind === 'loading' && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
+        </View>
+      )}
+      {vue.kind === 'failed' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="warn">{t(vue.message)}</Banner>
+          <View style={{ marginTop: 8 }}>
+            <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} />
+          </View>
+        </View>
+      )}
+      {vue.kind === 'empty' && (
+        <View style={{ marginTop: 8 }}>
+          <Banner tone="info">{t(vue.message)}</Banner>
+        </View>
+      )}
+      {vue.kind === 'liste' &&
+        vue.codes.map((c) => (
+          <Card key={c.resellerId} variant="Llist" style={{ marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.resellerId}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+                  {t('acces.cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
+                </Text>
+              </View>
+              {ui.busy === `revoke:${c.resellerId}` ? (
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.coupure')}</Text>
+              ) : ui.nouveau !== null ? (
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.noter_dabord')}</Text>
+              ) : (
+                <BtnSoft label={t('acces.couper')} onPress={() => onCouper(c.resellerId)} />
+              )}
+            </View>
+            {ui.echec === `revoke:${c.resellerId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.coupure_echec')}</Text>
+              </View>
+            )}
+          </Card>
+        ))}
+
+      {ui.nouveau !== null && (
+        <Card variant="Llist" style={{ marginTop: 10 }}>
+          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
+            {t('acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
+          </Text>
+          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
+            {ui.nouveau.code}
+          </Text>
+          <View style={{ marginTop: 6 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.nouveau_note')}</Text>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <BtnSoft label={t('acces.vu')} icon="check" onPress={onVu} />
+          </View>
+        </Card>
+      )}
+
+      {/* The mint form is HIDDEN while a one-time code is on screen — he has
+          something to write down, and offering a second act there is how the
+          first one gets destroyed. */}
+      {ui.nouveau === null && (
+        <View style={{ marginTop: 12 }}>
+          <Input label={t('acces.champ')} value={draft} onChangeText={onDraft} />
+          {dejaUnCode && (
+            <View style={{ marginTop: 6 }}>
+              <Banner tone="warn">{t('acces.remplace')}</Banner>
+            </View>
+          )}
+          {ui.echec === 'mint' && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.creation_echec')}</Text>
+            </View>
+          )}
+          <View style={{ marginTop: 8 }}>
+            {ui.busy === 'mint' ? (
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.creation')}</Text>
+            ) : (
+              <BtnSoft
+                label={t('acces.creer')}
+                icon="check"
+                onPress={draft.trim() === '' ? () => undefined : onCreer}
+              />
+            )}
+          </View>
+        </View>
       )}
     </View>
   );

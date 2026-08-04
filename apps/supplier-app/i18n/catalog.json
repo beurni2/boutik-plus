@@ -2698,5 +2698,113 @@
     "fr": "Retour",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "acces.titre",
+    "fr": "Codes d'accès Shop+",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.sens",
+    "fr": "Un code par revendeuse. Elle le tape une fois pour entrer dans Shop+.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "acces.chargement",
+    "fr": "Lecture des codes d'accès…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.echec",
+    "fr": "Codes d'accès illisibles pour le moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.vide",
+    "fr": "Aucun code d'accès pour l'instant. Créez le premier.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.champ",
+    "fr": "Identifiant de la revendeuse (rs-0000)",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.creer",
+    "fr": "Créer le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.creation",
+    "fr": "Création…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.creation_echec",
+    "fr": "Le code n'a pas été créé. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.couper",
+    "fr": "Couper",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.coupure",
+    "fr": "Coupure…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.coupure_echec",
+    "fr": "La coupure n'a pas abouti. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.cree_le",
+    "fr": "Créé le {d}",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "acces.nouveau_pour",
+    "fr": "Nouveau code pour {id}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.nouveau_note",
+    "fr": "Notez-le maintenant : il ne s'affichera plus. En créer un autre remplace celui-ci.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "acces.noter_dabord",
+    "fr": "Notez d'abord le code",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.vu",
+    "fr": "C'est noté",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.remplace",
+    "fr": "Cette revendeuse a déjà un code. En créer un nouveau coupe l'ancien tout de suite.",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

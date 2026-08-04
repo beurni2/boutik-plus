@@ -1,5 +1,11 @@
 import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevokeResult } from './service';
-import type { LivraisonRow } from './dispatch-service';
+import type {
+  AccesCodeRow,
+  AccesListResult,
+  AccesMintResult,
+  AccesRevokeResult,
+  LivraisonRow,
+} from './dispatch-service';
 
 /**
  * CONSOLE-1 — THE ONE DECISION IS PURE (the `produits-view.ts` pattern): a
@@ -304,4 +310,105 @@ export function livraisonsVue(read: LivraisonsRead): LivraisonsVue {
   const sansContact = confirmed.filter((r) => r.contact === null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const enAttente = read.rows.filter((r) => r.state !== 'confirmed').sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return { kind: 'liste', aLivrer, sansContact, enAttente };
+}
+
+/* ───── ACCESS-GATE-1 — the reseller ACCESS-code inventory, PURE decisions ───── */
+
+/**
+ * FOUNDER ORDER, 2026-08-04: he mints a code on this console and hands it to a
+ * new reseller, who types it once to get into Shop+.
+ *
+ * ═══ WHY THIS MIRRORS `CodesView` INSTEAD OF GENERALISING IT ═══
+ *
+ * The supplier-code machinery above is a proven, money-adjacent state machine
+ * whose vocabulary is `supplierId` throughout. Widening it to « an id » would
+ * touch every one of those call sites to serve a second caller — a refactor
+ * across a working credential surface, for no behaviour. Sixty lines of the
+ * same SHAPE, with its own names, is the cheaper and safer trade. If a third
+ * kind of code ever appears, THAT is when the abstraction has earned itself.
+ *
+ * The one real difference, and it is why the shapes are not identical: there is
+ * NO « known reseller » pre-flight. `mintAvis` warns him when a supplierId has
+ * never appeared on a paid order, because a typo there arms a phantom door.
+ * This console holds no list of resellers to check against, so it says nothing
+ * rather than saying something it cannot know.
+ */
+
+export type AccesRead =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'bad_key' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ok'; readonly codes: readonly AccesCodeRow[] };
+
+export type AccesVue =
+  | { readonly kind: 'loading'; readonly message: string }
+  | { readonly kind: 'failed'; readonly message: string }
+  | { readonly kind: 'empty'; readonly message: string }
+  | { readonly kind: 'liste'; readonly codes: readonly AccesCodeRow[] };
+
+/** `bad_key` renders NOTHING — the section's key is the Livraisons key, and one
+ *  refused key must produce one sentence on the console, never two. */
+export function accesVue(read: AccesRead): AccesVue | null {
+  if (read.kind === 'bad_key') return null;
+  if (read.kind === 'loading') return { kind: 'loading', message: 'acces.chargement' };
+  if (read.kind === 'failed') return { kind: 'failed', message: 'acces.echec' };
+  if (read.codes.length === 0) return { kind: 'empty', message: 'acces.vide' };
+  return { kind: 'liste', codes: read.codes };
+}
+
+export interface AccesUi {
+  /** 'mint' or the resellerId being cut — ONE write at a time. */
+  readonly busy: 'mint' | `revoke:${string}` | null;
+  /** The one-time plaintext, until he says he has written it down. */
+  readonly nouveau: { readonly resellerId: string; readonly code: string } | null;
+  /** Namespaced like `busy`, so a reseller literally named « mint » cannot
+   *  light the wrong sentence (the verifier's note on the supplier section). */
+  readonly echec: 'mint' | `revoke:${string}` | null;
+}
+
+export const ACCES_IDLE: AccesUi = { busy: null, nouveau: null, echec: null };
+
+/**
+ * A LIVE one-time code BLOCKS every other act. The plaintext exists nowhere but
+ * that card — the Worker stores only its SHA-256 — so any next tap that
+ * re-rendered the section would destroy it mid-handover, while he is reading it
+ * out over the phone. He must dismiss it first, and the screen says so in words
+ * where the buttons were.
+ */
+export function accesMintStart(ui: AccesUi): AccesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  return { busy: 'mint', nouveau: null, echec: null };
+}
+
+export function accesRevokeStart(ui: AccesUi, resellerId: string): AccesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  return { busy: `revoke:${resellerId}`, nouveau: null, echec: null };
+}
+
+export type AccesSettlement =
+  | { readonly ui: AccesUi; readonly then: 'refresh' }
+  | { readonly ui: AccesUi; readonly then: 'bad_key' }
+  | { readonly ui: AccesUi; readonly then: 'none' };
+
+export function accesMintSettled(result: AccesMintResult): AccesSettlement {
+  if (result.ok) {
+    // The list refreshes (the row must be the STORED truth) while the plaintext
+    // stays on screen until dismissed — he is mid-handover.
+    return { ui: { busy: null, nouveau: { resellerId: result.resellerId, code: result.code }, echec: null }, then: 'refresh' };
+  }
+  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
+  return { ui: { busy: null, nouveau: null, echec: 'mint' }, then: 'none' };
+}
+
+export function accesRevokeSettled(resellerId: string, result: AccesRevokeResult): AccesSettlement {
+  // `no_code` RE-READS too: the list claimed a code the book no longer holds,
+  // so the row must leave the screen, and the stored truth is how.
+  if (result.ok || (!result.ok && result.reason === 'no_code')) return { ui: ACCES_IDLE, then: 'refresh' };
+  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
+  return { ui: { busy: null, nouveau: null, echec: `revoke:${resellerId}` }, then: 'none' };
+}
+
+export function accesReadOf(result: AccesListResult): AccesRead {
+  if (result.ok) return { kind: 'ok', codes: result.codes };
+  return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }

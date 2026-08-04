@@ -255,3 +255,140 @@ export function resolveRefusService(): RefusServicePort | null {
     },
   };
 }
+
+/* ───── ACCESS-GATE-1 — reseller ACCESS codes, on the Shop+ Worker, key C ───── */
+
+/**
+ * FOUNDER ORDER, 2026-08-04: « a new reseller will [have] a code access that i
+ * will mint on the console and give so it can have access to the app ».
+ *
+ * ═══ WHY THIS LIVES BESIDE THE DISPATCH CLIENT AND NOT BESIDE THE OTHER CODES ═══
+ *
+ * The console already mints SUPPLIER codes (CONSOLE-3) — but those are Boutik+
+ * codes, on the OFFER service, behind the fulfilment key (value B). A reseller
+ * access code is a SHOP+ credential on the storefront Worker behind key C, the
+ * same door the Livraisons section opens. Two different Workers, two different
+ * capabilities, two different keys: the client for each lives with its key, and
+ * that separation is why one leaked key never opens both.
+ *
+ * ═══ THE PLAINTEXT EXISTS EXACTLY ONCE ═══
+ *
+ * The Worker stores only the SHA-256. `mintAcces` is the one moment the code is
+ * readable by anyone, including him — which is why the screen holds it until he
+ * dismisses it, and why re-minting is also the revocation story: one active
+ * code per reseller, replaced atomically.
+ */
+
+export interface AccesCodeRow {
+  readonly resellerId: string;
+  readonly mintedAt: string;
+}
+
+export type AccesListResult =
+  | { readonly ok: true; readonly codes: readonly AccesCodeRow[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type AccesMintResult =
+  | { readonly ok: true; readonly resellerId: string; readonly code: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type AccesRevokeResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_code' };
+
+export interface AccesServicePort {
+  listAcces(cleC: string): Promise<AccesListResult>;
+  mintAcces(cleC: string, resellerId: string): Promise<AccesMintResult>;
+  revokeAcces(cleC: string, resellerId: string): Promise<AccesRevokeResult>;
+}
+
+/** Mirrors the DO's row projection; anything malformed is DROPPED rather than
+ *  rendered half-formed — a row whose id we cannot read is a row he cannot act
+ *  on, and showing it would offer him a « couper » that does nothing. */
+function readAccesRow(raw: unknown): AccesCodeRow | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const resellerId = r['resellerId'];
+  const mintedAt = r['mintedAt'];
+  if (typeof resellerId !== 'string' || resellerId === '') return null;
+  if (typeof mintedAt !== 'string' || mintedAt === '') return null;
+  return { resellerId, mintedAt };
+}
+
+export function resolveAccesService(): AccesServicePort | null {
+  const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
+  if (base === undefined || base === '') return null;
+  const trimmed = base.replace(/\/+$/, '');
+
+  async function appel(
+    chemin: string,
+    cleC: string,
+    init: RequestInit = {},
+  ): Promise<{ status: number; body: unknown } | null> {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${trimmed}${chemin}`, {
+        ...init,
+        headers: {
+          Accept: 'application/json',
+          ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          Authorization: `Bearer ${cleC}`,
+        },
+        signal: ctl.signal,
+      });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return {
+    async listAcces(cleC: string): Promise<AccesListResult> {
+      const res = await appel('/reseller/codes', cleC);
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = res.body as { ok?: boolean; codes?: unknown } | null;
+      if (body?.ok !== true || !Array.isArray(body.codes)) return { ok: false, reason: 'unreachable' };
+      const codes: AccesCodeRow[] = [];
+      for (const row of body.codes) {
+        const parsed = readAccesRow(row);
+        if (parsed !== null) codes.push(parsed);
+      }
+      return { ok: true, codes };
+    },
+
+    async mintAcces(cleC: string, resellerId: string): Promise<AccesMintResult> {
+      // EXACTLY ONE FIELD — the DO refuses any body with a second key, which is
+      // how a client that thinks it may set `code` or `mintedAt` learns it may not.
+      const res = await appel('/reseller/code', cleC, {
+        method: 'POST',
+        body: JSON.stringify({ resellerId }),
+      });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = res.body as { ok?: boolean; code?: unknown; resellerId?: unknown } | null;
+      if (body?.ok !== true || typeof body.code !== 'string' || typeof body.resellerId !== 'string') {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, resellerId: body.resellerId, code: body.code };
+    },
+
+    async revokeAcces(cleC: string, resellerId: string): Promise<AccesRevokeResult> {
+      const res = await appel('/reseller/code/revoke', cleC, {
+        method: 'POST',
+        body: JSON.stringify({ resellerId }),
+      });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = res.body as { ok?: boolean; reason?: unknown } | null;
+      if (body?.ok === true) return { ok: true };
+      // « she had no code » is an HONEST answer, not a failure: the list said
+      // she did, the book says she does not, and the row must leave the screen.
+      if (body?.reason === 'no_code') return { ok: false, reason: 'no_code' };
+      return { ok: false, reason: 'unreachable' };
+    },
+  };
+}

@@ -12,11 +12,20 @@ import {
   libelleMotif,
   readStoredCleC,
   resolveDispatchService,
+  resolveAccesService,
   resolveRefusService,
   storeCleC,
 } from '../src/operations/dispatch-service';
 import {
+  ACCES_IDLE,
+  accesMintSettled,
+  accesMintStart,
+  accesReadOf,
+  accesRevokeSettled,
+  accesRevokeStart,
+  accesVue,
   livraisonsVue,
+  type AccesUi,
 } from '../src/operations/view';
 import {
   clearStoredOpsKey,
@@ -1026,5 +1035,194 @@ describe('SP6.3 — [source-text checks] the card wires it, and a lost answer ne
     for (const motif of MOTIFS_REFUS) {
       expect(keys.has(libelleMotif(motif)), `${libelleMotif(motif)} missing`).toBe(true);
     }
+  });
+});
+
+/* ═════ ACCESS-GATE-1 — the reseller ACCESS codes the founder mints ═════ */
+
+describe('ACCESS-GATE-1 — the inventory decides, and « bad key » speaks once', () => {
+  it('every read state maps to a designed sentence, and a refused key renders NOTHING here', () => {
+    expect(accesVue({ kind: 'loading' })).toEqual({ kind: 'loading', message: 'acces.chargement' });
+    expect(accesVue({ kind: 'failed' })).toEqual({ kind: 'failed', message: 'acces.echec' });
+    expect(accesVue({ kind: 'ok', codes: [] })).toEqual({ kind: 'empty', message: 'acces.vide' });
+    // NULL, not a sentence: the section shares key C with Livraisons, and a
+    // refused key must produce ONE sentence on the console, never two saying
+    // the same thing in different words.
+    expect(accesVue({ kind: 'bad_key' })).toBeNull();
+    const codes = [{ resellerId: 'rs-0001', mintedAt: '2026-08-04T10:00:00.000Z' }];
+    expect(accesVue({ kind: 'ok', codes })).toEqual({ kind: 'liste', codes });
+  });
+
+  it('every message key it can emit exists in the catalog', () => {
+    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
+    for (const read of [{ kind: 'loading' }, { kind: 'failed' }, { kind: 'ok', codes: [] }] as const) {
+      const vue = accesVue(read);
+      if (vue === null || vue.kind === 'liste') throw new Error('expected a message');
+      expect(fr.get(vue.message), vue.message).toBeTruthy();
+    }
+  });
+});
+
+describe('ACCESS-GATE-1 — a live one-time code blocks every other act', () => {
+  it('the plaintext exists ONCE, so nothing may re-render the section while it is on screen', () => {
+    const vivant: AccesUi = { busy: null, nouveau: { resellerId: 'rs-0001', code: 'SP-AAAA' }, echec: null };
+    // The Worker stores only the SHA-256. A second act here destroys the only
+    // copy of the code while he is reading it out over the phone.
+    expect(accesMintStart(vivant)).toBeNull();
+    expect(accesRevokeStart(vivant, 'rs-0002')).toBeNull();
+    // …and a write already in flight blocks too — one write at a time
+    const occupe: AccesUi = { busy: 'mint', nouveau: null, echec: null };
+    expect(accesMintStart(occupe)).toBeNull();
+    expect(accesRevokeStart(occupe, 'rs-0002')).toBeNull();
+    // CONTROL: from idle, both DO start — the guard is not simply always-null
+    expect(accesMintStart(ACCES_IDLE)).toEqual({ busy: 'mint', nouveau: null, echec: null });
+    expect(accesRevokeStart(ACCES_IDLE, 'rs-0002')).toEqual({ busy: 'revoke:rs-0002', nouveau: null, echec: null });
+  });
+
+  it('a mint keeps the plaintext on screen AND refreshes the list — the row must be the stored truth', () => {
+    const s = accesMintSettled({ ok: true, resellerId: 'rs-0007', code: 'SP-ABCD-EFGH' });
+    expect(s.then).toBe('refresh');
+    expect(s.ui.nouveau).toEqual({ resellerId: 'rs-0007', code: 'SP-ABCD-EFGH' });
+    expect(s.ui.busy).toBeNull();
+  });
+
+  it('a REVOKE that finds no code still refreshes — the list claimed one the book does not hold', () => {
+    expect(accesRevokeSettled('rs-1', { ok: false, reason: 'no_code' }).then).toBe('refresh');
+    expect(accesRevokeSettled('rs-1', { ok: true }).then).toBe('refresh');
+    // …and a real failure does NOT refresh; it names itself on that row
+    const echec = accesRevokeSettled('rs-1', { ok: false, reason: 'unreachable' });
+    expect(echec.then).toBe('none');
+    expect(echec.ui.echec).toBe('revoke:rs-1');
+  });
+
+  it('the failure marker is NAMESPACED — a reseller literally called « mint » cannot light the wrong sentence', () => {
+    const piege = accesRevokeSettled('mint', { ok: false, reason: 'unreachable' });
+    expect(piege.ui.echec).toBe('revoke:mint');
+    expect(piege.ui.echec).not.toBe('mint');
+    expect(accesMintSettled({ ok: false, reason: 'unreachable' }).ui.echec).toBe('mint');
+  });
+
+  it('a refused key on EITHER act escalates rather than reporting a local failure', () => {
+    expect(accesMintSettled({ ok: false, reason: 'bad_key' }).then).toBe('bad_key');
+    expect(accesRevokeSettled('rs-1', { ok: false, reason: 'bad_key' }).then).toBe('bad_key');
+  });
+
+  it('accesReadOf keeps bad_key separate from every other failure', () => {
+    expect(accesReadOf({ ok: false, reason: 'bad_key' })).toEqual({ kind: 'bad_key' });
+    expect(accesReadOf({ ok: false, reason: 'unreachable' })).toEqual({ kind: 'failed' });
+    expect(accesReadOf({ ok: true, codes: [] })).toEqual({ kind: 'ok', codes: [] });
+  });
+});
+
+describe('ACCESS-GATE-1 — the port speaks to the SHOP+ Worker on key C', () => {
+  const CHECKOUT = 'EXPO_PUBLIC_SHOP_CHECKOUT_BASE';
+
+  it('mint POSTs EXACTLY {resellerId} to /reseller/code with the Bearer — no second field', () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example/');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, code: 'SP-1', resellerId: 'rs-9' })));
+    return resolveAccesService()!.mintAcces('cle-c', 'rs-9').then((res) => {
+      expect(res).toEqual({ ok: true, resellerId: 'rs-9', code: 'SP-1' });
+      const [url, init] = spy.mock.calls[0]!;
+      expect(url).toBe('https://shop.example/reseller/code');
+      expect(init?.method).toBe('POST');
+      expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-c');
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      // The DO refuses a body with a second key outright — asserted here as the
+      // property, so a « harmless » extra field reads as the violation it is.
+      expect(Object.keys(body)).toEqual(['resellerId']);
+      expect(Object.keys(body)).not.toContain('code');
+    });
+  });
+
+  it('the list DROPS a malformed row rather than rendering a door he cannot cut', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    stubFetch(async () => new Response(JSON.stringify({
+      ok: true,
+      codes: [
+        { resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z' },
+        { resellerId: '', mintedAt: '2026-08-04T10:00:00.000Z' },
+        { resellerId: 'rs-2' },
+        null,
+        'nonsense',
+      ],
+    })));
+    const res = await resolveAccesService()!.listAcces('k');
+    expect(res).toEqual({ ok: true, codes: [{ resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z' }] });
+  });
+
+  it('401 → bad_key on all three calls, and a dead network → unreachable, never a silent success', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    const port = resolveAccesService()!;
+    stubFetch(async () => new Response('no', { status: 401 }));
+    expect(await port.listAcces('k')).toEqual({ ok: false, reason: 'bad_key' });
+    expect(await port.mintAcces('k', 'rs-1')).toEqual({ ok: false, reason: 'bad_key' });
+    expect(await port.revokeAcces('k', 'rs-1')).toEqual({ ok: false, reason: 'bad_key' });
+
+    stubFetch(() => Promise.reject(new Error('down')));
+    expect(await port.listAcces('k')).toEqual({ ok: false, reason: 'unreachable' });
+    expect(await port.mintAcces('k', 'rs-1')).toEqual({ ok: false, reason: 'unreachable' });
+    expect(await port.revokeAcces('k', 'rs-1')).toEqual({ ok: false, reason: 'unreachable' });
+  });
+
+  it('a mint answer missing the code is NOT a success — an empty card would be worse than a failure', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    for (const body of [{ ok: true, resellerId: 'rs-1' }, { ok: true, code: 'SP-1' }, { ok: false }]) {
+      stubFetch(async () => new Response(JSON.stringify(body)));
+      expect(await resolveAccesService()!.mintAcces('k', 'rs-1'), JSON.stringify(body))
+        .toEqual({ ok: false, reason: 'unreachable' });
+    }
+  });
+
+  it('« no_code » on a revoke is its OWN answer — honest, not a failure', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    stubFetch(async () => new Response(JSON.stringify({ ok: false, reason: 'no_code' })));
+    expect(await resolveAccesService()!.revokeAcces('k', 'rs-1')).toEqual({ ok: false, reason: 'no_code' });
+  });
+
+  it('a HANGING call is bounded like every other key-C read', async () => {
+    vi.stubEnv(CHECKOUT, 'https://shop.example');
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', (_u: string, init?: RequestInit) =>
+        new Promise((_r, rej) => { init?.signal?.addEventListener('abort', () => rej(new Error('aborted'))); }));
+      const pending = resolveAccesService()!.listAcces('k');
+      await vi.advanceTimersByTimeAsync(DISPATCH_TIMEOUT_MS + 50);
+      expect(await pending).toEqual({ ok: false, reason: 'unreachable' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unset base resolves to NOTHING — never a demo inventory of doors', () => {
+    vi.stubEnv(CHECKOUT, '');
+    expect(resolveAccesService()).toBeNull();
+  });
+});
+
+describe('ACCESS-GATE-1 — [source-text checks] the section is mounted behind key C', () => {
+  const screenSource = () =>
+    readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+
+  it('it renders ONLY once the founder has entered key C, and the mint form hides behind a live code', () => {
+    const source = screenSource();
+    expect(source).toContain('{cleC !== null && (\n            <SAcces');
+    // the one-time code owns the screen until dismissed
+    expect(source).toContain('{ui.nouveau === null && (');
+    expect(source).toContain("t('acces.noter_dabord')");
+    expect(source).toContain("t('acces.vu')");
+  });
+
+  it('the « she already has a code » warning speaks only from a SUCCESSFUL read', () => {
+    const source = screenSource();
+    expect(source).toContain("accesRead.kind === 'ok' &&");
+    // with the list unread we cannot know — so nothing is claimed
+    expect(source).toContain('accesRead.codes.some((c) => c.resellerId === accesDraft.trim())');
+  });
+
+  it('every acces.* key the console renders exists in the catalog', () => {
+    const keys = new Set(catalog.map((e) => e.key));
+    const used = [...screenSource().matchAll(/t\('(acces\.[a-z_]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(8);
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
   });
 });
