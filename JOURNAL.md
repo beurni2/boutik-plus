@@ -2810,3 +2810,21 @@ The clip now carries the photo's own four values, copied from `screens1.tsx`: `w
 **DEPLOY ORDER WAS NOT INCIDENTAL:** Shop+ `storefront-deploy` `30930138512` went out FIRST and its provenance + smoke steps passed, so `POST /checkout/dispatch/{orderId}/refusal` existed before the console that calls it shipped. A console deployed first would have offered him seven buttons that answered 401 from the write gate.
 
 **NOT VERIFIED LIVE, and I am not going to imply otherwise:** I did not call the refusal route against production. Outbound from this sandbox to the Worker is still refused by the egress proxy (`CONNECT tunnel failed, response 403`, curl exit 56) — standing environment policy, not a transient failure. What IS proven: both CI runs green on the exact merged shas, both deploys green, and the route covered by miniflare e2e. **The first real refusal he records is the live proof, and it is his to make.**
+
+### ACCESS-GATE-1 — the console mints the code a new revendeuse uses to get in
+
+**Founder order, 2026-08-04:** « a new reseller will [have] a code access that i will mint on the console and give so it can have access to the app and start using … also build the code minting console on boutik+ ».
+
+**WHAT WAS ALREADY THERE, and why nothing could use it.** The Shop+ Worker has carried `POST /reseller/code`, `POST /reseller/code/revoke` and `GET /reseller/codes` since RF-1a, all behind key C. **No surface in any app called them.** So a reseller feed code could only be minted with a curl the founder would have to write himself — which is exactly why he met a door he could not open. This is the surface that mints them; the Worker needed no change.
+
+**IT LIVES INSIDE THE LIVRAISONS SECTION, ON THE SAME KEY C.** Same Worker, same credential, same door he has already opened to see his deliveries. A second key prompt for the same capability is one more thing to type for no added protection — and a refused key now speaks ONCE for the section rather than printing two near-identical sentences.
+
+**THE PLAINTEXT EXISTS EXACTLY ONE TIME.** The Worker stores only the SHA-256, so that card is the only place the code will ever be readable — by anyone, including him. A live code therefore **BLOCKS every other act and hides the mint form**: any re-render destroys it while he is reading it out over the phone. He dismisses it with « C'est noté », and the screen says so in words where the buttons were rather than leaving a dead tap. Same ruling the supplier codes got after the verifier caught it there.
+
+**I MIRRORED CONSOLE-3'S SHAPE INSTEAD OF GENERALISING IT, deliberately.** The supplier machinery's vocabulary is `supplierId` throughout; widening it to « an id » would touch every call site on a working credential surface to serve a second caller, for no behaviour. Sixty lines of the same shape with its own names is the cheaper and safer trade. **If a third kind of code ever appears, that is when the abstraction has earned itself.**
+
+**ONE REAL DIFFERENCE, and it is an honesty one.** The supplier form warns when an id has never appeared on a paid order — the phantom-door footgun. **This console holds no list of resellers to check against, so it says nothing rather than something it cannot know.** It does warn when the id he typed already holds a code, and only from a SUCCESSFUL read: with the list unread, « elle en a déjà un » is not a claim we are entitled to make.
+
+**Evidence:** supplier-app **689/689** · tsc exit 0 · **gates board exit 0, zero `GATE FAILED (expected pass)`**.
+
+**Mutation-verified, 10 mutations, 10 killed** — a live one-time code no longer blocking a mint ⇒ red · `bad_key` printing its own second sentence ⇒ red · `no_code` no longer refreshing (a cut row stays on screen) ⇒ red · the revoke failure marker losing its namespace ⇒ 2 red · a second field smuggled into the mint body ⇒ red · malformed rows rendered instead of dropped ⇒ red · a mint answer without a code counted as success ⇒ red · the section rendering without key C ⇒ red · the « already has a code » warning claiming from an unread list ⇒ red · the timeout removed ⇒ red.
