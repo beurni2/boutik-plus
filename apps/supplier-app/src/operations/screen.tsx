@@ -428,15 +428,20 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           </Pressable>
         )}
 
-        {/* ═══ THE ZONE NAV — four rooms instead of one corridor ═══ */}
-        {(view.kind === 'board' || view.kind === 'empty') && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
-            <ChipCategory label={t('console.zone_commandes')} active={zone === 'commandes'} onPress={() => setZone('commandes')} />
-            <ChipCategory label={t('console.zone_livraisons')} active={zone === 'livraisons'} onPress={() => setZone('livraisons')} />
-            <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
-            <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
-          </View>
-        )}
+        {/* ═══ THE ZONE NAV — four rooms instead of one corridor ═══
+             CONSOLE-REV-1 — the doors do not lock when the BOARD cannot be
+             read. These chips used to vanish on `loading`/`failed`/`bad_key`,
+             which is the commandes read failing: Livraisons and Revendeuses
+             answer on a different key and were still perfectly readable, but
+             he had no way to walk to them. Now that `SLivraisons` survives that
+             same failure (see its mount below), hiding its doors would have
+             stranded him inside whichever room he was standing in. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+          <ChipCategory label={t('console.zone_commandes')} active={zone === 'commandes'} onPress={() => setZone('commandes')} />
+          <ChipCategory label={t('console.zone_livraisons')} active={zone === 'livraisons'} onPress={() => setZone('livraisons')} />
+          <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
+          <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
+        </View>
 
         {zone === 'commandes' && view.kind === 'empty' && (
           <View style={{ marginTop: 16 }}>
@@ -552,7 +557,18 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                zone switch must hide its pixels, never destroy its state (a
                live one-time access code dies with the component that holds
                it). It returns null itself for the zones that are not its. ── */}
-        {(view.kind === 'board' || view.kind === 'empty') && <SLivraisons zone={zone} />}
+        {/* CONSOLE-REV-1 (verifier BLOCKER) — MOUNTED FOR EVERY `view.kind`,
+            not only the two healthy ones. The law two lines above was written
+            for zone switches and never reached the board's own read: `view`
+            comes from a 60-second refresh that turns ANY network fault into
+            `failed`, and `failed` used to unmount this component — taking a
+            live one-time access code with it, mid-sentence, while he read it
+            down the phone. One dropped request was enough.
+            This component owns its own door, its own four reads and its own
+            key C; it has never needed the board's read to be healthy. It
+            returns null for the zones that are not its, and now it survives
+            the board being unreachable too. */}
+        <SLivraisons zone={zone} />
       </Colonne>
     </ScrollView>
   );
@@ -661,7 +677,16 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     const mine = accesSeq.current;
     const res = await acces.listAcces(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
     if (mine !== accesSeq.current) return;
-    setAccesRead(accesReadOf(res));
+    // CONSOLE-REV-1 (verifier) — ESCALATE A REFUSED KEY, exactly as its two
+    // siblings do (`loadComptes`, `loadSuivi`) and as `settleAcces` already did
+    // ten lines below. This read alone kept `bad_key` to itself, and `accesVue`
+    // answers null for it — so the section rendered NOTHING. Stacked, that lost
+    // one section of three; chosen from a menu, it is the whole screen: a bare
+    // « Retour » on an empty column, with no sentence saying the key was
+    // refused. One key, one sentence, from every read that asks with it.
+    const read = accesReadOf(res);
+    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    else setAccesRead(read);
   };
 
   const settleAcces = async (settlement: AccesSettlement, key: string): Promise<void> => {
@@ -875,23 +900,22 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             </>
           )}
 
-          {/* THE WAY BACK WAITS WHILE A ONE-TIME CODE IS ON SCREEN.
-              Both sections can hold a plaintext code that exists nowhere else,
-              and each already freezes its own buttons behind « Notez d'abord le
-              code » — but until now they did not freeze EACH OTHER, so leaving
-              for the neighbouring section destroyed the code he was reading out
-              loud. Navigation is an act like any other: it waits for « C'est
-              noté ». One rule, one place, both sections. */}
+          {/* THE WAY BACK IS ALWAYS THERE — including while a one-time code is
+              on screen, and that is deliberate.
+              I first froze it behind the live code, on the belief that leaving
+              a section destroyed its plaintext. That belief was wrong, and a
+              verifier proved it: `comptesUi` and `accesUi` are THIS component's
+              state, not the sections'. Unmounting `SComptes` or `SAcces` leaves
+              them untouched, and coming back re-renders the same code. Nothing
+              here can lose it — so a freeze bought no safety and took away his
+              only exit while he held the one thing he must not lose.
+              The real code-destroyer was never navigation; it is the board's
+              refresh, and it is handled where it happens (see the mount site
+              and the interval). */}
           {vueRev !== 'menu' && (
-            comptesUi.nouveau !== null || accesUi.nouveau !== null ? (
-              <View style={{ marginTop: 24 }}>
-                <Text style={role({ f: 'IS', w: 600, s: 12.5 }, P.sub)}>{t('comptes.noter_dabord')}</Text>
-              </View>
-            ) : (
-              <View style={{ marginTop: 24 }}>
-                <BtnGhost label={t('nav.retour')} onPress={() => setVueRev('menu')} />
-              </View>
-            )
+            <View style={{ marginTop: 24 }}>
+              <BtnGhost label={t('nav.retour')} onPress={() => setVueRev('menu')} />
+            </View>
           )}
 
           {vueRev === 'comptes' && (

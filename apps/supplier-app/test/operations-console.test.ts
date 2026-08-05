@@ -92,9 +92,13 @@ function zoneRevendeuses(source: string): string {
   const guard = "{zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (";
   const start = source.indexOf(guard);
   if (start < 0) throw new Error('the revendeuses guard moved — this pin is watching nothing');
-  // the region ends where the component does: the last mount is followed by the
-  // fragment close and the function's own closing brace
-  const end = source.indexOf('\n    </View>\n  );\n}', start);
+  // THE END IS THE GUARD'S OWN CLOSE, not the component's. A verifier proved
+  // the first spelling — the enclosing `</View>);}` — only bounded the guard
+  // by accident, because the guarded block happened to be the LAST child of
+  // the root view. Any sibling added after `)}` would have counted as inside,
+  // so « a mount that escapes the guard fails » was false exactly where it
+  // mattered. This closes on the fragment the guard opens.
+  const end = source.indexOf('\n        </>\n      )}', start);
   if (end < 0) throw new Error('the revendeuses region has no end — this pin is watching nothing');
   return source.slice(start, end);
 }
@@ -1509,7 +1513,15 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     // THE WHOLE LINE, anchored — a mutation run proved a substring match lets
     // `zone !== 'commandes' && …` ride in front of the gate unseen, and that
     // one word is the code-destroyer this pin exists to refuse.
-    expect(source).toMatch(/^\s*\{\(view\.kind === 'board' \|\| view\.kind === 'empty'\) && <SLivraisons zone=\{zone\} \/>\}$/m);
+    //
+    // CONSOLE-REV-1 — the pinned spelling used to carry
+    // `{(view.kind === 'board' || view.kind === 'empty') && …}`, and a verifier
+    // showed that guard was itself a code-destroyer: the 60-second board
+    // refresh turns any network fault into `failed`, which unmounted this
+    // component and the live one-time code inside it. The mount now carries NO
+    // condition at all, which is a STRICTER claim than the one this line made
+    // before — nothing may ride in front of it, zone or view.
+    expect(source).toMatch(/^\s*<SLivraisons zone=\{zone\} \/>$/m);
   });
 
   it("the roster is FREED from the dispatch list's read — only bad_key still silences the zone", () => {
@@ -1547,6 +1559,12 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     expect(bloc).toContain("setVueRev('comptes')");
     expect(bloc).toContain("setVueRev('suivi')");
     expect(bloc).toContain("setVueRev('acces')");
+    // …AND `menu` is where he STARTS. A verifier changed this initial value to
+    // 'comptes' and every other assertion here still passed — while the app no
+    // longer did the one thing the founder asked for (« you tap on revendeuses
+    // and the 3 options comes »). The initial value lives outside the guarded
+    // region, so it is asserted against the whole source.
+    expect(screenSource()).toContain("useState<VueRevendeuses>('menu')");
   });
 
   it('the chooser reuses each section OWN sentence — nothing new to learn between the tap and the screen', () => {
@@ -1558,24 +1576,49 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
   });
 
   /**
-   * THE DEFECT THIS LAYOUT ALSO CLOSED. Both SComptes and SAcces can hold a
-   * plaintext one-time code that exists nowhere else on earth, and each already
-   * froze its OWN buttons behind « Notez d'abord le code ». They did not freeze
-   * each other: with a live code in one section, the other section's controls
-   * were still live, and a tap there re-rendered the code away while he was
-   * reading it down the phone. Navigation is an act like any other, so it waits
-   * for the same acknowledgement.
+   * THE WAY BACK IS UNCONDITIONAL — and this pin exists because I first made it
+   * conditional, on a defect that did not exist.
+   *
+   * I froze « Retour » behind a live one-time code, believing that leaving a
+   * section destroyed its plaintext. A verifier disproved it: `comptesUi` and
+   * `accesUi` are SLivraisons' OWN state, so unmounting `SComptes`/`SAcces`
+   * cannot touch them and returning re-renders the same code. The freeze bought
+   * nothing and took away his only exit while he held the one thing he must not
+   * lose. §9.1 — a fix proposed without reading what it was fixing.
    */
-  it('NAVIGATION WAITS FOR « C\'est noté » — a live code in EITHER section keeps the way back closed', () => {
+  it('« Retour » is ALWAYS offered — no live-code freeze on the way back', () => {
     const bloc = zoneRevendeuses(screenSource());
-    // the guard names BOTH sections' live-code state, not just the one it sits in
-    expect(bloc).toMatch(/comptesUi\.nouveau !== null \|\| accesUi\.nouveau !== null/);
-    // …and what he gets instead of the way back is the sentence that already
-    // means this, not a new vocabulary
-    expect(bloc).toContain("t('comptes.noter_dabord')");
-    // the way back exists at all, and only off the menu
     expect(bloc).toContain("t('nav.retour')");
     expect(bloc).toContain("setVueRev('menu')");
+    // the retracted freeze, refused by name in BOTH spellings it could return in
+    expect(bloc).not.toMatch(/nouveau !== null[\s\S]{0,120}?nav\.retour/);
+    expect(bloc).not.toMatch(/nav\.retour[\s\S]{0,120}?nouveau !== null/);
+  });
+
+  /**
+   * THE REAL CODE-DESTROYER, and it was never navigation.
+   *
+   * `SLivraisons` holds the plaintext one-time code; the Worker keeps only its
+   * SHA-256. Its mount used to be gated on `view.kind === 'board' || 'empty'` —
+   * the COMMANDES read — while a 60-second interval re-reads that board and
+   * turns any network fault into `failed`. One dropped request unmounted the
+   * component and took the code with it, mid-sentence, while he read it down
+   * the phone. The component owns its own door, its own key and its own four
+   * reads; it never needed the board to be healthy.
+   */
+  it('SLivraisons is mounted for EVERY view.kind — a failed board refresh cannot destroy a live code', () => {
+    const source = screenSource();
+    // the mount carries NO view.kind condition — whole-line anchored, because a
+    // substring match would let a reintroduced guard ride in front of it unseen
+    expect(source).toMatch(/^\s*<SLivraisons zone=\{zone\} \/>$/m);
+    expect(source).not.toMatch(/view\.kind === '(board|empty)'[^\n]*<SLivraisons/);
+    // the zone chips survive the same failure — doors that lock when the board
+    // is unreachable would strand him in whichever room he was standing in
+    expect(source).not.toMatch(/view\.kind === 'board' \|\| view\.kind === 'empty'\) && \(\s*<View[^\n]*\n\s*<ChipCategory/);
+    // THE CONTROL: the interval that made this reachable is still there, so the
+    // pin is not passing because the refresh quietly disappeared
+    expect(source).toContain('setInterval(');
+    expect(source).toContain('REFRESH_EVERY_MS');
   });
 
   it('the urgent line is honest and navigational: board-only, count > 0, absent inside its own zone', () => {
