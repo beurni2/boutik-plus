@@ -1475,9 +1475,10 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
   it('SLivraisons stays mounted across zones — it hides itself, it is never unmounted', () => {
     const source = screenSource();
     expect(source).toContain("if (zone !== 'livraisons' && zone !== 'revendeuses') return null;");
-    expect(source).toMatch(/\(view\.kind === 'board' \|\| view\.kind === 'empty'\) && <SLivraisons zone=\{zone\} \/>/);
-    // …and no zone test guards that mount line
-    expect(source).not.toMatch(/zone === '[a-z]+' &&[^\n]*<SLivraisons/);
+    // THE WHOLE LINE, anchored — a mutation run proved a substring match lets
+    // `zone !== 'commandes' && …` ride in front of the gate unseen, and that
+    // one word is the code-destroyer this pin exists to refuse.
+    expect(source).toMatch(/^\s*\{\(view\.kind === 'board' \|\| view\.kind === 'empty'\) && <SLivraisons zone=\{zone\} \/>\}$/m);
   });
 
   it("the roster is FREED from the dispatch list's read — only bad_key still silences the zone", () => {
@@ -1499,7 +1500,13 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     const source = screenSource();
     // three mints, one discipline — comptes, acces, fournisseur codes
     expect([...source.matchAll(/<CarteCodeUnique/g)].length).toBe(3);
-    // and the card still renders the code the settle produced
-    expect(source).toContain('ui.nouveau.code');
+    // THE PLAINTEXT REACHES THE SCREEN ONLY AS THE CARD'S PROP — a mutation
+    // run proved counting mounts alone lets a plain duplicate render ride
+    // beside a dead ceremonial one. Every occurrence of the plaintext must be
+    // the prop form, and there must be exactly the three of them.
+    expect([...source.matchAll(/ui\.nouveau\.code/g)].length).toBe(3);
+    expect([...source.matchAll(/code=\{ui\.nouveau\.code\}/g)].length).toBe(3);
+    // …and no branch is switched off instead of deleted
+    expect(source).not.toContain('{false &&');
   });
 });
