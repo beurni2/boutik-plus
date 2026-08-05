@@ -875,7 +875,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             </>
           )}
 
-          {/* THE WAY BACK, WITHHELD WHILE A ONE-TIME CODE IS ON SCREEN.
+          {/* THE WAY BACK WAITS WHILE A ONE-TIME CODE IS ON SCREEN.
               Both sections can hold a plaintext code that exists nowhere else,
               and each already freezes its own buttons behind « Notez d'abord le
               code » — but until now they did not freeze EACH OTHER, so leaving

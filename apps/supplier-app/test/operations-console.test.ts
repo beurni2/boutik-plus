@@ -1563,9 +1563,10 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
    * froze its OWN buttons behind « Notez d'abord le code ». They did not freeze
    * each other: with a live code in one section, the other section's controls
    * were still live, and a tap there re-rendered the code away while he was
-   * reading it down the phone. Navigation is an act like any other.
+   * reading it down the phone. Navigation is an act like any other, so it waits
+   * for the same acknowledgement.
    */
-  it('NAVIGATION WAITS FOR « C\'est noté » — a live code in EITHER section withholds the way back', () => {
+  it('NAVIGATION WAITS FOR « C\'est noté » — a live code in EITHER section keeps the way back closed', () => {
     const bloc = zoneRevendeuses(screenSource());
     // the guard names BOTH sections' live-code state, not just the one it sits in
     expect(bloc).toMatch(/comptesUi\.nouveau !== null \|\| accesUi\.nouveau !== null/);
