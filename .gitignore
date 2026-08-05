@@ -8,3 +8,6 @@ _evidence/
 # WO-4.0d rider: dotenv files never committed
 .env
 .env.*
+
+# Gate-board scan-coverage probe (created and removed by scripts/run-gates.sh)
+zz-unclassified-coverage-probe/
