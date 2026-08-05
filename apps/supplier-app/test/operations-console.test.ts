@@ -1573,15 +1573,48 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     // siblings escalated, and `accesVue` answers null for that state — so a
     // refused key rendered the Codes section as NOTHING. Stacked that quietly
     // lost one section of three; chosen from a menu it is the whole screen.
-    const source = screenSource();
+    // AUDIT-B+1 F5 — THE CONDITION IS PINNED WITH THE ACTION, and comments are
+    // stripped first. The first spelling grepped the body for the literal
+    // `setRead({ kind: 'bad_key' })` alone, and the audit killed it twice over:
+    // a DEAD branch — `if (read.kind === ('__never__' as typeof read.kind))` —
+    // satisfied it while the user-visible defect returned in full, and so did
+    // the same line commented out. A string being present is not a behaviour.
+    // (This app has no component renderer, so a true behavioural drive would
+    // mean adding one; pinning the whole statement is the strongest check the
+    // existing architecture affords, and it kills both proven evasions.)
+    const source = screenSource().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
     for (const loader of ['loadComptes', 'loadSuivi', 'loadAcces'] as const) {
       const start = source.indexOf(`const ${loader} = async`);
       expect(start, `${loader} moved — this pin is watching nothing`).toBeGreaterThan(-1);
       const body = source.slice(start, source.indexOf('\n  };', start));
       expect(body, `${loader} swallows a refused key instead of escalating`).toContain(
-        "setRead({ kind: 'bad_key' })",
+        "if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });",
       );
     }
+  });
+
+  /**
+   * AUDIT-B+1 F19 — THE FOURNISSEUR CODE CARD SURVIVES A FAILED BOARD READ.
+   *
+   * `SCodes` was mounted only on `view.kind === 'board' || 'empty'`, while a
+   * 60-second refresh turns any network fault into `failed`. One dropped
+   * request pulled a live one-time supplier code off the screen mid-handover.
+   *
+   * The audit reported this as the code being DESTROYED. It is not: `codesUi`
+   * is `SBoard` state and `SBoard` stays mounted while a key is stored, so the
+   * plaintext survives and returns when the board recovers. The defect is a
+   * disappearance, not a loss — recorded because the opposite error (a freeze
+   * against an impossible destruction) shipped here one day earlier.
+   */
+  it('the fournisseur code card is mounted for EVERY view.kind — a failed board cannot hide a live code', () => {
+    const source = screenSource();
+    // the zone still gates it; the board's health no longer does
+    expect(source).toMatch(/\{zone === 'fournisseurs' && \(\s*<SCodes/);
+    expect(source).not.toMatch(/zone === 'fournisseurs' && \(view\.kind/);
+    // THE CONTROL: the refresh that made this reachable is still installed, so
+    // this pin cannot pass because the interval quietly disappeared
+    expect(source).toContain('setInterval(');
+    expect(source).toContain('REFRESH_EVERY_MS');
   });
 
   it('the chooser reuses each section OWN sentence — nothing new to learn between the tap and the screen', () => {

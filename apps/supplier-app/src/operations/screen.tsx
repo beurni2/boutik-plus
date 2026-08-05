@@ -530,7 +530,24 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                Mint warns (never blocks) on a supplier the book has never seen —
                the phantom-door footgun, closed where it fires. Present on the
                EMPTY board too: the first code is minted before the first sale. ── */}
-        {zone === 'fournisseurs' && (view.kind === 'board' || view.kind === 'empty') && (
+        {/* AUDIT-B+1 F19 — MOUNTED FOR EVERY `view.kind`, like `SLivraisons`
+            below. The 60-second refresh turns any network fault into `failed`,
+            and this card was mounted only on the two healthy kinds: one dropped
+            request pulled a live one-time code OFF THE SCREEN while he read it
+            down the phone, returning only when the board recovered. The `avis`
+            below already handles an unhealthy board read by saying nothing, so
+            this card never needed the board to be well.
+
+            WHAT THIS IS *NOT*, recorded because two reviews in two days got it
+            backwards in opposite directions: unmounting `SCodes` never
+            DESTROYED the code. `codesUi` is `SBoard` state, and `SBoard` stays
+            mounted while a key is stored — so the plaintext survived and came
+            back. Yesterday I froze a « Retour » against a destruction that
+            could not happen; the audit then reported a destruction here that
+            also cannot happen. The defect is real either way and is a
+            disappearance, not a loss. Before writing « X destroys the code »,
+            find the `useState` that holds it and name the component. */}
+        {zone === 'fournisseurs' && (
           <SCodes
             read={codesRead}
             ui={codesUi}
