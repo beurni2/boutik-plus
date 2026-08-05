@@ -2858,3 +2858,20 @@ Shop+ now derives an idempotency key from the order on `POST /checkout/dispatch/
 **What did NOT change:** the reason list still disappears after a failed attempt. The risk it guards shrank but did not vanish — a blind re-tap can still land on the wrong REASON, which is refused (409) rather than applied, and a tired thumb near « Fraude » deserves the pause. The stale comment claiming the route carries no idempotency key is replaced with what is now true.
 
 **Evidence:** supplier-app **704/704** (702 + 2 new) · typecheck exit 0 · gates board exit 0 · **5 mutations, 5 killed** — 409 falling back to « unreachable » ⇒ red · « déjà noté » folded into the failure banner ⇒ red · the state decided but never painted ⇒ red · the retry sentence reverting to doubt ⇒ red · the « déjà » sentence dropping « n'a rien changé » ⇒ red.
+
+## 2026-08-05 · CONSOLE-GT-1 — the console restructured (founder order: « multibillion dollar company console »)
+
+**The order was about structure, and structure is what changed.** The console was one endless scroll: seven sections at the same visual weight — board, codes fournisseurs, livraisons, roster, suivi, accès — stacked at full browser width with inline key forms. The founder called it « very confusing and very unprofessional ». He was right; it had grown by accretion, one slice at a time.
+
+**What shipped (JSX-composition only — every state machine, handler, read, and honest state is byte-for-byte the proven code):**
+- **One measured column** (760 px, centered — `Colonne`). The 2026-07-27 full-width ruling is untouched: this measures the console's CONTENT, not the webapp's frame.
+- **One masthead**: « BOUTIK+ · CONSOLE » overline, the page title, the honest auto-refresh sentence, refresh at the right.
+- **Four zones behind a kit chip nav** — Commandes · Livraisons · Revendeuses · Fournisseurs. Pure navigation: every read still loads at mount; a zone switch hides pixels, never facts. A warn strip (« À rappeler maintenant : {n} ») rides above the nav in every foreign zone and taps home.
+- **`SLivraisons` stays MOUNTED across zones** (returns null for foreign zones — hooks and state survive): key C, four reads, and above all a LIVE one-time access code must survive navigation. Pinned with a whole-line anchored regex after a mutation proved a substring pin let `zone !== …` ride in front unseen.
+- **The roster freed from the dispatch read**: SComptes/SSuivi/SAcces no longer hide behind `vue.kind === 'liste'` — a failed livraisons read and an unread roster are different questions on the same key; only `bad_key` (the shared door itself) silences the zone. Pinned both directions.
+- **One ceremonial card for the three one-time codes** (`CarteCodeUnique`: house green surface, 26 px letterspaced figures, one acknowledgement). Pinned: exactly three `code={ui.nouveau.code}` occurrences and exactly three of the plaintext anywhere — a mutation proved counting mounts alone let a plain duplicate render beside a dead ceremonial one.
+- Section heads unified (`TeteSection`: title + sens + hairline) · account states as tone pills (`PilluleEtat` on the palette's own pairs) · suivi ranked, gold numeral on row 1 only, nets in tabular figures · key screens as proper door cards.
+
+**7 new `console.*` catalog keys.** Kit components and palette tokens only — zero new hex, zero new radii. One pin evolved (SAcces exact-indentation → the guard claim itself).
+
+**Evidence:** 711/711 (704 + 7 new) · typecheck 0 · gates board exit 0 · **9 mutations, 9 killed** (2 survived first — G1 the unmount-on-zone-switch rode past a substring pin, G6 a dead ceremonial card beside a plain duplicate rode past a mount count; both pins hardened, both re-run red). **Four full-page screenshots** of the populated zones taken against a local fixture Worker (mock server + cold `EXPO_PUBLIC_ROOT=v2` export + headless chromium) and reviewed line-by-line before merge — the harness lives in the session scratchpad, not the repo.
