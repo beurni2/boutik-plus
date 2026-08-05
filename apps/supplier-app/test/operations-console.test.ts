@@ -75,6 +75,30 @@ import { catalog } from '../src/i18n';
  * this repo has no RN renderer (standing rule, JOURNAL 2026-07-25).
  */
 
+/**
+ * CONSOLE-REV-1 — the guarded Revendeuses region, extracted.
+ *
+ * The pins below used to say « the guard, then at most N characters, then the
+ * mount ». That budget is not the invariant — CONTAINMENT is — and the proof
+ * arrived the day a chooser landed between the two and broke three pins while
+ * breaking nothing they protect. This slices the region the guard opens, so a
+ * mount inside it passes however much layout sits in between, and a mount that
+ * escapes the guard fails however close it sits.
+ *
+ * It throws rather than returning '' on a missed anchor: an empty region would
+ * make every `not.toContain` below pass while asserting nothing.
+ */
+function zoneRevendeuses(source: string): string {
+  const guard = "{zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (";
+  const start = source.indexOf(guard);
+  if (start < 0) throw new Error('the revendeuses guard moved — this pin is watching nothing');
+  // the region ends where the component does: the last mount is followed by the
+  // fragment close and the function's own closing brace
+  const end = source.indexOf('\n    </View>\n  );\n}', start);
+  if (end < 0) throw new Error('the revendeuses region has no end — this pin is watching nothing');
+  return source.slice(start, end);
+}
+
 const NOW = Date.parse('2026-08-01T12:00:00.000Z');
 
 function rowAt(orderId: string, paidAt: string, over: Partial<PaidOrderRow> = {}): PaidOrderRow {
@@ -1265,8 +1289,15 @@ describe('ACCESS-GATE-1 — [source-text checks] the section is mounted behind k
     // CONSOLE-GT-1 evolved this pin from an exact-indentation substring to the
     // CLAIM itself: SAcces mounts behind a non-null key (and now also behind
     // the shared door not being refused) — the layout may move, the guard may
-    // not. The guard must appear BEFORE the mount in the same expression.
-    expect(source).toMatch(/\{zone === 'revendeuses' && cleC !== null && vue !== null && vue\.kind !== 'bad_key' && \([\s\S]{0,900}?<SAcces/);
+    // not.
+    //
+    // CONSOLE-REV-1 evolves it again, for the same reason and one step further.
+    // The pin used to say « the guard, then at most 900 characters, then the
+    // mount » — and the chooser landing between them broke it without breaking
+    // the claim. A character budget is not the invariant; CONTAINMENT is. So
+    // the guarded region is extracted and the mount is required to be INSIDE
+    // it, which no amount of layout between them can falsify.
+    expect(zoneRevendeuses(source)).toContain('<SAcces');
     // the one-time code owns the screen until dismissed
     expect(source).toContain('{ui.nouveau === null && (');
     expect(source).toContain("t('acces.noter_dabord')");
@@ -1485,9 +1516,65 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     const source = screenSource();
     // SComptes/SSuivi render behind the key and the door's health, NOT behind
     // vue.kind === 'liste' — a failed livraisons read and an unread roster are
-    // different questions on the same key
-    expect(source).toMatch(/\{zone === 'revendeuses' && cleC !== null && vue !== null && vue\.kind !== 'bad_key' && \([\s\S]{0,200}?<SComptes/);
+    // different questions on the same key. CONSOLE-REV-1: containment, not a
+    // character budget (see the ACCESS-GATE-1 pin above for why).
+    const bloc = zoneRevendeuses(source);
+    expect(bloc).toContain('<SComptes');
+    expect(bloc).toContain('<SSuivi');
     expect(source).not.toMatch(/vue\.kind === 'liste'[\s\S]{0,600}?<SComptes/);
+  });
+
+  /**
+   * CONSOLE-REV-1 — ONE OF THE THREE AT A TIME (founder order 2026-08-05:
+   * « you tap on revendeuses and the 3 options comes … and you select the one
+   * you want and the screen shows that »).
+   *
+   * The zone used to stack the roster, the suivi and the codes on one scroll,
+   * and two of the three ask the same question in different words. He read the
+   * result as « confusing and mixed up » twice.
+   */
+  it('each of the three sections renders behind its OWN choice — never stacked', () => {
+    const bloc = zoneRevendeuses(screenSource());
+    // every mount is gated on the chooser's value, and on a DIFFERENT value —
+    // the whole point is that they cannot be on screen together
+    for (const [vue, mount] of [['comptes', '<SComptes'], ['suivi', '<SSuivi'], ['acces', '<SAcces']] as const) {
+      expect(bloc, `${mount} is not behind its choice`).toMatch(
+        new RegExp(`\\{vueRev === '${vue}' && \\(\\s*${mount}`),
+      );
+    }
+    // and the chooser itself is behind `menu`, so the landing is the choice
+    expect(bloc).toContain("{vueRev === 'menu' && (");
+    expect(bloc).toContain("setVueRev('comptes')");
+    expect(bloc).toContain("setVueRev('suivi')");
+    expect(bloc).toContain("setVueRev('acces')");
+  });
+
+  it('the chooser reuses each section OWN sentence — nothing new to learn between the tap and the screen', () => {
+    const bloc = zoneRevendeuses(screenSource());
+    // the three doors carry the same `sens` keys the sections show at their top
+    for (const k of ['comptes.sens', 'suivi.sens', 'acces.sens']) {
+      expect(bloc, `${k} is not on its door`).toContain(`t('${k}')`);
+    }
+  });
+
+  /**
+   * THE DEFECT THIS LAYOUT ALSO CLOSED. Both SComptes and SAcces can hold a
+   * plaintext one-time code that exists nowhere else on earth, and each already
+   * froze its OWN buttons behind « Notez d'abord le code ». They did not freeze
+   * each other: with a live code in one section, the other section's controls
+   * were still live, and a tap there re-rendered the code away while he was
+   * reading it down the phone. Navigation is an act like any other.
+   */
+  it('NAVIGATION WAITS FOR « C\'est noté » — a live code in EITHER section withholds the way back', () => {
+    const bloc = zoneRevendeuses(screenSource());
+    // the guard names BOTH sections' live-code state, not just the one it sits in
+    expect(bloc).toMatch(/comptesUi\.nouveau !== null \|\| accesUi\.nouveau !== null/);
+    // …and what he gets instead of the way back is the sentence that already
+    // means this, not a new vocabulary
+    expect(bloc).toContain("t('comptes.noter_dabord')");
+    // the way back exists at all, and only off the menu
+    expect(bloc).toContain("t('nav.retour')");
+    expect(bloc).toContain("setVueRev('menu')");
   });
 
   it('the urgent line is honest and navigational: board-only, count > 0, absent inside its own zone', () => {

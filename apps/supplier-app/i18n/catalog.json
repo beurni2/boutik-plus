@@ -2730,6 +2730,18 @@
     "screenClass": "label"
   },
   {
+    "key": "console.rev_titre",
+    "fr": "Revendeuses",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.rev_sens",
+    "fr": "Choisissez ce que vous voulez voir.",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "console.zone_fournisseurs",
     "fr": "Fournisseurs",
     "register": "neutral",

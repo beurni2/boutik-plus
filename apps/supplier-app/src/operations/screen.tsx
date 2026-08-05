@@ -116,6 +116,10 @@ const REFRESH_EVERY_MS = 60_000;
 
 type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs';
 
+/** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
+ *  `menu` is the chooser he lands on. */
+type VueRevendeuses = 'menu' | 'comptes' | 'suivi' | 'acces';
+
 /** One content column whatever the browser width: a console reads like a bank
  *  document, never like text poured across a living-room screen. The app-wide
  *  full-width ruling (2026-07-27) is untouched — this measures the CONSOLE's
@@ -585,6 +589,18 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
    *  code as live — on the one list whose question is « who can get in? ». */
   const accesSeq = useRef(0);
 
+  /* ── CONSOLE-REV-1 (founder order 2026-08-05) — WHICH OF THE THREE.
+        « you tap on revendeuses and the 3 options comes … and you select the
+        one you want and the screen shows that ».
+
+        The zone used to stack all three at once — the roster, the suivi and
+        the codes — and two of them ask the same question in different words
+        (« Donner son code » on a roster row vs « Créer le code » on a form),
+        with the ranking wedged between them. One at a time, chosen. The
+        choice lives HERE, in the component that survives a zone change, so
+        walking to Livraisons and back returns him where he was. ── */
+  const [vueRev, setVueRev] = useState<VueRevendeuses>('menu');
+
   /* ── RESELLER-ACCOUNTS-1c — the roster + the suivi, same key C ── */
   const comptes = useMemo<ComptesServicePort | null>(() => resolveComptesService(), []);
   const [comptesRead, setComptesRead] = useState<ComptesRead>({ kind: 'loading' });
@@ -845,6 +861,40 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
              door itself — still silences everything behind it. ═══ */}
       {zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (
         <>
+          {/* THE CHOOSER — three doors, one sentence each, and he walks through
+              exactly one. The sentences are the sections' OWN `sens` lines, so
+              the chooser explains itself with the same words the section will
+              repeat at its top: nothing new to learn between the tap and the
+              screen. */}
+          {vueRev === 'menu' && (
+            <>
+              <TeteSection titre={t('console.rev_titre')} sens={t('console.rev_sens')} marge={24} />
+              <ChoixSection titre={t('comptes.titre')} sens={t('comptes.sens')} onPress={() => setVueRev('comptes')} />
+              <ChoixSection titre={t('suivi.titre')} sens={t('suivi.sens')} onPress={() => setVueRev('suivi')} />
+              <ChoixSection titre={t('acces.titre')} sens={t('acces.sens')} onPress={() => setVueRev('acces')} />
+            </>
+          )}
+
+          {/* THE WAY BACK, WITHHELD WHILE A ONE-TIME CODE IS ON SCREEN.
+              Both sections can hold a plaintext code that exists nowhere else,
+              and each already freezes its own buttons behind « Notez d'abord le
+              code » — but until now they did not freeze EACH OTHER, so leaving
+              for the neighbouring section destroyed the code he was reading out
+              loud. Navigation is an act like any other: it waits for « C'est
+              noté ». One rule, one place, both sections. */}
+          {vueRev !== 'menu' && (
+            comptesUi.nouveau !== null || accesUi.nouveau !== null ? (
+              <View style={{ marginTop: 24 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12.5 }, P.sub)}>{t('comptes.noter_dabord')}</Text>
+              </View>
+            ) : (
+              <View style={{ marginTop: 24 }}>
+                <BtnGhost label={t('nav.retour')} onPress={() => setVueRev('menu')} />
+              </View>
+            )
+          )}
+
+          {vueRev === 'comptes' && (
           <SComptes
             read={comptesRead}
             ui={comptesUi}
@@ -852,10 +902,14 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             onVu={() => setComptesUi(COMPTES_IDLE)}
             onRetry={() => { setComptesRead({ kind: 'loading' }); void loadComptes(cleC); }}
           />
+          )}
+          {vueRev === 'suivi' && (
           <SSuivi
             read={suiviRead}
             onRetry={() => { setSuiviRead({ kind: 'loading' }); void loadSuivi(cleC); }}
           />
+          )}
+          {vueRev === 'acces' && (
           <SAcces
             read={accesRead}
             ui={accesUi}
@@ -873,9 +927,26 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             onVu={() => setAccesUi(ACCES_IDLE)}
             onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
           />
+          )}
         </>
       )}
     </View>
+  );
+}
+
+/**
+ * CONSOLE-REV-1 — ONE DOOR IN THE CHOOSER: what it is called, what it is for,
+ * and nothing else. The `sens` line is the section's own, so the words he taps
+ * are the words that greet him on the other side.
+ */
+function ChoixSection({ titre, sens, onPress }: { titre: string; sens: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      <Card variant="Llist" style={{ marginTop: 10 }}>
+        <Text style={role({ f: 'BG', w: 700, s: 16 }, P.ink)}>{titre}</Text>
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 4 }]}>{sens}</Text>
+      </Card>
+    </Pressable>
   );
 }
 
