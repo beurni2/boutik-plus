@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
-import { SCROLL, role } from '../ui/v2/styles';
+import { GEO } from '../ui/v2/tokens';
+import { SCROLL, TNUM, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input, PageTitle } from '../v2/components';
+import { Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipCategory, Input, Overline, PageTitle } from '../v2/components';
 import { formatF } from '../v2/money';
 import {
   clearStoredOpsKey,
@@ -101,6 +102,79 @@ import {
 
 const REFRESH_EVERY_MS = 60_000;
 
+/* ═══ CONSOLE-GT-1 — THE DISCIPLINE LAYER (founder order, 2026-08-05) ═══
+ *
+ * « make it look like a multibillion dollar company console » — the order is
+ * about STRUCTURE, and structure is what changed: the one endless scroll became
+ * FOUR ZONES behind one nav (Commandes · Livraisons · Revendeuses ·
+ * Fournisseurs), inside ONE measured column, under ONE masthead. Every state
+ * machine, every handler, every honest state is byte-for-byte the code that was
+ * already proven — this layer only decides where things stand and how they
+ * dress. Kit components and palette tokens only; zero new colours, zero new
+ * radii (§5: no snowflake styling in app code).
+ */
+
+type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs';
+
+/** One content column whatever the browser width: a console reads like a bank
+ *  document, never like text poured across a living-room screen. The app-wide
+ *  full-width ruling (2026-07-27) is untouched — this measures the CONSOLE's
+ *  content, not the webapp's frame. */
+const LARGEUR_CONSOLE = 760;
+
+function Colonne({ children }: { children: ReactNode }) {
+  return <View style={{ width: '100%', maxWidth: LARGEUR_CONSOLE, alignSelf: 'center' }}>{children}</View>;
+}
+
+/** Every section opens the same way — title, one sens sentence, a hairline
+ *  under both. The discipline IS the design: when every section has the same
+ *  head, the eye stops re-learning the page at every scroll. */
+function TeteSection({ titre, sens, marge = 28 }: { titre: string; sens?: string; marge?: number }) {
+  return (
+    <View style={{ marginTop: marge, paddingBottom: 9, borderBottomWidth: 1, borderBottomColor: P.borderCtl }}>
+      <Text style={role({ f: 'BG', w: 800, s: 17 }, P.ink)}>{titre}</Text>
+      {sens !== undefined && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 3 }]}>{sens}</Text>
+      )}
+    </View>
+  );
+}
+
+/** A state said as a pill, in the board's own tone pairs — never a bare grey
+ *  sentence for a fact the eye needs to find in a column of rows. */
+function PilluleEtat({ label, tone }: { label: string; tone: 'ok' | 'attente' | 'pause' }) {
+  const bg = tone === 'ok' ? P.successBg : tone === 'attente' ? P.warnBg : P.neutralPill;
+  const fg = tone === 'ok' ? P.successFg : tone === 'attente' ? P.warnFg : P.sub;
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: GEO.r.pill, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'flex-start' }}>
+      <Text style={role({ f: 'IS', w: 700, s: 11.5 }, fg)}>{label}</Text>
+    </View>
+  );
+}
+
+/**
+ * THE ONE-TIME CODE, DRESSED AS THE CEREMONY IT IS. The plaintext exists
+ * exactly once, on this card, while he reads it out — so the card is the most
+ * deliberate surface on the console: the house green, the code in large
+ * letterspaced figures, the one sentence that matters, one acknowledgement.
+ */
+function CarteCodeUnique({ pour, code, note, vuLabel, onVu }: {
+  pour: string; code: string; note: string; vuLabel: string; onVu: () => void;
+}) {
+  return (
+    <Card variant="Llist" style={{ marginTop: 12, backgroundColor: P.greenSoft, borderColor: P.green, borderWidth: 1.5 }}>
+      <Overline level="card">{pour}</Overline>
+      <Text style={[role({ f: 'BG', w: 800, s: 26 }, P.greenDeep), TNUM, { marginTop: 8, letterSpacing: 2 }]} selectable>
+        {code}
+      </Text>
+      <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), { marginTop: 8 }]}>{note}</Text>
+      <View style={{ marginTop: 12 }}>
+        <BtnSoft label={vuLabel} icon="check" onPress={onVu} />
+      </View>
+    </Card>
+  );
+}
+
 export function SOperations({ opsKey, onKeySaved, onKeyCleared }: {
   opsKey: string | null;
   onKeySaved: (key: string) => void;
@@ -133,27 +207,33 @@ function SCleOperateur({ onKeySaved }: { onKeySaved: (key: string) => void }) {
   const trimmed = draft.trim();
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>{t('operations.titre')}</PageTitle>
-      <View style={{ marginTop: 14 }}>
-        <Banner tone="info">{t('operations.cle_explication')}</Banner>
-      </View>
-      <View style={{ marginTop: 16 }}>
-        <Input label={t('operations.cle_libelle')} value={draft} onChangeText={setDraft} />
-      </View>
-      <View style={{ marginTop: 16 }}>
-        <C07BtnPrimary
-          label={t('operations.cle_ouvrir')}
-          icon="check"
-          onPress={() => {
-            if (trimmed === '') return;
-            storeOpsKey(trimmed);
-            onKeySaved(trimmed);
-          }}
-        />
-      </View>
-      <View style={{ marginTop: 10 }}>
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.cle_reste_ici')}</Text>
-      </View>
+      <Colonne>
+        <Overline>{t('console.surtitre')}</Overline>
+        <PageTitle>{t('operations.titre')}</PageTitle>
+        <Card variant="Llg" style={{ marginTop: 18 }}>
+          <Text style={role({ f: 'BG', w: 800, s: 17 }, P.ink)}>{t('operations.cle_libelle')}</Text>
+          <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 6 }]}>
+            {t('operations.cle_explication')}
+          </Text>
+          <View style={{ marginTop: 16 }}>
+            <Input label={t('operations.cle_libelle')} value={draft} onChangeText={setDraft} />
+          </View>
+          <View style={{ marginTop: 16 }}>
+            <C07BtnPrimary
+              label={t('operations.cle_ouvrir')}
+              icon="check"
+              onPress={() => {
+                if (trimmed === '') return;
+                storeOpsKey(trimmed);
+                onKeySaved(trimmed);
+              }}
+            />
+          </View>
+          <View style={{ marginTop: 12 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.cle_reste_ici')}</Text>
+          </View>
+        </Card>
+      </Colonne>
     </ScrollView>
   );
 }
@@ -179,6 +259,10 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const [codesRead, setCodesRead] = useState<CodesRead>({ kind: 'loading' });
   const [codesUi, setCodesUi] = useState<CodesUi>(CODES_IDLE);
   const [codeDraft, setCodeDraft] = useState('');
+  // CONSOLE-GT-1 — which zone the founder is looking at. Pure navigation: no
+  // read waits for it (everything loads at mount exactly as before), and no
+  // section's STATE lives behind it — a zone switch hides pixels, never facts.
+  const [zone, setZone] = useState<ZoneConsole>('commandes');
 
   // `force` exists because of a real defect the verifier caught: the 60-second
   // background re-read holds `inFlight`, so the re-read AFTER a successful
@@ -288,47 +372,80 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
 
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>{t('operations.titre')}</PageTitle>
-
-      {view.kind === 'loading' && (
-        <View style={{ marginTop: 14 }}>
-          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(view.message)}</Text>
-        </View>
-      )}
-
-      {(view.kind === 'not_configured' || view.kind === 'empty') && (
-        <View style={{ marginTop: 14 }}>
-          <Banner tone="info">{t(view.message)}</Banner>
-        </View>
-      )}
-
-      {view.kind === 'bad_key' && (
-        <View style={{ marginTop: 14 }}>
-          <Banner tone="warn">{t(view.message)}</Banner>
-          <View style={{ marginTop: 14 }}>
-            <C07BtnPrimary label={t('operations.cle_ressaisir')} icon="retry" onPress={onBadKeyReset} />
+      <Colonne>
+        {/* ═══ THE MASTHEAD — one identity, one clock, one refresh ═══ */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Overline>{t('console.surtitre')}</Overline>
+            <PageTitle>{t('operations.titre')}</PageTitle>
           </View>
+          {(view.kind === 'board' || view.kind === 'empty') && (
+            <BtnGhost label={t('operations.actualiser')} onPress={() => { void load(); }} />
+          )}
         </View>
-      )}
+        <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 4 }]}>{t('console.auto')}</Text>
 
-      {view.kind === 'failed' && (
-        <View style={{ marginTop: 14 }}>
-          <Banner tone="warn">{t(view.message)}</Banner>
-          <View style={{ marginTop: 14 }}>
-            <C07BtnPrimary label={t('operations.reessayer')} icon="retry" onPress={() => { void load(); }} />
+        {view.kind === 'loading' && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(view.message)}</Text>
           </View>
-        </View>
-      )}
+        )}
 
-      {view.kind === 'board' && (
-        <>
-          {/* ── À relancer — the founder's 10-minute line, loudest and first ── */}
-          <View style={{ marginTop: 14 }}>
-            <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>
-              {t('operations.relancer_titre')}
-            </Text>
+        {view.kind === 'not_configured' && (
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="info">{t(view.message)}</Banner>
+          </View>
+        )}
+
+        {view.kind === 'bad_key' && (
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="warn">{t(view.message)}</Banner>
+            <View style={{ marginTop: 14 }}>
+              <C07BtnPrimary label={t('operations.cle_ressaisir')} icon="retry" onPress={onBadKeyReset} />
+            </View>
+          </View>
+        )}
+
+        {view.kind === 'failed' && (
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="warn">{t(view.message)}</Banner>
+            <View style={{ marginTop: 14 }}>
+              <C07BtnPrimary label={t('operations.reessayer')} icon="retry" onPress={() => { void load(); }} />
+            </View>
+          </View>
+        )}
+
+        {/* ═══ THE URGENT LINE — visible from every zone, one tap home ═══ */}
+        {view.kind === 'board' && view.relancer.length > 0 && zone !== 'commandes' && (
+          <Pressable onPress={() => setZone('commandes')} accessibilityRole="button">
+            <View style={{ marginTop: 14 }}>
+              <Banner tone="warn">{t('console.urgent').replace('{n}', String(view.relancer.length))}</Banner>
+            </View>
+          </Pressable>
+        )}
+
+        {/* ═══ THE ZONE NAV — four rooms instead of one corridor ═══ */}
+        {(view.kind === 'board' || view.kind === 'empty') && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+            <ChipCategory label={t('console.zone_commandes')} active={zone === 'commandes'} onPress={() => setZone('commandes')} />
+            <ChipCategory label={t('console.zone_livraisons')} active={zone === 'livraisons'} onPress={() => setZone('livraisons')} />
+            <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
+            <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
+          </View>
+        )}
+
+        {zone === 'commandes' && view.kind === 'empty' && (
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="info">{t(view.message)}</Banner>
+          </View>
+        )}
+
+        {zone === 'commandes' && view.kind === 'board' && (
+          <>
+            {/* ── À relancer — the founder's 10-minute line, loudest and first ── */}
+            <TeteSection titre={t('operations.relancer_titre')} marge={24} />
             {view.relancer.length === 0 ? (
-              <View style={{ marginTop: 8 }}>
+              <View style={{ marginTop: 10 }}>
                 <Banner tone="success" check>{t('operations.relancer_vide')}</Banner>
               </View>
             ) : (
@@ -347,105 +464,92 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                 />
               ))
             )}
-          </View>
 
-          {/* ── En préparation — the REAL signal: the supplier's own act.
-                 « Prêt » only from an evidenced B6.2 confirmation. ── */}
-          {view.preparation.length > 0 && (
-            <View style={{ marginTop: 22 }}>
-              <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>
-                {t('operations.preparation_titre')}
-              </Text>
-              {view.preparation.map((r) => (
-                <CommandeCard key={r.orderId} row={r} nowMs={nowMs} />
-              ))}
-            </View>
-          )}
+            {/* ── En préparation — the REAL signal: the supplier's own act.
+                   « Prêt » only from an evidenced B6.2 confirmation. ── */}
+            {view.preparation.length > 0 && (
+              <>
+                <TeteSection titre={t('operations.preparation_titre')} />
+                {view.preparation.map((r) => (
+                  <CommandeCard key={r.orderId} row={r} nowMs={nowMs} />
+                ))}
+              </>
+            )}
 
-          {/* ── Déjà appelés — his own record of his own act. Never « prêt ». ── */}
-          {view.relances.length > 0 && (
-            <View style={{ marginTop: 22 }}>
-              <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>
-                {t('operations.relances_titre')}
-              </Text>
-              <View style={{ marginTop: 6 }}>
-                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>
-                  {t('operations.relance_sens')}
-                </Text>
-              </View>
-              {view.relances.map((r) => (
-                <CommandeCard
-                  key={r.orderId}
-                  row={r}
-                  called
-                  nowMs={nowMs}
-                  action={{
-                    label: t('operations.relance_rappeler'),
-                    busy: relanceUi.busy === r.orderId,
-                    failed: relanceUi.echec === r.orderId,
-                    locked: relanceUi.busy !== null,
-                    onPress: () => { void relancer(r.orderId); },
-                  }}
-                />
-              ))}
-            </View>
-          )}
+            {/* ── Déjà appelés — his own record of his own act. Never « prêt ». ── */}
+            {view.relances.length > 0 && (
+              <>
+                <TeteSection titre={t('operations.relances_titre')} sens={t('operations.relance_sens')} />
+                {view.relances.map((r) => (
+                  <CommandeCard
+                    key={r.orderId}
+                    row={r}
+                    called
+                    nowMs={nowMs}
+                    action={{
+                      label: t('operations.relance_rappeler'),
+                      busy: relanceUi.busy === r.orderId,
+                      failed: relanceUi.echec === r.orderId,
+                      locked: relanceUi.busy !== null,
+                      onPress: () => { void relancer(r.orderId); },
+                    }}
+                  />
+                ))}
+              </>
+            )}
 
-          {/* ── Payées à l'instant — fresh, watching, no action yet ── */}
-          <View style={{ marginTop: 22 }}>
-            <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>
-              {t('operations.recentes_titre')}
-            </Text>
+            {/* ── Payées à l'instant — fresh, watching, no action yet ── */}
+            <TeteSection titre={t('operations.recentes_titre')} />
             {view.recentes.length === 0 ? (
-              <View style={{ marginTop: 8 }}>
+              <View style={{ marginTop: 10 }}>
                 <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.recentes_vide')}</Text>
               </View>
             ) : (
               view.recentes.map((r) => <CommandeCard key={r.orderId} row={r} />)
             )}
-          </View>
 
-          {/* ── Anomalies — a paid order this platform cannot place. Never buried. ── */}
-          {view.anomalies.length > 0 && (
-            <View style={{ marginTop: 22 }}>
-              <Banner tone="danger">{t('operations.anomalie_bandeau')}</Banner>
-            </View>
-          )}
+            {/* ── Anomalies — a paid order this platform cannot place. Never buried. ── */}
+            {view.anomalies.length > 0 && (
+              <View style={{ marginTop: 22 }}>
+                <Banner tone="danger">{t('operations.anomalie_bandeau')}</Banner>
+              </View>
+            )}
+          </>
+        )}
 
-          <View style={{ marginTop: 22 }}>
-            <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { void load(); }} />
-          </View>
-        </>
-      )}
+        {/* ── CONSOLE-3 — Codes fournisseurs: who holds a door, since when.
+               Mint warns (never blocks) on a supplier the book has never seen —
+               the phantom-door footgun, closed where it fires. Present on the
+               EMPTY board too: the first code is minted before the first sale. ── */}
+        {zone === 'fournisseurs' && (view.kind === 'board' || view.kind === 'empty') && (
+          <SCodes
+            read={codesRead}
+            ui={codesUi}
+            draft={codeDraft}
+            avis={
+              // the pre-flight speaks ONLY from data it truly has (verifier
+              // MINOR-3): with the codes read failed, « remplace » could never
+              // be said — so nothing is said, never a confidently wrong avis
+              codeDraft.trim() === '' || read.kind !== 'ok' || codesRead.kind !== 'ok'
+                ? null
+                : mintAvis(read.rows, codesRead.codes, codeDraft.trim())
+            }
+            onDraft={setCodeDraft}
+            onCreer={() => { void creerCode(codeDraft.trim()); }}
+            onCouper={(supplierId) => { void couperCode(supplierId); }}
+            onVu={() => setCodesUi(CODES_IDLE)}
+            onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
+          />
+        )}
 
-      {/* ── CONSOLE-3 — Codes fournisseurs: who holds a door, since when.
-             Mint warns (never blocks) on a supplier the book has never seen —
-             the phantom-door footgun, closed where it fires. Present on the
-             EMPTY board too: the first code is minted before the first sale. ── */}
-      {(view.kind === 'board' || view.kind === 'empty') && (
-        <SCodes
-          read={codesRead}
-          ui={codesUi}
-          draft={codeDraft}
-          avis={
-            // the pre-flight speaks ONLY from data it truly has (verifier
-            // MINOR-3): with the codes read failed, « remplace » could never
-            // be said — so nothing is said, never a confidently wrong avis
-            codeDraft.trim() === '' || read.kind !== 'ok' || codesRead.kind !== 'ok'
-              ? null
-              : mintAvis(read.rows, codesRead.codes, codeDraft.trim())
-          }
-          onDraft={setCodeDraft}
-          onCreer={() => { void creerCode(codeDraft.trim()); }}
-          onCouper={(supplierId) => { void couperCode(supplierId); }}
-          onVu={() => setCodesUi(CODES_IDLE)}
-          onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
-        />
-      )}
-
-      {/* ── BC-1c — Livraisons: buyer contact from the Shop+ side, behind its
-             OWN key (value C — one console, two doors, two Workers). ── */}
-      {(view.kind === 'board' || view.kind === 'empty') && <SLivraisons />}
+        {/* ── BC-1c — Livraisons: buyer contact from the Shop+ side, behind its
+               OWN key (value C — one console, two doors, two Workers).
+               MOUNTED ACROSS EVERY ZONE — it owns key C and four reads, and a
+               zone switch must hide its pixels, never destroy its state (a
+               live one-time access code dies with the component that holds
+               it). It returns null itself for the zones that are not its. ── */}
+        {(view.kind === 'board' || view.kind === 'empty') && <SLivraisons zone={zone} />}
+      </Colonne>
     </ScrollView>
   );
 }
@@ -459,7 +563,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
  * and its own re-entry — never an escalation of the BOARD's door, because the
  * two keys are different credentials on different Workers.
  */
-function SLivraisons() {
+function SLivraisons({ zone }: { zone: ZoneConsole }) {
   const service = useMemo<DispatchServicePort | null>(() => resolveDispatchService(), []);
   const [cleC, setCleC] = useState<string | null>(() => readStoredCleC());
   const [draft, setDraft] = useState('');
@@ -620,51 +724,45 @@ function SLivraisons() {
 
   const vue = cleC === null ? null : livraisonsVue(read);
 
-  return (
-    <View style={{ marginTop: 22 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('livraisons.titre')}</Text>
+  // CONSOLE-GT-1 — the zones that are not this component's render NOTHING, but
+  // the component itself STAYS MOUNTED (returning null keeps hooks and state):
+  // key C, the four reads, and above all a live one-time access code must
+  // survive the founder walking to another zone and back.
+  if (zone !== 'livraisons' && zone !== 'revendeuses') return null;
 
+  return (
+    <View>
+      {/* ── The key-C door: one credential covers Livraisons AND Revendeuses,
+             so its door and its recovery show in both zones. ── */}
       {cleC === null && (
         <>
-          <View style={{ marginTop: 6 }}>
-            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('livraisons.cle_explication')}</Text>
-          </View>
-          <View style={{ marginTop: 10 }}>
+          <TeteSection titre={t('livraisons.titre')} sens={t('livraisons.cle_explication')} />
+          <Card variant="Llg" style={{ marginTop: 12 }}>
             <Input label={t('livraisons.cle_libelle')} value={draft} onChangeText={setDraft} />
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <BtnSoft
-              label={t('livraisons.cle_ouvrir')}
-              icon="check"
-              onPress={() => {
-                const v = draft.trim();
-                if (v === '') return;
-                storeCleC(v);
-                setRead({ kind: 'loading' });
-                setCleC(v);
-                // every read is asked for HERE, not inferred from a state change
-                void load(v);
-                void loadAcces(v);
-                void loadComptes(v);
-                void loadSuivi(v);
-              }}
-            />
-          </View>
+            <View style={{ marginTop: 12 }}>
+              <BtnSoft
+                label={t('livraisons.cle_ouvrir')}
+                icon="check"
+                onPress={() => {
+                  const v = draft.trim();
+                  if (v === '') return;
+                  storeCleC(v);
+                  setRead({ kind: 'loading' });
+                  setCleC(v);
+                  // every read is asked for HERE, not inferred from a state change
+                  void load(v);
+                  void loadAcces(v);
+                  void loadComptes(v);
+                  void loadSuivi(v);
+                }}
+              />
+            </View>
+          </Card>
         </>
       )}
 
-      {vue !== null && vue.kind === 'loading' && (
-        <View style={{ marginTop: 8 }}>
-          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
-        </View>
-      )}
-      {vue !== null && vue.kind === 'not_configured' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="info">{t(vue.message)}</Banner>
-        </View>
-      )}
       {vue !== null && vue.kind === 'bad_key' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 16 }}>
           <Banner tone="warn">{t(vue.message)}</Banner>
           <View style={{ marginTop: 10 }}>
             <BtnSoft
@@ -679,82 +777,102 @@ function SLivraisons() {
           </View>
         </View>
       )}
-      {vue !== null && vue.kind === 'failed' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="warn">{t(vue.message)}</Banner>
-          <View style={{ marginTop: 10 }}>
-            <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
-          </View>
-        </View>
-      )}
-      {vue !== null && vue.kind === 'empty' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="info">{t(vue.message)}</Banner>
-        </View>
-      )}
 
-      {vue !== null && vue.kind === 'liste' && (
+      {/* ═══ ZONE LIVRAISONS — the rider's truth: who, where, which number ═══ */}
+      {zone === 'livraisons' && (
         <>
-          <View style={{ marginTop: 8 }}>
-            <Text style={role({ f: 'IS', w: 600, s: 13 }, P.ink)}>{t('livraisons.a_livrer_titre')}</Text>
-          </View>
-          {vue.aLivrer.length === 0 ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('livraisons.a_livrer_vide')}</Text>
-            </View>
-          ) : (
-            vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} cleC={cleC} />)
-          )}
-          {vue.sansContact.length > 0 && (
-            <View style={{ marginTop: 10 }}>
-              <Banner tone="warn">{t('livraisons.sans_contact').replace('{n}', String(vue.sansContact.length))}</Banner>
+          {vue !== null && vue.kind === 'loading' && (
+            <View style={{ marginTop: 16 }}>
+              <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
             </View>
           )}
-          {vue.enAttente.length > 0 && (
-            <View style={{ marginTop: 10 }}>
-              <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>
-                {t('livraisons.en_attente').replace('{n}', String(vue.enAttente.length))}
-              </Text>
+          {vue !== null && vue.kind === 'not_configured' && (
+            <View style={{ marginTop: 16 }}>
+              <Banner tone="info">{t(vue.message)}</Banner>
             </View>
           )}
-          <View style={{ marginTop: 12 }}>
-            <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
-          </View>
+          {vue !== null && vue.kind === 'failed' && (
+            <View style={{ marginTop: 16 }}>
+              <Banner tone="warn">{t(vue.message)}</Banner>
+              <View style={{ marginTop: 10 }}>
+                <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
+              </View>
+            </View>
+          )}
+          {vue !== null && vue.kind === 'empty' && (
+            <>
+              <TeteSection titre={t('livraisons.titre')} marge={24} />
+              <View style={{ marginTop: 10 }}>
+                <Banner tone="info">{t(vue.message)}</Banner>
+              </View>
+            </>
+          )}
 
-          {cleC !== null && (
-            <SComptes
-              read={comptesRead}
-              ui={comptesUi}
-              onActe={(acte, id) => { void agirCompte(acte, id, cleC); }}
-              onVu={() => setComptesUi(COMPTES_IDLE)}
-              onRetry={() => { setComptesRead({ kind: 'loading' }); void loadComptes(cleC); }}
-            />
+          {vue !== null && vue.kind === 'liste' && (
+            <>
+              <TeteSection titre={t('livraisons.a_livrer_titre')} marge={24} />
+              {vue.aLivrer.length === 0 ? (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={role({ f: 'IS', w: 400, s: 12.5 }, P.sub)}>{t('livraisons.a_livrer_vide')}</Text>
+                </View>
+              ) : (
+                vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} cleC={cleC} />)
+              )}
+              {vue.sansContact.length > 0 && (
+                <View style={{ marginTop: 12 }}>
+                  <Banner tone="warn">{t('livraisons.sans_contact').replace('{n}', String(vue.sansContact.length))}</Banner>
+                </View>
+              )}
+              {vue.enAttente.length > 0 && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>
+                    {t('livraisons.en_attente').replace('{n}', String(vue.enAttente.length))}
+                  </Text>
+                </View>
+              )}
+              <View style={{ marginTop: 16 }}>
+                <BtnGhost label={t('operations.actualiser')} onPress={() => { if (cleC !== null) void load(cleC); }} />
+              </View>
+            </>
           )}
-          {cleC !== null && (
-            <SSuivi
-              read={suiviRead}
-              onRetry={() => { setSuiviRead({ kind: 'loading' }); void loadSuivi(cleC); }}
-            />
-          )}
-          {cleC !== null && (
-            <SAcces
-              read={accesRead}
-              ui={accesUi}
-              draft={accesDraft}
-              dejaUnCode={
-                // Said only from data he truly has: with the list unread, we
-                // cannot know whether she already holds a code, so nothing is
-                // said rather than a confidently wrong warning.
-                accesRead.kind === 'ok' &&
-                accesRead.codes.some((c) => c.resellerId === accesDraft.trim())
-              }
-              onDraft={setAccesDraft}
-              onCreer={() => { void creerAcces(accesDraft.trim(), cleC); }}
-              onCouper={(id) => { void couperAcces(id, cleC); }}
-              onVu={() => setAccesUi(ACCES_IDLE)}
-              onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
-            />
-          )}
+        </>
+      )}
+
+      {/* ═══ ZONE REVENDEUSES — the roster, the suivi, the access codes.
+             CONSOLE-GT-1 freed these from the dispatch list's read: a failed
+             LIVRAISONS read no longer hides the ROSTER, because they are
+             different questions on the same key. Only bad_key — the shared
+             door itself — still silences everything behind it. ═══ */}
+      {zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (
+        <>
+          <SComptes
+            read={comptesRead}
+            ui={comptesUi}
+            onActe={(acte, id) => { void agirCompte(acte, id, cleC); }}
+            onVu={() => setComptesUi(COMPTES_IDLE)}
+            onRetry={() => { setComptesRead({ kind: 'loading' }); void loadComptes(cleC); }}
+          />
+          <SSuivi
+            read={suiviRead}
+            onRetry={() => { setSuiviRead({ kind: 'loading' }); void loadSuivi(cleC); }}
+          />
+          <SAcces
+            read={accesRead}
+            ui={accesUi}
+            draft={accesDraft}
+            dejaUnCode={
+              // Said only from data he truly has: with the list unread, we
+              // cannot know whether she already holds a code, so nothing is
+              // said rather than a confidently wrong warning.
+              accesRead.kind === 'ok' &&
+              accesRead.codes.some((c) => c.resellerId === accesDraft.trim())
+            }
+            onDraft={setAccesDraft}
+            onCreer={() => { void creerAcces(accesDraft.trim(), cleC); }}
+            onCouper={(id) => { void couperAcces(id, cleC); }}
+            onVu={() => setAccesUi(ACCES_IDLE)}
+            onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
+          />
         </>
       )}
     </View>
@@ -785,23 +903,20 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
   const vue = comptesVue(read);
   if (vue === null) return null;
   return (
-    <View style={{ marginTop: 22 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('comptes.titre')}</Text>
-      <View style={{ marginTop: 6 }}>
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.sens')}</Text>
-      </View>
+    <View>
+      <TeteSection titre={t('comptes.titre')} sens={t('comptes.sens')} marge={24} />
 
       {vue.kind === 'loading' && (
-        <View style={{ marginTop: 8 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
+        <View style={{ marginTop: 10 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
       )}
       {vue.kind === 'failed' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="warn">{t(vue.message)}</Banner>
           <View style={{ marginTop: 8 }}><BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} /></View>
         </View>
       )}
       {vue.kind === 'empty' && (
-        <View style={{ marginTop: 8 }}><Banner tone="info">{t(vue.message)}</Banner></View>
+        <View style={{ marginTop: 10 }}><Banner tone="info">{t(vue.message)}</Banner></View>
       )}
 
       {vue.kind === 'liste' && vue.comptes.map((c) => {
@@ -810,18 +925,24 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
         const label =
           c.state === 'pending_access' ? t('comptes.donner_code') : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir');
         return (
-          <Card key={c.accountId} variant="Llist" style={{ marginTop: 8 }}>
+          <Card key={c.accountId} variant="Llist" style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.name}</Text>
-                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={1}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{c.name}</Text>
+                  <PilluleEtat
+                    label={t(etatCompteKey(c.state))}
+                    tone={c.state === 'active' ? 'ok' : c.state === 'pending_access' ? 'attente' : 'pause'}
+                  />
+                </View>
+                <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), TNUM, { marginTop: 4 }]} numberOfLines={1}>
                   {c.accountId} · {c.phone}
                 </Text>
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
-                  {t(etatCompteKey(c.state))} · {t('comptes.inscrit_le').replace('{d}', c.createdAt.slice(0, 10))}
+                  {t('comptes.inscrit_le').replace('{d}', c.createdAt.slice(0, 10))}
                 </Text>
                 {c.accessCodePending && (
-                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('comptes.code_en_route')}</Text>
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 3 }]}>{t('comptes.code_en_route')}</Text>
                 )}
               </View>
               {ui.busy === acte ? (
@@ -842,20 +963,13 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
       })}
 
       {ui.nouveau !== null && (
-        <Card variant="Llist" style={{ marginTop: 10 }}>
-          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
-            {t('comptes.code_pour').replace('{id}', ui.nouveau.accountId)}
-          </Text>
-          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
-            {ui.nouveau.code}
-          </Text>
-          <View style={{ marginTop: 6 }}>
-            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.code_note')}</Text>
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <BtnSoft label={t('comptes.vu')} icon="check" onPress={onVu} />
-          </View>
-        </Card>
+        <CarteCodeUnique
+          pour={t('comptes.code_pour').replace('{id}', ui.nouveau.accountId)}
+          code={ui.nouveau.code}
+          note={t('comptes.code_note')}
+          vuLabel={t('comptes.vu')}
+          onVu={onVu}
+        />
       )}
     </View>
   );
@@ -872,36 +986,42 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
   const vue = suiviVue(read);
   if (vue === null) return null;
   return (
-    <View style={{ marginTop: 22 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('suivi.titre')}</Text>
-      <View style={{ marginTop: 6 }}>
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('suivi.sens')}</Text>
-      </View>
+    <View>
+      <TeteSection titre={t('suivi.titre')} sens={t('suivi.sens')} />
 
       {vue.kind === 'loading' && (
-        <View style={{ marginTop: 8 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
+        <View style={{ marginTop: 10 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
       )}
       {vue.kind === 'failed' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="warn">{t(vue.message)}</Banner>
           <View style={{ marginTop: 8 }}><BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} /></View>
         </View>
       )}
       {vue.kind === 'empty' && (
-        <View style={{ marginTop: 8 }}><Banner tone="info">{t(vue.message)}</Banner></View>
+        <View style={{ marginTop: 10 }}><Banner tone="info">{t(vue.message)}</Banner></View>
       )}
 
-      {vue.kind === 'liste' && vue.lignes.map((l: SuiviLigne) => (
-        <Card key={l.accountId} variant="Llist" style={{ marginTop: 8 }}>
+      {/* THE RANK IS THE ROW ORDER MADE VISIBLE — the deterministic sort
+          (ventes → net → id) already decided it; the numeral only says it out
+          loud. Gold on the first row, ink on the rest: one quiet honour, never
+          a score. */}
+      {vue.kind === 'liste' && vue.lignes.map((l: SuiviLigne, rang: number) => (
+        <Card key={l.accountId} variant="Llist" style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{l.name}</Text>
-              <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
-                {t('suivi.ventes_n').replace('{n}', String(l.ventes))}
-                {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 12 }}>
+              <Text style={[role({ f: 'BG', w: 800, s: 16 }, rang === 0 ? P.gold : P.faint), TNUM, { width: 34 }]}>
+                {rang + 1}
               </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{l.name}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
+                  {t('suivi.ventes_n').replace('{n}', String(l.ventes))}
+                  {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
+                </Text>
+              </View>
             </View>
-            <Text style={role({ f: 'BG', w: 800, s: 16 }, P.ink)}>{formatF(l.netFcfa)}</Text>
+            <Text style={[role({ f: 'BG', w: 800, s: 17 }, P.ink), TNUM]}>{formatF(l.netFcfa)}</Text>
           </View>
         </Card>
       ))}
@@ -935,19 +1055,16 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
   const vue = accesVue(read);
   if (vue === null) return null; // bad_key already spoke once, for the section
   return (
-    <View style={{ marginTop: 22 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('acces.titre')}</Text>
-      <View style={{ marginTop: 6 }}>
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.sens')}</Text>
-      </View>
+    <View>
+      <TeteSection titre={t('acces.titre')} sens={t('acces.sens')} />
 
       {vue.kind === 'loading' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
         </View>
       )}
       {vue.kind === 'failed' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="warn">{t(vue.message)}</Banner>
           <View style={{ marginTop: 8 }}>
             <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} />
@@ -955,17 +1072,17 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
         </View>
       )}
       {vue.kind === 'empty' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="info">{t(vue.message)}</Banner>
         </View>
       )}
       {vue.kind === 'liste' &&
         vue.codes.map((c) => (
-          <Card key={c.resellerId} variant="Llist" style={{ marginTop: 8 }}>
+          <Card key={c.resellerId} variant="Llist" style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.resellerId}</Text>
-                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[role({ f: 'BG', w: 700, s: 15 }, P.ink), TNUM]} numberOfLines={1}>{c.resellerId}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
                   {t('acces.cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
               </View>
@@ -986,39 +1103,32 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
         ))}
 
       {ui.nouveau !== null && (
-        <Card variant="Llist" style={{ marginTop: 10 }}>
-          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
-            {t('acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
-          </Text>
-          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
-            {ui.nouveau.code}
-          </Text>
-          <View style={{ marginTop: 6 }}>
-            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.nouveau_note')}</Text>
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <BtnSoft label={t('acces.vu')} icon="check" onPress={onVu} />
-          </View>
-        </Card>
+        <CarteCodeUnique
+          pour={t('acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
+          code={ui.nouveau.code}
+          note={t('acces.nouveau_note')}
+          vuLabel={t('acces.vu')}
+          onVu={onVu}
+        />
       )}
 
       {/* The mint form is HIDDEN while a one-time code is on screen — he has
           something to write down, and offering a second act there is how the
           first one gets destroyed. */}
       {ui.nouveau === null && (
-        <View style={{ marginTop: 12 }}>
+        <Card variant="Llg" style={{ marginTop: 14 }}>
           <Input label={t('acces.champ')} value={draft} onChangeText={onDraft} />
           {dejaUnCode && (
-            <View style={{ marginTop: 6 }}>
+            <View style={{ marginTop: 8 }}>
               <Banner tone="warn">{t('acces.remplace')}</Banner>
             </View>
           )}
           {ui.echec === 'mint' && (
-            <View style={{ marginTop: 6 }}>
+            <View style={{ marginTop: 8 }}>
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.creation_echec')}</Text>
             </View>
           )}
-          <View style={{ marginTop: 8 }}>
+          <View style={{ marginTop: 12 }}>
             {ui.busy === 'mint' ? (
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.creation')}</Text>
             ) : (
@@ -1029,7 +1139,7 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
               />
             )}
           </View>
-        </View>
+        </Card>
       )}
     </View>
   );
@@ -1045,24 +1155,24 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
  *  shape of the screen. */
 function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null }) {
   return (
-    <Card variant="Llist" style={{ marginTop: 8 }}>
+    <Card variant="Llist" style={{ marginTop: 10 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>
+        <Text style={role({ f: 'BG', w: 800, s: 16 }, P.ink)} numberOfLines={1}>
           {row.contact?.quartier ?? row.zoneTo}
         </Text>
-        <Text style={role({ f: 'IS', w: 400, s: 11 }, P.sub)}>{row.createdAt.slice(0, 10)}</Text>
+        <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), TNUM]}>{row.createdAt.slice(0, 10)}</Text>
       </View>
       {row.contact !== null && (
         <>
-          <Text style={[role({ f: 'BG', w: 800, s: 18 }, P.ink), { marginTop: 4 }]} selectable>
+          <Text style={[role({ f: 'BG', w: 800, s: 20 }, P.greenDeep), TNUM, { marginTop: 5, letterSpacing: 0.5 }]} selectable>
             {row.contact.phone}
           </Text>
           {row.contact.repere !== '' && (
-            <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{row.contact.repere}</Text>
+            <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), { marginTop: 3 }]}>{row.contact.repere}</Text>
           )}
         </>
       )}
-      <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.sub), { marginTop: 4 }]} numberOfLines={1}>
+      <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.faint), TNUM, { marginTop: 6 }]} numberOfLines={1}>
         {row.orderId}
       </Text>
       <SignalerRefus orderId={row.orderId} cleC={cleC} aUnNumero={row.contact !== null} />
@@ -1092,19 +1202,16 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
   const vue = codesView(read);
   if (vue === null) return null; // bad_key escalated the whole board already
   return (
-    <View style={{ marginTop: 22 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)}>{t('operations.codes_titre')}</Text>
-      <View style={{ marginTop: 6 }}>
-        <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.codes_sens')}</Text>
-      </View>
+    <View>
+      <TeteSection titre={t('operations.codes_titre')} sens={t('operations.codes_sens')} marge={24} />
 
       {vue.kind === 'loading' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
         </View>
       )}
       {vue.kind === 'failed' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="warn">{t(vue.message)}</Banner>
           <View style={{ marginTop: 8 }}>
             <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} />
@@ -1112,17 +1219,17 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
         </View>
       )}
       {vue.kind === 'empty' && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 10 }}>
           <Banner tone="info">{t(vue.message)}</Banner>
         </View>
       )}
       {vue.kind === 'liste' &&
         vue.codes.map((c) => (
-          <Card key={c.supplierId} variant="Llist" style={{ marginTop: 8 }}>
+          <Card key={c.supplierId} variant="Llist" style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{c.supplierId}</Text>
-                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{c.supplierId}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
                   {t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
               </View>
@@ -1145,56 +1252,49 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
         ))}
 
       {ui.nouveau !== null && (
-        <Card variant="Llist" style={{ marginTop: 10 }}>
-          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
-            {t('operations.code_nouveau_pour').replace('{id}', ui.nouveau.supplierId)}
-          </Text>
-          <Text style={[role({ f: 'BG', w: 800, s: 22 }, P.ink), { marginTop: 6 }]} selectable>
-            {ui.nouveau.code}
-          </Text>
-          <View style={{ marginTop: 6 }}>
-            <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_nouveau_note')}</Text>
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <BtnSoft label={t('operations.code_nouveau_vu')} icon="check" onPress={onVu} />
-          </View>
-        </Card>
+        <CarteCodeUnique
+          pour={t('operations.code_nouveau_pour').replace('{id}', ui.nouveau.supplierId)}
+          code={ui.nouveau.code}
+          note={t('operations.code_nouveau_note')}
+          vuLabel={t('operations.code_nouveau_vu')}
+          onVu={onVu}
+        />
       )}
 
-      <View style={{ marginTop: 14 }}>
+      <Card variant="Llg" style={{ marginTop: 14 }}>
         <Input label={t('operations.code_saisie')} value={draft} onChangeText={onDraft} />
-      </View>
-      {avis === 'inconnu' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="warn">{t('operations.code_avis_inconnu')}</Banner>
-        </View>
-      )}
-      {avis === 'remplace' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="info">{t('operations.code_avis_remplace')}</Banner>
-        </View>
-      )}
-      <View style={{ marginTop: 10 }}>
-        {ui.busy === 'mint' ? (
-          <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.code_creation_encours')}</Text>
-        ) : ui.nouveau !== null ? (
-          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
-        ) : (
-          <BtnSoft
-            label={t('operations.code_creer')}
-            icon="check"
-            onPress={() => {
-              if (draft.trim() === '') return;
-              onCreer();
-            }}
-          />
-        )}
-        {ui.echec === 'mint' && (
-          <View style={{ marginTop: 6 }}>
-            <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_creation_echec')}</Text>
+        {avis === 'inconnu' && (
+          <View style={{ marginTop: 8 }}>
+            <Banner tone="warn">{t('operations.code_avis_inconnu')}</Banner>
           </View>
         )}
-      </View>
+        {avis === 'remplace' && (
+          <View style={{ marginTop: 8 }}>
+            <Banner tone="info">{t('operations.code_avis_remplace')}</Banner>
+          </View>
+        )}
+        <View style={{ marginTop: 12 }}>
+          {ui.busy === 'mint' ? (
+            <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.code_creation_encours')}</Text>
+          ) : ui.nouveau !== null ? (
+            <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
+          ) : (
+            <BtnSoft
+              label={t('operations.code_creer')}
+              icon="check"
+              onPress={() => {
+                if (draft.trim() === '') return;
+                onCreer();
+              }}
+            />
+          )}
+          {ui.echec === 'mint' && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_creation_echec')}</Text>
+            </View>
+          )}
+        </View>
+      </Card>
     </View>
   );
 }
@@ -1220,23 +1320,23 @@ function CommandeCard({ row, chase, called, nowMs, action }: {
     ? t('operations.mode_porte')
     : t('operations.mode_paye');
   return (
-    <Card variant="Llist" style={{ marginTop: 8 }}>
+    <Card variant="Llist" style={{ marginTop: 10 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, paddingRight: 10 }}>
-          <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={1}>{nom}</Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={1}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{nom}</Text>
+          <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 3 }]} numberOfLines={1}>
             {row.supplierResolved ? row.supplierId : t('operations.fournisseur_inconnu')} · {row.zoneTo}
           </Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+          <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), TNUM, { marginTop: 2 }]}>
             {modeLabel} · {formatF(row.sellerBasePrice)}
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={role({ f: 'BG', w: 800, s: chase === true ? 20 : 15 }, chase === true ? P.warnFg : P.ink)}>
+          <Text style={[role({ f: 'BG', w: 800, s: chase === true ? 21 : 15 }, chase === true ? P.warnFg : P.ink), TNUM]}>
             {row.ageMin < 60 ? t('operations.age_min').replace('{n}', String(row.ageMin)) : t('operations.age_long')}
           </Text>
           {chase === true && (
-            <Text style={[role({ f: 'IS', w: 600, s: 11 }, P.warnFg), { marginTop: 2 }]}>
+            <Text style={[role({ f: 'IS', w: 700, s: 11 }, P.warnFg), { marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
               {t('operations.appeler')}
             </Text>
           )}

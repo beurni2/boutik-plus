@@ -2694,6 +2694,48 @@
     "screenClass": "status"
   },
   {
+    "key": "console.surtitre",
+    "fr": "Boutik+ · Console",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.auto",
+    "fr": "La page se met à jour toute seule, chaque minute.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "console.urgent",
+    "fr": "À rappeler maintenant : {n}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "console.zone_commandes",
+    "fr": "Commandes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.zone_livraisons",
+    "fr": "Livraisons",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.zone_revendeuses",
+    "fr": "Revendeuses",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.zone_fournisseurs",
+    "fr": "Fournisseurs",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "refus.ouvrir",
     "fr": "Signaler",
     "register": "neutral",

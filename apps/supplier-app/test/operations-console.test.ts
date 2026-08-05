@@ -1262,7 +1262,11 @@ describe('ACCESS-GATE-1 — [source-text checks] the section is mounted behind k
 
   it('it renders ONLY once the founder has entered key C, and the mint form hides behind a live code', () => {
     const source = screenSource();
-    expect(source).toContain('{cleC !== null && (\n            <SAcces');
+    // CONSOLE-GT-1 evolved this pin from an exact-indentation substring to the
+    // CLAIM itself: SAcces mounts behind a non-null key (and now also behind
+    // the shared door not being refused) — the layout may move, the guard may
+    // not. The guard must appear BEFORE the mount in the same expression.
+    expect(source).toMatch(/\{zone === 'revendeuses' && cleC !== null && vue !== null && vue\.kind !== 'bad_key' && \([\s\S]{0,900}?<SAcces/);
     // the one-time code owns the screen until dismissed
     expect(source).toContain('{ui.nouveau === null && (');
     expect(source).toContain("t('acces.noter_dabord')");
@@ -1423,5 +1427,79 @@ describe('RESELLER-ACCOUNTS — [source-text checks] the sections load when the 
     const used = [...screenSource().matchAll(/t\('((?:comptes|suivi)\.[a-z_]+)'\)/g)].map((m) => m[1]!);
     expect(used.length).toBeGreaterThan(12);
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+});
+
+/* ═════ CONSOLE-GT-1 — the console is structured, not piled (founder order,
+   2026-08-05: « well disciplined and well structurally setup ») ═════ */
+
+describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
+  const screenSource = () =>
+    readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+
+  it('the four zones exist, each reachable from the nav, each label from the catalog', () => {
+    const source = screenSource();
+    const keys = new Set(catalog.map((e) => e.key));
+    for (const zone of ['commandes', 'livraisons', 'revendeuses', 'fournisseurs'] as const) {
+      expect(keys.has(`console.zone_${zone}`), `console.zone_${zone} in catalog`).toBe(true);
+      expect(source, zone).toContain(`t('console.zone_${zone}')`);
+      expect(source, zone).toContain(`onPress={() => setZone('${zone}')}`);
+    }
+    // the nav is kit chips, not a bespoke widget
+    expect(source).toContain('<ChipCategory');
+  });
+
+  it('every console.* key the screen renders exists in the catalog', () => {
+    const keys = new Set(catalog.map((e) => e.key));
+    const used = [...screenSource().matchAll(/t\('(console\.[a-z_]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(5); // the extraction itself must see the masthead + nav
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+
+  it('the content is width-disciplined: one measured column, applied to the board AND the key screen', () => {
+    const source = screenSource();
+    expect(source).toContain('const LARGEUR_CONSOLE = 760;');
+    expect(source).toMatch(/maxWidth: LARGEUR_CONSOLE, alignSelf: 'center'/);
+    // both scrollers pass through the column — a masthead on one screen and
+    // full-bleed text on the other would be two consoles, not one
+    expect([...source.matchAll(/<Colonne>/g)].length).toBeGreaterThanOrEqual(2);
+  });
+
+  /**
+   * THE STATE-SAFETY LAW OF THE ZONE NAV: SLivraisons owns key C, four reads,
+   * and — the one that matters most — a LIVE ONE-TIME ACCESS CODE. A zone
+   * switch that unmounted it would destroy that code while the founder reads
+   * it out. So the component is mounted for every zone and returns null
+   * itself; the mount site carries no zone condition.
+   */
+  it('SLivraisons stays mounted across zones — it hides itself, it is never unmounted', () => {
+    const source = screenSource();
+    expect(source).toContain("if (zone !== 'livraisons' && zone !== 'revendeuses') return null;");
+    expect(source).toMatch(/\(view\.kind === 'board' \|\| view\.kind === 'empty'\) && <SLivraisons zone=\{zone\} \/>/);
+    // …and no zone test guards that mount line
+    expect(source).not.toMatch(/zone === '[a-z]+' &&[^\n]*<SLivraisons/);
+  });
+
+  it("the roster is FREED from the dispatch list's read — only bad_key still silences the zone", () => {
+    const source = screenSource();
+    // SComptes/SSuivi render behind the key and the door's health, NOT behind
+    // vue.kind === 'liste' — a failed livraisons read and an unread roster are
+    // different questions on the same key
+    expect(source).toMatch(/\{zone === 'revendeuses' && cleC !== null && vue !== null && vue\.kind !== 'bad_key' && \([\s\S]{0,200}?<SComptes/);
+    expect(source).not.toMatch(/vue\.kind === 'liste'[\s\S]{0,600}?<SComptes/);
+  });
+
+  it('the urgent line is honest and navigational: board-only, count > 0, absent inside its own zone', () => {
+    const source = screenSource();
+    expect(source).toContain("view.kind === 'board' && view.relancer.length > 0 && zone !== 'commandes'");
+    expect(source).toContain("t('console.urgent').replace('{n}', String(view.relancer.length))");
+  });
+
+  it('the one-time code renders through ONE ceremonial card everywhere a plaintext exists once', () => {
+    const source = screenSource();
+    // three mints, one discipline — comptes, acces, fournisseur codes
+    expect([...source.matchAll(/<CarteCodeUnique/g)].length).toBe(3);
+    // and the card still renders the code the settle produced
+    expect(source).toContain('ui.nouveau.code');
   });
 });
