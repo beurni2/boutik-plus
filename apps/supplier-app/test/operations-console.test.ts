@@ -1567,6 +1567,23 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     expect(screenSource()).toContain("useState<VueRevendeuses>('menu')");
   });
 
+  it('EVERY read asking with key C escalates a refused key — one key, one sentence', () => {
+    // This one is written because the mutation that removed it SURVIVED the
+    // first round: `loadAcces` used to keep `bad_key` to itself while its two
+    // siblings escalated, and `accesVue` answers null for that state — so a
+    // refused key rendered the Codes section as NOTHING. Stacked that quietly
+    // lost one section of three; chosen from a menu it is the whole screen.
+    const source = screenSource();
+    for (const loader of ['loadComptes', 'loadSuivi', 'loadAcces'] as const) {
+      const start = source.indexOf(`const ${loader} = async`);
+      expect(start, `${loader} moved — this pin is watching nothing`).toBeGreaterThan(-1);
+      const body = source.slice(start, source.indexOf('\n  };', start));
+      expect(body, `${loader} swallows a refused key instead of escalating`).toContain(
+        "setRead({ kind: 'bad_key' })",
+      );
+    }
+  });
+
   it('the chooser reuses each section OWN sentence — nothing new to learn between the tap and the screen', () => {
     const bloc = zoneRevendeuses(screenSource());
     // the three doors carry the same `sens` keys the sections show at their top
