@@ -36,18 +36,28 @@ jobs:
       # error. On `workflow_dispatch` a human ran this on purpose and can read a
       # notice, so the escape hatch stays for them.
       #
-      # ⚠ FLAGGED TO THE FOUNDER: this changes documented behaviour (the header
-      # comment promised an unconditional graceful skip). It is a guardrail, not
-      # a product decision — say the word and it goes back to a notice.
+      # ⚠ FOUNDER RULING (2026-08-06): main must NOT go red for an
+      # infrastructure reason. The `exit 1` on push is REVERTED — an absent
+      # token is a loud WARNING annotation, never a failed build.
+      #
+      # THE DEFECT THAT RETURNS WITH IT, on the record: this job can complete
+      # "successfully" having published nothing, because every step below is
+      # conditioned on the token. `::warning` surfaces on the run and in the
+      # commit's checks, which is a real signal but a missable one.
+      #
+      # HOW TO CATCH IT WITHOUT A RED BUILD: the publish step's DURATION is the
+      # tell — a genuine publish takes ~75 s, a skipped one is instant. If
+      # previews stop appearing, open the latest run and look at whether the
+      # publish step ran at all before assuming the build is fine.
       - name: Check EXPO_TOKEN presence (skip gracefully when absent)
         id: token
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             if [ "${{ github.event_name }}" = "push" ]; then
-              echo "::error title=Aperçu Expo NON publié::Le secret EXPO_TOKEN est absent ou expiré — rien n'a été publié. Ce push aurait affiché une coche verte sans rien faire. Réarmer le secret dans Settings → Secrets (voir PREVIEW.md)."
-              exit 1
+              echo "::warning title=Aperçu Expo NON publié::Le secret EXPO_TOKEN est absent ou expiré — RIEN n'a été publié pour ce push. Réarmer le secret dans Settings → Secrets (voir PREVIEW.md)."
+            else
+              echo "::notice title=Aperçu Expo non publié::Le secret EXPO_TOKEN n'est pas configuré — l'ajouter dans Settings → Secrets pour armer la publication automatique (voir PREVIEW.md)."
             fi
-            echo "::notice title=Aperçu Expo non publié::Le secret EXPO_TOKEN n'est pas configuré — l'ajouter dans Settings → Secrets pour armer la publication automatique (voir PREVIEW.md)."
             echo "present=false" >> "$GITHUB_OUTPUT"
           else
             echo "present=true" >> "$GITHUB_OUTPUT"
