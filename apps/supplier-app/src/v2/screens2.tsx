@@ -50,10 +50,10 @@ export function S17ReadySheet({ st, d }: { st: S; d: D }) {
   const o = st.orders[st.view?.id ?? ''];
   if (!o) return null;
   return (
-    <Sheet title={'Confirmer « Produit prêt »'} onClose={() => d({ t: 'DISMISS_OVERLAY' })}>
+    <Sheet title={tr('fp.pret_confirmer')} onClose={() => d({ t: 'DISMISS_OVERLAY' })}>
       <Overline style={{ marginTop: 16 }}>1 · Code de préparation (valable 15 min)</Overline>
       <View style={{ marginTop: 9 }}>
-        <ChallengeCode code={o.challenge} note={'Écrivez ce code sur un papier posé à côté du produit.'} />
+        <ChallengeCode code={o.challenge} note={tr('fp.pret_code_papier')} />
       </View>
       <Overline style={{ marginTop: 16 }}>2 · Photo de préparation</Overline>
       {st.readyShot ? (
@@ -68,13 +68,13 @@ export function S17ReadySheet({ st, d }: { st: S; d: D }) {
       )}
       <Overline style={{ marginTop: 16 }}>3 · Disponibilité</Overline>
       <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginTop: 8 }]}>
-        {"Je confirme être présent à la boutique pour l'enlèvement (créneau 11 h – 13 h)."}
+        {tr('fp.confirme_presence_enlevement')}
       </Text>
       <View style={{ marginTop: 16 }}>
         <C07BtnPrimary label="Confirmer — envoyer à Séra" disabled={disabled.confirmReady(st)} onPress={() => d({ t: 'CONFIRM_READY' })} />
       </View>
       <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 9, textAlign: 'center' }]}>
-        {'Le code client de livraison ne vous est jamais montré.'}
+        {tr('fp.pret_code_client_jamais')}
       </Text>
     </Sheet>
   );
@@ -90,7 +90,7 @@ export function S19StockSheet({ st, d }: { st: S; d: D }) {
         <Stepper value={`${p.stock + st.stkDelta} unités`} onMinus={() => d({ t: 'STOCK_DELTA', d: -1 })} onPlus={() => d({ t: 'STOCK_DELTA', d: 1 })} />
       </View>
       <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.5 }, P.sub), { marginTop: 11 }]}>
-        {'Chaque ajustement est daté et motivé. Le stock affiché aux revendeuses est calculé côté serveur.'}
+        {tr('fp.stock_ajustement_note')}
       </Text>
       <View style={{ marginTop: 16 }}>
         <C07BtnPrimary label="Enregistrer" onPress={() => d({ t: 'STOCK_SAVE' })} />
@@ -256,7 +256,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               )}
             </View>
             <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 10 }]}>
-              {"La cliente paie : prix de base + marge de la revendeuse. Votre commission n'est jamais ajoutée une deuxième fois au prix client."}
+              {tr('fp.cliente_paie_explication')}
             </Text>
           </>
         )}
@@ -264,7 +264,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
           <>
             <Text style={C43.titleStep}>Photos — Studio</Text>
             <Text style={[role({ f: 'IS', w: 400, s: 14, lh: 1.55 }, P.inkSoft), { marginTop: 10 }]}>
-              {'Le Studio vous guide pour des photos nettes, honnêtes et sans prix incrusté.'}
+              {tr('fp.studio_guide')}
             </Text>
             {w.photos ? (
               <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: P.successBg }}>
@@ -466,7 +466,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               </View>
             </Card>
             <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-              {'La modération vérifie catégorie, allégations et photos avant mise en ligne (quelques instants dans la démo).'}
+              {tr('fp.moderation_note')}
             </Text>
           </>
         )}
@@ -511,7 +511,7 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
       </View>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub)]}>{'De vraies photos — aucune image inventée par IA'}</Text>
+      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub)]}>{tr('fp.photos_vraies')}</Text>
       {shooting ? (
         <>
           <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{shot.title}</Text>
@@ -559,14 +559,14 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
         </>
       ) : (
         <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{'Traitement (sur votre téléphone)'}</Text>
+          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{tr('fp.traitement_local')}</Text>
           <View style={{ marginTop: 13 }}>
             <ProcessingList rows={[...PROC_ROWS]} proc={stu.proc} />
           </View>
           {stu.proc >= 4 && (
             <>
               <Banner tone="warn" style={{ marginTop: 12, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 15 }}>
-                {'Fond complexe détecté → cadre premium appliqué (votre vraie photo, joliment encadrée). Aucun détourage risqué, aucune retouche du produit.'}
+                {tr('fp.cadre_premium_note')}
               </Banner>
               <Card style={{ marginTop: 12, padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -600,7 +600,7 @@ export function S26Studio({ st, d }: { st: S; d: D }) {
         </>
       )}
       <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 14 }]}>
-        {"Cette photo prouve l'accès au produit — pas la quantité ni l'authenticité. L'originale est conservée, jamais écrasée."}
+        {tr('fp.photo_preuve_portee')}
       </Text>
     </ScrollView>
   );
@@ -613,7 +613,7 @@ export function S32Argent({ st, d }: { st: S; d: D }) {
     <ScrollView contentContainerStyle={scrollTabs} showsVerticalScrollIndicator={false}>
       <PageTitle>Argent</PageTitle>
       <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.45 }, P.sub), { marginTop: 4 }]}>
-        {'Pas de compte interne — tout arrive sur votre Mobile Money.'}
+        {tr('fp.pas_de_compte_interne')}
       </Text>
       <View style={{ marginTop: 16 }}>
         <MoneyHero pending={formatF(pendingTotal(orders))} paid={formatF(paidTotal(orders))} />
@@ -635,7 +635,7 @@ export function S32Argent({ st, d }: { st: S; d: D }) {
       </View>
       {/* §5 verbatim uses a banned seller-consequence word (B+I-12 gate, even negated) — reword. LISTED. */}
       <Banner tone="info" style={{ marginTop: 14 }}>
-        {'En cas de faute de votre part (mauvais article…), la cliente est remboursée immédiatement par le fonds de protection — jamais avec votre argent ; vos privilèges peuvent être réduits.'}
+        {tr('fp.faute_fonds_protection')}
       </Banner>
     </ScrollView>
   );
@@ -662,11 +662,11 @@ export function S33Trust({ d }: { d: D }) {
           }
           body={'12 livraisons · 0 faute — paiement à la livraison débloqué · plusieurs commandes en parallèle · meilleure visibilité.'}
         />
-        <TrustCard title="De confiance" body={"Après un solide historique : plus de commandes simultanées, contrôles allégés quand c'est sûr, campagnes prioritaires."} />
+        <TrustCard title="De confiance" body={tr('fp.historique_solide')} />
       </View>
       {/* §5 verbatim uses a banned surety word (B+I-12 gate) — reword « somme bloquée ». LISTED. */}
       <Banner tone="warn" style={{ marginTop: 13 }}>
-        {"Une faute répétée réduit l'accès (retour au prépaiement, suspension) — c'est l'accès au marché qui compte, jamais une somme bloquée."}
+        {tr('fp.faute_repetee_acces')}
       </Banner>
     </ScrollView>
   );
@@ -704,11 +704,11 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
           <>
             {/* §5 says « revendeuses de Ma Boutique » — RETIRED name; Law 10 → Shop+. LISTED. */}
             <Text style={[role({ f: 'IS', w: 400, s: 14.5, lh: 1.55 }, P.inkSoft), { marginTop: 12 }]}>
-              {'Proposez vos produits aux revendeuses de Shop+. Séra livre, vous encaissez.'}
+              {tr('fp.onboarding_pitch')}
             </Text>
             {/* §5's two banned surety words (B+I-12 gate) → « aucune avance ». LISTED. */}
             <Banner tone="info" style={{ marginTop: 14, paddingVertical: 15, paddingHorizontal: 16 }}>
-              {'Inscription gratuite · aucune avance · aucun abonnement.\nVous payez seulement 5 % quand un produit est vendu avec succès.'}
+              {tr('fp.onboarding_conditions')}
             </Banner>
           </>
         )}
@@ -717,7 +717,7 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
             <View style={{ marginTop: 18 }}>
               <Input label="Téléphone" defaultValue="70 12 34 56" />
             </View>
-            <Banner tone="info" style={{ marginTop: 12 }}>{'Un code de vérification arrive par WhatsApp (simulé ici).'}</Banner>
+            <Banner tone="info" style={{ marginTop: 12 }}>{tr('fp.onboarding_code_whatsapp')}</Banner>
           </>
         )}
         {step === 2 && (
@@ -731,14 +731,14 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
           <>
             <View style={{ marginTop: 18 }}><Input label="Mobile Money (Orange / Moov)" defaultValue="70 12 34 56" /></View>
             <Banner tone="info" style={{ marginTop: 12 }}>
-              {'Vos gains y sont versés sous 24 h après chaque livraison validée. Aucun rechargement demandé.'}
+              {tr('fp.onboarding_momo_note')}
             </Banner>
           </>
         )}
         {step === 4 && (
           <>
             <Text style={[role({ f: 'IS', w: 400, s: 14.5, lh: 1.55 }, P.inkSoft), { marginTop: 12 }]}>
-              {'Pour commencer, votre compte est provisoire :'}
+              {tr('fp.onboarding_provisoire')}
             </Text>
             <Card style={{ marginTop: 12, paddingVertical: 16, paddingHorizontal: 17 }}>
               <Text style={role({ f: 'IS', w: 400, s: 14, lh: 1.8 }, P.ink)}>
@@ -746,7 +746,7 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
               </Text>
             </Card>
             <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-              {'Après quelques livraisons propres, vous devenez Vérifié : plus de commandes, paiement à la livraison débloqué.'}
+              {tr('fp.onboarding_verifie')}
             </Text>
           </>
         )}

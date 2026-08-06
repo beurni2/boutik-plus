@@ -4,6 +4,7 @@ import { describe, expect, it, afterAll } from 'vitest';
 import { C07_STYLES } from '../src/ui/v2/components/C07.styles';
 import { C02_CYCLE, C02_STYLES } from '../src/ui/v2/components/C02.styles';
 import { FP_FACES } from '../src/ui/fonts';
+import { catalog } from '../src/i18n';
 
 /**
  * WO-FP-PIXEL — the PRIMARY fidelity gate (founder order): property-for-property
@@ -267,8 +268,28 @@ const SRC = {
   screens1: readFileSync(join(appDir, 'src/v2/screens1.tsx'), 'utf8'),
   screens2: readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8'),
 };
+/**
+ * AUDIT-B+1 F17 — this pin asks "does this screen COMPOSE this sentence?".
+ * That question is unchanged; the answer moved. Law 6 requires user-facing
+ * French to live in `i18n/catalog.json` with a register tag, so a sentence
+ * that used to sit inline in JSX is now a `t('key')` call.
+ *
+ * So a string counts as composed when EITHER the literal is still in source,
+ * OR the catalog holds it under a key the file actually calls. Resolving
+ * through the catalog keeps the pin as strict as it was: delete the sentence,
+ * change its wording, or stop rendering the key, and this still goes red —
+ * proven by the F17 migration itself, which turned this row ABSENT until the
+ * lookup below was added.
+ */
+const CATALOGUE_PAR_TEXTE = new Map(catalog.map((e) => [e.fr, e.key]));
+const composeLaChaine = (file: keyof typeof SRC, needle: string): boolean => {
+  if (SRC[file].includes(needle)) return true;
+  const key = CATALOGUE_PAR_TEXTE.get(needle);
+  if (key === undefined) return false;
+  return SRC[file].includes(`'${key}'`);
+};
 const srcHas = (caseId: string, file: keyof typeof SRC, needle: string) =>
-  sweep(caseId, file, `composition-string «${needle.slice(0, 32)}»`, 'present', SRC[file].includes(needle) ? 'present' : 'ABSENT');
+  sweep(caseId, file, `composition-string «${needle.slice(0, 32)}»`, 'present', composeLaChaine(file, needle) ? 'present' : 'ABSENT');
 
 describe('FINAL PASS — component library sweep (every C##)', () => {
   it('C01 StatusZone: 54px zone above the stripe', () => {

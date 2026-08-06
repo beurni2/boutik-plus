@@ -601,7 +601,7 @@ export function SListerReal({ st, d, captures, session }: {
     return (
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink)]}>{'Nouveau produit'}</Text>
+          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink)]}>{t('fp.nouveau_produit')}</Text>
           <View style={{ marginTop: 16 }}>
             <Banner tone="info">{t('publier.envoi')}</Banner>
           </View>

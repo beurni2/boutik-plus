@@ -184,10 +184,29 @@ export const ChipCategory = ({ label, active, onPress }: { label: string; active
     <Text style={[s.chipCatTxt, active && s.chipCatTxtActive]}>{label}</Text>
   </Pressable>
 );
+/**
+ * AUDIT-B+1 F18 — the « Vérifié » chip was a 91×38 TAP TARGET, under the §5
+ * doctrine minimum of 44 px. It is a real button (onPress, role="button"),
+ * not a badge.
+ *
+ * Fixed with LAYOUT, not `hitSlop`, and that distinction is the finding:
+ * react-native-web 0.21.2 does not implement `hitSlop` on `Pressable` at all
+ * (it survives only in the legacy `Touchable` export — verified in
+ * node_modules/react-native-web/dist). This console SHIPS AS WEB, so the
+ * house `hitSlop={8}` idiom is a no-op on exactly the surface the audit
+ * measured in headless Chromium. A hitSlop "fix" here would have changed
+ * nothing and looked like a fix.
+ *
+ * The painted pill keeps its 38 px height token untouched; only the invisible
+ * touch box around it grows to 44. The header row is already taller than that
+ * (monogram + two-line column), so nothing moves.
+ */
 export const ChipVerified = ({ onPress }: { onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.chipSegment, s.chipVerified)} accessibilityRole="button">
-    <Icon name="check" size={15} stroke={P.green} strokeWidth={2.2} />
-    <Text style={s.chipVerifiedTxt}>{C14.label}</Text>
+  <Pressable onPress={onPress} style={press(PRESSED.chipSegment, s.chipVerifiedHit)} accessibilityRole="button">
+    <View style={s.chipVerified}>
+      <Icon name="check" size={15} stroke={P.green} strokeWidth={2.2} />
+      <Text style={s.chipVerifiedTxt}>{C14.label}</Text>
+    </View>
   </Pressable>
 );
 
@@ -639,6 +658,8 @@ const s = StyleSheet.create({
   chipSeg: C12.chip, chipSegActive: C12.active, chipSegInactive: C12.inactive, chipSegTxt: C12.txt, chipSegTxtActive: C12.txtActive, chipSegCount: C12.count,
   chipCat: C13.chip, chipCatActive: C13.active, chipCatInactive: C13.inactive, chipCatTxt: C13.txt, chipCatTxtActive: C13.txtActive,
   chipVerified: C14.chip, chipVerifiedTxt: C14.txt,
+  /** F18 — the 44 px touch box around the 38 px painted pill. */
+  chipVerifiedHit: { minHeight: 44, justifyContent: 'center' as const },
   stepperRow: C15.row, stepperBtn: C15.btn, stepperGlyph: C15.glyph, stepperValue: C15.value,
   input: C16.input,
   cardL: C17.L, cardLlg: C17.Llg, cardLlist: C17.Llist, cardRow: C17.row,

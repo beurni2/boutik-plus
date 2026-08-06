@@ -115,11 +115,20 @@ export function S02Accueil({ st, d, shopName, ownerName }: { st: S; d: D; shopNa
         </Card>
       )}
       <Banner tone="info" style={{ marginTop: 14 }}>
-        {'Inscription et publication gratuites. Boutik+ ne gagne que lorsque votre produit est vendu (5 % du prix de base).'}
+        {tr('fp.accueil_gratuite_note')}
       </Banner>
-      <Pressable onPress={() => d({ t: 'OPEN_ONBOARD' })} style={{ marginTop: 9, paddingHorizontal: 16 }} accessibilityRole="link">
+      {/* AUDIT-B+1 F18 — this link measured 320×15 in the shipped web root: a
+          15-pixel-high tap target, against the §5 doctrine minimum of 44.
+          minHeight + centring, NOT hitSlop — react-native-web 0.21.2 does not
+          implement hitSlop on Pressable, so a hitSlop fix would have measured
+          exactly the same 15 px. */}
+      <Pressable
+        onPress={() => d({ t: 'OPEN_ONBOARD' })}
+        style={{ marginTop: 9, paddingHorizontal: 16, minHeight: 44, justifyContent: 'center' }}
+        accessibilityRole="link"
+      >
         <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), { textDecorationLine: 'underline' }]}>
-          {"Voir le parcours d'inscription vendeur"}
+          {tr('fp.voir_parcours_inscription')}
         </Text>
       </Pressable>
     </ScrollView>
@@ -409,7 +418,7 @@ export function S05Fiche({ st, d, product }: { st: S; d: D; product: Product }) 
           C={formatF(p.C)}
           feeV={formatF(Math.round(p.B * 0.05))}
           netV={formatF(p.B - p.C - Math.round(p.B * 0.05))}
-          note={'Montant verrouillé à la commande — payé sous 24 h après livraison validée.'}
+          note={tr('fp.montant_verrouille')}
         />
       </View>
       <Card style={{ marginTop: 12 }}>
@@ -491,7 +500,7 @@ export function S11Detail({ st, d, order }: { st: S; d: D; order: Order }) {
               bans that co-occurrence even negated (no French exception); reworded
               per the E1 catalog's gate-clean precedent. Same instruction. LISTED. */}
           <Banner tone="warn" style={{ marginTop: 12 }}>
-            {'Préparez avant 11 h 30. Emballage ouvrable (le livreur vérifie avant de sceller) · emballage neutre, sans rien écrire dessus.'}
+            {tr('fp.preparer_consigne')}
           </Banner>
           <View style={{ marginTop: 12 }}>
             <C07BtnPrimary label="Produit prêt" icon="check" onPress={() => d({ t: 'OPEN_READY' })} />
@@ -501,7 +510,7 @@ export function S11Detail({ st, d, order }: { st: S; d: D; order: Order }) {
       {o.status === 'READY_FAILED' && (
         <>
           <Banner tone="danger" style={{ marginTop: 12 }}>
-            {"Photo de préparation refusée : trop sombre. Rapprochez-vous d'une fenêtre et reprenez — le code doit rester lisible."}
+            {tr('fp.photo_preparation_refusee')}
           </Banner>
           <View style={{ marginTop: 12 }}>
             <C07BtnPrimary label="Reprendre la photo" icon="camera" onPress={() => d({ t: 'OPEN_READY' })} />
@@ -520,12 +529,12 @@ export function S11Detail({ st, d, order }: { st: S; d: D; order: Order }) {
       )}
       {o.status === 'PAID' && (
         <Banner tone="success" check style={{ marginTop: 12 }}>
-          {'Livraison validée. Argent versé sur votre Mobile Money.'}
+          {tr('fp.livraison_validee_verse')}
         </Banner>
       )}
       {o.status === 'DELIVERED' && (
         <Banner tone="success" check style={{ marginTop: 12 }}>
-          {'Livraison validée. Versement en cours (sous 24 h).'}
+          {tr('fp.livraison_validee_encours')}
         </Banner>
       )}
       <Card style={{ marginTop: 12 }}>
