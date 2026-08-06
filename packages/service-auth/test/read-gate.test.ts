@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BEARER_HEADER,
@@ -32,21 +33,43 @@ describe('THE WIRE CONTRACT — read from the CALLER’s source, not agreed in p
    * silently vanish from every vitrine with both repos green. So the constants
    * are asserted against shop-plus's own client rather than trusted.
    */
-  it('matches what shop-plus actually sends (storefront-service/src/supply-source.ts)', () => {
-    const shopSource = '/home/user/shop-plus/services/storefront-service/src/supply-source.ts';
-    let src: string;
-    try {
-      src = readFileSync(shopSource, 'utf8');
-    } catch {
-      // The consumer repo is not always checked out beside this one. Skipping is
-      // honest; asserting a copy of the string would prove nothing about the wire.
-      return;
-    }
+  /**
+   * AUDIT-B+1 F22 — THIS TEST REPORTED GREEN WHILE EXECUTING NOTHING.
+   *
+   * It read an absolute `/home/user/shop-plus/...` path and swallowed a missing
+   * file with `catch { return; }`. Instrumented in both environments:
+   *     fixture PRESENT : assertions executed: 4  → 13 passed
+   *     fixture ABSENT  : assertions executed: 0  → 13 passed   ← CI conditions
+   * Identical green, no skip marker, no warning. The only cross-repo wire test
+   * in this repo has therefore never run in CI, on a wire whose two halves were
+   * once built to different specs at the same time.
+   *
+   * TWO CHANGES. The path is resolved RELATIVE to this repo, so it works
+   * wherever the pair is checked out. And absence is now `it.skip`, which vitest
+   * PRINTS — an unverified wire says so out loud instead of counting itself as
+   * proof. The constants this side owns are asserted in their own test below,
+   * which can never be skipped.
+   */
+  const shopSource = join(import.meta.dirname, '..', '..', '..', '..', 'shop-plus', 'services', 'storefront-service', 'src', 'supply-source.ts');
+  const siblingPresent = existsSync(shopSource);
+
+  it.skipIf(!siblingPresent)('matches what shop-plus actually sends (storefront-service/src/supply-source.ts)', () => {
+    const src = readFileSync(shopSource, 'utf8');
     expect(src).toMatch(/Authorization:\s*`Bearer \$\{this\.readSecret\}`/);
     expect(BEARER_HEADER).toBe('Authorization');
     expect(BEARER_PREFIX).toBe('Bearer ');
     // …and the secret is named identically on both sides
     expect(src).toMatch(/SUPPLY_READ_SECRET/);
+  });
+
+  it('the constants THIS side owns are pinned, whether or not the sibling is checked out', () => {
+    // F22's other half: with the cross-repo read skipped in CI, something must
+    // still fail if this side's half of the wire changes. A header or prefix
+    // edit here would otherwise reach a deploy with no test objecting, because
+    // the only test that looked at them was the one that silently did nothing.
+    expect(BEARER_HEADER).toBe('Authorization');
+    expect(BEARER_PREFIX).toBe('Bearer ');
+    expect(WRITE_KEY_HEADER).toBe('X-Write-Key');
   });
 
   it('accepts the exact header shop builds, byte for byte', async () => {

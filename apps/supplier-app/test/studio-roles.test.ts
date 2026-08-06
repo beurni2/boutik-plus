@@ -22,8 +22,27 @@ import { catalog } from '../src/i18n';
  * sequences, not just single taps.
  */
 
-const isPermutation = (roles: readonly PhotoRole[]): boolean => {
-  const expected = ROLE_ORDER.slice(0, roles.length);
+/**
+ * AUDIT-B+1 F27 — THE EXPECTATION MUST NOT COME FROM THE VALUE.
+ *
+ * The previous helper read `ROLE_ORDER.slice(0, roles.length)` — it asked the
+ * value under test how big it was supposed to be, then confirmed it. So it
+ * returned TRUE for:
+ *   · `[]`                                — every photo lost
+ *   · `['hero']`                          — truncated to one
+ *   · `['hero','preuve','detail1']`       — a 4-photo set that silently lost détail 2
+ * Only same-length duplication was ever caught. The comment above says this
+ * property exists because « a duplicate hero or a MISSING PROOF at publish
+ * would be quiet corruption of the product's photo set » — the missing half
+ * was never guarded, and 716 tests stayed green.
+ *
+ * `attendu` is now passed in by the caller, which knows how many photos it
+ * started with. That is the whole fix: the count is the test's intent, not the
+ * value's self-report.
+ */
+const isPermutationOf = (attendu: number, roles: readonly PhotoRole[]): boolean => {
+  if (roles.length !== attendu) return false;
+  const expected = ROLE_ORDER.slice(0, attendu);
   return expected.every((r) => roles.filter((x) => x === r).length === 1);
 };
 
@@ -54,7 +73,7 @@ describe('swapToNext — one tap advances a photo through the roles, ALWAYS by s
     let roles = defaultRoles(4);
     for (let i = 0; i < 4; i += 1) {
       roles = swapToNext(roles, 2);
-      expect(isPermutation(roles)).toBe(true);
+      expect(isPermutationOf(4, roles), `after tap ${i + 1}: ${roles.join(',')}`).toBe(true);
     }
     expect(roles[2]).toBe('detail1');
   });
@@ -67,9 +86,29 @@ describe('swapToNext — one tap advances a photo through the roles, ALWAYS by s
       for (let step = 0; step < 500; step += 1) {
         seed = (seed * 1103515245 + 12345) % 2147483648;
         roles = swapToNext(roles, seed % n);
-        expect(isPermutation(roles), `n=${n} step=${step} → ${roles.join(',')}`).toBe(true);
+        expect(isPermutationOf(n, roles), `n=${n} step=${step} → ${roles.join(',')}`).toBe(true);
       }
     }
+  });
+
+  it('AUDIT-B+1 F27 — the guard REFUSES a truncated or empty set (the half that was never guarded)', () => {
+    // These are the exact shapes the old helper called a valid permutation.
+    // Each is real corruption: a photo set that reached publish missing a role.
+    expect(isPermutationOf(4, []), 'an empty set is not a 4-photo permutation').toBe(false);
+    expect(isPermutationOf(4, ['hero']), 'one photo is not a 4-photo permutation').toBe(false);
+    expect(
+      isPermutationOf(4, ['hero', 'preuve', 'detail1']),
+      'a 4-photo set that lost détail 2 is not a permutation',
+    ).toBe(false);
+    expect(isPermutationOf(3, []), 'an empty set is not a 3-photo permutation').toBe(false);
+    // …and duplication, which the old helper DID catch, still fails.
+    expect(
+      isPermutationOf(4, ['hero', 'hero', 'detail1', 'detail2']),
+      'a duplicated hero is not a permutation',
+    ).toBe(false);
+    // …and a real permutation still passes, so this is not vacuously strict.
+    expect(isPermutationOf(4, ['detail2', 'preuve', 'hero', 'detail1'])).toBe(true);
+    expect(isPermutationOf(3, ['detail1', 'hero', 'preuve'])).toBe(true);
   });
 
   it('an out-of-range index changes nothing', () => {

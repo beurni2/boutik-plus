@@ -32,6 +32,31 @@ describe('#3 — échéance rows navigate to the correction flow (a door, never 
   });
 });
 
+/**
+ * AUDIT-B+1 F6 — A CHARACTER BUDGET IS NOT A REGION.
+ *
+ * The two B+I-05 pins below read `slice(start, start + 2800)`. Measured at the
+ * commit the audit ran against and unchanged since: the `recette` block is
+ * 3,698 chars, so 898 chars — 24% of it, the tail — were never examined. A
+ * recomputation planted there passed 716/716. That is failure class 3 on a
+ * MONEY invariant: « the figure is rendered verbatim, never recomputed ».
+ *
+ * Bounded structurally instead, to the next screen branch — the same shape the
+ * sibling pin at #4 already used. The guards are not decoration: `indexOf`
+ * answers -1 for a missing anchor, and `slice(x, -1)` silently returns nearly
+ * the whole file, which would make these pins pass by covering everything.
+ */
+function ecranBloc(source: string, ecran: string): string {
+  const debut = source.indexOf(`screen === '${ecran}' && (`);
+  expect(debut, `the ${ecran} branch is gone — this pin is watching nothing`).toBeGreaterThan(-1);
+  const fin = source.indexOf("screen === '", debut + `screen === '${ecran}' && (`.length);
+  expect(fin, `no screen branch follows ${ecran} — the region would run to EOF`).toBeGreaterThan(debut);
+  const bloc = source.slice(debut, fin);
+  // A region that shrank to nothing satisfies every `.not.toMatch()` below.
+  expect(bloc.length, `the ${ecran} region collapsed`).toBeGreaterThan(500);
+  return bloc;
+}
+
 describe('#4 — the horloge is removed where the founder named it', () => {
   it('the échéances TAB carries no horloge glyph (forward-name, word-only)', () => {
     expect(app).toMatch(/echeances:\s*'echeances' as unknown as IconName/);
@@ -49,14 +74,14 @@ describe('#6 — the recette detail renders the VERBATIM read-model figure (B+I-
     expect(Object.keys(JOURNEY).includes('recette'), 'recette is a journey node').toBe(true);
   });
   it('the recette screen renders formatFcfa over the read-model obligation amount — never a re-sum', () => {
-    const detail = app.slice(app.indexOf("screen === 'recette' && ("), app.indexOf("screen === 'recette' && (") + 2800);
+    const detail = ecranBloc(app, 'recette');
     // the figure is money.amount_f with the obligation's own amount, via the frozen formatter
     expect(detail).toMatch(/formatFcfa\(r\.obligation\.amount\)/);
     // it must NOT recompute (no arithmetic on the amount, no computeWaterfall in the detail)
     expect(detail).not.toMatch(/computeWaterfall|\.amount\s*[*+/-]/);
   });
   it('the detail honours the states law: a null selection renders a designed empty state', () => {
-    const detail = app.slice(app.indexOf("screen === 'recette' && ("), app.indexOf("screen === 'recette' && (") + 2800);
+    const detail = ecranBloc(app, 'recette');
     expect(detail).toMatch(/selectedReceivable === null \?[\s\S]*?<EmptyState/);
   });
 });

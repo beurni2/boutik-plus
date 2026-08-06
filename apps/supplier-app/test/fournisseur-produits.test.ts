@@ -141,11 +141,41 @@ describe('listProduits — the read side of the derived-scope door', () => {
 describe('read-only STRUCTURALLY — the source scan that keeps it true', () => {
   it('the fournisseur service touches /offers ONLY as the GET /offers/mine read', () => {
     const src = readFileSync(join(__dirname, '..', 'src', 'fournisseur', 'service.ts'), 'utf8');
-    const offerRoutes = src.match(/\/offers[a-z/]*(?=`)/g) ?? [];
-    expect(offerRoutes.length).toBeGreaterThan(0); // the scan saw the route — never vacuous
+
+    /* AUDIT-B+1 F28 — THE SCAN ONLY SAW TEMPLATE LITERALS.
+       `/\/offers[a-z/]*(?=`)/` requires a BACKTICK immediately after the path,
+       so it read routes written as `` `/offers/mine` `` and nothing else. A
+       write built any other way — `'/offers/' + id`, "/offers/delete", a
+       method-and-path pair — was invisible, while the control (the same write
+       as a template literal) went red and looked like proof. This is the
+       founder's capability ruling: the fournisseur surface is READ-ONLY. */
+    const offerRoutes = src.match(/\/offers[a-z/]*/g) ?? [];
+    expect(offerRoutes.length, 'the scan saw no /offers route at all — it is watching nothing').toBeGreaterThan(0);
     for (const route of offerRoutes) expect(route).toBe('/offers/mine');
-    // and no POST anywhere near it: the port's writes are the three
-    // fulfillment acts, nothing else.
-    expect(src.includes("post('/offers")).toBe(false);
+
+    /* …and NO WRITE reaches an /offers path, by any spelling.
+       The old check was the single substring `post('/offers`. This service
+       legitimately POSTs to `/fulfillment/*` (the three acts), so the invariant
+       is not « no writes » — it is « no write TOUCHES /offers ». Both the
+       template-literal and the concatenated form are covered, which the
+       backtick-anchored scan above could not see. */
+    const ecrituresVersOffers = [
+      /\b(post|put|patch|del|delete)\s*\(\s*[`'"]\/offers/i,   // post('/offers…
+      /[`'"]\/offers[a-z/]*[`'"]\s*,\s*\{[^}]*method\s*:\s*[`'"](POST|PUT|PATCH|DELETE)/i,
+      /[`'"]\/offers[a-z/]*[`'"]\s*\+|\+\s*[`'"]\/offers/,     // '/offers/' + id
+    ];
+    for (const forme of ecrituresVersOffers) {
+      expect(
+        forme.test(src),
+        `the fournisseur surface is READ-ONLY (founder ruling 2026-08-02) — a write to /offers matched ${String(forme)}`,
+      ).toBe(false);
+    }
+
+    /* AND THE CONTROL, so the three patterns above are not asserting over an
+       empty set: the same shapes DO match when the write is really there. */
+    const planted = "await post('/offers/delete', code, { id });";
+    expect(ecrituresVersOffers.some((f) => f.test(planted)), 'the write-scan cannot see a planted write').toBe(true);
+    const plantedConcat = "await fetch(base + '/offers/' + id, { method: 'DELETE' });";
+    expect(ecrituresVersOffers.some((f) => f.test(plantedConcat)), 'the write-scan cannot see a concatenated write').toBe(true);
   });
 });
