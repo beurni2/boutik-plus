@@ -2,6 +2,17 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-06 · FONDS-CONSOLE-B+ — the Protection Fund zone in the founder's console · IN REVIEW (do NOT merge yet)
+
+**FOUNDER ORDER (2026-08-06, verbatim):** « the whole ui is mess and really confusing, i want you to redesign it and make it really simple understandable and very well structured, make it look like a multibillion dollar company console ui. and i do not want a separate url for that, put in boutik+'s ops console » — said of the platform ops-console's Desk 1. **What moved and what did not:** the fund BOOK stays the platform repo's `protection-service` (canon D22 — claims adjudication is cross-domain); THIS console becomes a second client of the same key-gated door. A UI-location decision, not a canon change — logged as such.
+
+- **Built:** a fifth zone « Fonds » (`src/fonds/{service,view,zone}` + wiring in `operations/screen.tsx`), GT discipline throughout: the fund card answers the one question first (solde declared at 28pt, engaged/reste beside, state as one pill), the buyer-first law (B+I-13) banner before any figure, claims grouped in canon fault order with fold-out recording acts (examen · réglée-with-offline-ref · classée-with-reason), the open-claim form last. Its own key door — the founder's third (ops key, key C, fund key): `PROTECTION_OPS_SECRET` typed, never bundled, localStorage-only persistence, cleared on 401 everywhere. `EXPO_PUBLIC_PROTECTION_BASE` (config, not a credential) joins web-deploy.yml ONLY — fournisseur-web-deploy carries nothing fund-related, deliberately.
+- **Money discipline:** every figure is wire-copied; the only subtraction in the fonds code is a row COUNT. Pure decisions in `view.ts`, pinned by `test/fonds-vue.test.ts`.
+- **Verifier round 1 — 1 BLOCKER (FIXED) + notes:** `Number('') === 0` let an empty money field submit a 0-franc declaration/claim into the append-only book, from folds whose only exit was the submit button. Fix: `montantEntier()` refuses non-digits and SAYS the refusal (« chiffres seulement »); both folds gained « Fermer »; folds now close and clear ONLY on a successful act, so a failure keeps the typing AND its commandId for an idempotent retry (round-1 note 2); commandId minted via the canonical `mintCommandId` (note 3); number-pad keyboards; the no-inline-French scan now covers `src/fonds` (note 4). The `Number('')` trap itself is pinned in a test. Notes accepted as debt: TeteSection/Pillule grammar duplicated (no unrequested refactor), ISO date slice, no visual busy state.
+- **Companion change (platform repo, `142f4f7`):** protection-service CORS became an exact-origin comma-separated allowlist (echo the one asker iff listed; never wildcard; stranger gets nothing) + e2e. Platform CI green on it.
+- **Evidence:** tsc clean · 761/761 supplier-app tests · copy-lint 595 entries clean · full gate board green.
+- **⚠ DEPLOY PREREQUISITES (founder, config):** (a) boutik repo secret `EXPO_PUBLIC_PROTECTION_BASE` = `https://protection-service.ilboudobernard2.workers.dev`; (b) platform repo variable `PROTECTION_CONSOLE_ORIGIN` = `https://platform-ops-console.pages.dev,https://boutik-plus-web.pages.dev`. **Deploy order:** platform `protection-deploy` (worker learns the new origin) BEFORE boutik `web-deploy`.
+
 ## <date> · <slice/WO id> · <status: in-progress | in-review | done | blocked-on-founder>
 - What was done (with the tool result / test output that proves it)
 - Decisions made · safest-defaults applied on open ⏳ (flagged) · founder overrides

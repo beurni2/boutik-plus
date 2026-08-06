@@ -17,6 +17,8 @@ import {
   type ReclamationRow,
 } from './service';
 import { etatPillule, fondsPillule, fondsVue, type FondsRead } from './view';
+import { montantEntier } from './service';
+import { mintCommandId } from '../offline/commandId';
 
 /**
  * FONDS-CONSOLE-B+ — the « Fonds » zone of the founder's console (founder
@@ -156,21 +158,25 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vue.kind]);
 
-  async function agir(acte: Promise<ActeFondsResult>): Promise<void> {
-    if (busy) return;
+  /** Returns true iff the act landed — folds close and clear ONLY then, so a
+   *  failure keeps the founder's typing and its commandId for an idempotent
+   *  retry (verifier round 1, note 2). */
+  async function agir(acte: Promise<ActeFondsResult>): Promise<boolean> {
+    if (busy) return false;
     setBusy(true);
     setFeedback(null);
     const r = await acte;
     setBusy(false);
     if (r.ok) {
       await charger();
-      return;
+      return true;
     }
     if (r.reason === 'bad_key') {
       onCleRefusee();
-      return;
+      return false;
     }
     setFeedback(RAISON_MESSAGE[r.reason]);
+    return false;
   }
 
   if (vue.kind === 'loading') {
@@ -232,7 +238,7 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
           />
         </View>
         <DeclarerSolde busy={busy} onDeclarer={(soldeFcfa, capitalFcfa, commandId) =>
-          void agir(service.declarer(cle, { soldeFcfa, ...(capitalFcfa !== undefined ? { capitalFcfa } : {}), commandId }))
+          agir(service.declarer(cle, { soldeFcfa, ...(capitalFcfa !== undefined ? { capitalFcfa } : {}), commandId }))
         } />
       </Card>
 
@@ -266,7 +272,7 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
         ))
       )}
 
-      <OuvrirReclamation busy={busy} onOuvrir={(input) => void agir(service.ouvrir(cle, input))} />
+      <OuvrirReclamation busy={busy} onOuvrir={(input) => agir(service.ouvrir(cle, input))} />
 
       <View style={{ marginTop: 20, flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
         <BtnGhost label={t('operations.actualiser')} onPress={() => void charger()} />
@@ -365,45 +371,67 @@ function CarteReclamation({ row, busy, onAvancer }: {
   );
 }
 
-/** The declare fold — closed by default; the commandId is minted when it OPENS,
- *  so a double-tap replays the same command and the book appends once. */
+/** The declare fold — closed by default. The commandId is minted at FIRST
+ *  open and survives failures and « Fermer », so any retry replays the same
+ *  command and the book appends once; it resets only after a success. */
 function DeclarerSolde({ busy, onDeclarer }: {
   busy: boolean;
-  onDeclarer: (soldeFcfa: number, capitalFcfa: number | undefined, commandId: string) => void;
+  onDeclarer: (soldeFcfa: number, capitalFcfa: number | undefined, commandId: string) => Promise<boolean>;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [commandId, setCommandId] = useState('');
   const [solde, setSolde] = useState('');
   const [capital, setCapital] = useState('');
+  const [refus, setRefus] = useState(false);
   if (!ouvert) {
     return (
       <View style={{ marginTop: 16 }}>
-        <BtnGhost label={t('fonds.declarer')} onPress={() => { setCommandId(crypto.randomUUID()); setOuvert(true); }} />
+        <BtnGhost
+          label={t('fonds.declarer')}
+          onPress={() => {
+            if (commandId === '') setCommandId(mintCommandId());
+            setOuvert(true);
+          }}
+        />
       </View>
     );
   }
   return (
     <View style={{ marginTop: 16 }}>
-      <Input label={t('fonds.solde_libelle')} value={solde} onChangeText={setSolde} />
+      <Input label={t('fonds.solde_libelle')} value={solde} onChangeText={setSolde} keyboardType="number-pad" />
       <View style={{ marginTop: 10 }}>
-        <Input label={t('fonds.capital_libelle')} value={capital} onChangeText={setCapital} />
+        <Input label={t('fonds.capital_libelle')} value={capital} onChangeText={setCapital} keyboardType="number-pad" />
       </View>
-      <View style={{ marginTop: 12 }}>
+      {refus && (
+        <Text style={[role({ f: 'IS', w: 500, s: 12 }, P.warnFg), { marginTop: 8 }]}>
+          {t('fonds.montant_invalide')}
+        </Text>
+      )}
+      <View style={{ marginTop: 12, flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
         <C07BtnPrimary
           label={t('fonds.enregistrer_solde')}
           icon="check"
           onPress={() => {
-            const s = Number(solde.trim());
-            if (!Number.isSafeInteger(s) || s < 0 || busy) return;
+            if (busy) return;
+            const s = montantEntier(solde);
             const capRaw = capital.trim();
-            const cap = capRaw === '' ? undefined : Number(capRaw);
-            if (cap !== undefined && (!Number.isSafeInteger(cap) || cap < 0)) return;
-            onDeclarer(s, cap, commandId);
-            setOuvert(false);
-            setSolde('');
-            setCapital('');
+            const cap = capRaw === '' ? undefined : montantEntier(capital);
+            if (s === null || cap === null) {
+              setRefus(true);
+              return;
+            }
+            setRefus(false);
+            void onDeclarer(s, cap, commandId).then((ok) => {
+              if (ok) {
+                setOuvert(false);
+                setSolde('');
+                setCapital('');
+                setCommandId('');
+              }
+            });
           }}
         />
+        <BtnGhost label={t('fonds.fermer')} onPress={() => { setRefus(false); setOuvert(false); }} />
       </View>
     </View>
   );
@@ -412,7 +440,7 @@ function DeclarerSolde({ busy, onDeclarer }: {
 /** The open-claim fold — the LAST section: recording a fault is rarer than reading the book. */
 function OuvrirReclamation({ busy, onOuvrir }: {
   busy: boolean;
-  onOuvrir: (input: { orderId: string; motif: string; faute: FauteFonds; montantFcfa: number; preuve: string }) => void;
+  onOuvrir: (input: { orderId: string; motif: string; faute: FauteFonds; montantFcfa: number; preuve: string }) => Promise<boolean>;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [commande, setCommande] = useState('');
@@ -420,6 +448,7 @@ function OuvrirReclamation({ busy, onOuvrir }: {
   const [motif, setMotif] = useState('');
   const [faute, setFaute] = useState<FauteFonds>('seller');
   const [preuve, setPreuve] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
   return (
     <>
       <View style={{ marginTop: 28, paddingBottom: 9, borderBottomWidth: 1, borderBottomColor: P.borderCtl }}>
@@ -434,7 +463,7 @@ function OuvrirReclamation({ busy, onOuvrir }: {
         <Card variant="Llg" style={{ marginTop: 12 }}>
           <Input label={t('fonds.commande_libelle')} value={commande} onChangeText={setCommande} />
           <View style={{ marginTop: 10 }}>
-            <Input label={t('fonds.montant_libelle')} value={montant} onChangeText={setMontant} />
+            <Input label={t('fonds.montant_libelle')} value={montant} onChangeText={setMontant} keyboardType="number-pad" />
           </View>
           <View style={{ marginTop: 10 }}>
             <Input label={t('fonds.motif_libelle')} value={motif} onChangeText={setMotif} />
@@ -453,28 +482,43 @@ function OuvrirReclamation({ busy, onOuvrir }: {
           <View style={{ marginTop: 12 }}>
             <Input label={t('fonds.preuve_libelle')} value={preuve} onChangeText={setPreuve} />
           </View>
-          <View style={{ marginTop: 14 }}>
+          {refus !== null && (
+            <Text style={[role({ f: 'IS', w: 500, s: 12 }, P.warnFg), { marginTop: 10 }]}>{t(refus)}</Text>
+          )}
+          <View style={{ marginTop: 14, flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
             <C07BtnPrimary
               label={t('fonds.enregistrer_reclamation')}
               icon="check"
               onPress={() => {
-                const m = Number(montant.trim());
-                if (commande.trim() === '' || motif.trim() === '' || preuve.trim() === '') return;
-                if (!Number.isSafeInteger(m) || m < 0 || busy) return;
-                onOuvrir({
+                if (busy) return;
+                if (commande.trim() === '' || motif.trim() === '' || preuve.trim() === '') {
+                  setRefus('fonds.champ_manquant');
+                  return;
+                }
+                const m = montantEntier(montant);
+                if (m === null) {
+                  setRefus('fonds.montant_invalide');
+                  return;
+                }
+                setRefus(null);
+                void onOuvrir({
                   orderId: commande.trim(),
                   motif: motif.trim(),
                   faute,
                   montantFcfa: m,
                   preuve: preuve.trim(),
+                }).then((ok) => {
+                  if (ok) {
+                    setOuvert(false);
+                    setCommande('');
+                    setMontant('');
+                    setMotif('');
+                    setPreuve('');
+                  }
                 });
-                setOuvert(false);
-                setCommande('');
-                setMontant('');
-                setMotif('');
-                setPreuve('');
               }}
             />
+            <BtnGhost label={t('fonds.fermer')} onPress={() => { setRefus(null); setOuvert(false); }} />
           </View>
         </Card>
       )}

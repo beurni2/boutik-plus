@@ -29,6 +29,19 @@
 
 export const FONDS_TIMEOUT_MS = 12_000;
 
+/**
+ * A money field REFUSES what it cannot read — it never coerces. `Number('')`
+ * is 0, and a 0-franc declaration in an append-only book is a false money
+ * fact no one can delete (verifier round 1 BLOCKER). Digits only; anything
+ * else answers null and the screen says the refusal.
+ */
+export function montantEntier(saisie: string): number | null {
+  const s = saisie.trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
 const CLE_FONDS_STORAGE = 'boutik.fonds.cle';
 
 export function readStoredCleFonds(): string | null {

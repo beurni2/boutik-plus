@@ -32,8 +32,10 @@ const tsxSous = (rel: string): string[] =>
   readdirSync(join(racineApp, rel), { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? tsxSous(`${rel}/${e.name}`) : e.name.endsWith('.tsx') ? [`${rel}/${e.name}`] : [],
   );
-/** src/v2 AND src/ui/v2 — the comment below counts both, so the scan must too. */
-const V2 = [...tsxSous('src/v2'), ...tsxSous('src/ui/v2')];
+/** src/v2 AND src/ui/v2 — the comment below counts both, so the scan must too.
+ *  src/fonds joined at FONDS-CONSOLE-B+ (verifier note 4): a MONEY surface
+ *  whose copy must live in the catalog cannot sit outside this scan. */
+const V2 = [...tsxSous('src/v2'), ...tsxSous('src/ui/v2'), ...tsxSous('src/fonds')];
 const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..', rel), 'utf8');
 
 /**

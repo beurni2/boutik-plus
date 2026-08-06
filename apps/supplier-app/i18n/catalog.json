@@ -3556,5 +3556,17 @@
     "fr": "Oublier la clé",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "fonds.montant_invalide",
+    "fr": "Le montant doit être un nombre entier de francs — chiffres seulement.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.fermer",
+    "fr": "Fermer",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

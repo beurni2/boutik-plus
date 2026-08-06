@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { etatPillule, fondsPillule, fondsVue } from '../src/fonds/view';
+import { montantEntier } from '../src/fonds/service';
 import type { LivreFonds, ReclamationRow } from '../src/fonds/service';
 
 /**
@@ -91,5 +92,25 @@ describe('the pill maps are total — no state can render unlabeled', () => {
     expect(fondsPillule('HEALTHY')).toEqual({ labelKey: 'fonds.solide', tone: 'ok' });
     expect(fondsPillule('CRITICAL')).toEqual({ labelKey: 'fonds.sous_tension', tone: 'attente' });
     expect(fondsPillule(null)).toEqual({ labelKey: 'fonds.a_declarer', tone: 'pause' });
+  });
+});
+
+describe('montantEntier — a money field refuses, never coerces (verifier r1 BLOCKER)', () => {
+  it("the trap itself: Number('') is 0, montantEntier('') is a refusal", () => {
+    expect(Number('')).toBe(0); // the coercion the blocker names — real
+    expect(montantEntier('')).toBeNull(); // and refused here
+    expect(montantEntier('   ')).toBeNull();
+  });
+
+  it('digits pass, to the franc; everything else refuses', () => {
+    expect(montantEntier('11000')).toBe(11_000);
+    expect(montantEntier(' 500 ')).toBe(500);
+    expect(montantEntier('0')).toBe(0); // an EXPLICIT zero is a statement, not a slip
+    expect(montantEntier('-5')).toBeNull();
+    expect(montantEntier('1 000')).toBeNull();
+    expect(montantEntier('1000.5')).toBeNull();
+    expect(montantEntier('1e3')).toBeNull();
+    expect(montantEntier('abc')).toBeNull();
+    expect(montantEntier('9007199254740993')).toBeNull(); // beyond safe integers
   });
 });
