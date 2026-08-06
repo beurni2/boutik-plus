@@ -3184,5 +3184,377 @@
     "fr": "Une faute répétée réduit votre accès : retour au prépaiement, puis suspension. Ce qui compte, c’est l’accès au marché. Jamais une somme bloquée.",
     "register": "money",
     "screenClass": "instruction"
+  },
+  {
+    "key": "console.zone_fonds",
+    "fr": "Fonds",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.non_configure",
+    "fr": "Le fonds n'est pas branché sur cet appareil — il manque son adresse de service.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.cle_libelle",
+    "fr": "Clé du fonds",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.cle_explication",
+    "fr": "Cette clé ouvre le registre du fonds de protection. Elle est à vous seul — jamais partagée, jamais dans l'application.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "fonds.cle_ouvrir",
+    "fr": "Ouvrir le registre",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.cle_reste_ici",
+    "fr": "La clé reste sur cet appareil, dans ce navigateur.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.cle_refusee",
+    "fr": "Clé refusée — vérifiez ce que vous avez saisi.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.injoignable",
+    "fr": "Le registre ne répond pas — réessayez dans un moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.lecture",
+    "fr": "Lecture du registre…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.loi_cliente",
+    "fr": "La cliente est remboursée d'abord, toujours — jamais selon l'état du fonds.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.lignes_non_reconnues",
+    "fr": "Des lignes du registre ne s'affichent pas ici — mettre la console à jour.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.carte_titre",
+    "fr": "Fonds de protection",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.solide",
+    "fr": "Fonds solide",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.sous_tension",
+    "fr": "Fonds sous tension",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.a_declarer",
+    "fr": "À déclarer",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.pas_declare",
+    "fr": "Pas encore déclaré",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.declare_le",
+    "fr": "Déclaré le",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.engages",
+    "fr": "Réclamations en cours",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.reste",
+    "fr": "Reste après réclamations",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.declarer",
+    "fr": "Déclarer le solde",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.solde_libelle",
+    "fr": "Solde du compte en francs",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.capital_libelle",
+    "fr": "Capital de départ (première fois seulement)",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.enregistrer_solde",
+    "fr": "Enregistrer le solde daté",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.reclamations_titre",
+    "fr": "Réclamations",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.reclamations_sens",
+    "fr": "Chaque perte a son dossier : qui est en faute, combien, où ça en est.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fonds.aucune_reclamation",
+    "fr": "Aucune réclamation — le fonds n'a rien à couvrir aujourd'hui.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.faute_vendeur",
+    "fr": "Faute vendeur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_cliente",
+    "fr": "Faute cliente",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_operateur",
+    "fr": "Faute opérateur de paiement",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_plateforme",
+    "fr": "Faute de la plateforme",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_a_classer",
+    "fr": "À classer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.etat_ouverte",
+    "fr": "Ouverte",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.etat_examen",
+    "fr": "En examen",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.etat_reglee",
+    "fr": "Réglée",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.etat_classee",
+    "fr": "Classée — rien à payer",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.preuve",
+    "fr": "Preuve :",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.cliente_dabord",
+    "fr": "Cliente à rembourser en premier",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.reglee_ref",
+    "fr": "Payé hors ligne — référence :",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.classee_motif",
+    "fr": "Classée sans paiement :",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.passer_examen",
+    "fr": "Passer en examen",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.marquer_reglee",
+    "fr": "Marquer réglée",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.ref_paiement",
+    "fr": "Référence du paiement fait hors ligne",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.confirmer_reglee",
+    "fr": "Confirmer — payée hors ligne",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.classer",
+    "fr": "Classer sans paiement",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.classer_pourquoi",
+    "fr": "Pourquoi rien n'est payé",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.confirmer_classement",
+    "fr": "Confirmer le classement",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.ouvrir_titre",
+    "fr": "Ouvrir une réclamation",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.ouvrir_sens",
+    "fr": "Une perte constatée entre au registre — le paiement, lui, se fait hors ligne.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fonds.ouvrir_bouton",
+    "fr": "Nouvelle réclamation",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.commande_libelle",
+    "fr": "Commande concernée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.montant_libelle",
+    "fr": "Montant en francs",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.motif_libelle",
+    "fr": "Ce qui s'est passé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_libelle",
+    "fr": "Qui est en faute",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.preuve_libelle",
+    "fr": "Référence de la preuve",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.enregistrer_reclamation",
+    "fr": "Enregistrer la réclamation",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.faute_sera_note",
+    "fr": "Une faute Séra ne passe pas par le fonds : c'est un dossier de garde, à part.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.deja_ouverte",
+    "fr": "Cette commande a déjà sa réclamation — une seule par commande.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.pas_en_arriere",
+    "fr": "Une réclamation avance pas à pas, jamais en arrière.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.ref_requise",
+    "fr": "Il faut la référence du paiement fait hors ligne pour marquer réglée.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.motif_requis",
+    "fr": "Il faut dire pourquoi rien n'est payé avant de classer.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.champ_manquant",
+    "fr": "Il manque une information — vérifiez chaque champ.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.oublier_cle",
+    "fr": "Oublier la clé",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

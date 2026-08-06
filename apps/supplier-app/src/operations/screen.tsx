@@ -78,6 +78,7 @@ import {
   type ComptesUi,
   type SuiviRead,
 } from './view';
+import { SZoneFonds } from '../fonds/zone';
 
 /**
  * CONSOLE-1 — « Opérations », the founder's board (founder directive
@@ -114,7 +115,7 @@ const REFRESH_EVERY_MS = 60_000;
  * radii (§5: no snowflake styling in app code).
  */
 
-type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs';
+type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs' | 'fonds';
 
 /** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
  *  `menu` is the chooser he lands on. */
@@ -441,6 +442,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           <ChipCategory label={t('console.zone_livraisons')} active={zone === 'livraisons'} onPress={() => setZone('livraisons')} />
           <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
           <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
+          <ChipCategory label={t('console.zone_fonds')} active={zone === 'fonds'} onPress={() => setZone('fonds')} />
         </View>
 
         {zone === 'commandes' && view.kind === 'empty' && (
@@ -585,6 +587,12 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             key C; it has never needed the board's read to be healthy. It
             returns null for the zones that are not its, and now it survives
             the board being unreachable too. */}
+        {/* ── FONDS-CONSOLE-B+ — the Protection Fund, behind its OWN key
+               (the founder's third door: ops key, key C, fund key — one
+               console, three Workers). The zone owns its door, its read and
+               its recording acts; it needs nothing from the board's read. ── */}
+        {zone === 'fonds' && <SZoneFonds />}
+
         <SLivraisons zone={zone} />
       </Colonne>
     </ScrollView>

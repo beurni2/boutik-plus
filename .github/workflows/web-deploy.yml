@@ -76,6 +76,11 @@ jobs:
           # opens that read (CHECKOUT_OPS_SECRET, value C) is NEVER here —
           # typed by the founder at the section's own door, like the board's.
           EXPO_PUBLIC_SHOP_CHECKOUT_BASE: ${{ secrets.EXPO_PUBLIC_SHOP_CHECKOUT_BASE }}
+          # FONDS-CONSOLE-B+ — the protection-service Worker's URL (config,
+          # not a credential), for the console's Fonds zone. The KEY that
+          # opens the fund book (PROTECTION_OPS_SECRET) is NEVER here — the
+          # founder's alone, typed at the zone's own door, third of the three.
+          EXPO_PUBLIC_PROTECTION_BASE: ${{ secrets.EXPO_PUBLIC_PROTECTION_BASE }}
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app
