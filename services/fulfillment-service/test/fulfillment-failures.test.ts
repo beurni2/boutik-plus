@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FulfillmentBook, FULFILLMENT_AGING_POLICY_V2 } from '../src/fulfillment.js';
 import { ProtectionDesk, PROTECTION_CLAIM_STATES_V1 } from '../src/protection.js';
 import { SeraRefusalEmitterMock } from '../mocks/sera-refusal-emitter-mock.js';
+import { PlatformEventSchema, type PlatformEvent } from '@platform/contracts';
 
 /**
  * WO-2.6 — fulfillment failure flows + Protection Fund routing.
@@ -275,6 +276,83 @@ describe('pickup-refusal consumption → claim + corrective flow (sera signal, �
     expect(desk.consumePickupRefusalSignal(foreign, T0)).toEqual({ accepted: false, reason: 'order_unknown' });
     expect(desk.claimFor('order_e2')).toBeUndefined();
     expect(desk.trustStateFor('sup-1')).toBeUndefined();
+  });
+
+  /**
+   * AUDIT-B+1 F20 — A DOOR INSPECTION MUST NOT BE EATEN AS A PICKUP REFUSAL.
+   *
+   * Séra emits `protection.claim_opened.v1` from two different phases. Before
+   * this fix the consumer read only `faultClass`, so a buyer's valid refusal
+   * AT THE DOOR opened a *pickup* claim against the seller, reopened readiness
+   * on a package already out of his hands, and armed the correction clock —
+   * which can mint a second refund trigger against one paid amount.
+   *
+   * The payload below is the REAL emitted shape, copied from
+   * sera/services/custody-service/src/custody-spine.ts:470. It carries
+   * faultClass 'seller', so it clears every check that existed before.
+   */
+  const doorInspectionSignal = (): PlatformEvent =>
+    PlatformEventSchema.parse({
+      name: 'protection.claim_opened.v1',
+      envelope: {
+        command_id: 'door-claim-order_e2',
+        correlation_id: 'corr_e2',
+        aggregateVersion: 9,
+        actor: 'mock:sera-refusal-emitter',
+        serverTime: T0,
+        version: 'v1',
+      },
+      payload: {
+        order_id: 'order_e2',
+        faultClass: 'seller',
+        source: 'door_inspection',
+        rejection_reason: 'refused_valid',
+      },
+    });
+
+  it('F20: a DOOR-INSPECTION claim is refused BY NAME, and nothing at all moves', () => {
+    const { book, desk } = refusalScene();
+    expect(desk.consumePickupRefusalSignal(doorInspectionSignal(), minutesAfter(5)))
+      .toEqual({ accepted: false, reason: 'not_a_pickup_source' });
+
+    // Nothing moved: no claim, no seller fault, readiness intact, no refund.
+    expect(desk.claimFor('order_e2'), 'a pickup claim was opened from a DOOR refusal').toBeUndefined();
+    expect(desk.trustStateFor('sup-1'), 'the seller was faulted for a buyer door refusal').toBeUndefined();
+    expect(book.isPickupEligible('order_e2'), 'readiness was reopened on a package already collected').toBe(true);
+    expect(desk.allRefundsRequired(), 'a refund trigger armed off a door inspection').toEqual([]);
+  });
+
+  it('F20 CONTROL: the SAME payload with `source` removed IS consumed — the refusal is caused by `source`, nothing else', () => {
+    const { desk } = refusalScene();
+    const signal = doorInspectionSignal();
+    const { source: _dropped, ...sansSource } = signal.payload as Record<string, unknown>;
+    const outcome = desk.consumePickupRefusalSignal({ ...signal, payload: sansSource }, minutesAfter(5));
+    expect(outcome, 'without `source` this payload must still be consumed — otherwise the test above proves nothing').toMatchObject({
+      accepted: true,
+      duplicate: false,
+    });
+  });
+
+  it('F20 REGRESSION: the REAL pickup refusal carries NO `source` key and stays accepted', () => {
+    const { desk, mock } = refusalScene();
+    const reel = mock.emitRefusalSignal('e2', ['colour', 'qty']);
+    expect(
+      Object.prototype.hasOwnProperty.call(reel.payload as object, 'source'),
+      'the real pickup emitter grew a `source` key — re-read custody-spine.ts:166 before trusting this gate',
+    ).toBe(false);
+    expect(desk.consumePickupRefusalSignal(reel, minutesAfter(5))).toMatchObject({
+      accepted: true,
+      duplicate: false,
+      corrective: { orderId: 'order_e2', readinessReopened: true },
+    });
+  });
+
+  it('F20: an EXPLICIT pickup_verification source is accepted (the discriminator names one phase, not one shape)', () => {
+    const { desk, mock } = refusalScene();
+    const signal = mock.emitRefusalSignal('e2', ['colour']);
+    const explicite = { ...(signal.payload as object), source: 'pickup_verification' };
+    expect(desk.consumePickupRefusalSignal({ ...signal, payload: explicite }, minutesAfter(5)))
+      .toMatchObject({ accepted: true, duplicate: false });
   });
 
   // Verifier finding 3 CLOSED upstream (sera WO-2.7 item 3): the real sera

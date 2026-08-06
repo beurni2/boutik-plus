@@ -89,6 +89,7 @@ export type RefusalConsumption =
       reason:
         | 'not_a_platform_event'
         | 'not_a_refusal_signal'
+        | 'not_a_pickup_source'
         | 'fault_not_attributed'
         | 'not_seller_fault'
         | 'order_unknown';
@@ -206,6 +207,44 @@ export class ProtectionDesk {
     const event = parsed.data;
     if (event.name !== 'protection.claim_opened.v1') return { accepted: false, reason: 'not_a_refusal_signal' };
     const payload = event.payload as Record<string, unknown>;
+
+    /* AUDIT-B+1 F20 — A DOOR INSPECTION IS NOT A PICKUP REFUSAL.
+     *
+     * Séra emits `protection.claim_opened.v1` from TWO phases, and until now
+     * this method read only `faultClass`, so it consumed both as a pickup
+     * refusal. A buyer's valid refusal AT THE DOOR therefore opened a pickup
+     * claim against the seller, called `reopenForCorrection` on an order whose
+     * package is already out of the seller's hands, and armed the correction
+     * clock — a second refund trigger against one paid amount.
+     *
+     * The two producers, read in sera/services/custody-service/src:
+     *   custody-spine.ts:166  pickup refusal  { order_id, faultClass,
+     *                                           failed_checks, attempt }
+     *                         — carries NO `source` key at all.
+     *   custody-spine.ts:470  door inspection { order_id, faultClass,
+     *                                           source: 'door_inspection',
+     *                                           rejection_reason }
+     *
+     * So the discriminator is written in the direction the producers actually
+     * use: absent `source` is the pickup path and MUST keep working; a
+     * `source` that says anything other than pickup verification is refused
+     * BY NAME (Law 3 — no generic "failed" terminal). The audit's suggested
+     * fix, « reject any claim whose payload carries source !==
+     * 'pickup_verification' », would have refused every real pickup refusal,
+     * because the real one sends no source. Verified against both emitters
+     * before writing this.
+     *
+     * WHAT THIS DELIBERATELY DOES NOT DO: route the door-inspection claim
+     * anywhere. Séra's own comment at :468 flags that arm's canonical
+     * reasonCode as a canon v0.5.0 GAP ("derivations/door-inspection-fault-
+     * mapping.md"). Inventing a destination here would be closing an open
+     * question that is the founder's. Refusing to mis-consume it is not.
+     */
+    const source = payload['source'];
+    if (typeof source === 'string' && source !== 'pickup_verification') {
+      return { accepted: false, reason: 'not_a_pickup_source' };
+    }
+
     const faultClass = payload['faultClass'];
     if (typeof faultClass !== 'string' || faultClass.length === 0) {
       return { accepted: false, reason: 'fault_not_attributed' };
