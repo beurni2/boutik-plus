@@ -452,6 +452,19 @@ export class FulfillmentDO {
             res.status !== 401 && res.status !== 408 && res.status !== 429) {
           permanentRefusal = true;
         }
+        /**
+         * ⚠ SE-LIVE-2b VERIFIER MAJOR — THE SÉRA TARGET PARKS ON 400 AND
+         * NOTHING ELSE. The rule above was written for the Shop+ intake,
+         * whose 400/404 genuinely cannot improve by waiting. Séra's
+         * `/intake/readiness` answers only 200 or 400 — so every OTHER 4xx
+         * from that base is about the BASE, not the fact: a 404 is a Worker
+         * not deployed yet or a typo'd host, exactly the deploy-order case
+         * this wire exists to survive. Parking those silently discarded a
+         * real readiness fact forever (no unpark route exists, and
+         * re-asserting readiness cannot revive a parked row), leaving the
+         * order permanently undispatchable while every board looked healthy.
+         */
+        if (seraRow && res !== undefined && res.status !== 400) permanentRefusal = false;
       }
       if (delivered) {
         await this.state.storage.put(key, { ...row, status: 'delivered', attempts: row.attempts + 1 });

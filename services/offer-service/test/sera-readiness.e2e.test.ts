@@ -37,7 +37,7 @@ const ORDER = 'ord-sera-0001';
 
 /** Every request Séra's door received, verbatim. */
 const seraPosts: { auth: string | null; path: string; body: string }[] = [];
-let seraRespond: 'ok' | 'down' | 'unauthorized' = 'ok';
+let seraRespond: 'ok' | 'down' | 'unauthorized' | 'notfound' | 'malformed' = 'ok';
 let seraServer: Server;
 let seraBase = '';
 
@@ -54,7 +54,12 @@ beforeAll(async () => {
         path: req.url ?? '',
         body: Buffer.concat(chunks).toString('utf8'),
       });
-      const code = seraRespond === 'down' ? 503 : seraRespond === 'unauthorized' ? 401 : 200;
+      const code =
+        seraRespond === 'down' ? 503
+        : seraRespond === 'unauthorized' ? 401
+        : seraRespond === 'notfound' ? 404
+        : seraRespond === 'malformed' ? 400
+        : 200;
       res.writeHead(code, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(code === 200 ? { ok: true, applied: true } : { ok: false }));
     });
@@ -227,17 +232,42 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
     expect(seraPosts).toHaveLength(1);
   });
 
-  it('FIRST-WINS: re-confirming readiness never posts a second fact', async () => {
+  /**
+   * ⚠ CORRECTED AFTER VERIFICATION (SE-LIVE-2b round 1). The first version of
+   * this test re-called `/fulfillment/ready/challenge` and claimed that was
+   * "enough to re-enter" the enqueue path. It is not: once readiness exists
+   * that route answers 409 `already_ready` and never touches the outbox, so
+   * the test asserted "no second post" against a route that cannot post — it
+   * would have passed with the first-wins guard deleted. It now RE-POSTS THE
+   * READINESS ITSELF, which is the call that genuinely re-enters
+   * `enqueueSeraReadiness` and meets the existing row.
+   */
+  it('FIRST-WINS: RE-ASSERTING READINESS re-enters the enqueue path and still posts nothing new', async () => {
     const before = seraPosts.length;
-    // A re-assertion re-enters the enqueue path; the row already exists.
-    const again = await post(mf, '/fulfillment/ready/challenge', { orderId: ORDER }, {
-      Authorization: `Bearer ${(await post(mf, '/fulfillment/supplier-code', { supplierId: SUPPLIER }, { Authorization: `Bearer ${OPS_SECRET}` })).json['code'] as string}`,
+    const minted = await post(mf, '/fulfillment/supplier-code', { supplierId: SUPPLIER }, {
+      Authorization: `Bearer ${OPS_SECRET}`,
     });
-    // (The challenge call itself is enough to re-enter; readiness is already
-    // confirmed, so the ready route answers from the existing record.)
-    expect([200, 409]).toContain(again.status);
-    await new Promise((r) => setTimeout(r, 300));
-    expect(seraPosts.length).toBe(before);
+    const freshCode = minted.json['code'] as string;
+    // The SAME readiness act, re-asserted (the supplier's phone retried).
+    const again = await post(
+      mf,
+      '/fulfillment/ready',
+      {
+        orderId: ORDER,
+        photoRef: { ref: `media/readiness/${ORDER}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+        readinessChallenge: 'srch-whatever-the-record-already-decided',
+        qty: 1,
+        variant: PV,
+        availableConfirmed: true,
+        at: new Date().toISOString(),
+      },
+      { Authorization: `Bearer ${freshCode}` },
+    );
+    // Whatever the route answers for an already-ready order, the invariant is
+    // the same: the fact left exactly once.
+    expect(again.status).toBeLessThan(500);
+    await new Promise((r) => setTimeout(r, 400));
+    expect(seraPosts.length, 'a re-asserted readiness must not re-announce').toBe(before);
   });
 
   /**
@@ -288,5 +318,60 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
     // …and the supplier's act succeeded anyway: readiness is recorded, the
     // Shop+ leg still delivered. The fact waits in the outbox for the door.
     expect(storefrontPosts.filter((p) => p.body.includes('ord-sera-0003'))).not.toHaveLength(0);
+  });
+});
+
+/**
+ * ═══ SE-LIVE-2b VERIFIER ROUND — THE WRONG BASE MUST NOT EAT THE FACT ═══
+ *
+ * A fresh-context verifier found that the inherited parking rule (park any
+ * 4xx except 401/408/429) applied to this wire too — so a `SERA_INTAKE_BASE`
+ * pointing at a Worker not deployed yet, or at a typo'd host, answers 404 and
+ * PERMANENTLY discarded the readiness fact. There is no unpark route, and
+ * re-asserting readiness meets the existing row and returns early, so that
+ * order would have become undispatchable forever while every board looked
+ * healthy — and it is exactly the deploy-order case this wire exists to
+ * survive. Séra's `/intake/readiness` answers only 200 or 400, so for THIS
+ * target only a 400 (a malformed fact — our bug, which waiting cannot fix)
+ * parks; everything else retries.
+ */
+describe('SE-LIVE-2b verifier round — only a 400 parks the Séra row', () => {
+  /** Other orders' rows are still retrying on their own ladders throughout
+   *  this file, so every count here is PER ORDER — a global tally would be
+   *  measuring the neighbours (it did, on the first run of this test). */
+  const postsFor = (orderId: string): number =>
+    seraPosts.filter((p) => p.body.includes(`"orderId":"${orderId}"`)).length;
+
+  async function waitForOrder(orderId: string, n: number, timeoutMs = 8_000): Promise<void> {
+    const started = Date.now();
+    while (postsFor(orderId) < n && Date.now() - started < timeoutMs) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  it('A 404 (base wrong, or Séra not deployed yet) RETRIES — the fact is never discarded', async () => {
+    seraRespond = 'notfound';
+    const order = 'ord-sera-0005';
+    await driveToReady(mf, order);
+    await waitForOrder(order, 1);
+    expect(postsFor(order)).toBeGreaterThanOrEqual(1);
+    // The ladder's first rung is 1 s: a second attempt for THIS order proves
+    // the row is pending, not parked as unsendable.
+    await waitForOrder(order, 2, 6_000);
+    expect(postsFor(order), 'a 404 must not park the readiness fact').toBeGreaterThanOrEqual(2);
+    seraRespond = 'ok';
+  });
+
+  it('A 400 (a malformed fact — our own bug) DOES park: waiting cannot fix it, and it stays visible', async () => {
+    seraRespond = 'malformed';
+    const order = 'ord-sera-0006';
+    await driveToReady(mf, order);
+    await waitForOrder(order, 1);
+    const afterFirst = postsFor(order);
+    expect(afterFirst).toBe(1);
+    // No retry follows a parked row — past two rungs of the ladder.
+    await new Promise((r) => setTimeout(r, 3_000));
+    expect(postsFor(order), 'a 400 must park rather than retry forever').toBe(afterFirst);
+    seraRespond = 'ok';
   });
 });
