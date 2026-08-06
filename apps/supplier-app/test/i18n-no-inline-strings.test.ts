@@ -27,9 +27,13 @@ import { catalog } from '../src/i18n';
  * the first version hardcoded to 3 of 13 and reported it as a false guarantee;
  * it was right.
  */
-const V2 = readdirSync(join(import.meta.dirname, '..', 'src/v2'))
-  .filter((f) => f.endsWith('.tsx'))
-  .map((f) => `src/v2/${f}`);
+const racineApp = join(import.meta.dirname, '..');
+const tsxSous = (rel: string): string[] =>
+  readdirSync(join(racineApp, rel), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? tsxSous(`${rel}/${e.name}`) : e.name.endsWith('.tsx') ? [`${rel}/${e.name}`] : [],
+  );
+/** src/v2 AND src/ui/v2 — the comment below counts both, so the scan must too. */
+const V2 = [...tsxSous('src/v2'), ...tsxSous('src/ui/v2')];
 const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..', rel), 'utf8');
 
 /**
@@ -53,10 +57,15 @@ const LITTERAL_JSX = /\{'[A-ZÀ-Ýa-zà-ÿ][^']{14,}'\}|\{"[A-ZÀ-Ýa-zà-ÿ][^"
  * ⚠ WHAT THIS TEST DOES NOT COVER — stated so it is never read as a complete
  * Law 6 guarantee. It checks ONE shape: a quoted string inside a JSX
  * expression, `{'…'}` / `{"…"}`. A fresh-context verifier defeated it in
- * several other shapes, and MEASURED the residue across all 13 v2 + ui/v2
- * files: **52 user-facing strings still inline** — 33 as component props
- * (`label="…"`, `title="…"`, `legend="…"`) and 19 as bare JSX text children
- * (`<Text>Alerte stock</Text>`). Several are money-register, e.g.
+ * several other shapes. MEASURED residue across src/v2 + src/ui/v2, counting
+ * RAW MATCHES of two named patterns (a second verifier counted UNIQUE
+ * MULTI-WORD strings and got a different 23/30 split for the same total — the
+ * definition is stated here so the number is checkable rather than folkloric):
+ *   `/(?:label|title|sub|legend|placeholder|hint)=["'][A-ZÀ-Ý…][^"']{9,}["']/`
+ *      → **33** component props
+ *   `/>\s*[A-ZÀ-Ý][^<>{}\n]{14,}\s*</`
+ *      → **19** bare JSX text children
+ * **52 user-facing strings still inline.** Several are money-register, e.g.
  * screens2.tsx « Commission revendeuse (vous la financez) » and screens1.tsx
  * « Lister un produit — gratuit ».
  *
