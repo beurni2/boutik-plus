@@ -116,6 +116,36 @@ export class ProtectionDesk {
 
   constructor(private readonly book: FulfillmentBook) {}
 
+  /**
+   * AUDIT-B+1 F1 — ONE MONEY TRIGGER PER ORDER, ACROSS EVERY CLOCK.
+   *
+   * Both aging clocks mint a `refund_required`. Each deduped only against
+   * ITSELF — the decision clock via `tracked.decisionAlerted`, the correction
+   * clock via a `reason === 'refused_never_corrected'` filter — so neither
+   * could see the other, and one paid order could carry TWO triggers:
+   *
+   *   reasons = ["paid_order_no_supplier_decision","refused_never_corrected"]
+   *   total claimed = 22 000 FCFA against ONE paid 11 000
+   *
+   * Reachable without any exotic input: no supplier decision for 120 min →
+   * clock 1 fires → the supplier accepts LATE (lateness is not refused) →
+   * readiness → pickup refusal → 360 min uncorrected → clock 2 fires.
+   *
+   * This is NOT a new policy. The correction clock's own comment already
+   * records the safest default — « ONE money trigger per order … two triggers
+   * against one paid amount cannot reconcile to the franc at E3 » — it was
+   * simply scoped « from this clock » instead of to the order. Extending the
+   * same rule across both clocks is applying the documented default, not
+   * closing an open Decision. Law 1 (reconciles to the franc) and B+I-13 (the
+   * buyer's refund, once) both point the same way.
+   *
+   * The ALERT is deliberately NOT deduped by this: ops still see every aging
+   * episode. Only the money trigger is once-per-order.
+   */
+  private hasRefundTrigger(orderId: string): boolean {
+    return this.refundsRequired.some((r) => r.orderId === orderId);
+  }
+
   /** Payment truth arrives from the provider webhook consumer — everything
    * here is copied from that record. Registers the decision clock too. */
   registerPaidOrder(input: PaidOrderRegistration): void {
@@ -150,14 +180,17 @@ export class ProtectionDesk {
       // Frozen: the B+I-13 marker must survive any reader — TS readonly is
       // compile-time only (WO-2.6 verifier finding 2, mutation through the
       // getter, replayed as a regression test).
-      this.refundsRequired.push(Object.freeze({
-        orderId: aged.orderId,
-        reason: 'paid_order_no_supplier_decision',
-        faultClass: 'seller' as const,
-        buyerPriority: true as const,
-        amountFcfa: tracked.amountFcfa,
-        recordedAt: nowIso,
-      }));
+      // AUDIT-B+1 F1: once per ORDER, not once per clock — see hasRefundTrigger.
+      if (!this.hasRefundTrigger(aged.orderId)) {
+        this.refundsRequired.push(Object.freeze({
+          orderId: aged.orderId,
+          reason: 'paid_order_no_supplier_decision',
+          faultClass: 'seller' as const,
+          buyerPriority: true as const,
+          amountFcfa: tracked.amountFcfa,
+          recordedAt: nowIso,
+        }));
+      }
       this.openClaim({
         orderId: aged.orderId,
         reason: 'paid_order_no_supplier_decision',
@@ -327,14 +360,15 @@ export class ProtectionDesk {
         policy_version: FULFILLMENT_AGING_POLICY_V2.version,
       }, nowIso);
       // ⚠ SAFEST DEFAULT (verifier finding 2 — spec-silent money semantics,
-      // founder ruling requested): ONE money trigger per order from this
-      // clock. A re-fired episode alerts (ops visibility above) but never
-      // mints a second refund_required — two triggers against one paid
-      // amount cannot reconcile to the franc at E3.
-      const alreadyTriggered = this.refundsRequired.some(
-        (r) => r.orderId === tracked.orderId && r.reason === 'refused_never_corrected',
-      );
-      if (!alreadyTriggered) {
+      // founder ruling requested): ONE money trigger per order. A re-fired
+      // episode alerts (ops visibility above) but never mints a second
+      // refund_required — two triggers against one paid amount cannot
+      // reconcile to the franc at E3.
+      // AUDIT-B+1 F1: this filter was `&& r.reason === 'refused_never_corrected'`,
+      // which deduped this clock against ITSELF only — so the decision clock's
+      // trigger was invisible here and one order could carry both. Scoped to
+      // the ORDER now, which is what the sentence above always meant.
+      if (!this.hasRefundTrigger(tracked.orderId)) {
         this.refundsRequired.push(Object.freeze({
           orderId: tracked.orderId,
           reason: 'refused_never_corrected',

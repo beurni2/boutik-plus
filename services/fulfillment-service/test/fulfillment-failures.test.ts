@@ -609,3 +609,116 @@ describe('B+I-13 — every seller-fault refund_required carries the buyer-priori
     expect(records.map((r) => r.amountFcfa).sort((a, b) => a - b)).toEqual([4_500, 11_000]);
   });
 });
+
+/**
+ * AUDIT-B+1 F1 — TWO REFUND TRIGGERS AGAINST ONE PAID AMOUNT.
+ *
+ * Both aging clocks mint a `refund_required`, and each deduped only against
+ * ITSELF. The audit's probe walked an ordinary path and got:
+ *
+ *   reasons = ["paid_order_no_supplier_decision","refused_never_corrected"]
+ *   total claimed = 22 000 FCFA against ONE paid 11 000
+ *
+ * Every existing test drove ONE clock, which is exactly why the suite could not
+ * see it: the guard each clock HAS is tested; the gap BETWEEN guards was not.
+ * That is failure mode 7 in its most expensive form — a money invariant with
+ * full-looking coverage and a hole in the middle.
+ *
+ * The path needs nothing exotic: no supplier decision for 120 min → clock 1
+ * fires → the supplier accepts LATE (lateness is not refused) → readiness →
+ * pickup refusal → 360 min uncorrected → clock 2 fires.
+ */
+describe('AUDIT-B+1 F1 — ONE money trigger per order, across BOTH clocks', () => {
+  const DECISION = FULFILLMENT_AGING_POLICY_V2.acceptanceDecisionMin;
+  const CORRECTION = FULFILLMENT_AGING_POLICY_V2.correctionDeadlineMin;
+  const PAID = 11_000;
+  const inscription = { orderId: 'order_e2', sellerId: 'sup-1', paidAt: T0, amountFcfa: PAID, evidenceBundleId: 'eb-pay-e2' };
+  const acceptation = { orderId: 'order_e2', variant: 'taille unique', qty: 1, sellerNetFcfa: 8_500, deadline: '2026-07-10T18:00:00.000Z' };
+  const pret = (challenge: string, at: string) => ({
+    orderId: 'order_e2',
+    photoRef: { ref: 'media/pkg-e2.jpg', sha256: SHA, mimeType: 'image/jpeg' },
+    readinessChallenge: challenge,
+    qty: 1,
+    variant: 'taille unique',
+    availableConfirmed: true,
+    at,
+  });
+
+  /** Both clocks fired, in the order a real order would meet them. */
+  function lesDeuxHorloges() {
+    const book = new FulfillmentBook();
+    const desk = new ProtectionDesk(book);
+    const mock = new SeraRefusalEmitterMock();
+    desk.registerPaidOrder(inscription);
+
+    // CLOCK 1 — no supplier decision past the deadline.
+    const clock1 = desk.sweepDecisionAging(minutesAfter(DECISION));
+    expect(clock1.alerted, 'clock 1 did not fire — the scene proves nothing').toEqual(['order_e2']);
+
+    // The supplier accepts LATE. Lateness is not refused, which is what makes
+    // the two-clock path reachable at all.
+    expect(book.accept(acceptation).ok, 'a late acceptance must still be accepted').toBe(true);
+    const issued = book.issueChallenge('order_e2', minutesAfter(DECISION + 10));
+    if (!issued.ok) throw new Error('setup');
+    expect(book.confirmReady(pret(issued.challenge as string, minutesAfter(DECISION + 20)), minutesAfter(DECISION + 20)).ok).toBe(true);
+    expect(desk.consumePickupRefusalSignal(mock.emitRefusalSignal('e2', ['colour']), minutesAfter(DECISION + 30)))
+      .toMatchObject({ accepted: true, duplicate: false });
+
+    // CLOCK 2 — refused, never corrected, past its own deadline.
+    const clock2 = desk.sweepCorrectionAging(minutesAfter(DECISION + 30 + CORRECTION));
+    expect(clock2.alerted, 'clock 2 did not fire — the scene proves nothing').toEqual(['order_e2']);
+    return { desk };
+  }
+
+  it('both clocks fire on ONE order and mint exactly ONE refund_required', () => {
+    const { desk } = lesDeuxHorloges();
+    const refunds = desk.allRefundsRequired();
+    expect(
+      refunds.map((r) => r.reason),
+      'two refund triggers against one payment — this cannot reconcile to the franc at E3',
+    ).toHaveLength(1);
+    expect(refunds[0]?.orderId).toBe('order_e2');
+  });
+
+  it('the total claimed never exceeds the amount actually paid', () => {
+    const { desk } = lesDeuxHorloges();
+    const reclame = desk.allRefundsRequired().reduce((sum, r) => sum + r.amountFcfa, 0);
+    expect(reclame, `claimed ${reclame} against one paid ${PAID}`).toBe(PAID);
+  });
+
+  it('the B+I-13 buyer-priority marker survives on the single surviving trigger', () => {
+    const { desk } = lesDeuxHorloges();
+    const [first] = desk.allRefundsRequired();
+    expect(first?.buyerPriority).toBe(true);
+    expect(first?.faultClass).toBe('seller');
+  });
+
+  /**
+   * The alert is NOT deduped — deduping it would hide a real second aging
+   * episode from ops. Only the MONEY trigger is once-per-order.
+   */
+  it('both clocks still ALERT — ops visibility is not what was deduped', () => {
+    const { desk } = lesDeuxHorloges();
+    const kinds = desk.allEvents()
+      .filter((e) => e.name === 'reconciliation.alert.v1')
+      .map((e) => (e.payload as Record<string, unknown>)['kind']);
+    expect(kinds).toContain('paid_order_no_supplier_decision');
+    expect(kinds).toContain('refused_never_corrected');
+  });
+
+  /**
+   * CONTROL — the single-clock path must be UNCHANGED. A dedupe that silences
+   * the ordinary one-clock refund would be a far worse bug than the one being
+   * fixed: the buyer would never be refunded at all.
+   */
+  it('CONTROL: one clock alone still mints its refund — the fix must not silence the normal path', () => {
+    const book = new FulfillmentBook();
+    const desk = new ProtectionDesk(book);
+    desk.registerPaidOrder(inscription);
+    expect(desk.sweepDecisionAging(minutesAfter(DECISION)).alerted).toEqual(['order_e2']);
+    const refunds = desk.allRefundsRequired();
+    expect(refunds, 'the ordinary single-clock refund was silenced — the buyer would never be repaid').toHaveLength(1);
+    expect(refunds[0]?.reason).toBe('paid_order_no_supplier_decision');
+    expect(refunds[0]?.amountFcfa).toBe(PAID);
+  });
+});
