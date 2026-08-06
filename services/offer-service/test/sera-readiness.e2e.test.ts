@@ -94,6 +94,9 @@ function makeMf(persistDir: string, wired: boolean): Miniflare {
 
 let mf: Miniflare;
 let unwired: Miniflare | undefined;
+/** The first order's real challenge + code — the ONLY way to re-enter the
+ *  readiness path for an already-ready order (see the first-wins test). */
+let firstDrive: { confirmedAt: string; challenge: string; code: string };
 
 afterAll(async () => {
   await mf?.dispose();
@@ -132,6 +135,9 @@ async function post(m: Miniflare, path: string, body: unknown, headers: Record<s
   return { status: res.status, text, json };
 }
 
+const postsForOrder = (orderId: string): number =>
+  seraPosts.filter((p) => p.body.includes(`"orderId":"${orderId}"`)).length;
+
 async function waitForSera(n: number, timeoutMs = 8_000): Promise<void> {
   const started = Date.now();
   while (seraPosts.length < n && Date.now() - started < timeoutMs) {
@@ -141,7 +147,7 @@ async function waitForSera(n: number, timeoutMs = 8_000): Promise<void> {
 
 /** The whole real path: mint a code, seed the offer, take the paid order,
  *  accept it, then confirm readiness with a live challenge. */
-async function driveToReady(m: Miniflare, orderId: string): Promise<string> {
+async function driveToReady(m: Miniflare, orderId: string): Promise<{ confirmedAt: string; challenge: string; code: string }> {
   const minted = await post(m, '/fulfillment/supplier-code', { supplierId: SUPPLIER }, {
     Authorization: `Bearer ${OPS_SECRET}`,
   });
@@ -185,7 +191,11 @@ async function driveToReady(m: Miniflare, orderId: string): Promise<string> {
     { Authorization: `Bearer ${code}` },
   );
   expect(ready.status, ready.text).toBe(200);
-  return ready.json['confirmedAt'] as string;
+  return {
+    confirmedAt: ready.json['confirmedAt'] as string,
+    challenge: challenge.json['challenge'] as string,
+    code,
+  };
 }
 
 describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothing else does', () => {
@@ -193,7 +203,9 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
     mf = makeMf(persist, true);
     seraPosts.length = 0;
     seraRespond = 'ok';
-    const confirmedAt = await driveToReady(mf, ORDER);
+    const drive = await driveToReady(mf, ORDER);
+    const { confirmedAt } = drive;
+    firstDrive = drive;
     await waitForSera(1);
 
     expect(seraPosts).toHaveLength(1);
@@ -242,45 +254,45 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
    * READINESS ITSELF, which is the call that genuinely re-enters
    * `enqueueSeraReadiness` and meets the existing row.
    */
-  it('FIRST-WINS: RE-ASSERTING READINESS re-enters the enqueue path and still posts nothing new', async () => {
-    const before = seraPosts.length;
-    const minted = await post(mf, '/fulfillment/supplier-code', { supplierId: SUPPLIER }, {
-      Authorization: `Bearer ${OPS_SECRET}`,
-    });
-    const freshCode = minted.json['code'] as string;
-    // The SAME readiness act, re-asserted (the supplier's phone retried).
+  /**
+   * ⚠ CORRECTED TWICE, and the second correction is why this comment is long.
+   * Round 1 re-called `/fulfillment/ready/challenge` — that route answers 409
+   * `already_ready` and never touches the outbox. Round 2 re-posted readiness
+   * with a MADE-UP challenge — which lands on the MISMATCHED branch
+   * (`fulfillment-do.ts`: `already_ready`, 409) and also never touches the
+   * outbox. Both versions asserted « no second post » against a call that
+   * cannot post, and a verifier proved it by deleting the first-wins guard and
+   * watching the file stay green.
+   *
+   * ONLY the SAME-challenge branch re-enters `enqueueSeraReadiness`, so this
+   * test now re-posts the STORED challenge and asserts the 200
+   * `already_ready` that proves it took that branch — THEN asserts nothing
+   * new left. Delete the guard and this test fails.
+   */
+  it('FIRST-WINS: re-posting the SAME readiness (same challenge) re-enters the enqueue path and still posts nothing new', async () => {
+    const before = postsForOrder(ORDER);
+    expect(before).toBe(1);
     const again = await post(
       mf,
       '/fulfillment/ready',
       {
         orderId: ORDER,
         photoRef: { ref: `media/readiness/${ORDER}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
-        readinessChallenge: 'srch-whatever-the-record-already-decided',
+        readinessChallenge: firstDrive.challenge, // the REAL one — the only re-entering branch
         qty: 1,
         variant: PV,
         availableConfirmed: true,
         at: new Date().toISOString(),
       },
-      { Authorization: `Bearer ${freshCode}` },
+      { Authorization: `Bearer ${firstDrive.code}` },
     );
-    // Whatever the route answers for an already-ready order, the invariant is
-    // the same: the fact left exactly once.
-    expect(again.status).toBeLessThan(500);
-    await new Promise((r) => setTimeout(r, 400));
-    expect(seraPosts.length, 'a re-asserted readiness must not re-announce').toBe(before);
+    // 200 + already_ready IS the proof that the re-entering branch ran.
+    expect(again.status, again.text).toBe(200);
+    expect(again.json['status']).toBe('already_ready');
+    await new Promise((r) => setTimeout(r, 500));
+    expect(postsForOrder(ORDER), 'a re-asserted readiness must not re-announce').toBe(before);
   });
 
-  /**
-   * ⚠ THE TWO REFUSALS THAT ACTUALLY OCCUR ON THIS ROUTE, and why 422 is not
-   * one of them. Séra's `/intake/readiness` answers 400 for a malformed fact
-   * and 200 otherwise; the 422 « not admissible yet » belongs to the
-   * task-ready route, not to a fact. So the transient cases this wire really
-   * meets are: Séra down (5xx / unreachable) and Séra's secret not yet set
-   * (401) — both must retry. A 4xx that is NOT 401/408/429 is PARKED as
-   * unsendable by the existing (verifier-reviewed) policy, visible in storage
-   * with its reason: correct for a malformed fact, which waiting cannot fix.
-   * No special case was invented here for a status this route never returns.
-   */
   it('SÉRA DOWN (5xx) RETRIES — the fact is re-attempted on the backoff ladder, never parked', async () => {
     seraRespond = 'down';
     seraPosts.length = 0;
