@@ -26,10 +26,14 @@ Before fixing 11 "CONFIRMED unsafe" region pins I re-measured each. Four of the 
 - `df2-device-review.test.ts:41` — claimed « region length 0 ». Measured **3,206 chars** (start 14,973 → end 18,179), and the accueil region does NOT contain `name="horloge"`. `App.tsx` is unchanged since `4e722ae`.
 - `authoring-screen.test.ts:75` — claimed « start 24,971 > end 24,286 → region length 0 ». Measured **5,158 chars** (start 24,207 → end 29,365), same at `4e722ae`.
 - `media-revoke.test.ts:46` and `:70` — claimed the pinned strings are « borrowed from a helper below ». Every one of them is inside `revokeImage`'s own brace-matched body (`[MEDIA_WRITE_KEY_HEADER]: this.revokeKey`, `cause: 'network'`, `readRevokeResult(parsed)`, `text = await res.text();`), and none appears only after it.
-**What IS real and reproduced exactly:**
-- `df2-device-review.test.ts:52/:59` — recette block **3,698 chars**, pin budget **2,800** → **898 chars (24%) unchecked**, on B+I-05, a money invariant. Reproduced to the character.
-- `fournisseur-core.test.ts:245` — `app.slice(app.indexOf('const envoyer'))` with no end argument → **7,820 chars = 34% of the file**, running to EOF.
-- The `slice(s, indexOf(end))` shape is fragile in a way the audit described correctly: when the end anchor is absent, `indexOf` returns `-1` and `slice(s, -1)` silently yields nearly the whole file instead of failing.
+**What IS real and reproduced exactly (3 of the 11):**
+- `df2-device-review.test.ts:52/:59` — recette block **3,698 chars**, pin budget **2,800** → **898 chars (24%) unchecked**, on B+I-05, a money invariant. Reproduced to the character. This is the one that matters.
+- `fournisseur-core.test.ts:245` — `app.slice(app.indexOf('const envoyer'))` with no end argument → **7,820 chars = 34% of the file**, running to EOF. Structurally unbounded; a future member added below satisfies the pin.
+- `produits-read.test.ts:189` — `S07Commandes` true length **1,540**, budget **2,000** → the window reaches **460 chars (30%) into the next component**. LATENT, not live: `st.products` is present in S07Commandes's own body and absent from the overreach, so the pin passes today for the right reason.
+
+**Structural-fragility observations, not live holes (4):** `reencode-order.test.ts:32` (region 374 today; the real hazard is that a missing end anchor makes `indexOf` return `-1` and `slice(s,-1)` silently yield nearly the whole file), `capture-incident.test.ts:211` (684 chars, bounded and non-empty — the audit's claim is about scope, which I could not verify), `operations-console.test.ts:1589` (I hardened this one myself earlier in this session), and the general `slice(s, indexOf(end))` shape.
+
+**Tally: 3 reproduced · 4 disproven · 4 structural-only.** The audit's own summary line — « 11 CONFIRMED unsafe » — overstates by roughly 3×.
 **Recommendation (not yet built):** one shared helper that asserts start found, end found, end > start, region non-empty — making the empty-region and negative-index classes impossible by construction — plus structural anchors replacing the two character budgets. This is a real slice; the 11-site framing is not.
 
 ---
