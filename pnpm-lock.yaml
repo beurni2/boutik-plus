@@ -17,8 +17,8 @@ importers:
         specifier: git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/contracts
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3#path:packages/contracts
       '@platform/i18n':
-        specifier: git+https://github.com/beurni2/platform-contracts.git#c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9&path:packages/i18n
-        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9#path:packages/i18n
+        specifier: git+https://github.com/beurni2/platform-contracts.git#199bc2ab172dbbf93b446af35445e17f5a0f3f35&path:packages/i18n
+        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35#path:packages/i18n
       '@platform/kernel-types':
         specifier: git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/kernel-types
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3#path:packages/kernel-types
@@ -48,8 +48,8 @@ importers:
         specifier: ~6.1.2
         version: 6.1.2(expo@54.0.35)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@platform/i18n':
-        specifier: git+https://github.com/beurni2/platform-contracts.git#c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9&path:packages/i18n
-        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9#path:packages/i18n
+        specifier: git+https://github.com/beurni2/platform-contracts.git#199bc2ab172dbbf93b446af35445e17f5a0f3f35&path:packages/i18n
+        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35#path:packages/i18n
       '@platform/ui-tokens':
         specifier: git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/a832df0a8ed9e9fc83083826bc11c2a2e57e615a#path:packages/ui-tokens
@@ -1522,8 +1522,8 @@ packages:
     version: 3.4.0
     hasBin: true
 
-  '@platform/i18n@https://codeload.github.com/beurni2/platform-contracts/tar.gz/c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9#path:packages/i18n':
-    resolution: {path: packages/i18n, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9}
+  '@platform/i18n@https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35#path:packages/i18n':
+    resolution: {path: packages/i18n, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35}
     version: 3.10.0
     hasBin: true
 
@@ -5338,7 +5338,7 @@ snapshots:
       '@platform/kernel-types': https://codeload.github.com/beurni2/platform-contracts/tar.gz/95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3#path:packages/kernel-types
       zod: 4.4.3
 
-  '@platform/i18n@https://codeload.github.com/beurni2/platform-contracts/tar.gz/c18ce28ba22c3a6a4f81c6c7fc945e45ca5c56e9#path:packages/i18n':
+  '@platform/i18n@https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35#path:packages/i18n':
     dependencies:
       zod: 4.4.3
 

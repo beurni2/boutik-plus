@@ -28,7 +28,8 @@ onlyBuiltDependencies:
 # kernel-types@2.0.0, so the pair MOVES TOGETHER (matching platform + the
 # shop-plus consumer migration). @platform/ui-tokens has no such dep and stays
 # on its own pin, a832df0 (canon v1.0.1 — the FCFA money suffix wave); NOT moved
-# by this order. @platform/i18n likewise stays f23407ce.
+# by this order. @platform/i18n stayed f23407ce THEN; it has since moved on its
+# own wave — see the F12 note at the end of this file.
 # @platform/certification (devDep) additionally depends on @platform/contracts
 # and @platform/ui-tokens by VERSION — also registry-absent, routed the same way;
 # it is pinned in package.json (its SupplyProjection payload is what
@@ -50,8 +51,9 @@ onlyBuiltDependencies:
 # tests failed with « Unrecognized key: category ». The warning three lines above
 # had already written this down; heed it before editing any @platform/* pin.
 #
-# @platform/i18n and @platform/ui-tokens are NOT moved by this order — nothing
+# @platform/i18n and @platform/ui-tokens were NOT moved by THAT order — nothing
 # in the category wire touches copy or tokens, and each carries its own wave.
+# (@platform/i18n has since had its own wave: see the F12 note below.)
 #
 # READINESS-RETURN-1 (founder order 2026-08-02): re-pinned to canon v3.3.0
 # (sha 58e249b) — the RETURN LEG, `fulfillment.accepted.v1` +
@@ -64,3 +66,18 @@ overrides:
   "@platform/kernel-types": "git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/kernel-types"
   "@platform/contracts": "git+https://github.com/beurni2/platform-contracts.git#95c71c33d212ec26fffe3e36b3ccc7fbc673a7c3&path:packages/contracts"
   "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens"
+
+# AUDIT-B+1 F12 (2026-08-06) — @platform/i18n moved on its own wave to
+# 199bc2ab: the copy-lint's banned-register list gained administrative-process
+# terms, so « Dossier en cours d'instruction. » is finally refused.
+#
+# TWO THINGS THE NEXT EDITOR NEEDS:
+#  1. THE PIN LIVES IN TWO PLACES PER REPO — this repo's root package.json AND
+#     apps/supplier-app/package.json. Moving only the root looks like it works:
+#     pnpm install reports success and the app keeps resolving the old sha. That
+#     cost a verifier round; it is the same shape as the warning above.
+#  2. THE PIN IS NOW GATED. gates/fixtures/negative/catalog.administrative-
+#     register.json violates ONLY a token F12 added, so reverting the i18n pin
+#     makes that fixture stop failing and turns the board RED. Before F12 the
+#     existing negative fixture failed under both the old and new lists and so
+#     discriminated nothing — a pin regression was invisible.

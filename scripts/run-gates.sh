@@ -238,6 +238,18 @@ capture copy-lint-positive pass pnpm exec copy-lint apps/supplier-app/i18n/catal
 log "gate: French Voice copy-lint — NEGATIVE FIXTURE (veuillez/séquestre + marketing-in-money + Mooré-in-instruction, must fail)"
 capture copy-lint-negative fail pnpm exec copy-lint gates/fixtures/negative/catalog.negative.json
 
+# AUDIT-B+1 F12, verifier round 3 — THE GATE THAT MAKES THE PIN LIVE.
+# The existing negative fixture above fails under BOTH the old and the new token
+# list (it carries « Veuillez » and « séquestre »), so it discriminates nothing:
+# reverting @platform/i18n to the pre-F12 package left every board GREEN while
+# the audit's escape passed again — proven by execution. This fixture's ONLY
+# violation is one of the stems F12 added, so if the i18n pin ever regresses
+# this entry stops failing and the board goes red. Enforced by construction,
+# not by discipline (§4).
+log "gate: French Voice copy-lint — NEGATIVE FIXTURE (administrative register, F12 — must fail)"
+capture copy-lint-administrative fail pnpm exec copy-lint gates/fixtures/negative/catalog.administrative-register.json
+
+
 log "gate: no-ssh-lockfile — committed root lockfile (ssh-form git URLs must be 0, must pass)"
 capture no-ssh-lockfile-positive pass node scripts/gates/no-ssh-lockfile.mjs pnpm-lock.yaml
 
