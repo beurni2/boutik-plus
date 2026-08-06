@@ -1,0 +1,19 @@
+{
+  "_comment": "AUDIT-B+1 F8 NEGATIVE FIXTURE — a quote that RECONCILES but takes 20% from the seller instead of the pinned 5%. Every §5.4 identity holds (7000 + 2000 + 2500 = 11500 = productSubtotal), so assertQuoteReconciles alone exits 0 and 1500 FCFA leaves the seller undetected. The gate must refuse it by comparing against the pinned computeWaterfall. NEVER 'fix' this fixture — it is supposed to be wrong.",
+  "sellerBasePrice": 10000,
+  "sellerFundedCommission": 1000,
+  "resellerMarkup": 1500,
+  "deliveryFee": 1000,
+  "paymentMode": "FULL_PREPAY",
+  "productSubtotal": 11500,
+  "buyerTotal": 12500,
+  "sellerPlatformFee": 2000,
+  "sellerNet": 7000,
+  "resellerGrossEarnings": 2500,
+  "resellerPlatformFee": 500,
+  "resellerNet": 2000,
+  "platformProductFeeRevenue": 2500,
+  "amountPaidAtCheckout": 12500,
+  "amountDueAtDelivery": 0,
+  "roundingLawVersion": "v1"
+}

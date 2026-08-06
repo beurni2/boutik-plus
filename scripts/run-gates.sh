@@ -52,6 +52,14 @@ capture money-reconciliation-positive pass node scripts/gates/money-reconciliati
 log "gate: money-reconciliation — NEGATIVE FIXTURE (independent-multiplication sellerNet, must fail)"
 capture money-reconciliation-negative fail node scripts/gates/money-reconciliation.mjs gates/fixtures/negative/quote.independent-multiplication.json
 
+# AUDIT-B+1 F8 — the identities alone cannot see a WRONG FEE RATE. This quote
+# reconciles perfectly (7000 + 2000 + 2500 = 11500 = productSubtotal) while
+# taking 20% from the seller instead of the pinned 5%: 1500 FCFA off the
+# seller, and the old gate exited 0 on it. Caught now by recomputing against
+# the pinned computeWaterfall.
+log "gate: money-reconciliation — NEGATIVE FIXTURE (reconciles, but 20% seller fee — must fail)"
+capture money-reconciliation-wrong-rate fail node scripts/gates/money-reconciliation.mjs gates/fixtures/negative/quote.wrong-seller-fee-rate.json
+
 log "gate: unverified-cannot-publish — verified supplier (must pass)"
 capture unverified-cannot-publish-positive pass node scripts/gates/unverified-cannot-publish.mjs gates/fixtures/publish.verified-supplier.json
 

@@ -9,6 +9,14 @@ Format per entry:
 
 ---
 
+## STANDING LAW — THE MUTATION RITUAL (read before any mutation test)
+
+1. **COMMIT BEFORE YOU MUTATE.** Broken twice in this project; both times work was lost. Back up with `cp` and restore from that copy — **never `git checkout` a file you did not create**, and never one that is uncommitted.
+2. **`pnpm -C <dir> test` — NEVER `pnpm exec vitest run <file>` (AUDIT-B+1 F24).** `pretest` is an npm lifecycle hook; `pnpm exec` bypasses it. `services/offer-service` declares `"pretest": "pnpm bundle:worker"`, and its worker e2e tests load the DEPLOY TARGET `dist/worker/worker.mjs`. So `pnpm exec vitest run test/combined-worker.e2e.test.ts` runs against whatever bundle was last built — **a mutation in `worker/` is invisible and the run is a FALSE GREEN.**
+   **Measured, not assumed** (bundle mtime across two commands): after `pnpm exec vitest run` the bundle was **unchanged** — `pretest` skipped; after `pnpm test` it **rebuilt**. Any mutation result taken with `pnpm exec` against a worker-backed file is void and must be re-run.
+3. **A surviving mutation proves the PIN is wrong, not that the code is fine.** Read the assertion before believing the verdict.
+4. **Plant the probe where the bound actually is.** A negative fixture placed inside the region it is meant to sit outside proves nothing — this cost a wasted round on F25, caught only because both the bounded and unbounded slices reported `true`.
+
 ## 2026-08-06 · AUDIT-B+1 — the no-decision findings, fixed with the F2 lesson applied · IN REVIEW (branch)
 - **Founder order:** « fix the ones that do not need decision and make sure they are not worthless fixing like the one you did with the F2 ». Commits `75d13cd` · `08a981c` · `5b5d5ca` · `d2ae115` · `5fa1d89` (+ the F7 header). Gate board green, 741/741 app, 84/84 media-service, 40/40 fulfillment, tsc clean.
 - **F20 (HIGH, live custody defect) — a door inspection was consumed as a pickup refusal.** Séra emits `protection.claim_opened.v1` from two phases; the consumer read only `faultClass`. A buyer's valid refusal AT THE DOOR opened a pickup claim against the seller, called `reopenForCorrection` on a package already out of his hands, and armed the correction clock — a second refund trigger against one paid amount. Refused now by name (`not_a_pickup_source`, Law 3 — no generic terminal). **⚠ THE AUDIT'S SUGGESTED FIX WOULD HAVE BROKEN THE REAL PATH:** it said « reject any claim whose payload carries `source !== 'pickup_verification'` », but the genuine pickup refusal (`custody-spine.ts:166`) sends **no `source` key at all** — only the door inspection (`:470`) carries one. Both emitters read before writing; the discriminator runs in the direction the producers actually use. Mutation-proven: deleting the guard kills exactly the F20 test.
