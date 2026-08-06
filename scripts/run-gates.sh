@@ -128,6 +128,25 @@ capture single-level-legal-parrainage pass node scripts/gates/single-level.mjs g
 log "gate: fr-pattern-coverage — every banned pattern is exercised by a fixture (must pass)"
 capture fr-pattern-coverage pass node scripts/gates/fr-pattern-coverage.mjs
 
+# ── THE STRUCTURAL HALF OF TEN LAWS #2 ────────────────────────────────────
+# The vocabulary scan is a tripwire and its header says so. This is the part
+# that is conclusive about COVERAGE: a wallet must be PERSISTED to be a wallet,
+# every durable write goes through storage.put/.delete under a key, and every
+# key must be declared. Measured: a working per-seller running total using NO
+# banned word at all passed `no-wallet-no-funds` (exit 0) and was refused here.
+log "gate: persisted-state-declared — every durable key is declared, none is a balance (must pass)"
+capture persisted-state-declared-positive pass node scripts/gates/persisted-state-declared.mjs
+
+log "gate: persisted-state-declared — NEGATIVE (an undeclared persisted key must be refused)"
+PERSIST_PROBE="$ROOT/services/zz-persist-probe"
+cleanup_persist() { rm -rf "$PERSIST_PROBE"; }
+trap cleanup_persist EXIT
+rm -rf "$PERSIST_PROBE"; mkdir -p "$PERSIST_PROBE/worker"
+printf 'const ZZ_KEY = "zz";\nexport class Zz { constructor(private state: any) {}\n  async w() { await this.state.storage.put(ZZ_KEY, {}); } }\n' > "$PERSIST_PROBE/worker/zz-do.ts"
+capture persisted-state-declared-negative fail node scripts/gates/persisted-state-declared.mjs
+cleanup_persist
+trap - EXIT
+
 # The coverage gate had NO negative demonstration — the board proved it could
 # pass, never that it could fail, which is how a hole in IT would ship. This
 # corrupts the roster in a temp copy and requires a refusal.

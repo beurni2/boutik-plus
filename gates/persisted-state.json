@@ -1,0 +1,51 @@
+{
+  "_why": "Ten Laws #2 — no app holds funds. A wallet is not a word, it is PERSISTED STATE. Every durable write must be declared here. \"balance\": true means this key accumulates a per-actor amount the app treats as owed or held — which the law forbids, so it requires a quoted founder ruling. A per-ORDER price record is not a balance.",
+  "_verified": "At the time of writing, no Durable Object in this repo accumulates an amount (`+=` over any amount/fcfa/total field): zero matches across all worker sources.",
+  "keys": [
+    {
+      "id": "services/inventory-service/worker/stock-reservation-do.ts::STATE_KEY",
+      "what": "stock reservation: the STATE_KEY record",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::key",
+      "what": "fulfillment: rows written under a computed key variable — see the call site",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::`${CODEHASH_PREFIX}${previous.hash}`",
+      "what": "fulfillment: prefixed keys (${CODEHASH_PREFIX}${previous.hash}) — one record per subject",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::<object form>",
+      "what": "fulfillment: a multi-key batch write (object form) — see the call site",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::[`${CODEHASH_PREFIX}${existing.hash}`",
+      "what": "fulfillment: a batch DELETE of prefixed keys",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::`${CHALLENGE_PREFIX}${orderId}`",
+      "what": "fulfillment: prefixed keys (${CHALLENGE_PREFIX}${orderId}) — one record per subject",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::ENTRY_KEY",
+      "what": "offer: the ENTRY_KEY record",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::POINTER_KEY",
+      "what": "offer: the POINTER_KEY record",
+      "balance": false
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::INDEX_KEY",
+      "what": "offer: the INDEX_KEY record",
+      "balance": false
+    }
+  ]
+}
