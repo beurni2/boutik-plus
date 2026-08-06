@@ -128,7 +128,6 @@ capture single-level-legal-parrainage pass node scripts/gates/single-level.mjs g
 log "gate: fr-pattern-coverage — every banned pattern is exercised by a fixture (must pass)"
 capture fr-pattern-coverage pass node scripts/gates/fr-pattern-coverage.mjs
 
-
 # The coverage gate had NO negative demonstration — the board proved it could
 # pass, never that it could fail, which is how a hole in IT would ship. This
 # corrupts the roster in a temp copy and requires a refusal.
