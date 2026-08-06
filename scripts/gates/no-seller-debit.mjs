@@ -1,5 +1,9 @@
 #!/usr/bin/env node
+import { pathToFileURL } from 'node:url';
 import { runScanGate } from './scan.mjs';
+
+/* Run only when EXECUTED — `fr-pattern-coverage` imports PATTERNS. */
+const isMainModule = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 
 /**
  * CI gate: no-seller-debit (WO-2.6; B+I-12).
@@ -23,10 +27,7 @@ import { runScanGate } from './scan.mjs';
  *   English filler word "fine" is therefore banned vocabulary in product
  *   code and comments — write "OK" instead.
  */
-runScanGate({
-  gateName: 'no-seller-debit',
-  invariant: 'B+I-12 seller consequences access-based — never money',
-  patterns: [
+export const PATTERNS = [
     { name: 'debit', regex: /d[ée]bit/i },
     { name: 'deduct', regex: /deduct/i },
     { name: 'retenue (fr)', regex: /\bretenues?\b/i },
@@ -39,5 +40,12 @@ runScanGate({
     { name: 'sanction', regex: /sanction/i },
     { name: 'garnish', regex: /garnish/i },
     { name: 'fine (money)', regex: /\bfines?\b/i },
-  ],
-});
+];
+
+if (isMainModule) {
+  runScanGate({
+      gateName: 'no-seller-debit',
+    invariant: 'B+I-12 seller consequences access-based — never money',
+    patterns: PATTERNS,
+  });
+}

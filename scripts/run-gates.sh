@@ -128,6 +128,19 @@ capture single-level-legal-parrainage pass node scripts/gates/single-level.mjs g
 log "gate: fr-pattern-coverage — every banned pattern is exercised by a fixture (must pass)"
 capture fr-pattern-coverage pass node scripts/gates/fr-pattern-coverage.mjs
 
+# The coverage gate had NO negative demonstration — the board proved it could
+# pass, never that it could fail, which is how a hole in IT would ship. This
+# corrupts the roster in a temp copy and requires a refusal.
+log "gate: fr-pattern-coverage — NEGATIVE (a gutted roster must be refused)"
+ROSTER_BAK="$(mktemp)"
+cp gates/pattern-roster.json "$ROSTER_BAK"
+restore_roster() { cp "$ROSTER_BAK" gates/pattern-roster.json; rm -f "$ROSTER_BAK"; }
+trap restore_roster EXIT
+node -e 'const f="gates/pattern-roster.json";const fs=require("fs");const r=JSON.parse(fs.readFileSync(f,"utf8"));const k=Object.keys(r)[0];r[k][0].regex="/zzgutted/";fs.writeFileSync(f,JSON.stringify(r,null,2));'
+capture fr-pattern-coverage-negative fail node scripts/gates/fr-pattern-coverage.mjs
+restore_roster
+trap - EXIT
+
 # AUDIT-B+1 F2 — THE FRENCH FIXTURES, SCANNED ONE FILE AT A TIME.
 # Scanning the whole negative DIRECTORY cannot prove the French half works: the
 # English fixture beside it fails too, so the directory stays red even if every

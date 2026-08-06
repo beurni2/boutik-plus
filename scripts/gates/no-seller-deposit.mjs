@@ -21,27 +21,20 @@ const isMainModule = import.meta.url === pathToFileURL(process.argv[1] ?? '').hr
  *   vocabulary. sellerReserve/reserveField/reserveBalance are.
  */
 export const PATTERNS = [
-    { name: 'deposit', regex: /deposit/i },
-    { name: 'dépôt de garantie', regex: /d[ée]p[oô]t/i },
-    { name: 'sellerReserve', regex: /seller[_-]?reserve/i },
-    { name: 'reserveField/Balance/Amount', regex: /reserve[_-]?(field|balance|amount)/i },
-    { name: 'bond', regex: /\b(security[_-]?)?bond\b/i },
-    /* ── AUDIT-B+1 F23 — bound to a SELLER, not to the bare word.
-       `caution` was unenforceable (anchored `/\bcaution\b/i` misses
-       `cautionFcfa`). The first fix banned `garantie` in identifier position and
-       a verifier showed that breaks `garantieMois`/`dureeGarantie` — warranty,
-       an ordinary commerce concept this catalog will carry. « Acompte » is
-       likewise the normal French word for a BUYER down-payment, and shop-plus
-       already ships a split/prepay mode. Law 4 is about a SELLER being asked to
-       put money down, so that is what these match: the deposit term bound to a
-       seller, carrying an amount, or being demanded. */
-    { name: 'deposit term bound to a seller (fr)', regex: /(caution|garantie|acompte|arrhes|gage|nantissement)s?\w{0,12}(vendeur|vendeuse|fournisseur|revendeur|revendeuse|marchand|boutique)/i },
-    { name: 'seller carrying a deposit term (fr)', regex: /(vendeur|vendeuse|fournisseur|revendeur|revendeuse|marchand)\w{0,12}(caution|arrhes|nantissement)/i },
-    { name: 'deposit term carrying an amount (fr)', regex: /(caution|arrhes|nantissement|gage)[_-]?(fcfa|xof|montant|amount|min|max)/i },
-    { name: 'exiger/verser une caution (fr)', regex: /(exiger|demander|verser|bloquer|pr[ée]lever)[_.-]?(une?|la|le)?[_.-]?(caution|arrhes|garantie[_-]?financi[eè]re)/i },
-    { name: "frais d'inscription (fr)", regex: /frais[_-]?d[_'-]?inscription/i },
+    /* UNAMBIGUOUS. « dépôt » is NOT here: it is also a WAREHOUSE, and « garantie »
+       alone is a WARRANTY — banning either breaks ordinary commerce code. */
+    { name: 'deposit demanded of an earner', regex: /(seller|reseller|supplier|rider|courier|vendor|merchant)[_-]?deposit|deposit[_-]?(from[_-]?)?(seller|reseller|supplier|rider)/i },
+    { name: 'sellerReserve', regex: /(seller|reseller|rider)[_-]?reserve/i },
+    { name: 'reserveBalance/reserveAmount', regex: /reserve[_-]?(balance|amount|fcfa)/i },
+    { name: 'bond demanded of an earner', regex: /(seller|reseller|rider|courier|security)[_-]?bond\b/i },
     { name: 'onboardingFee', regex: /onboarding[_-]?fee/i },
     { name: 'subscriptionFee', regex: /subscription[_-]?fee/i },
+    { name: 'joining/signup/registration fee', regex: /(joining|signup|sign[_-]?up|registration)[_-]?fee/i },
+    { name: "frais d'inscription/adhésion (fr)", regex: /frais[_-]?d[_'-]?(inscription|adh[ée]sion)/i },
+    { name: 'caution/arrhes/nantissement bound to an earner (fr)', regex: /(caution|arrhes|nantissement|gage)s?\w{0,12}(vendeur|vendeuse|revendeur|revendeuse|fournisseur|marchand|commer[cç]ant|grossiste|boutique|g[ée]rant|agent|membre|b[ée]n[ée]ficiaire|livreur|coursier|client|cliente|utilisateur|compte)/i },
+    { name: 'earner carrying caution/arrhes (fr)', regex: /(vendeur|vendeuse|revendeur|revendeuse|fournisseur|marchand|commer[cç]ant|grossiste|boutique|g[ée]rant|agent|membre|b[ée]n[ée]ficiaire|livreur|coursier|client|cliente|utilisateur|compte)\w{0,12}(caution|arrhes|nantissement)/i },
+    { name: 'caution/arrhes carrying an amount (fr)', regex: /(caution|arrhes|nantissement|gage)[_-]?(fcfa|xof|montant|amount|min|max)/i },
+    { name: 'exiger/verser une caution (fr)', regex: /(exiger|demander|verser|bloquer)[_.-]?(une?|la|le)?[_.-]?(caution|arrhes|garantie[_-]?financi[eè]re)/i },
 ];
 
 if (isMainModule) {

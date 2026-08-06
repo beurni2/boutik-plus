@@ -14,3 +14,5 @@ export const depotDeGarantie = 'banned: dépôt';
 export const sellerReserve = 0; // banned
 export const securityBond = 0; // banned
 export const subscriptionFee = 0; // banned
+export const signupFee = 500; // banned
+export const joiningFee = 500; // banned
