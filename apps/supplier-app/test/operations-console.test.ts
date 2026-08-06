@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bloc } from './_region.js';
 import { DELIVERY_FAILURE_REASONS } from '@platform/contracts';
 import {
   DISPATCH_TIMEOUT_MS,
@@ -1586,7 +1587,7 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     for (const loader of ['loadComptes', 'loadSuivi', 'loadAcces'] as const) {
       const start = source.indexOf(`const ${loader} = async`);
       expect(start, `${loader} moved — this pin is watching nothing`).toBeGreaterThan(-1);
-      const body = source.slice(start, source.indexOf('\n  };', start));
+      const body = bloc(source, `const ${loader} = async`, '\n  };');
       expect(body, `${loader} swallows a refused key instead of escalating`).toContain(
         "if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });",
       );

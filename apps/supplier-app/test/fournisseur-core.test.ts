@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bloc } from './_region.js';
 import {
   clearStoredCode,
   readStoredCode,
@@ -242,7 +243,7 @@ describe('[source-text checks] the screen’s wiring the pure tests cannot see (
   });
 
   it('the challenge is fetched at SEND, before the upload — the whole act sits inside one 10-minute window', () => {
-    const envoyer = app.slice(app.indexOf('const envoyer'));
+    const envoyer = bloc(app, 'const envoyer', 'const vue = fournisseurVue(read);');
     const challengeAt = envoyer.indexOf('service.challenge(code, commande.orderId)');
     const uploadAt = envoyer.indexOf('await upload(bytes)');
     const readyAt = envoyer.indexOf('service.ready(code,');

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloc } from './_region.js';
 import { readSupplierOfferList, HIDDEN_REASONS, type SupplierOfferRow } from '../src/supply/service';
 import { galleryPhotos, produitsView, hiddenSentence, photoSlot, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
 import { catalog } from '../src/i18n';
@@ -185,8 +186,7 @@ describe('OPTION (b) — Produits holds NO BINDING to seed data [source-text CAP
   });
 
   it('Commandes STILL uses the seed — this slice did not silently convert it', () => {
-    const start = screens1.indexOf('export function S07Commandes');
-    expect(screens1.slice(start, start + 2000)).toContain('st.products');
+    expect(bloc(screens1, 'export function S07Commandes', 'export function S05Fiche')).toContain('st.products');
   });
 });
 

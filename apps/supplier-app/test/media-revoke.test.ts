@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloc } from './_region.js';
 import { readRevokeResult } from '../src/supply/media-wire';
 
 /**
@@ -43,7 +44,7 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
     // never the upload key — the upload key ships in every bundle, and the
     // service refuses it on this route. This pin is the client half of that
     // split; media-service's revoke-route matrix is the server half.
-    const revokeBlock = media.slice(media.indexOf('async revokeImage'));
+    const revokeBlock = bloc(media, 'async revokeImage', 'export function resolveMediaBase');
     expect(revokeBlock).toContain("[MEDIA_WRITE_KEY_HEADER]: this.revokeKey");
     expect(revokeBlock).not.toContain('this.writeKey');
     // and the resolver reads the founder-only env, defaulting to '' (the wire
@@ -56,7 +57,7 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
   });
 
   it('every exit is a TYPED result — network, http, and unreadable each named, reader-guarded success', () => {
-    const revokeBlock = media.slice(media.indexOf('async revokeImage'));
+    const revokeBlock = bloc(media, 'async revokeImage', 'export function resolveMediaBase');
     expect(revokeBlock).toContain("cause: 'network'");
     expect(revokeBlock).toContain("cause: 'http'");
     expect(revokeBlock).toContain("cause: 'unreadable'");
@@ -67,7 +68,7 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
   });
 
   it('the shell cannot THROW past the status line, and cannot HANG the delete (verifier findings 2026-07-27)', () => {
-    const revokeBlock = media.slice(media.indexOf('async revokeImage'));
+    const revokeBlock = bloc(media, 'async revokeImage', 'export function resolveMediaBase');
     // body-stream death: the text read is guarded, so a mid-body connection
     // reset becomes a typed network failure, never an unhandled rejection that
     // strands the fiche on « en cours » after a successful delete.

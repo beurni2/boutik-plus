@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloc } from './_region.js';
 
 /**
  * WO-6.5 · B1.3 — the RE-ENCODE ORDER is LOAD-BEARING and now ENFORCED (not
@@ -29,7 +30,7 @@ describe('WO-6.5 B1.3 — the capture path re-encodes BEFORE it strips', () => {
   });
 
   it('renderDerivative IS a real re-encode: ImageManipulator.manipulate → renderAsync → saveAsync(JPEG)', () => {
-    const body = capture.slice(capture.indexOf('function renderDerivative'), capture.indexOf('function renderMetricsFrame'));
+    const body = bloc(capture, 'function renderDerivative', 'function renderMetricsFrame');
     expect(body).toMatch(/ImageManipulator\.manipulate\(/);
     expect(body).toMatch(/renderAsync\(/);
     expect(body).toMatch(/saveAsync\(\{[^}]*format:\s*SaveFormat\.JPEG/);

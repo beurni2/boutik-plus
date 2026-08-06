@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloc } from './_region.js';
 import { initialState, reduce } from '../src/v2/machine';
 import { SUPPLIER_ZONE } from '../src/supply/service';
 import { catalog } from '../src/i18n';
@@ -72,7 +73,7 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
   it('ONE TAP leaves the outcome pane — never four dead taps then a destroyed completion path', () => {
     expect(lister).toMatch(/const exitToProduits = \(\): void => d\(\{ t: 'TAB', tab: 'produits' \}\);/);
     // the outcome pane never dispatches a raw BACK (which would step the hidden wizard four times)
-    const pane = lister.slice(lister.indexOf('── the outcome pane'), lister.indexOf("if (pub?.kind === 'sending')"));
+    const pane = bloc(lister, '── the outcome pane', "if (pub?.kind === 'sending')");
     expect(pane).not.toMatch(/d\(\{ t: 'BACK' \}\)/);
   });
 
