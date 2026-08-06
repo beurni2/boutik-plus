@@ -75,3 +75,59 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@4 deploy
+
+      # ═══ AUDIT-B+1 F9 — THE ASSERTION offer-deploy HAS AND THIS ONE DID NOT ═══
+      #
+      # This workflow ended at `wrangler deploy`, which proves the UPLOAD was
+      # accepted — not that the running Worker is this bundle. offer-deploy grew
+      # the check below after a stale-branch deploy took the supplier web app
+      # down for ~40 minutes with nothing noticing (its comment, :108-118).
+      # media-service computes the SAME provenance stamp two steps up and never
+      # checked it, and it already serves /health through the shared
+      # makeHealthFetch helper, so `canon` and `release` are there to be read.
+      #
+      # A WORKERS DEPLOY PROPAGATES; IT DOES NOT SWITCH. Asserting instantly
+      # reads whichever bundle that edge still holds, so this polls for up to
+      # three minutes and fails only if the live Worker NEVER becomes this
+      # build. A checker that reddens a correct deploy trains everyone to
+      # ignore it.
+      #
+      # An EMPTY secret is a hard error, matching offer-deploy and live-check:
+      # the upload has already happened and is reported above — this step's job
+      # is to say whether anyone verified it, and « nobody could » deserves a
+      # red mark once, not a green tick forever.
+      - name: Assert the live media Worker is the bundle this job built
+        env:
+          MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
+        run: |
+          set -uo pipefail
+          if [ -z "${MEDIA_BASE}" ]; then
+            echo "::error::EXPO_PUBLIC_MEDIA_BASE is empty — the deploy above ran, but NOTHING verified it."
+            echo "Set the secret so this step can prove the live Worker is the bundle this job built."
+            exit 1
+          fi
+          BASE="${MEDIA_BASE%/}"
+          OUT=$(mktemp)
+          DEADLINE=$(( $(date +%s) + 180 ))
+          LIVE_CANON='?'; LIVE_RELEASE='?'
+          while :; do
+            CODE=$(curl -sS -o "$OUT" -w '%{http_code}' "$BASE/health" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              LIVE_CANON=$(node -p "JSON.parse(require('fs').readFileSync('$OUT','utf8')).canon" 2>/dev/null || echo '?')
+              LIVE_RELEASE=$(node -p "JSON.parse(require('fs').readFileSync('$OUT','utf8')).release" 2>/dev/null || echo '?')
+              echo "health 200 — live canon=$LIVE_CANON release=$LIVE_RELEASE (want $BOUTIK_CANON / $BOUTIK_RELEASE)"
+              if [ "$LIVE_CANON" = "$BOUTIK_CANON" ] && [ "$LIVE_RELEASE" = "$BOUTIK_RELEASE" ]; then
+                echo "PROVENANCE OK — live media Worker is $BOUTIK_RELEASE speaking canon $BOUTIK_CANON."
+                exit 0
+              fi
+            else
+              echo "health $CODE — not answering yet"
+            fi
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "::error::DEPLOY DID NOT TAKE — after 180s the live media Worker is still not this job's bundle."
+              echo "  live canon=$LIVE_CANON release=$LIVE_RELEASE"
+              echo "  want canon=$BOUTIK_CANON release=$BOUTIK_RELEASE"
+              exit 1
+            fi
+            sleep 10
+          done

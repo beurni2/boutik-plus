@@ -22,10 +22,31 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      # AUDIT-B+1 F10 — THIS JOB COULD REPORT SUCCESS WITH EVERY STEP SKIPPED.
+      #
+      # Every step below carries `if: steps.token.outputs.present == 'true'`,
+      # so an absent token produced a green tick and published nothing. The
+      # graceful skip was deliberate and correct WHILE the channel was being
+      # armed — but it is armed: run 31041929646 published for 77 seconds. From
+      # here the only thing the skip can hide is a token that was rotated or
+      # expired, and it would hide it behind a green tick on every push.
+      #
+      # So the skip now depends on WHO IS WATCHING. On `push` to main nobody is
+      # looking, and silence is indistinguishable from success — that is an
+      # error. On `workflow_dispatch` a human ran this on purpose and can read a
+      # notice, so the escape hatch stays for them.
+      #
+      # ⚠ FLAGGED TO THE FOUNDER: this changes documented behaviour (the header
+      # comment promised an unconditional graceful skip). It is a guardrail, not
+      # a product decision — say the word and it goes back to a notice.
       - name: Check EXPO_TOKEN presence (skip gracefully when absent)
         id: token
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "::error title=Aperçu Expo NON publié::Le secret EXPO_TOKEN est absent ou expiré — rien n'a été publié. Ce push aurait affiché une coche verte sans rien faire. Réarmer le secret dans Settings → Secrets (voir PREVIEW.md)."
+              exit 1
+            fi
             echo "::notice title=Aperçu Expo non publié::Le secret EXPO_TOKEN n'est pas configuré — l'ajouter dans Settings → Secrets pour armer la publication automatique (voir PREVIEW.md)."
             echo "present=false" >> "$GITHUB_OUTPUT"
           else
