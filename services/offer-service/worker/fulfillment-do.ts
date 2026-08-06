@@ -266,6 +266,16 @@ export class FulfillmentDO {
        */
       readonly STOREFRONT?: { fetch(request: Request): Promise<Response> };
       readonly PROGRESS_WRITE_SECRET?: string;
+      /**
+       * SE-LIVE-2b — Séra's intake door. A plain HTTPS base (a var — the URL
+       * is public) rather than a service binding, for the same reason Shop+'s
+       * funding wire uses one: a binding to a Worker that does not exist yet
+       * fails the DEPLOY, and the consumer's door ships first. Either absent
+       * ⇒ the row stays pending and the ladder retries, so a Boutik+ deployed
+       * ahead of Séra loses no readiness fact.
+       */
+      readonly SERA_INTAKE_BASE?: string;
+      readonly SERA_INTAKE_SECRET?: string;
     },
   ) {}
 
@@ -286,6 +296,50 @@ export class FulfillmentDO {
    * The event is COMPOSED THROUGH CANON before it is stored, so a payload
    * canon would refuse can never sit in the outbox retrying forever.
    */
+  /**
+   * ═══ SE-LIVE-2b — THE READINESS FACT FOR SÉRA ═══
+   *
+   * Séra's dispatch gate (SE-I02) admits a task only for a « supplier-ready
+   * (readiness confirmed) » order, and Séra never computes that truth (SE-I09
+   * is its mirror: Séra consumes signals, it does not decide them). The
+   * supplier's own confirmation, already durable on this object, is that
+   * signal.
+   *
+   * It rides the SAME keyed outbox as the Shop+ progress rows — one row per
+   * (order, fact), first-wins, per-row backoff, permanent-refusal parking —
+   * with a `target` field choosing the destination, so there is ONE delivery
+   * ladder in this object rather than two that can drift apart. The body is
+   * Séra's own intake shape, not a canonical event: `/intake/readiness` takes
+   * a FACT (`ready` + the instant it was confirmed), never a task and never a
+   * package secret — `readinessChallenge` and every drop code stay here
+   * (Ten Laws #3: buyerDropCode never travels in readiness evidence).
+   */
+  private async enqueueSeraReadiness(orderId: string, at: string): Promise<void> {
+    try {
+      const key = `${PROGRESS_OUTBOX_PREFIX}${orderId}:sera_ready`;
+      const existing = await this.state.storage.get<{ status: string }>(key);
+      if (existing !== undefined) {
+        // Same first-wins + stranded-row re-arm as the Shop+ rows.
+        if (existing.status === 'pending' && (await this.state.storage.getAlarm()) === null) {
+          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+        }
+        return;
+      }
+      await this.state.storage.put(key, {
+        status: 'pending' as const,
+        target: 'sera' as const,
+        event: { orderId, ready: true, asOf: at },
+        attempts: 0,
+        nextAttemptAt: 0,
+      });
+      await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+    } catch {
+      // The supplier's readiness is already durably recorded; a queueing
+      // problem must never fail it. Both readiness call sites re-enter here on
+      // every re-assertion, which is what makes the recovery real.
+    }
+  }
+
   private async enqueueProgress(kind: 'accepted' | 'ready', orderId: string, at: string): Promise<void> {
     try {
       const name = kind === 'accepted' ? 'fulfillment.accepted.v1' : 'fulfillment.ready.v1';
@@ -373,19 +427,17 @@ export class FulfillmentDO {
       }
       let delivered = false;
       let permanentRefusal = false;
-      const target = this.env?.STOREFRONT;
-      const secret = this.env?.PROGRESS_WRITE_SECRET;
-      if (target !== undefined && secret !== undefined && secret !== '') {
-        const res = await target
-          .fetch(
-            new Request('https://storefront/fulfillment/progress', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
-              body: JSON.stringify(row.event),
-            }),
-          )
-          .catch(() => undefined);
-        delivered = res !== undefined && res.ok;
+      /**
+       * SE-LIVE-2b — ONE LADDER, TWO DESTINATIONS. The row names its own
+       * target; everything else (per-row due time, backoff, parking, the
+       * first-wins key) is shared, so the two wires cannot drift apart.
+       */
+      const seraRow = (row as { target?: string }).target === 'sera';
+      const res = seraRow
+        ? await this.deliverToSera(row.event)
+        : await this.deliverToStorefront(row.event);
+      if (res !== undefined) {
+        delivered = res.ok;
         /**
          * VERIFIER M4 — A PERMANENT REFUSAL IS PARKED, NOT RETRIED FOREVER.
          * A consumer 400 (`event_not_canonical`) or 404 (`unknown_order`) can
@@ -417,6 +469,38 @@ export class FulfillmentDO {
       retryIn = retryIn === null ? next : Math.min(retryIn, next);
     }
     if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
+  }
+
+  /** The Shop+ leg — the service binding, unchanged from READINESS-RETURN-1.
+   *  `undefined` means « not even attempted » (binding or secret absent), which
+   *  is NOT a refusal: the row stays pending and the ladder retries. */
+  private async deliverToStorefront(event: unknown): Promise<Response | undefined> {
+    const target = this.env?.STOREFRONT;
+    const secret = this.env?.PROGRESS_WRITE_SECRET;
+    if (target === undefined || secret === undefined || secret === '') return undefined;
+    return target
+      .fetch(
+        new Request('https://storefront/fulfillment/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+          body: JSON.stringify(event),
+        }),
+      )
+      .catch(() => undefined);
+  }
+
+  /** SE-LIVE-2b — the Séra leg. Same « undefined = never attempted » rule, so
+   *  a Boutik+ deployed before Séra's door exists keeps every readiness fact
+   *  queued instead of burning attempts against a URL it does not have. */
+  private async deliverToSera(fact: unknown): Promise<Response | undefined> {
+    const base = (this.env?.SERA_INTAKE_BASE ?? '').replace(/\/+$/, '');
+    const secret = this.env?.SERA_INTAKE_SECRET ?? '';
+    if (base === '' || secret === '') return undefined;
+    return fetch(`${base}/intake/readiness`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      body: JSON.stringify(fact),
+    }).catch(() => undefined);
   }
 
   /** The 10-minute canon TTL, and CANON IS THE CEILING BY CONSTRUCTION: the
@@ -734,6 +818,7 @@ export class FulfillmentDO {
         if (already.confirmation.readinessChallenge === confirmation.readinessChallenge) {
           // VERIFIER B1 — same repair on the readiness side.
           await this.enqueueProgress('ready', orderId, already.confirmedAt);
+        await this.enqueueSeraReadiness(orderId, already.confirmedAt);
           return Response.json({ ok: true, status: 'already_ready', confirmedAt: already.confirmedAt });
         }
         return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
@@ -776,6 +861,7 @@ export class FulfillmentDO {
       // four secrets are not shareable, and Ten Laws #3 names readiness
       // evidence explicitly).
       await this.enqueueProgress('ready', orderId, now);
+      await this.enqueueSeraReadiness(orderId, now);
       return Response.json({ ok: true, status: 'ready', confirmedAt: now });
     }
 
