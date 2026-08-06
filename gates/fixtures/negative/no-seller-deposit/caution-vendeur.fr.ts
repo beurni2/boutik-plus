@@ -1,22 +1,32 @@
-// NEGATIVE FIXTURE (AUDIT-B+1 F23) — THE UNENFORCEABLE FRENCH DEPOSIT TERM.
-// The gate carried `caution` from day one, anchored as /\bcaution\b/i — which
-// is FALSE for every shape a deposit field would actually take. A live
-// `terms: { cautionFcfa: 5000 }` passed this gate while the English sibling
-// `sellerDepositFcfa` was caught correctly.
+// FIXTURE NÉGATIVE (AUDIT-B+1 F23) — LE TERME FRANÇAIS INAPPLICABLE.
 //
-// B+I-12: zero seller deposit, ever. No reserve field, no flow, no exception.
-// The no-seller-deposit gate MUST fail on this file. Never import this.
+// La gate portait « caution » depuis le premier jour, ancré en /\bcaution\b/i —
+// ce qui est FAUX pour toutes les formes qu'un champ prendrait réellement :
+// cautionFcfa, caution_fcfa, sellerCaution, cautionAmount. Un vrai
+// `terms: { cautionFcfa: 5000 }` passait la gate, tandis que son équivalent
+// anglais était correctement attrapé.
+//
+// LA PROSE DE CE FICHIER EST EN FRANÇAIS, ET CE N'EST PAS DU STYLE. Un seul
+// terme anglais de la gate dans un commentaire ici, et le fichier échouerait
+// pour la mauvaise raison : supprimez les motifs français, il échouerait quand
+// même, et la fixture ne prouverait plus rien. Testé par mutation.
+//
+// Loi 4 / B+I-12 : aucune somme n'est jamais demandée à un vendeur pour vendre.
+// Aucun champ, aucun flux, aucune exception. La gate de cette fixture DOIT
+// échouer sur ce fichier, et uniquement sur ses motifs français.
+// Ne jamais importer ceci.
 export interface ConditionsVendeur {
   vendeurId: string;
-  cautionFcfa: number; // banned: the exact shape the anchored pattern missed
-  caution_vendeur_fcfa: number; // banned: snake_case
-  GARANTIE_VENDEUR_FCFA: number; // banned: SCREAMING_SNAKE
-  acompte: number; // banned
-  arrhes: number; // banned
+  cautionFcfa: number; // interdit : la forme exacte que le motif ancré ratait
+  caution_vendeur_fcfa: number; // interdit : snake_case
+  GARANTIE_VENDEUR_FCFA: number; // interdit : SCREAMING_SNAKE
+  acompte: number; // interdit
+  arrhes: number; // interdit
 }
 export function exigerCaution(c: ConditionsVendeur, montant: number): void {
-  // banned: a seller is never asked to put money down to sell
+  // interdit : on ne demande jamais à un vendeur d'avancer de l'argent
   c.cautionFcfa = montant;
 }
-export const fraisDInscription = 2000; // banned: no onboarding fee
-export const nantissement = true; // banned
+export const fraisDInscription = 2000; // interdit
+export const nantissement = true; // interdit
+export const gage = true; // interdit
