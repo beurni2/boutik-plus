@@ -30,3 +30,6 @@ export function exigerCaution(c: ConditionsVendeur, montant: number): void {
 export const fraisDInscription = 2000; // interdit
 export const nantissement = true; // interdit
 export const gage = true; // interdit
+
+// Formes supplémentaires — une par motif français resté sans ligne de fixture.
+export const vendeurCaution = 5000; // interdit

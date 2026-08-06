@@ -8,3 +8,9 @@ export interface SellerAccount {
 export function collectOnboardingFee(seller: SellerAccount, onboardingFee: number): void {
   seller.sellerDeposit += onboardingFee;
 }
+
+// Additional English shapes — one per otherwise-unexercised pattern.
+export const depotDeGarantie = 'banned: dépôt';
+export const sellerReserve = 0; // banned
+export const securityBond = 0; // banned
+export const subscriptionFee = 0; // banned

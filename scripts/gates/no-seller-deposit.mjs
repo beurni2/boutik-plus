@@ -1,5 +1,11 @@
 #!/usr/bin/env node
+import { pathToFileURL } from 'node:url';
 import { runScanGate } from './scan.mjs';
+
+/* Run the gate only when EXECUTED, not when imported. `fr-pattern-coverage`
+   imports PATTERNS to prove every one of them is exercised by a fixture; without
+   this guard that import would run the gate and exit the coverage process. */
+const isMainModule = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 
 /**
  * CI gate: no-seller-deposit (B+I-12, standing guardrail).
@@ -14,39 +20,35 @@ import { runScanGate } from './scan.mjs';
  * - "reserve" is NOT banned bare: inventory reservation (B5.x) is core
  *   vocabulary. sellerReserve/reserveField/reserveBalance are.
  */
-runScanGate({
-  gateName: 'no-seller-deposit',
-  invariant: 'B+I-12 zero seller deposit/reserve/bond, ever',
-  patterns: [
+export const PATTERNS = [
     { name: 'deposit', regex: /deposit/i },
     { name: 'dépôt de garantie', regex: /d[ée]p[oô]t/i },
     { name: 'sellerReserve', regex: /seller[_-]?reserve/i },
     { name: 'reserveField/Balance/Amount', regex: /reserve[_-]?(field|balance|amount)/i },
     { name: 'bond', regex: /\b(security[_-]?)?bond\b/i },
-    /* AUDIT-B+1 F23 — the word boundary made this pattern unenforceable.
-       `/\bcaution\b/i` is false for `cautionFcfa`, `caution_fcfa`,
-       `sellerCaution`, `cautionAmount` — every shape a deposit FIELD would
-       actually take — while the sibling `deposit` pattern (no anchors) catches
-       `sellerDepositFcfa` correctly. A live `terms: { cautionFcfa: 5000 }`
-       passed this gate. Dropping the trailing anchor alone was wrong too — it
-       fired on the English « cautionary » in a comment. Same house shape as the
-       other French money terms: the bare noun, plus identifier position. */
-    /* The lookbehind is not decoration: JS `\b` is ASCII-only, so `é` counts as
-       a boundary and a plain `\bcaution\b` fires on « précaution » — an
-       ordinary French word this product will write sooner or later. */
-    { name: 'caution (fr)', regex: /(?<![a-zA-ZÀ-ÿ])cautions?\b/i },
-    { name: 'caution… (fr, identifier)', regex: /(caution|CAUTION)[_A-Z]/ },
-    { name: '…Caution (fr, identifier)', regex: /[a-z0-9]Caution\b/ },
-    /* Zero occurrences in any of the three repos today, so these are banned
-       outright rather than in identifier position — no innocent use to protect
-       (contrast `no-wallet-no-funds`, where the nouns also name the law). */
-    { name: 'acompte (fr)', regex: /\bacomptes?\b/i },
-    { name: 'arrhes (fr)', regex: /\barrhes\b/i },
-    { name: 'gage/nantissement (fr)', regex: /\b(gages?|nantissement)\b/i },
-    { name: 'garantie… (fr, identifier)', regex: /(garantie|GARANTIE)[_A-Z]/ },
-    { name: '…Garantie (fr, identifier)', regex: /[a-z0-9]Garantie\b/ },
-    { name: 'frais d\'inscription (fr)', regex: /frais[_-]?d[_'-]?inscription/i },
+    /* ── AUDIT-B+1 F23 — bound to a SELLER, not to the bare word.
+       `caution` was unenforceable (anchored `/\bcaution\b/i` misses
+       `cautionFcfa`). The first fix banned `garantie` in identifier position and
+       a verifier showed that breaks `garantieMois`/`dureeGarantie` — warranty,
+       an ordinary commerce concept this catalog will carry. « Acompte » is
+       likewise the normal French word for a BUYER down-payment, and shop-plus
+       already ships a split/prepay mode. Law 4 is about a SELLER being asked to
+       put money down, so that is what these match: the deposit term bound to a
+       seller, carrying an amount, or being demanded. */
+    { name: 'deposit term bound to a seller (fr)', regex: /(caution|garantie|acompte|arrhes|gage|nantissement)s?\w{0,12}(vendeur|vendeuse|fournisseur|revendeur|revendeuse|marchand|boutique)/i },
+    { name: 'seller carrying a deposit term (fr)', regex: /(vendeur|vendeuse|fournisseur|revendeur|revendeuse|marchand)\w{0,12}(caution|arrhes|nantissement)/i },
+    { name: 'deposit term carrying an amount (fr)', regex: /(caution|arrhes|nantissement|gage)[_-]?(fcfa|xof|montant|amount|min|max)/i },
+    { name: 'exiger/verser une caution (fr)', regex: /(exiger|demander|verser|bloquer|pr[ée]lever)[_.-]?(une?|la|le)?[_.-]?(caution|arrhes|garantie[_-]?financi[eè]re)/i },
+    { name: "frais d'inscription (fr)", regex: /frais[_-]?d[_'-]?inscription/i },
     { name: 'onboardingFee', regex: /onboarding[_-]?fee/i },
     { name: 'subscriptionFee', regex: /subscription[_-]?fee/i },
-  ],
-});
+];
+
+if (isMainModule) {
+    runScanGate({
+      gateName: 'no-seller-deposit',
+    invariant: 'B+I-12 zero seller deposit/reserve/bond, ever',
+    patterns: PATTERNS,
+  });
+}
+
