@@ -9,6 +9,31 @@ Format per entry:
 
 ---
 
+## 2026-08-06 · AUDIT-B+1 F2/F23/M-GATE-03 — the law gates learn French · IN REVIEW (branch, verifier running)
+- **Commits:** boutik-plus `6c7cb49` + `7c35675` · shop-plus `785ef50` + `895aef2` · sera `820930d` + `e109840`. All three on `claude/buyer-pwa-standing-laws-nerljz`.
+- **F2 — the law gates only spoke English.** An auditor planted a working seller account module in the product directory using French names and the FULL board printed ALL GATES GREEN. Added French patterns to `no-wallet-no-funds`, `no-seller-deposit`, `single-level` in all three repos (the blindness was identical in all three).
+- **F23 — `caution` was unenforceable.** Anchored as `/\bcaution\b/i`, false for `cautionFcfa`/`caution_fcfa`/`sellerCaution`. Now banned in identifier position too. Note JS `\b` is ASCII-only, so a bare `\bcaution\b` also fires on « précaution » — the final pattern uses a lookbehind.
+- **M-GATE-03 — a new top-level directory was scanned by nothing.** `scan.mjs` now exits 2 on any unclassified top-level dir. Audited against the CANONICAL product roots, never the calling gate's roots — `no-consumer-storefront` and `no-expo-token-leak` scan narrower slices by design, and my first version wrongly called their scope unclassified (caught by running the board, fixed before commit).
+- **TWO CORRECTIONS TO THE AUDIT, both load-bearing:**
+  - It recommended banning `parrain`/`filleul`/`cooptation`. That would fail the build on a SHIPPED founder-designed capability — Cercle's parrainage, « single-level, forever (loi 1) », shop-plus `apps/reseller-app/src/cercle/screens.tsx:409`, 12 occurrences across 3 files under scanned roots. Only SECOND-level shapes are banned, and a POSITIVE fixture now fails the board if a future pattern breaks the legal one.
+  - The French money nouns also name their own PROHIBITION (`solde` appears today only in « No « solde » » and a test asserting its absence). Banning bare nouns would fail the build on the code that ENFORCES the law. Identifier-position only; prose stays free.
+- **MY OWN FAILURE MODE #7, caught in self-review and fixed in the second commit:** the three French negative fixtures had ENGLISH prose (« a working seller wallet », « a locally computed balance »), so they failed on their own comments, not on the French identifiers. Measured: with every French pattern stripped, each fixture scanned alone returned **exit 0**. Fixed by writing the fixtures' prose entirely in French AND scanning each French fixture as a SINGLE FILE on the board — scanning the negative directory cannot detect the mutation because the English fixture beside it fails anyway.
+- **EVIDENCE:** full gate board green in all three repos (0 GATE FAILED; sera required `pnpm install` first — `node_modules` was absent in this container, unrelated to the change). Mutation: deleting every pattern tagged `(fr` turns the board RED — boutik-plus 3 failures, shop-plus 2, sera 2. Before the second commit that same mutation left the board fully green.
+- **NEXT / NOT YET DONE:** F25's region-pin census was checked independently and is **substantially unreliable** — see the entry below. F1/F3/F4/F13/F14 are founder decisions, not built.
+
+## 2026-08-06 · AUDIT-B+1 F25 — the region-pin census does not survive independent checking · REPORTED, NOT ACTED ON
+Before fixing 11 "CONFIRMED unsafe" region pins I re-measured each. Four of the audit's verdicts do NOT reproduce, at HEAD or at the audit's own base commit `4e722ae`:
+- `df2-device-review.test.ts:41` — claimed « region length 0 ». Measured **3,206 chars** (start 14,973 → end 18,179), and the accueil region does NOT contain `name="horloge"`. `App.tsx` is unchanged since `4e722ae`.
+- `authoring-screen.test.ts:75` — claimed « start 24,971 > end 24,286 → region length 0 ». Measured **5,158 chars** (start 24,207 → end 29,365), same at `4e722ae`.
+- `media-revoke.test.ts:46` and `:70` — claimed the pinned strings are « borrowed from a helper below ». Every one of them is inside `revokeImage`'s own brace-matched body (`[MEDIA_WRITE_KEY_HEADER]: this.revokeKey`, `cause: 'network'`, `readRevokeResult(parsed)`, `text = await res.text();`), and none appears only after it.
+**What IS real and reproduced exactly:**
+- `df2-device-review.test.ts:52/:59` — recette block **3,698 chars**, pin budget **2,800** → **898 chars (24%) unchecked**, on B+I-05, a money invariant. Reproduced to the character.
+- `fournisseur-core.test.ts:245` — `app.slice(app.indexOf('const envoyer'))` with no end argument → **7,820 chars = 34% of the file**, running to EOF.
+- The `slice(s, indexOf(end))` shape is fragile in a way the audit described correctly: when the end anchor is absent, `indexOf` returns `-1` and `slice(s, -1)` silently yields nearly the whole file instead of failing.
+**Recommendation (not yet built):** one shared helper that asserts start found, end found, end > start, region non-empty — making the empty-region and negative-index classes impossible by construction — plus structural anchors replacing the two character budgets. This is a real slice; the 11-site framing is not.
+
+---
+
 ## 2026-08-02 · LISTER-POUR deploy round 2 — the law had TWO copies and I evolved one
 - **fournisseur-web-deploy run 30768674574 REFUSED the bundle — correctly, by MY gap:** the deploy workflow carries its own INLINE copy of the artifact scan, and 1c evolved only `scripts/gates/fournisseur-bundle-absence.mjs`. The inline copy still banned bare `/offers` with no excusal, so it refused the artifact that now legitimately carries the granted `/offers/mine` read. The refusal message names the exact fingerprint — the failure was diagnosable from one line.
 - **FIXED by mirroring, not weakening, with the duplication now NAMED in both copies:** the workflow gains the same three-part discipline — `/offers/mine` REQUIRED as a control, the excusal PRINTED, bare `/offers` scanned with the granted read masked while every write route stays unmasked. The mask logic was proven locally both directions before pushing (a granted-read-only blob passes; a blob smuggling a bare `/offers` client past the mask fails). Both copies now carry « when one changes, change both », with this incident as the reason.
