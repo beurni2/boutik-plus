@@ -1,51 +1,138 @@
 {
-  "_why": "Ten Laws #2 — no app holds funds. A wallet is not a word, it is PERSISTED STATE. Every durable write must be declared here. \"balance\": true means this key accumulates a per-actor amount the app treats as owed or held — which the law forbids, so it requires a quoted founder ruling. A per-ORDER price record is not a balance.",
-  "_verified": "At the time of writing, no Durable Object in this repo accumulates an amount (`+=` over any amount/fcfa/total field): zero matches across all worker sources.",
+  "_why": "Ten Laws #2 — no app holds funds. A wallet must be PERSISTED to be a wallet, so every durable write call is declared here. \"balance\": true means this key accumulates a per-actor amount treated as owed or held — forbidden, so it demands a quoted founder ruling. A per-ORDER price record is NOT a balance.",
+  "_fingerprint": "sha256 of the normalised write call. If the call changes, the declaration must be re-read and renewed in the same commit — a batch write cannot silently absorb a new key.",
   "keys": [
     {
-      "id": "services/inventory-service/worker/stock-reservation-do.ts::STATE_KEY",
-      "what": "stock reservation: the STATE_KEY record",
-      "balance": false
+      "id": "services/inventory-service/worker/stock-reservation-do.ts::storage.put(STATE_KEY)",
+      "what": "stock-reservation-do: key 'stock-state' — stores `STATE_KEY, decision.state`",
+      "balance": false,
+      "fingerprint": "e5d3e4a2fcf9"
     },
     {
-      "id": "services/offer-service/worker/fulfillment-do.ts::key",
-      "what": "fulfillment: rows written under a computed key variable — see the call site",
-      "balance": false
+      "id": "services/media-service/src/media-store.ts::BUCKET.put(key)",
+      "what": "media-store: key expression `key` — stores `key, bytes, { httpMetadata }`",
+      "balance": false,
+      "fingerprint": "60980eae5302"
     },
     {
-      "id": "services/offer-service/worker/fulfillment-do.ts::`${CODEHASH_PREFIX}${previous.hash}`",
-      "what": "fulfillment: prefixed keys (${CODEHASH_PREFIX}${previous.hash}) — one record per subject",
-      "balance": false
+      "id": "services/media-service/src/media-store.ts::bucket.put(key)",
+      "what": "media-store: key expression `key` — stores `key, bytes, { httpMetadata: { contentType } }`",
+      "balance": false,
+      "fingerprint": "4a77b0336969"
     },
     {
-      "id": "services/offer-service/worker/fulfillment-do.ts::<object form>",
-      "what": "fulfillment: a multi-key batch write (object form) — see the call site",
-      "balance": false
+      "id": "services/media-service/src/media-store.ts::bucket.delete(key)",
+      "what": "media-store: key expression `key` — stores `key`",
+      "balance": false,
+      "fingerprint": "7f3b7a8fc447"
     },
     {
-      "id": "services/offer-service/worker/fulfillment-do.ts::[`${CODEHASH_PREFIX}${existing.hash}`",
-      "what": "fulfillment: a batch DELETE of prefixed keys",
-      "balance": false
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, row`",
+      "balance": false,
+      "fingerprint": "a344713e993b"
     },
     {
-      "id": "services/offer-service/worker/fulfillment-do.ts::`${CHALLENGE_PREFIX}${orderId}`",
-      "what": "fulfillment: prefixed keys (${CHALLENGE_PREFIX}${orderId}) — one record per subject",
-      "balance": false
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, { ...row, status: 'delivered', attempts: row.attempts + 1 }`",
+      "balance": false,
+      "fingerprint": "e27f3d6e9011"
     },
     {
-      "id": "services/offer-service/worker/offer-do.ts::ENTRY_KEY",
-      "what": "offer: the ENTRY_KEY record",
-      "balance": false
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, { ...row, status: 'unsendable', reason: 'refused_by_consumer', attempts: row.attempts + 1, }`",
+      "balance": false,
+      "fingerprint": "32249ff0f9d1"
     },
     {
-      "id": "services/offer-service/worker/offer-do.ts::POINTER_KEY",
-      "what": "offer: the POINTER_KEY record",
-      "balance": false
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, { ...row, attempts, nextAttemptAt: now + next }`",
+      "balance": false,
+      "fingerprint": "88daa5d160af"
     },
     {
-      "id": "services/offer-service/worker/offer-do.ts::INDEX_KEY",
-      "what": "offer: the INDEX_KEY record",
-      "balance": false
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, record`",
+      "balance": false,
+      "fingerprint": "2c13489c59e0"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.delete(`${CODEHASH_PREFIX}${previous.hash}`)",
+      "what": "fulfillment-do: key expression ``${CODEHASH_PREFIX}${previous.hash}`` — stores ``${CODEHASH_PREFIX}${previous.hash}``",
+      "balance": false,
+      "fingerprint": "1a0df3af5696"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put({ [`${CODEHASH_PREFIX}${hash}`]: { supplierId)",
+      "what": "fulfillment-do: key expression `{ [`${CODEHASH_PREFIX}${hash}`]: { supplierId` — stores `{ [`${CODEHASH_PREFIX}${hash}`]: { supplierId, mintedAt } satisfies SupplierCodeRecord, [`${SUPPLIERCODE_PREFIX}${supplierId}`]: { hash, min`",
+      "balance": false,
+      "fingerprint": "f3ad412c92da"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.delete([`${CODEHASH_PREFIX}${existing.hash}`)",
+      "what": "fulfillment-do: key expression `[`${CODEHASH_PREFIX}${existing.hash}`` — stores `[`${CODEHASH_PREFIX}${existing.hash}`, `${SUPPLIERCODE_PREFIX}${supplierId}`]`",
+      "balance": false,
+      "fingerprint": "ac85cc8090e6"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, acceptance`",
+      "balance": false,
+      "fingerprint": "e6f3178fdeee"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(`${CHALLENGE_PREFIX}${orderId}`)",
+      "what": "fulfillment-do: key expression ``${CHALLENGE_PREFIX}${orderId}`` — stores ``${CHALLENGE_PREFIX}${orderId}`, issued`",
+      "balance": false,
+      "fingerprint": "91b44f37368c"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put({ [`${CHALLENGE_PREFIX}${orderId}`]: { ...issued)",
+      "what": "fulfillment-do: key expression `{ [`${CHALLENGE_PREFIX}${orderId}`]: { ...issued` — stores `{ [`${CHALLENGE_PREFIX}${orderId}`]: { ...issued, consumedAt: now } satisfies IssuedChallengeRecord, [`${READY_PREFIX}${orderId}`]: ready, }`",
+      "balance": false,
+      "fingerprint": "525502fd04e4"
+    },
+    {
+      "id": "services/offer-service/worker/fulfillment-do.ts::storage.put(key)",
+      "what": "fulfillment-do: key expression `key` — stores `key, mark`",
+      "balance": false,
+      "fingerprint": "d693a2ce54fc"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.put(ENTRY_KEY)",
+      "what": "offer-do: key 'offer-entry' — stores `ENTRY_KEY, result.next`",
+      "balance": false,
+      "fingerprint": "9b3c50ae6ab8"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.delete(ENTRY_KEY)",
+      "what": "offer-do: key 'offer-entry' — stores `ENTRY_KEY`",
+      "balance": false,
+      "fingerprint": "1454625f03bb"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.put(POINTER_KEY)",
+      "what": "offer-do: key 'pv-pointer' — stores `POINTER_KEY, ptr`",
+      "balance": false,
+      "fingerprint": "37f8d61ea6c6"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.delete(POINTER_KEY)",
+      "what": "offer-do: key 'pv-pointer' — stores `POINTER_KEY`",
+      "balance": false,
+      "fingerprint": "aeea24c7a4b8"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.put(INDEX_KEY)",
+      "what": "offer-do: key 'index-list' — stores `INDEX_KEY, list`",
+      "balance": false,
+      "fingerprint": "3c4c4bc4460b"
+    },
+    {
+      "id": "services/offer-service/worker/offer-do.ts::storage.put(INDEX_KEY)",
+      "what": "offer-do: key 'index-list' — stores `INDEX_KEY, next`",
+      "balance": false,
+      "fingerprint": "dd8a0f987142"
     }
   ]
 }
