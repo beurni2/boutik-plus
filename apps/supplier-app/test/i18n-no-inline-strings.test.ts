@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { catalog } from '../src/i18n';
@@ -22,7 +22,14 @@ import { catalog } from '../src/i18n';
  * first time someone types a sentence into JSX again.
  */
 
-const V2 = ['src/v2/screens1.tsx', 'src/v2/screens2.tsx', 'src/v2/lister-real.tsx'] as const;
+/**
+ * EVERY v2 file, not the three this slice happened to touch. A verifier found
+ * the first version hardcoded to 3 of 13 and reported it as a false guarantee;
+ * it was right.
+ */
+const V2 = readdirSync(join(import.meta.dirname, '..', 'src/v2'))
+  .filter((f) => f.endsWith('.tsx'))
+  .map((f) => `src/v2/${f}`);
 const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..', rel), 'utf8');
 
 /**
@@ -41,6 +48,24 @@ const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..
  * never have included.
  */
 const LITTERAL_JSX = /\{'[A-ZÀ-Ýa-zà-ÿ][^']{14,}'\}|\{"[A-ZÀ-Ýa-zà-ÿ][^"]{14,}"\}/g;
+
+/**
+ * ⚠ WHAT THIS TEST DOES NOT COVER — stated so it is never read as a complete
+ * Law 6 guarantee. It checks ONE shape: a quoted string inside a JSX
+ * expression, `{'…'}` / `{"…"}`. A fresh-context verifier defeated it in
+ * several other shapes, and MEASURED the residue across all 13 v2 + ui/v2
+ * files: **52 user-facing strings still inline** — 33 as component props
+ * (`label="…"`, `title="…"`, `legend="…"`) and 19 as bare JSX text children
+ * (`<Text>Alerte stock</Text>`). Several are money-register, e.g.
+ * screens2.tsx « Commission revendeuse (vous la financez) » and screens1.tsx
+ * « Lister un produit — gratuit ».
+ *
+ * They are NOT fixed here. Migrating 52 prop-and-child strings is its own
+ * slice — each needs a key, a register tag, and a reading-level pass — and
+ * bolting it onto this one is how a small finding turns into a session.
+ * Recorded in JOURNAL.md as the named follow-up (AUDIT-B+1 F17 wave 2) so it
+ * is a known open item rather than a silent gap behind a green test.
+ */
 
 describe('Law 6 — user-facing French lives in the catalog, never inline in JSX', () => {
   it.each(V2)('%s carries no inline French sentence', (rel) => {
@@ -79,7 +104,7 @@ describe('Law 6 — user-facing French lives in the catalog, never inline in JSX
    */
   it('every fp.* key added by the F17 migration is present, non-empty and register-tagged', () => {
     const fp = catalog.filter((e) => e.key.startsWith('fp.'));
-    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(30);
+    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(27);
     for (const entry of fp) {
       expect(entry.fr.trim().length, `${entry.key} is empty`).toBeGreaterThan(0);
       expect(['money', 'selling', 'neutral'], `${entry.key} has no valid register`).toContain(entry.register);

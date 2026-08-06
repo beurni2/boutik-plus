@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloc } from './_region.js';
 
 /**
  * AUDIT-B+1 F18 — TWO TAP TARGETS UNDER THE 44 px DOCTRINE MINIMUM.
@@ -28,21 +29,28 @@ import { describe, expect, it } from 'vitest';
 
 const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..', rel), 'utf8');
 
-/** Bound a region STRUCTURALLY between two anchors — never a character budget. */
-function bloc(source: string, debut: string, fin: string): string {
-  const a = source.indexOf(debut);
-  expect(a, `anchor not found: ${debut}`).toBeGreaterThan(-1);
-  const b = source.indexOf(fin, a + debut.length);
-  expect(b, `closing anchor not found after ${debut}: ${fin}`).toBeGreaterThan(a);
-  const region = source.slice(a, b);
-  expect(region.length, 'region collapsed to nothing — the pin would assert over an empty string').toBeGreaterThan(40);
-  return region;
-}
+/**
+ * ⚠ VERIFIER BLOCKER, FIXED HERE — AND IT WAS THE F25 DEFECT SHIPPED INSIDE
+ * THE COMMIT THAT CLAIMED TO ELIMINATE IT.
+ *
+ * The first version of this file carried its OWN copy of `bloc` and bounded the
+ * chip with `('export const ChipVerified', 'export const EcheanceRow')`. Those
+ * two anchors are **20 009 characters and 27 exported components apart**
+ * (measured). A fresh-context verifier reverted the entire F18 fix — putting
+ * the chip back to its 91×38 target — planted the tokens in `EmptyState` 295
+ * lines below, and this file stayed **4/4 green**.
+ *
+ * So: the end anchor is now the IMMEDIATE next export (`export function
+ * Stepper`, 919 chars), and the helper is imported from `_region.ts` instead of
+ * duplicated. A second copy of a bounding helper is a second set of bounds to
+ * get wrong — which is precisely what happened.
+ */
+const CHIP_FIN = 'export function Stepper';
 
 describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web root', () => {
   it('the « Vérifié » chip carries a 44 px touch box (the painted 38 px pill is untouched)', () => {
     const src = lire('src/v2/components.tsx');
-    const region = bloc(src, 'export const ChipVerified', 'export const EcheanceRow');
+    const region = bloc(src, 'export const ChipVerified', CHIP_FIN, 200);
     expect(region, 'ChipVerified no longer uses the 44 px hit style').toContain('chipVerifiedHit');
     expect(region, 'the painted pill was dropped instead of being wrapped').toContain('s.chipVerified');
 
@@ -58,7 +66,7 @@ describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web roo
 
   it('the « parcours d’inscription » link carries minHeight 44 and centres its text', () => {
     const src = lire('src/v2/screens1.tsx');
-    const region = bloc(src, "OPEN_ONBOARD", 'fp.voir_parcours_inscription');
+    const region = bloc(src, 'OPEN_ONBOARD', 'accueil.gratuite_link');
     expect(region, 'the 15 px link is back').toContain('minHeight: 44');
     expect(region, 'a 44 px box with top-aligned text still reads as a thin strip').toContain("justifyContent: 'center'");
   });

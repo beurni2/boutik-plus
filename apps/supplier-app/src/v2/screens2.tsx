@@ -74,7 +74,7 @@ export function S17ReadySheet({ st, d }: { st: S; d: D }) {
         <C07BtnPrimary label="Confirmer — envoyer à Séra" disabled={disabled.confirmReady(st)} onPress={() => d({ t: 'CONFIRM_READY' })} />
       </View>
       <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 9, textAlign: 'center' }]}>
-        {tr('fp.pret_code_client_jamais')}
+        {tr('pret.honnete_code_client')}
       </Text>
     </Sheet>
   );

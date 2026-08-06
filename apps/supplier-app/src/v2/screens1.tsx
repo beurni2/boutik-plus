@@ -128,7 +128,7 @@ export function S02Accueil({ st, d, shopName, ownerName }: { st: S; d: D; shopNa
         accessibilityRole="link"
       >
         <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), { textDecorationLine: 'underline' }]}>
-          {tr('fp.voir_parcours_inscription')}
+          {tr('accueil.gratuite_link')}
         </Text>
       </Pressable>
     </ScrollView>

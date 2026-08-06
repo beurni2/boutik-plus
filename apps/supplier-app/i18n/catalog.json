@@ -3066,12 +3066,6 @@
     "screenClass": "instruction"
   },
   {
-    "key": "fp.pret_code_client_jamais",
-    "fr": "Le code client de livraison ne vous est jamais montré.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
     "key": "fp.stock_ajustement_note",
     "fr": "Chaque ajustement est daté et motivé. Le stock affiché aux revendeuses est calculé côté serveur.",
     "register": "neutral",
@@ -3127,7 +3121,7 @@
   },
   {
     "key": "fp.onboarding_conditions",
-    "fr": "Gratuit au départ · rien à avancer · rien à payer chaque mois.\nVous payez 5 % seulement quand un produit est vendu.",
+    "fr": "Rien à payer pour s’inscrire · rien à avancer · rien chaque mois.\nVous payez seulement 5 % quand un produit est vendu avec succès.",
     "register": "money",
     "screenClass": "selling_surface"
   },
@@ -3154,18 +3148,6 @@
     "fr": "Après quelques livraisons propres, vous devenez Vérifié : plus de commandes, paiement à la livraison débloqué.",
     "register": "selling",
     "screenClass": "instruction"
-  },
-  {
-    "key": "fp.nouveau_produit",
-    "fr": "Nouveau produit",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "fp.voir_parcours_inscription",
-    "fr": "Voir le parcours d'inscription vendeur",
-    "register": "selling",
-    "screenClass": "label"
   },
   {
     "key": "fp.photo_preparation_refusee",
