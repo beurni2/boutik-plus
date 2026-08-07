@@ -45,5 +45,18 @@ runScanGate({
      */
     { file: 'services/offer-service/worker/fulfillment-do.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET' },
     { file: 'services/offer-service/test/readiness-return.e2e.test.ts', pattern: 'storefront', ruling: 'the return leg’s own delivery pins' },
+    /**
+     * SE-LIVE-2b — the SAME class again, and the word is not ours to choose.
+     * `STOREFRONT` is the wrangler SERVICE BINDING name in
+     * services/offer-service/wrangler.toml (binding = "STOREFRONT", service =
+     * "storefront-service"), so a miniflare `serviceBindings` key in a test
+     * that exercises the outbox MUST spell it exactly to stand in for that
+     * Worker. Renaming it would break the binding, not improve the boundary.
+     * This test drives Boutik+'s readiness delivery to Séra and asserts the
+     * storefront leg stays independent — no buyer surface, no checkout, no
+     * cart, no order created in Boutik+, and `checkout`/`cart` remain banned
+     * in this file.
+     */
+    { file: 'services/offer-service/test/sera-readiness.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
   ],
 });
