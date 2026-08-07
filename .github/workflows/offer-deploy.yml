@@ -53,12 +53,49 @@ jobs:
           echo "BOUTIK_CANON=$(node -p "require('./node_modules/@platform/contracts/package.json').version")" >> "$GITHUB_ENV"
       - name: Bundle the combined Worker (OfferDO + service routes)
         run: pnpm --filter @boutik/offer-service bundle:worker
+      # ═══ THE SÉRA WIRE, ARMED WITH THE DEPLOY (SE-LIVE-2) ═══
+      #
+      # `fulfillment-do.ts` delivers the readiness fact to Séra's intake door and
+      # reads BOTH of these from the Worker env. Until this step existed the
+      # workflow shipped the code and nothing else: the outbox had nowhere to
+      # deliver, so the wire was live in the repo and dead in production.
+      #
+      # THE BASE IS A `--var`, NOT A SECRET — it is a public Worker URL and
+      # knowing it grants nothing; the door refuses without the key. The KEY is
+      # piped to `wrangler secret put`, never an argument, so it stays out of any
+      # process listing (this repo is PUBLIC).
+      #
+      # UNSET IS A LEGITIMATE STATE — the deploy-order law's normal case: Boutik+
+      # may ship before Séra's door exists. Unwired, the outbox holds the fact and
+      # retries; it never drops it and never reports delivered. So this WARNS and
+      # does NOT fail the deploy.
       - name: Deploy to Cloudflare Workers
         id: deploy
         working-directory: services/offer-service
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npx --yes wrangler@4 deploy
+          SERA_INTAKE_BASE: ${{ vars.SERA_INTAKE_BASE }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SERA_INTAKE_BASE}" ]; then
+            npx --yes wrangler@4 deploy --var SERA_INTAKE_BASE:"${SERA_INTAKE_BASE}"
+          else
+            echo "::warning title=Fil Sera NON armé::SERA_INTAKE_BASE is not set — the readiness fact has nowhere to go. The outbox keeps it and retries; nothing is dropped and nothing reports delivered."
+            npx --yes wrangler@4 deploy
+          fi
+
+      - name: Arm the Séra intake key (piped — warns only if the repo secret is absent)
+        working-directory: services/offer-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SERA_INTAKE_SECRET: ${{ secrets.SERA_INTAKE_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERA_INTAKE_SECRET}" ]; then
+            echo "::warning title=Cle Sera NON armee::SERA_INTAKE_SECRET absent — Séra's door will refuse every delivery (fail-closed) until the repo secret is set and this workflow re-dispatched."
+            exit 0
+          fi
+          printf '%s' "${SERA_INTAKE_SECRET}" | npx --yes wrangler@4 secret put SERA_INTAKE_SECRET
 
       # ═══ THE FOUNDER'S ATTESTATION, WRITTEN WITH THE DEPLOY ═══
       #
