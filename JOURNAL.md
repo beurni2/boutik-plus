@@ -3121,3 +3121,21 @@ A gate run reported `Boutik-Plus-Build-Spec.md` drifted from canon. Local file, 
 **Evidence:** shop-plus 502 tests · gates ALL GREEN · CI green on `c5605be` · guarded FF to main (storefront Worker deploys BEFORE the boutik consumer — deploy-order law). boutik-plus 807 supplier-app tests (+13: certified-bytes port walk, strict-row drops, board assignments parse, join, ordering, source discipline) · typecheck clean · copy-lint clean · gate board + CI: recorded at merge.
 
 **Open, named:** « livrée par » reads the board's LIVE assignments only (`active_unacknowledged | ack_pending_offline | acknowledged`) — a settled delivery leaves the board, so an old sale says « pas encore connu ici » until SE-LIVE-5 lands the custody/settlement truth (v1 = confirmed+, as scoped) · the Dock chip still says « Argent » (hardcoded legacy label; the screen titles « Vos gains ») — one line if the founder wants the chip renamed · `createdAt` is the order's birth instant, labelled « Commande du », not a payment timestamp.
+
+---
+
+## 2026-08-08 · RB-4 — the real Accueil, and the demo store loses its last route · + the chip becomes « Gains »
+
+**FOUNDER ORDERS (verbatim):** « Do RB-4 then SE-LIVE 5 » · « for the chip Argent suggest a good [name] and apply it ».
+
+**The chip:** « Gains » — his own word for the tab and the screen's title « Vos gains ». One label site (`Dock`, components.tsx); the machine's `'argent'` tab id stays (identifier, not user-facing).
+
+**The Accueil (`src/accueil/`):** `SAccueilReel` replaces the demo `S02Accueil`. Everything it shows, it read: product count + low-stock nudge (≤ 4, the demo's own display threshold, kept) from the same `listOffers` the Produits tab trusts; « À faire maintenant » from the real paid-order book — the three OLDEST waiting sales with the honest waiting clock, every tap landing ON the Commandes tab, never on a copy; two tiles that are COUNTS of real rows (ventes payées · prêtes à confier) — no client-side franc is composed anywhere on this screen, pinned by test. Without the ops key: products, wizard, promise banner, and an honest sans-clé line. **A deliberate deviation, documented in the header: a refused ops key here does NOT clear the stored slot** — this screen has no door, and clearing another screen's credential from a doorless screen strands the recovery. The Opérations tab owns that lifecycle.
+
+**The demo cut:** `S02Accueil`, `S05Fiche`, `S11Detail`, both sheets, `S40Celebration` and `SEED_DEFAULTS` left the shell; the id-miss fallback lands on the real Accueil. Mapped before cutting (the RB-1 lesson): `OPEN_ORDER`/`OPEN_PRODUCT` were dispatched only from screens already unrouted, the sheets and the celebration only from those — the arms were dead the moment home went real. The machine's demo state and the screen FILES stay (pixel tests pin their source; pure state with no route is inert). My own banned-token scan then caught two demo names surviving in a stale shell comment whose claims had become false — the comment now tells the truth. S33Trust / S34Onboard stay routed: checked, neither reads the seed store.
+
+**Second container re-provision today:** all four clones regressed mid-turn (boutik to a pre-RB-1 snapshot — caught because a grep of AppV2 contradicted a file I had edited an hour before). Remotes held everything; reset to origin heads, chip edit re-applied on the fresh base. The standing lesson holds: trust `git fetch` + origin, never the disk.
+
+**Evidence:** 815/815 supplier-app tests (+8: stock-bas threshold/order, oldest-first cap, shell source discipline incl. the no-franc pin and the 2× SAccueilReel mounts) · workspace typecheck clean · copy-lint 717 entries 0 violations · gate board + CI: recorded at merge.
+
+**Open, named:** the greeting sentence claims « Boutique ouverte » unconditionally — no real open/closed state exists yet to bind it to · `accueil.*` legacy demo strings (shopline, ech_*, stat_*) remain as catalog orphans, unrendered · SE-LIVE-5 is next (founder order), which will also give « prêtes à confier » its downstream meaning.

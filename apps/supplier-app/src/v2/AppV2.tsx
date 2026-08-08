@@ -24,17 +24,14 @@ import {
   bootEffect, initialState, reduce,
   type A, type Effect, type S, type Tab, type View as MachineView,
 } from './machine';
-import { SEED_DEFAULTS } from './seed';
 
 import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
-import { S01, S02Accueil, S03Produits, S05Fiche, S11Detail } from './screens1';
+import { S01 } from './screens1';
 import { SCommandesReel } from '../commandes/screen';
-import {
-  S17ReadySheet, S19StockSheet, S33Trust,
-  S34Onboard, S40Celebration,
-} from './screens2';
+import { S33Trust, S34Onboard } from './screens2';
 import { SGainsReel } from '../gains/screen';
+import { SAccueilReel } from '../accueil/screen';
 import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
 import { SOperations } from '../operations/screen';
@@ -132,8 +129,6 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // in screens1.tsx, where the cap now lives.
   const { width } = useWindowDimensions();
   const v = st.view;
-  const product = v?.s === 'product' && v.id !== undefined ? st.products[v.id] : undefined;
-  const order = v?.s === 'order' && v.id !== undefined ? st.orders[v.id] : undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
@@ -144,11 +139,13 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           <S01 />
         ) : v === null ? (
           st.tab === 'home' ? (
-            <S02Accueil st={st} d={d} shopName={SEED_DEFAULTS.shopName} ownerName={SEED_DEFAULTS.ownerName} />
+            // RB-4 (founder direction 2026-08-08) — the REAL home: his offers,
+            // the real paid-order book, counts of real rows. The demo store's
+            // last route into the shell ends here.
+            <SAccueilReel d={d} opsKey={opsKey} />
           ) : st.tab === 'produits' ? (
-            // PRODUITS-READ-1 — REAL offers, read from the service. The four
-            // SEED_PRODUCTS still exist for the Commandes board and are now
-            // unreachable from this screen: S03Produits has no binding to them.
+            // PRODUITS-READ-1 — REAL offers, read from the service. Since
+            // RB-4 the seed store has NO route into this shell at all.
             <SProduitsReal st={st} d={d} supplierId={SUPPLIER_ID} cache={produits} />
           ) : st.tab === 'commandes' ? (
             // RB-1 (founder direction 2026-08-08) — the REAL paid-order book,
@@ -169,10 +166,6 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
             // order's frozen money split behind key C, never the demo ledger.
             <SGainsReel />
           )
-        ) : v.s === 'product' && product ? (
-          <S05Fiche st={st} d={d} product={product} />
-        ) : v.s === 'order' && order ? (
-          <S11Detail st={st} d={d} order={order} />
         ) : v.s === 'add' ? (
           // COMBINED SLICE (founder reversal): « Lister un produit » opens HIS
           // five-step wizard again — the real writes run THROUGH it. SListerReal
@@ -192,14 +185,11 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           <S34Onboard st={st} d={d} />
         ) : (
           // unreachable id-miss guard: land back on the current tab, never crash
-          <S02Accueil st={st} d={d} shopName={SEED_DEFAULTS.shopName} ownerName={SEED_DEFAULTS.ownerName} />
+          <SAccueilReel d={d} opsKey={opsKey} />
         )}
       </View>
       {!st.loading && v === null && <Dock tab={st.tab} onTab={(tab) => d({ t: 'TAB', tab })} operateur={operateurDoor} />}
-      {st.sheet === 'ready' && <S17ReadySheet st={st} d={d} />}
-      {st.sheet === 'stock' && <S19StockSheet st={st} d={d} />}
       <ToastStack toasts={st.toasts} />
-      {st.celebr !== null && <S40Celebration amount={st.celebr} onDismiss={() => d({ t: 'CELEBR_DONE' })} />}
     </View>
   );
 }

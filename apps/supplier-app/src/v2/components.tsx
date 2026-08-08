@@ -105,7 +105,11 @@ export function Dock({ tab, onTab, operateur }: { tab: DockTab; onTab: (t: DockT
     { k: 'home' as const, label: 'Accueil', icon: 'tab.home' as const },
     { k: 'produits' as const, label: 'Produits', icon: 'tab.tag' as const },
     { k: 'commandes' as const, label: 'Commandes', icon: 'tab.box' as const },
-    { k: 'argent' as const, label: 'Argent', icon: 'tab.franc' as const },
+    // RB-4 (founder order 2026-08-08: « for the chip Argent suggest a good
+    // [name] and apply it ») — « Gains »: his own word for the tab, and the
+    // screen's title. The machine's tab id stays 'argent' (an identifier,
+    // not a user-facing string).
+    { k: 'argent' as const, label: 'Gains', icon: 'tab.franc' as const },
     // CONSOLE-1 — the founder's surface, present ONLY when his key is on this
     // device (the shell decides; see AppV2). Everyone else's Dock is unchanged.
     ...(operateur === true ? [{ k: 'operations' as const, label: 'Opérations', icon: 'tab.box' as const }] : []),

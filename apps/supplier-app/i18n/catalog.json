@@ -4258,5 +4258,47 @@
     "fr": "Commande du",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "accueil.engagement",
+    "fr": "Notre engagement",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.sans_cle",
+    "fr": "Vos ventes arrivent ici avec votre clé, onglet Opérations.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "accueil.ventes_payees",
+    "fr": "Ventes payées",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.pretes_confier",
+    "fr": "Prêtes à confier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.stock_bas",
+    "fr": "Stock bas",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.reste",
+    "fr": "reste",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "accueil.voir_commandes",
+    "fr": "Ouvrir les Commandes",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]
