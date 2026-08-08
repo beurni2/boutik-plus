@@ -47,8 +47,10 @@ export interface BoardSera {
 }
 
 export interface AdresseTache {
-  readonly lat: number;
-  readonly lng: number;
+  /** Canon v3.11.0 (founder ruling 2026-08-08): the pin is OPTIONAL — the
+   *  rider navigates landmark-first, and an absence beats a fabricated
+   *  coordinate. When given it must have parsed through `lirePin`. */
+  readonly pin?: { readonly lat: number; readonly lng: number };
   readonly zone: string;
   readonly landmark: string;
   readonly directions: string;
@@ -201,7 +203,8 @@ export function httpSeraDispatch(
             command_id: `cmd-boutik-tache-${orderId}`,
             orderId,
             location: {
-              pin: { lat: adresse.lat, lng: adresse.lng },
+              // An absent pin stays absent on the wire — never {0,0}.
+              ...(adresse.pin !== undefined ? { pin: { lat: adresse.pin.lat, lng: adresse.pin.lng } } : {}),
               zone: adresse.zone,
               landmark: adresse.landmark,
               directions: adresse.directions,

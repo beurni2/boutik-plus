@@ -4063,7 +4063,7 @@
   },
   {
     "key": "confier.pin",
-    "fr": "Point GPS (ex. 12.3714, -1.5197)",
+    "fr": "Point GPS — si vous l'avez (ex. 12.3714, -1.5197)",
     "register": "neutral",
     "screenClass": "label"
   },

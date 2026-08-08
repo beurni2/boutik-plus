@@ -141,7 +141,10 @@ function ConfierAvecService({
 
   const composer = async (): Promise<void> => {
     if (busy || cle === null) return;
-    const point = lirePin(pin);
+    // Canon v3.11.0 (founder ruling 2026-08-08): the pin is FACULTATIF. Blank
+    // means none — the rider navigates by the repère. Typed but unreadable
+    // still refuses: a half-pasted coordinate must never reach a rider.
+    const point = pin.trim() === '' ? undefined : lirePin(pin);
     if (point === null) {
       setAvis(t('confier.pin_invalide'));
       return;
@@ -158,8 +161,7 @@ function ConfierAvecService({
       cle,
       row.orderId,
       {
-        lat: point.lat,
-        lng: point.lng,
+        ...(point !== undefined ? { pin: point } : {}),
         zone: zone.trim(),
         landmark: repere.trim(),
         // CONFIER-ALLEGE (founder report 2026-08-08): canon makes these two
