@@ -81,6 +81,12 @@ jobs:
           # opens the fund book (PROTECTION_OPS_SECRET) is NEVER here — the
           # founder's alone, typed at the zone's own door, third of the three.
           EXPO_PUBLIC_PROTECTION_BASE: ${{ secrets.EXPO_PUBLIC_PROTECTION_BASE }}
+          # SE-LIVE-4e-B+ — the « Coursiers » zone reads the Séra rider registry.
+          # CONFIG, NOT A CREDENTIAL: a public workers.dev URL, the same one
+          # /health answers on. The KEY (SERA_OPS_SECRET) is typed by the founder
+          # and must NEVER appear here — it opens the rider registry and the SOS
+          # board for every rider, and this repo is public.
+          EXPO_PUBLIC_SERA_LOGISTICS_BASE: ${{ secrets.EXPO_PUBLIC_SERA_LOGISTICS_BASE }}
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app

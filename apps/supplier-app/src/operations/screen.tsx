@@ -79,6 +79,7 @@ import {
   type SuiviRead,
 } from './view';
 import { SZoneFonds } from '../fonds/zone';
+import { SZoneCoursiers } from '../coursiers/zone';
 
 /**
  * CONSOLE-1 — « Opérations », the founder's board (founder directive
@@ -115,7 +116,7 @@ const REFRESH_EVERY_MS = 60_000;
  * radii (§5: no snowflake styling in app code).
  */
 
-type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs' | 'fonds';
+type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs' | 'fonds' | 'coursiers';
 
 /** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
  *  `menu` is the chooser he lands on. */
@@ -443,6 +444,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
           <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
           <ChipCategory label={t('console.zone_fonds')} active={zone === 'fonds'} onPress={() => setZone('fonds')} />
+          {/* SE-LIVE-4e-B+ — « Coursiers »: the founder mints the code a rider
+              types to enter Séra. Founder order 2026-08-06: no separate URL. */}
+          <ChipCategory label={t('console.zone_coursiers')} active={zone === 'coursiers'} onPress={() => setZone('coursiers')} />
         </View>
 
         {zone === 'commandes' && view.kind === 'empty' && (
@@ -592,6 +596,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
                console, three Workers). The zone owns its door, its read and
                its recording acts; it needs nothing from the board's read. ── */}
         {zone === 'fonds' && <SZoneFonds />}
+        {zone === 'coursiers' && <SZoneCoursiers />}
 
         <SLivraisons zone={zone} />
       </Colonne>
