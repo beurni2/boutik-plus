@@ -3044,3 +3044,28 @@ Shop+ now derives an idempotency key from the order on `POST /checkout/dispatch/
 - **The word is not ours to choose.** `STOREFRONT` is the wrangler SERVICE BINDING name in `services/offer-service/wrangler.toml` (`binding = "STOREFRONT"`, `service = "storefront-service"`), and `fulfillment-do.ts` addresses the Shop+ Worker through `env.STOREFRONT`. A test standing in for that Worker must spell it exactly; renaming would break the binding, not improve the boundary.
 - **Carve-out granted, in an existing class — not a new exception.** The same ruling already covers `fulfillment-do.ts` (the delivery target) and `readiness-return.e2e.test.ts` (the return leg's pins). The entry excuses ONLY the `storefront` token in that one file: `checkout` and `cart` still fail there, and B+I-15 holds everywhere else in Boutik+. No buyer surface, no checkout, no cart, no order is created in Boutik+ by any of it.
 - **Evidence:** `node scripts/gates/no-consumer-storefront.mjs` exit 0 · full `run-gates.sh` exit 0 **ALL GATES GREEN** · pushed as `6d144fb`, CI re-dispatched on-branch.
+
+---
+
+## 2026-08-08 · Coursiers: the one-time code takes the whole screen (`52eaf3d`)
+
+**FOUNDER REPORT:** a screenshot of the working desk, right after a successful mint — `SR-Y3MG-SSJK-C532` on screen — and « after i generate the code the screen becomes confusing. »
+
+**He is right, and the cause was mine.** Two defects, one screen:
+
+1. **Two primary greens at once.** The code card rendered ABOVE the live roster, so « C'est noté » and « Donner un code » sat one under the other, identical weight, identical colour, both full width. §5's « one primary action per screen, hierarchy is ruthless » failed at the exact moment it mattered most — and the second of those buttons, if it had worked, would have destroyed the code he was holding.
+2. **Every other button was silently dead.** Each `onPress` opened with an early return on a blocked flag. He taps, nothing happens, nothing explains why. **A guard that protects the code by making buttons lie is worse than no guard** — the refusal message existed (`coursiers.notez_dabord`) but was unreachable, because the early return fired before `lancer` could speak it. Classic dead-guard: perfectly satisfied, because the thing it guarded could never happen.
+
+### The fix
+- **The desk steps aside.** `LivreCoursiers` returns early when `ui.nouveau !== null` and renders the code card ALONE. The block is now a fact of the layout, not a rule the buttons pretend to follow. Nothing can be mis-tapped because nothing else is offered. `refuserActe` keeps the same rule in the pure logic as defence in depth, still tested.
+- **No silent refusals.** The early returns are gone; an act attempted while another is in flight goes through `lancer` → `refuserActe` → a banner he can read.
+- **The form clears only on a code that came back.** It had kept `bossy` in the identifiant field after a successful registration, which reads as « it did not work » and invites a second submit — destroying the fresh code. A failure keeps what he typed.
+
+### ⚠ TWO PROCESS FAILURES OF MINE, ON THE RECORD
+1. **I ran `git checkout --` on a file carrying uncommitted work,** between mutation rounds, and it restored zone.tsx from HEAD — deleting the entire fix. I only noticed because the next mutation reported `applied? count=0`. Backups for mutation testing come from a **copy of the working file**, never from git.
+2. **My first mutation script never mutated anything** — `\$Z` was escaped inside the heredoc, so `perl` opened a file named `$Z`, failed, and the suite passed 21/21 three times in a row over an unmutated file. That is precisely « a mutation that did not apply is not a passing mutation test ». The anchor-count print is what caught it, and it is now the first line of every mutation round.
+
+### Evidence
+Workspace typecheck **14/14** · supplier-app **54 files, 782 tests** (+3) · gate board **ALL GATES GREEN**, including `no-emoji` and `copy-lint`. The three new tests were mutation-tested four ways — reinstate the silent guard, turn the early return into a plain branch, clear the form unconditionally, disable the guard — and **each killed exactly one assertion**, with the anchor count verified before any result was believed.
+
+**Stated honestly:** this app has no React renderer in its test setup (vitest only, pure tests), so these are structural assertions on the component source, not render proofs. Adding a renderer is real infrastructure and was not in scope for a UI fix. The render proof is the founder's own screen.
