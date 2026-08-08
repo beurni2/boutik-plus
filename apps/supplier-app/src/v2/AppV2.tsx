@@ -28,7 +28,8 @@ import { SEED_DEFAULTS } from './seed';
 
 import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
-import { S01, S02Accueil, S03Produits, S05Fiche, S07Commandes, S11Detail } from './screens1';
+import { S01, S02Accueil, S03Produits, S05Fiche, S11Detail } from './screens1';
+import { SCommandesReel } from '../commandes/screen';
 import {
   S17ReadySheet, S19StockSheet, S32Argent, S33Trust,
   S34Onboard, S40Celebration,
@@ -149,7 +150,10 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
             // unreachable from this screen: S03Produits has no binding to them.
             <SProduitsReal st={st} d={d} supplierId={SUPPLIER_ID} cache={produits} />
           ) : st.tab === 'commandes' ? (
-            <S07Commandes st={st} d={d} />
+            // RB-1 (founder direction 2026-08-08) — the REAL paid-order book,
+            // not the demo store: the console's board and Livraisons flows
+            // live here now, and the console zones are retired.
+            <SCommandesReel />
           ) : st.tab === 'operations' ? (
             <SOperations
               opsKey={opsKey}

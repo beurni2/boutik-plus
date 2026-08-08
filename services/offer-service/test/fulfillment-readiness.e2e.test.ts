@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { READINESS_CHALLENGE_TTL_MS } from '../worker/fulfillment-do.js';
 import { READINESS_CHALLENGE_TTL_MS as REFERENCE_TTL_MS } from '@boutik/fulfillment-service';
 
@@ -695,5 +695,60 @@ describe('RB-1 — the founder’s supplier contact card (name + phone, his deci
     expect((await opsPost('/fulfillment/supplier-contact', { supplierId: SUPPLIER_A, name: 'X', phone: '70' }, 'wrong-key')).status).toBe(401);
     expect((await opsGet('/fulfillment/supplier-contacts', 'wrong-key')).status).toBe(401);
     expect((await opsGet('/fulfillment/supplier-contacts', null)).status).toBe(401);
+  });
+});
+
+describe('RB-1 — the Commandes TAB’s own port, driven against the real Worker', () => {
+  // THE SEAM LAW: the tab reads through resolveOperationsService() — the same
+  // module, resolved the same way, pointed at the REAL combined Worker. If the
+  // port’s shapes drift from the routes (the hasCode lesson from the Séra
+  // desk), this fails in CI, not on the founder’s screen.
+  it('board + contacts + evidence reach the tab exactly as the book holds them', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'http://o');
+    vi.stubGlobal('fetch', ((url: string, init?: RequestInit) =>
+      mf.dispatchFetch(url, init as never)) as never);
+    try {
+      const { resolveOperationsService } = await import(
+        '../../../apps/supplier-app/src/operations/service'
+      );
+      const port = resolveOperationsService();
+      expect(port, 'the base is set, so the port must resolve').not.toBeNull();
+
+      const orderId = 'ord-rb1-port-1';
+      const { codeA, challenge } = await acceptAndChallenge(orderId);
+
+      // ── the board carries the paid order, not yet ready ──────────────────
+      const before = await port!.listPaidOrders(OPS_SECRET);
+      expect(before.ok, JSON.stringify(before)).toBe(true);
+      const rowBefore = before.ok ? before.orders.find((o) => o.orderId === orderId) : undefined;
+      expect(rowBefore, 'the tab must see the paid order').toBeDefined();
+      expect(rowBefore?.fulfillment?.readyAt, 'not ready yet — the À traiter segment').toBeUndefined();
+      expect((await port!.orderEvidence(OPS_SECRET, orderId)).ok).toBe(false);
+
+      // ── his contact card round-trips through the port ────────────────────
+      const saved = await port!.saveSupplierContact(OPS_SECRET, {
+        supplierId: SUPPLIER_A, name: 'Aïcha Ouédraogo', phone: '70 00 00 01',
+      });
+      expect(saved.ok, JSON.stringify(saved)).toBe(true);
+      const contacts = await port!.listSupplierContacts(OPS_SECRET);
+      expect(contacts.ok && contacts.contacts.some((c) => c.name === 'Aïcha Ouédraogo')).toBe(true);
+
+      // ── the supplier confirms ready; the tab’s Terminées detail reads the proof
+      const payload = readyPayload(orderId, challenge);
+      expect((await act('/fulfillment/ready', payload, codeA)).json['ok']).toBe(true);
+      const after = await port!.listPaidOrders(OPS_SECRET);
+      const rowAfter = after.ok ? after.orders.find((o) => o.orderId === orderId) : undefined;
+      expect(rowAfter?.fulfillment?.readyAt, 'ready now — the Terminées segment').toBeTypeOf('string');
+      const ev = await port!.orderEvidence(OPS_SECRET, orderId);
+      expect(ev.ok, JSON.stringify(ev)).toBe(true);
+      expect(ev.ok ? ev.evidence.photoRef.ref : '').toBe(payload.photoRef.ref);
+
+      // ── a wrong key is bad_key on every port read — the tab’s door law ──
+      expect((await port!.listPaidOrders('wrong')).ok).toBe(false);
+      expect((await port!.listSupplierContacts('wrong')).ok).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 });

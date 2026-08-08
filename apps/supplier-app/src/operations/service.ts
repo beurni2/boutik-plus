@@ -102,8 +102,44 @@ export type RevokeResult =
   | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
+/** RB-1 — the founder's own card per supplier (name + phone, his decision
+ *  2026-08-08). `phone` may be '' — a named supplier with no number renders
+ *  the call button's honest empty state. */
+export interface SupplierContact {
+  readonly supplierId: string;
+  readonly name: string;
+  readonly phone: string;
+}
+
+export type ContactsResult =
+  | { readonly ok: true; readonly contacts: readonly SupplierContact[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type SaveContactResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'malformed' };
+
+/** RB-1 — the supplier's readiness proof, one order at a time. The photoRef is
+ *  the canon MediaRef the supplier attached to « Produit prêt »; the renderer
+ *  builds `${mediaBase}/${ref}` exactly as the produits screens do. */
+export interface OrderEvidence {
+  readonly photoRef: { readonly ref: string; readonly sha256: string; readonly mimeType: string };
+  readonly readyAt: string;
+  readonly qty: number;
+  readonly variant: string;
+}
+
+export type EvidenceResult =
+  | { readonly ok: true; readonly evidence: OrderEvidence }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'not_ready' | 'unknown_order' };
+
 export interface OperationsServicePort {
   listPaidOrders(opsKey: string): Promise<PaidOrdersResult>;
+  /** RB-1 — read his contact cards, save one (last write wins), and read one
+   *  order's readiness proof. Same key as the board: one door, one identity. */
+  listSupplierContacts(opsKey: string): Promise<ContactsResult>;
+  saveSupplierContact(opsKey: string, card: SupplierContact): Promise<SaveContactResult>;
+  orderEvidence(opsKey: string, orderId: string): Promise<EvidenceResult>;
   /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
    *  the Worker stamps its own clock. */
   recordRelance(opsKey: string, orderId: string): Promise<RelanceResult>;
@@ -150,6 +186,93 @@ export function resolveOperationsService(): OperationsServicePort | null {
         if (row !== null) orders.push(row);
       }
       return { ok: true, orders };
+    },
+
+    async listSupplierContacts(opsKey: string): Promise<ContactsResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-contacts`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; contacts?: unknown } | null;
+      if (body?.ok !== true || !Array.isArray(body.contacts)) return { ok: false, reason: 'unreachable' };
+      // Strict rows, the standing law: a malformed card is DROPPED, never
+      // rendered half-formed.
+      const contacts: SupplierContact[] = [];
+      for (const raw of body.contacts) {
+        if (raw === null || typeof raw !== 'object') continue;
+        const c = raw as Record<string, unknown>;
+        if (typeof c['supplierId'] !== 'string' || c['supplierId'] === '') continue;
+        if (typeof c['name'] !== 'string' || c['name'] === '') continue;
+        contacts.push({
+          supplierId: c['supplierId'],
+          name: c['name'],
+          phone: typeof c['phone'] === 'string' ? c['phone'] : '',
+        });
+      }
+      return { ok: true, contacts };
+    },
+
+    async saveSupplierContact(opsKey: string, card: SupplierContact): Promise<SaveContactResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-contact`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${opsKey}`,
+          },
+          body: JSON.stringify(card),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 400) return { ok: false, reason: 'malformed' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      return { ok: true };
+    },
+
+    async orderEvidence(opsKey: string, orderId: string): Promise<EvidenceResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/order-evidence?orderId=${encodeURIComponent(orderId)}`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (res.status === 404) {
+        // The two honest absences, distinguished: « pas encore prêt » is a
+        // state of the order; « inconnu » is a typo or a stale row.
+        return { ok: false, reason: body?.['reason'] === 'not_ready' ? 'not_ready' : 'unknown_order' };
+      }
+      if (!res.ok || body?.['ok'] !== true) return { ok: false, reason: 'unreachable' };
+      const ref = body['photoRef'];
+      if (ref === null || typeof ref !== 'object') return { ok: false, reason: 'unreachable' };
+      const r = ref as Record<string, unknown>;
+      if (typeof r['ref'] !== 'string' || r['ref'] === '') return { ok: false, reason: 'unreachable' };
+      return {
+        ok: true,
+        evidence: {
+          photoRef: {
+            ref: r['ref'],
+            sha256: typeof r['sha256'] === 'string' ? r['sha256'] : '',
+            mimeType: typeof r['mimeType'] === 'string' ? r['mimeType'] : '',
+          },
+          readyAt: typeof body['readyAt'] === 'string' ? body['readyAt'] : '',
+          qty: typeof body['qty'] === 'number' ? body['qty'] : 1,
+          variant: typeof body['variant'] === 'string' ? body['variant'] : '',
+        },
+      };
     },
 
     async recordRelance(opsKey: string, orderId: string): Promise<RelanceResult> {

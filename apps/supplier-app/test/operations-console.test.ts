@@ -834,7 +834,9 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     // key C's refusal re-enters ITS OWN door (clearStoredCleC), never setRead bad_key on the board
     expect(source).toContain('clearStoredCleC();');
     const used = [...source.matchAll(/t\('(livraisons\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
-    expect(used.length).toBeGreaterThan(5);
+    // RB-1: the livraisons LIST moved to the Commandes tab; the key-C door and
+    // its own strings stay. The floor drops with the arm, deliberately.
+    expect(used.length).toBeGreaterThan(2);
     const keys = new Set(catalog.map((e) => e.key));
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
   });
@@ -1476,7 +1478,9 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
   it('the four zones exist, each reachable from the nav, each label from the catalog', () => {
     const source = screenSource();
     const keys = new Set(catalog.map((e) => e.key));
-    for (const zone of ['commandes', 'livraisons', 'revendeuses', 'fournisseurs'] as const) {
+    // RB-1 (founder order 2026-08-08): commandes and livraisons moved to the
+    // app's Commandes TAB — the console keeps its four remaining rooms.
+    for (const zone of ['revendeuses', 'fournisseurs', 'fonds', 'coursiers'] as const) {
       expect(keys.has(`console.zone_${zone}`), `console.zone_${zone} in catalog`).toBe(true);
       expect(source, zone).toContain(`t('console.zone_${zone}')`);
       expect(source, zone).toContain(`onPress={() => setZone('${zone}')}`);
@@ -1510,7 +1514,10 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
    */
   it('SLivraisons stays mounted across zones — it hides itself, it is never unmounted', () => {
     const source = screenSource();
-    expect(source).toContain("if (zone !== 'livraisons' && zone !== 'revendeuses') return null;");
+    // RB-1: the livraisons arm retired with its zone; the guard names only
+    // the room that remains. The unconditional mount below is the claim that
+    // matters and it is UNCHANGED.
+    expect(source).toContain("if (zone !== 'revendeuses') return null;");
     // THE WHOLE LINE, anchored — a mutation run proved a substring match lets
     // `zone !== 'commandes' && …` ride in front of the gate unseen, and that
     // one word is the code-destroyer this pin exists to refuse.
@@ -1674,8 +1681,11 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
 
   it('the urgent line is honest and navigational: board-only, count > 0, absent inside its own zone', () => {
     const source = screenSource();
-    expect(source).toContain("view.kind === 'board' && view.relancer.length > 0 && zone !== 'commandes'");
-    expect(source).toContain("t('console.urgent').replace('{n}', String(view.relancer.length))");
+    // RB-1: the commandes ZONE is gone, so there is nothing to navigate to in
+    // the console — the line stays board-only and count-gated, and it now
+    // points at the app's Commandes TAB by name.
+    expect(source).toContain("view.kind === 'board' && view.relancer.length > 0 &&");
+    expect(source).toContain("t('console.urgent_onglet').replace('{n}', String(view.relancer.length))");
   });
 
   it('the one-time code renders through ONE ceremonial card everywhere a plaintext exists once', () => {

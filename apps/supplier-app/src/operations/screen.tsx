@@ -116,7 +116,7 @@ const REFRESH_EVERY_MS = 60_000;
  * radii (§5: no snowflake styling in app code).
  */
 
-type ZoneConsole = 'commandes' | 'livraisons' | 'revendeuses' | 'fournisseurs' | 'fonds' | 'coursiers';
+type ZoneConsole = 'revendeuses' | 'fournisseurs' | 'fonds' | 'coursiers';
 
 /** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
  *  `menu` is the chooser he lands on. */
@@ -268,7 +268,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   // CONSOLE-GT-1 — which zone the founder is looking at. Pure navigation: no
   // read waits for it (everything loads at mount exactly as before), and no
   // section's STATE lives behind it — a zone switch hides pixels, never facts.
-  const [zone, setZone] = useState<ZoneConsole>('commandes');
+  const [zone, setZone] = useState<ZoneConsole>('fournisseurs');
 
   // `force` exists because of a real defect the verifier caught: the 60-second
   // background re-read holds `inFlight`, so the re-read AFTER a successful
@@ -421,13 +421,13 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           </View>
         )}
 
-        {/* ═══ THE URGENT LINE — visible from every zone, one tap home ═══ */}
-        {view.kind === 'board' && view.relancer.length > 0 && zone !== 'commandes' && (
-          <Pressable onPress={() => setZone('commandes')} accessibilityRole="button">
-            <View style={{ marginTop: 14 }}>
-              <Banner tone="warn">{t('console.urgent').replace('{n}', String(view.relancer.length))}</Banner>
-            </View>
-          </Pressable>
+        {/* RB-1 — the urgent line used to jump to the commandes ZONE; that
+            work lives in the app's Commandes TAB now. The line stays as a
+            fact (it still reads from the same board), pointing him there. */}
+        {view.kind === 'board' && view.relancer.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <Banner tone="warn">{t('console.urgent_onglet').replace('{n}', String(view.relancer.length))}</Banner>
+          </View>
         )}
 
         {/* ═══ THE ZONE NAV — four rooms instead of one corridor ═══
@@ -439,8 +439,6 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
              same failure (see its mount below), hiding its doors would have
              stranded him inside whichever room he was standing in. */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
-          <ChipCategory label={t('console.zone_commandes')} active={zone === 'commandes'} onPress={() => setZone('commandes')} />
-          <ChipCategory label={t('console.zone_livraisons')} active={zone === 'livraisons'} onPress={() => setZone('livraisons')} />
           <ChipCategory label={t('console.zone_revendeuses')} active={zone === 'revendeuses'} onPress={() => setZone('revendeuses')} />
           <ChipCategory label={t('console.zone_fournisseurs')} active={zone === 'fournisseurs'} onPress={() => setZone('fournisseurs')} />
           <ChipCategory label={t('console.zone_fonds')} active={zone === 'fonds'} onPress={() => setZone('fonds')} />
@@ -449,110 +447,10 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           <ChipCategory label={t('console.zone_coursiers')} active={zone === 'coursiers'} onPress={() => setZone('coursiers')} />
         </View>
 
-        {zone === 'commandes' && view.kind === 'empty' && (
-          <View style={{ marginTop: 16 }}>
-            <Banner tone="info">{t(view.message)}</Banner>
-          </View>
-        )}
-
-        {zone === 'commandes' && view.kind === 'board' && (
-          <>
-            {/* ── À relancer — the founder's 10-minute line, loudest and first ── */}
-            <TeteSection titre={t('operations.relancer_titre')} marge={24} />
-            {view.relancer.length === 0 ? (
-              <View style={{ marginTop: 10 }}>
-                <Banner tone="success" check>{t('operations.relancer_vide')}</Banner>
-              </View>
-            ) : (
-              view.relancer.map((r) => (
-                <CommandeCard
-                  key={r.orderId}
-                  row={r}
-                  chase
-                  action={{
-                    label: t('operations.relance_action'),
-                    busy: relanceUi.busy === r.orderId,
-                    failed: relanceUi.echec === r.orderId,
-                    locked: relanceUi.busy !== null,
-                    onPress: () => { void relancer(r.orderId); },
-                  }}
-                />
-              ))
-            )}
-
-            {/* ── En préparation — the REAL signal: the supplier's own act.
-                   « Prêt » only from an evidenced B6.2 confirmation. ── */}
-            {view.preparation.length > 0 && (
-              <>
-                <TeteSection titre={t('operations.preparation_titre')} />
-                {view.preparation.map((r) => (
-                  <CommandeCard key={r.orderId} row={r} nowMs={nowMs} />
-                ))}
-              </>
-            )}
-
-            {/* ── Déjà appelés — his own record of his own act. Never « prêt ». ── */}
-            {view.relances.length > 0 && (
-              <>
-                <TeteSection titre={t('operations.relances_titre')} sens={t('operations.relance_sens')} />
-                {view.relances.map((r) => (
-                  <CommandeCard
-                    key={r.orderId}
-                    row={r}
-                    called
-                    nowMs={nowMs}
-                    action={{
-                      label: t('operations.relance_rappeler'),
-                      busy: relanceUi.busy === r.orderId,
-                      failed: relanceUi.echec === r.orderId,
-                      locked: relanceUi.busy !== null,
-                      onPress: () => { void relancer(r.orderId); },
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* ── Payées à l'instant — fresh, watching, no action yet ── */}
-            <TeteSection titre={t('operations.recentes_titre')} />
-            {view.recentes.length === 0 ? (
-              <View style={{ marginTop: 10 }}>
-                <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.recentes_vide')}</Text>
-              </View>
-            ) : (
-              view.recentes.map((r) => <CommandeCard key={r.orderId} row={r} />)
-            )}
-
-            {/* ── Anomalies — a paid order this platform cannot place. Never buried. ── */}
-            {view.anomalies.length > 0 && (
-              <View style={{ marginTop: 22 }}>
-                <Banner tone="danger">{t('operations.anomalie_bandeau')}</Banner>
-              </View>
-            )}
-          </>
-        )}
-
-        {/* ── CONSOLE-3 — Codes fournisseurs: who holds a door, since when.
-               Mint warns (never blocks) on a supplier the book has never seen —
-               the phantom-door footgun, closed where it fires. Present on the
-               EMPTY board too: the first code is minted before the first sale. ── */}
-        {/* AUDIT-B+1 F19 — MOUNTED FOR EVERY `view.kind`, like `SLivraisons`
-            below. The 60-second refresh turns any network fault into `failed`,
-            and this card was mounted only on the two healthy kinds: one dropped
-            request pulled a live one-time code OFF THE SCREEN while he read it
-            down the phone, returning only when the board recovered. The `avis`
-            below already handles an unhealthy board read by saying nothing, so
-            this card never needed the board to be well.
-
-            WHAT THIS IS *NOT*, recorded because two reviews in two days got it
-            backwards in opposite directions: unmounting `SCodes` never
-            DESTROYED the code. `codesUi` is `SBoard` state, and `SBoard` stays
-            mounted while a key is stored — so the plaintext survived and came
-            back. Yesterday I froze a « Retour » against a destruction that
-            could not happen; the audit then reported a destruction here that
-            also cannot happen. The defect is real either way and is a
-            disappearance, not a loss. Before writing « X destroys the code »,
-            find the `useState` that holds it and name the component. */}
+        {/* RB-1 (founder order 2026-08-08): the Commandes board and the
+            Livraisons zone moved to the app's Commandes TAB — real data, same
+            flow. The board READ above stays: the codes zone's mint pre-flight
+            still speaks from it. */}
         {zone === 'fournisseurs' && (
           <SCodes
             read={codesRead}
@@ -599,11 +497,21 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
         {zone === 'coursiers' && <SZoneCoursiers />}
 
         <SLivraisons zone={zone} />
+
       </Colonne>
     </ScrollView>
   );
 }
 
+
+/* ───────────────── CONSOLE-3 — the code inventory section ────────────────── */
+
+/**
+ * The founder's door registry, on the board he already trusts. Calm registers:
+ * a fresh code is a HANDOVER moment — it renders big, with the one sentence
+ * that matters (« il ne s'affichera plus »), and leaves only when he says so.
+ * One write at a time, nothing shown as done before the book answers.
+ */
 /* ─────────── BC-1c — the dispatch section (Shop+ read, key C) ─────────── */
 
 /**
@@ -799,7 +707,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   // the component itself STAYS MOUNTED (returning null keeps hooks and state):
   // key C, the four reads, and above all a live one-time access code must
   // survive the founder walking to another zone and back.
-  if (zone !== 'livraisons' && zone !== 'revendeuses') return null;
+  if (zone !== 'revendeuses') return null;
 
   return (
     <View>
@@ -849,66 +757,10 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
         </View>
       )}
 
-      {/* ═══ ZONE LIVRAISONS — the rider's truth: who, where, which number ═══ */}
-      {zone === 'livraisons' && (
-        <>
-          {vue !== null && vue.kind === 'loading' && (
-            <View style={{ marginTop: 16 }}>
-              <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
-            </View>
-          )}
-          {vue !== null && vue.kind === 'not_configured' && (
-            <View style={{ marginTop: 16 }}>
-              <Banner tone="info">{t(vue.message)}</Banner>
-            </View>
-          )}
-          {vue !== null && vue.kind === 'failed' && (
-            <View style={{ marginTop: 16 }}>
-              <Banner tone="warn">{t(vue.message)}</Banner>
-              <View style={{ marginTop: 10 }}>
-                <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={() => { if (cleC !== null) void load(cleC); }} />
-              </View>
-            </View>
-          )}
-          {vue !== null && vue.kind === 'empty' && (
-            <>
-              <TeteSection titre={t('livraisons.titre')} marge={24} />
-              <View style={{ marginTop: 10 }}>
-                <Banner tone="info">{t(vue.message)}</Banner>
-              </View>
-            </>
-          )}
-
-          {vue !== null && vue.kind === 'liste' && (
-            <>
-              <TeteSection titre={t('livraisons.a_livrer_titre')} marge={24} />
-              {vue.aLivrer.length === 0 ? (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={role({ f: 'IS', w: 400, s: 12.5 }, P.sub)}>{t('livraisons.a_livrer_vide')}</Text>
-                </View>
-              ) : (
-                vue.aLivrer.map((r) => <CarteLivraison key={r.orderId} row={r} cleC={cleC} />)
-              )}
-              {vue.sansContact.length > 0 && (
-                <View style={{ marginTop: 12 }}>
-                  <Banner tone="warn">{t('livraisons.sans_contact').replace('{n}', String(vue.sansContact.length))}</Banner>
-                </View>
-              )}
-              {vue.enAttente.length > 0 && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>
-                    {t('livraisons.en_attente').replace('{n}', String(vue.enAttente.length))}
-                  </Text>
-                </View>
-              )}
-              <View style={{ marginTop: 16 }}>
-                <BtnGhost label={t('operations.actualiser')} onPress={() => { if (cleC !== null) void load(cleC); }} />
-              </View>
-            </>
-          )}
-        </>
-      )}
-
+      {/* RB-1 (founder order 2026-08-08): the ZONE LIVRAISONS list moved to
+          the app's Commandes TAB (the Terminées detail reads the same key-C
+          dispatch row). This component keeps key C's door and the revendeuses
+          sections — its livraisons ARM alone retired. */}
       {/* ═══ ZONE REVENDEUSES — the roster, the suivi, the access codes.
              CONSOLE-GT-1 freed these from the dispatch list's read: a failed
              LIVRAISONS read no longer hides the ROSTER, because they are
@@ -1305,14 +1157,6 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-/* ───────────────── CONSOLE-3 — the code inventory section ────────────────── */
-
-/**
- * The founder's door registry, on the board he already trusts. Calm registers:
- * a fresh code is a HANDOVER moment — it renders big, with the one sentence
- * that matters (« il ne s'affichera plus »), and leaves only when he says so.
- * One write at a time, nothing shown as done before the book answers.
- */
 function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;

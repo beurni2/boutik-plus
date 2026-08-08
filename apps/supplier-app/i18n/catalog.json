@@ -3772,5 +3772,257 @@
     "fr": "L'adresse du service Séra n'est pas renseignée pour cette version.",
     "register": "neutral",
     "screenClass": "instruction"
+  },
+  {
+    "key": "commandes.titre",
+    "fr": "Commandes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pas_relie",
+    "fr": "Cet écran n'est pas relié au service pour cette version.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.cle_titre",
+    "fr": "Votre clé d’opérateur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.cle_aide",
+    "fr": "Elle reste sur cet appareil. Elle ouvre le livre des commandes payées.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.cle_placeholder",
+    "fr": "Collez la clé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.cle_entrer",
+    "fr": "Ouvrir",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.chargement",
+    "fr": "Lecture des commandes…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.echec",
+    "fr": "La liste n’est pas arrivée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.seg_a_traiter",
+    "fr": "À traiter",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.seg_terminees",
+    "fr": "Terminées",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.seg_incidents",
+    "fr": "Incidents",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.incidents_pas_relie",
+    "fr": "Pour voir les incidents ici, ouvrez une fois la zone Fonds avec votre clé du fonds.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.vide_a_traiter",
+    "fr": "Rien à traiter pour l'instant. Chaque vente payée arrive ici.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.vide_terminees",
+    "fr": "Aucun colis prêt pour l’instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.vide_incidents",
+    "fr": "Aucun incident signalé.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.instant",
+    "fr": "À l’instant",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.attente_depuis",
+    "fr": "En attente depuis",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.attente_appuyee",
+    "fr": "Cela fait plusieurs heures. Un appel peut aider.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.attente_forte",
+    "fr": "Plus d’un jour d’attente. Appelez le fournisseur.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.deja_relance",
+    "fr": "Vous avez déjà appelé pour cette commande.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.appeler",
+    "fr": "Appeler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pas_de_numero",
+    "fr": "Pas de numéro pour ce fournisseur. Ajoutez-le ci-dessous.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.notifier",
+    "fr": "Noter : j’ai appelé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.relance_faite",
+    "fr": "Appel noté",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.carte_titre",
+    "fr": "Fiche du fournisseur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.carte_nom",
+    "fr": "Nom du fournisseur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.carte_tel",
+    "fr": "Numéro de téléphone",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.carte_enregistrer",
+    "fr": "Enregistrer la fiche",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.preuve_titre",
+    "fr": "Photo du colis, envoyée par le fournisseur",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.preuve_echec",
+    "fr": "La photo n’est pas arrivée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.preuve_sans_media",
+    "fr": "L’adresse des photos n’est pas renseignée pour cette version.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.cliente_titre",
+    "fr": "La cliente",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.cle_c_requise",
+    "fr": "Pour voir le contact de la cliente, entrez une fois la clé C dans la console.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.cliente_echec",
+    "fr": "Le contact n’est pas arrivé.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.cliente_sans_contact",
+    "fr": "La cliente n’a pas laissé de contact.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.pill_incident",
+    "fr": "Incident",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_prete",
+    "fr": "Prête",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_acceptee",
+    "fr": "Acceptée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_attente",
+    "fr": "En attente",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.cle_c_placeholder",
+    "fr": "Collez la clé C",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.urgent_onglet",
+    "fr": "{n} commande(s) attendent un appel — ouvrez l’onglet Commandes.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]
