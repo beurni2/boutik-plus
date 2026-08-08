@@ -194,6 +194,53 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
   return max;
 }
 
+/**
+ * ═══ REPERE-AUDIO-REEL — THE BUYER'S VOICE NOTE (founder order 2026-08-08) ═══
+ *
+ * « On the buyer's screen the repère audio recording is still a mock. » Law 5's
+ * own sentence — voice = RECORDED AUDIO — finally gets its storage door. One
+ * kind of media: a short voice note describing the drop landmark, recorded by
+ * a phone's MediaRecorder. What phones emit: Android Chrome → WebM/Opus,
+ * iOS Safari → MP4/AAC, some browsers → Ogg/Opus. All three are accepted by
+ * MAGIC BYTES, never by claim — same doctrine as images and video.
+ *
+ * BOUNDS ARE ENGINEERING CEILINGS, not canon numbers (no canon bound exists
+ * for a voice note): 2 MiB covers minutes of Opus and ~40 s of AAC; the
+ * capture UI stops itself at 30 s. Duration is measured ONLY where a pure-JS
+ * walk can read it (the MP4 family, the same `mvhd`/`mdhd` walk the video
+ * door trusts); WebM/Ogg carry no such cheap clock, so for them the BYTE
+ * ceiling is the wall and that is stated here rather than pretended away.
+ */
+export const AUDIO_MAX_BYTES = 2 * 1024 * 1024;
+export const AUDIO_MAX_SECONDS = 60;
+
+export type AudioFormat = 'webm' | 'ogg' | 'mp4';
+
+/** Magic sniff: EBML (WebM/Matroska) `1A 45 DF A3` · `OggS` · MP4 `ftyp`. */
+export function sniffAudio(bytes: Uint8Array): AudioFormat | null {
+  if (bytes.length >= 4 && startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3], 0)) return 'webm';
+  if (bytes.length >= 4 && startsWith(bytes, [0x4f, 0x67, 0x67, 0x53], 0)) return 'ogg';
+  if (sniffMp4(bytes)) return 'mp4';
+  return null;
+}
+
+export type AudioRejectReason = 'empty' | 'too_large' | 'unsupported_type' | 'too_long';
+
+export interface StoredAudio {
+  /** The OPAQUE object key — this is what travels as a contact's `audioRef`. */
+  readonly key: string;
+  readonly url: string;
+  readonly contentType: string;
+  /** Measured for the MP4 family only; null where no cheap honest clock exists. */
+  readonly durationSeconds: number | null;
+  readonly byteLength: number;
+  readonly uploadedAt: string;
+}
+
+export type AudioUploadOutcome =
+  | { readonly ok: true; readonly audio: StoredAudio }
+  | { readonly ok: false; readonly reason: AudioRejectReason };
+
 export type VideoRejectReason = 'empty' | 'too_large' | 'unsupported_type' | 'unreadable_duration' | 'too_long';
 
 export interface StoredVideo {
@@ -306,6 +353,37 @@ export class ProductMediaService {
         byteLength: bytes.length,
         uploadedAt: at,
       },
+    };
+  }
+
+  /**
+   * REPERE-AUDIO-REEL — validate + store ONE voice note. Same key law as
+   * images and video: fresh opaque key, no caller input, an upload never
+   * overwrites. The MP4 family gets its duration MEASURED (the walk already
+   * trusted by the video door) and bounded; WebM/Ogg rest on the byte ceiling
+   * alone — stated at the constants, not pretended away.
+   */
+  async uploadAudio(bytes: Uint8Array, at: string): Promise<AudioUploadOutcome> {
+    if (bytes.length === 0) return { ok: false, reason: 'empty' };
+    if (bytes.length > AUDIO_MAX_BYTES) return { ok: false, reason: 'too_large' };
+    const fmt = sniffAudio(bytes);
+    if (fmt === null) return { ok: false, reason: 'unsupported_type' };
+    let durationSeconds: number | null = null;
+    if (fmt === 'mp4') {
+      durationSeconds = mp4DurationSeconds(bytes);
+      // Unlike the video door, an unreadable MP4 clock does not refuse here —
+      // the AUDIO bound's real wall is bytes (WebM/Ogg never had a clock), so
+      // an unreadable duration degrades to the same wall, honestly null.
+      if (durationSeconds !== null && durationSeconds > AUDIO_MAX_SECONDS) {
+        return { ok: false, reason: 'too_long' };
+      }
+    }
+    const contentType = fmt === 'webm' ? 'audio/webm' : fmt === 'ogg' ? 'audio/ogg' : 'audio/mp4';
+    const key = mintMediaKey(); // fresh CSPRNG token — never derived, never sequential
+    const stored: StoredObject = await this.store.put(key, bytes, contentType); // SERVER-SIDE write
+    return {
+      ok: true,
+      audio: { key: stored.key, url: stored.url, contentType, durationSeconds, byteLength: bytes.length, uploadedAt: at },
     };
   }
 

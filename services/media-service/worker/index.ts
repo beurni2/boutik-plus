@@ -221,6 +221,33 @@ export async function handleVideoUpload(request: Request, env: MediaWorkerEnv, n
   return Response.json({ ref: key, contentType, durationSeconds, byteLength }, { status: 201 });
 }
 
+/** REPERE-AUDIO-REEL — the voice-note upload path. Like `video` and `revoke`,
+ *  `audio` can never collide with an opaque key read. */
+export const AUDIO_UPLOAD_PATH = '/media/audio';
+
+/**
+ * `POST /media/audio` — the ONLY way a VOICE enters the bucket. Same laws as
+ * the photo and video doors: the body IS the note (raw bytes, no multipart);
+ * the declared Content-Type is IGNORED (the magic sniff decides — WebM, Ogg
+ * or the MP4 family, what phones' recorders actually emit); NO caller input
+ * reaches the key; behind the SAME write gate. The expected caller is Shop+'s
+ * order Worker forwarding a buyer's repère note server-side — the write key
+ * never rides in the buyer's public bundle.
+ */
+export async function handleAudioUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
+  const store = resolveMediaStore(env);
+  const service = new ProductMediaService(store);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const outcome = await service.uploadAudio(bytes, now);
+  if (!outcome.ok) {
+    // The validator's TYPED reason, verbatim — empty · too_large ·
+    // unsupported_type · too_long — never a bare 400.
+    return Response.json({ error: 'rejected', reason: outcome.reason }, { status: 400 });
+  }
+  const { key, contentType, durationSeconds, byteLength } = outcome.audio;
+  return Response.json({ ref: key, contentType, durationSeconds, byteLength }, { status: 201 });
+}
+
 /** The revoke route's path. Not a key read: `revoke` can never match the opaque
  * key shape, and the method differs anyway. */
 export const REVOKE_PATH = '/media/revoke';
@@ -321,6 +348,10 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
     // VIDEO-PRODUIT-1b — behind the same write gate above; dispatch only.
     if (request.method === 'POST' && pathname === VIDEO_UPLOAD_PATH) {
       return handleVideoUpload(request, env);
+    }
+    // REPERE-AUDIO-REEL — behind the same write gate above; dispatch only.
+    if (request.method === 'POST' && pathname === AUDIO_UPLOAD_PATH) {
+      return handleAudioUpload(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
