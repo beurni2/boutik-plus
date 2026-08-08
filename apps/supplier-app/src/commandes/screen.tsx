@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
@@ -512,6 +512,11 @@ function DetailTerminee({
                 <Text style={TITRE}>{buyer.contact.phone}</Text>
                 <Text style={[CORPS, { marginTop: 4 }]}>{buyer.contact.quartier}</Text>
                 <Text style={[CORPS, { marginTop: 2 }]}>{buyer.contact.repere}</Text>
+                {/* REPERE-AUDIO-REEL — HER OWN VOICE saying where the door is,
+                    right where he reads the contact he relays to the rider. */}
+                {buyer.contact.audioRef !== undefined && mediaBase !== null ? (
+                  <EcouterRepere url={`${mediaBase}/${buyer.contact.audioRef}`} />
+                ) : null}
               </>
             ) : (
               <Text style={CORPS}>{t('commandes.cliente_sans_contact')}</Text>
@@ -522,6 +527,54 @@ function DetailTerminee({
       </View>
       {/* RB-2 — the dispatch act itself, the fold this detail was built for. */}
       <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} />
+    </View>
+  );
+}
+
+/** The browser's audio element, structurally — this app's tsconfig carries
+ *  no DOM lib (it is a React Native workspace), and the web build is where
+ *  this control lives. */
+interface LecteurAudio {
+  play(): Promise<void>;
+  pause(): void;
+  addEventListener(ev: string, fn: () => void): void;
+}
+
+/**
+ * REPERE-AUDIO-REEL — the buyer's voice note, played where the founder
+ * relays it. Web-only by nature (`Audio` is the browser's; the console IS
+ * the web app) — on a build without it the control simply does not exist,
+ * never a dead button. The label toggles with the truth: écouter ↔ pause.
+ */
+function EcouterRepere({ url }: { url: string }) {
+  const [lecture, setLecture] = useState(false);
+  const lecteur = useRef<LecteurAudio | null>(null);
+  useEffect(() => () => lecteur.current?.pause(), []);
+  const AudioCtor = (globalThis as { Audio?: new (src: string) => LecteurAudio }).Audio;
+  if (AudioCtor === undefined) return null;
+  return (
+    <View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+      <BtnSoft
+        label={t(lecture ? 'commandes.repere_voix_pause' : 'commandes.repere_voix_ecouter')}
+        onPress={() => {
+          let audio = lecteur.current;
+          if (audio === null) {
+            audio = new AudioCtor(url);
+            audio.addEventListener('ended', () => setLecture(false));
+            audio.addEventListener('error', () => setLecture(false));
+            lecteur.current = audio;
+          }
+          if (lecture) {
+            audio.pause();
+            setLecture(false);
+            return;
+          }
+          void audio.play().then(
+            () => setLecture(true),
+            () => setLecture(false), // a refused play never leaves a lying label
+          );
+        }}
+      />
     </View>
   );
 }

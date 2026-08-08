@@ -21,7 +21,14 @@ export interface LivraisonRow {
   readonly orderId: string;
   readonly state: string;
   readonly createdAt: string;
-  readonly contact: { readonly phone: string; readonly quartier: string; readonly repere: string } | null;
+  readonly contact: {
+    readonly phone: string;
+    readonly quartier: string;
+    readonly repere: string;
+    /** REPERE-AUDIO-REEL — the buyer's voice note, as the opaque media ref
+     *  Shop+ stored at order create. Absent when she typed instead of spoke. */
+    readonly audioRef?: string;
+  } | null;
   readonly productVersionId: string;
   readonly zoneTo: string;
 }
@@ -103,7 +110,20 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     if (typeof cr['phone'] !== 'string' || cr['phone'] === '') return null;
     if (typeof cr['quartier'] !== 'string' || cr['quartier'] === '') return null;
     if (typeof cr['repere'] !== 'string') return null;
-    contact = { phone: cr['phone'], quartier: cr['quartier'], repere: cr['repere'] };
+    // REPERE-AUDIO-REEL — the voice note's ref, optional; a PRESENT ref that
+    // is not the media service's own opaque shape drops the row like any
+    // other malformed contact field (whole or nothing — Shop+ validated this
+    // strictly at store time, so malformed here means corruption, not style).
+    const audioRef = cr['audioRef'];
+    if (audioRef !== undefined && (typeof audioRef !== 'string' || !/^media\/[0-9a-f-]{36}$/.test(audioRef))) {
+      return null;
+    }
+    contact = {
+      phone: cr['phone'],
+      quartier: cr['quartier'],
+      repere: cr['repere'],
+      ...(typeof audioRef === 'string' ? { audioRef } : {}),
+    };
   }
   return {
     orderId: r['orderId'],

@@ -3990,6 +3990,18 @@
     "screenClass": "status"
   },
   {
+    "key": "commandes.repere_voix_ecouter",
+    "fr": "Écouter le repère (sa voix)",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.repere_voix_pause",
+    "fr": "Pause",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "commandes.pill_incident",
     "fr": "Incident",
     "register": "neutral",
