@@ -82,11 +82,21 @@ jobs:
           # founder's alone, typed at the zone's own door, third of the three.
           EXPO_PUBLIC_PROTECTION_BASE: ${{ secrets.EXPO_PUBLIC_PROTECTION_BASE }}
           # SE-LIVE-4e-B+ — the « Coursiers » zone reads the Séra rider registry.
-          # CONFIG, NOT A CREDENTIAL: a public workers.dev URL, the same one
-          # /health answers on. The KEY (SERA_OPS_SECRET) is typed by the founder
-          # and must NEVER appear here — it opens the rider registry and the SOS
-          # board for every rider, and this repo is public.
-          EXPO_PUBLIC_SERA_LOGISTICS_BASE: ${{ secrets.EXPO_PUBLIC_SERA_LOGISTICS_BASE }}
+          #
+          # A REPO VARIABLE, NOT A SECRET, and the distinction is the point: this
+          # is a public workers.dev URL — the same one `/health` answers on — and
+          # it is INLINED INTO THE SHIPPED BUNDLE by `EXPO_PUBLIC_*` regardless,
+          # so filing it as a secret would claim a confidentiality the build
+          # cannot keep. Séra's own workflows already do it this way
+          # (`vars.LOGISTICS_BASE`, `vars.CUSTODY_BASE`). I wrote « config, not a
+          # credential » in this very comment and then wired it to `secrets.`;
+          # the founder caught it.
+          #
+          # The KEY (`SERA_OPS_SECRET`) is a different thing entirely and must
+          # NEVER appear here — it opens the rider registry and the SOS board for
+          # every rider. It is typed into the console by the founder, held on his
+          # device, and never built into anything.
+          EXPO_PUBLIC_SERA_LOGISTICS_BASE: ${{ vars.SERA_LOGISTICS_BASE }}
         run: npx expo export --platform web --clear --output-dir dist-web
       - name: Verify the bundle carries the service base (a cold-export sentinel)
         working-directory: apps/supplier-app
