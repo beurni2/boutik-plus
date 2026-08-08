@@ -56,6 +56,17 @@ const CHALLENGE_PREFIX = 'challenge:';
 const READY_PREFIX = 'ready:';
 const CODEHASH_PREFIX = 'codehash:';
 const SUPPLIERCODE_PREFIX = 'suppliercode:';
+/** RB-1 — the founder's own contact card per supplier (name + phone), behind
+ *  his ops key on both verbs. See the /supplier-contact handler for why this
+ *  exists at all (founder decision 2026-08-08). */
+const SUPPLIERCONTACT_PREFIX = 'suppliercontact:';
+
+export interface SupplierContactRecord {
+  readonly supplierId: string;
+  readonly name: string;
+  /** May be '' — a card with a name and no number is honest, not malformed. */
+  readonly phone: string;
+}
 /** READINESS-RETURN-1 — one outbox row per (order, fact). */
 const PROGRESS_OUTBOX_PREFIX = 'progressoutbox:';
 
@@ -631,6 +642,81 @@ export class FulfillmentDO {
       return Response.json({ ok: true, codes });
     }
 
+    /**
+     * ═══ RB-1 — THE FOUNDER'S OWN CONTACT CARD PER SUPPLIER (name + phone) ═══
+     *
+     * FOUNDER DECISION (2026-08-08, « Yes »): the system stores NO supplier
+     * phone anywhere by design — the supply pipeline actively STRIPS
+     * phone-like data before anything buyer-facing (projection.ts's
+     * IDENTITY_LEAK scan). The Commandes tab needs a real « Appeler » button
+     * and a supplier name « very noticeably visible » (his words), and neither
+     * exists in any book: the code registry knows only `supplierId`.
+     *
+     * So this is a FOUNDER-ENTERED card, founder-read: it lives behind
+     * FULFILLMENT_OPS_SECRET at the router on BOTH verbs, it is never merged
+     * into any supplier- or buyer-facing projection, and the strip-scan above
+     * keeps guarding the path where a phone could actually leak. Last write
+     * wins — it is his own address book, not an audit log.
+     */
+    if (request.method === 'POST' && pathname === '/supplier-contact') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      const name = body?.['name'];
+      const phone = body?.['phone'];
+      if (
+        typeof supplierId !== 'string' || supplierId === '' || supplierId.length > 191 ||
+        typeof name !== 'string' || name.trim() === '' || name.length > 120 ||
+        typeof phone !== 'string' || phone.length > 32 ||
+        Object.keys(body ?? {}).length !== 3
+      ) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      // Phone may be '' — a name without a number is a valid card (the call
+      // button then shows its honest « numéro non renseigné » state).
+      await this.state.storage.put(`${SUPPLIERCONTACT_PREFIX}${supplierId}`, {
+        supplierId,
+        name: name.trim(),
+        phone: phone.trim(),
+      } satisfies SupplierContactRecord);
+      return Response.json({ ok: true, status: 'saved' });
+    }
+    if (request.method === 'GET' && pathname === '/supplier-contacts') {
+      const entries = await this.state.storage.list<SupplierContactRecord>({ prefix: SUPPLIERCONTACT_PREFIX });
+      const contacts = [...entries.values()].sort((a, b) => (a.supplierId < b.supplierId ? -1 : 1));
+      return Response.json({ ok: true, contacts });
+    }
+
+    /**
+     * ═══ RB-1 — THE READINESS EVIDENCE, TO THE FOUNDER ALONE, PER ORDER ═══
+     *
+     * The `/orders` list deliberately never carries the evidence (its comment:
+     * « the evidence (photoRef, challenge) never leaves this object through
+     * the list ») — a list is a broadcast. This is the opposite shape: ONE
+     * order, named by id, behind the founder's ops key, answering with the
+     * photo the supplier attached to « Produit prêt » and the confirmed
+     * terms. The CHALLENGE still never leaves: it is a secret of the
+     * readiness ritual (B+I-06), not part of what proof looks like on a
+     * screen. Evidence SUPPORTS the founder's dispatch decision — it releases
+     * nothing by itself (Ten Laws #3).
+     */
+    if (request.method === 'GET' && pathname === '/evidence') {
+      const orderId = new URL(request.url).searchParams.get('orderId') ?? '';
+      if (orderId === '') return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined) return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      const ready = await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`);
+      if (ready === undefined) return Response.json({ ok: false, reason: 'not_ready' }, { status: 404 });
+      return Response.json({
+        ok: true,
+        orderId,
+        readyAt: ready.confirmedAt,
+        photoRef: ready.confirmation.photoRef,
+        qty: ready.confirmation.qty,
+        variant: ready.confirmation.variant,
+        availableConfirmed: ready.confirmation.availableConfirmed,
+      });
+    }
+
     /** REVOKE — the founder cuts a supplier off. Idempotent: revoking a
      *  supplier with no code answers honestly rather than erroring. */
     if (request.method === 'POST' && pathname === '/code/revoke') {
@@ -978,6 +1064,23 @@ export async function handleOrderConfirmedIntake(
 export async function handlePaidOrdersList(env: FulfillmentEnv): Promise<Response> {
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(new Request('https://do/orders'));
+}
+
+/** RB-1 — the founder's per-order evidence read (ops-gated at the router). */
+export async function handleOrderEvidence(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const orderId = new URL(request.url).searchParams.get('orderId') ?? '';
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(new Request(`https://do/evidence?orderId=${encodeURIComponent(orderId)}`));
+}
+
+/** RB-1 — the founder's supplier contact card, set and list (ops-gated). */
+export async function handleSupplierContactSet(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(new Request('https://do/supplier-contact', { method: 'POST', body: await request.text() }));
+}
+export async function handleSupplierContactsList(env: FulfillmentEnv): Promise<Response> {
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(new Request('https://do/supplier-contacts'));
 }
 
 /**

@@ -602,3 +602,98 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
     expect(res.json['ok']).toBe(true);
   });
 });
+
+/** RB-1 — a GET through the founder's door. */
+async function opsGet(path: string, bearer: string | null = OPS_SECRET) {
+  const res = await mf.dispatchFetch(`http://o${path}`, {
+    headers: bearer !== null ? { Authorization: `Bearer ${bearer}` } : {},
+  });
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try { json = JSON.parse(text) as Record<string, unknown>; } catch { /* non-JSON */ }
+  return { status: res.status, text, json };
+}
+
+describe('RB-1 — the readiness evidence reaches the FOUNDER alone, one order at a time', () => {
+  it('the whole road: not ready is honest, ready serves the photo, the challenge never leaves, the list still carries nothing', async () => {
+    const orderId = 'ord-rb1-evidence-1';
+
+    // ── before anything: the order is unknown even to the founder’s read ───
+    const unknown = await opsGet(`/fulfillment/order-evidence?orderId=${orderId}`);
+    expect(unknown.status, unknown.text).toBe(404);
+    expect(unknown.json['reason']).toBe('unknown_order');
+
+    // ── paid but not ready: honest « pas prêt », never an empty photo ──────
+    const { codeA, challenge } = await acceptAndChallenge(orderId);
+    const notReady = await opsGet(`/fulfillment/order-evidence?orderId=${orderId}`);
+    expect(notReady.status).toBe(404);
+    expect(notReady.json['reason']).toBe('not_ready');
+
+    // ── the supplier confirms with the photo ───────────────────────────────
+    const payload = readyPayload(orderId, challenge);
+    const ready = await act('/fulfillment/ready', payload, codeA);
+    expect(ready.json['ok'], ready.text).toBe(true);
+
+    // ── the founder sees the proof — the exact photoRef the supplier sent ──
+    const ev = await opsGet(`/fulfillment/order-evidence?orderId=${orderId}`);
+    expect(ev.status, ev.text).toBe(200);
+    expect(ev.json['photoRef']).toEqual(payload.photoRef);
+    expect(ev.json['qty']).toBe(1);
+    expect(typeof ev.json['readyAt']).toBe('string');
+    // ⚠ THE CHALLENGE NEVER LEAVES (B+I-06): it is a secret of the readiness
+    // ritual, not part of what proof looks like on a screen. Raw bytes, so a
+    // renamed field cannot hide it.
+    expect(ev.text).not.toContain(challenge);
+    expect(ev.text).not.toContain('readinessChallenge');
+
+    // ── the DOOR: founder key only ─────────────────────────────────────────
+    expect((await opsGet(`/fulfillment/order-evidence?orderId=${orderId}`, 'wrong-key')).status).toBe(401);
+    expect((await opsGet(`/fulfillment/order-evidence?orderId=${orderId}`, null)).status).toBe(401);
+
+    // ── and the LIST still never carries the evidence — the deliberate
+    //    boundary this per-order read exists to respect, held on raw bytes ──
+    const list = await opsGet('/fulfillment/orders');
+    expect(list.status).toBe(200);
+    expect(list.text).not.toContain('photoRef');
+    expect(list.text).not.toContain('media/readiness/');
+  });
+});
+
+describe('RB-1 — the founder’s supplier contact card (name + phone, his decision 2026-08-08)', () => {
+  it('saved, listed, replaced — and a name with no number is a valid card', async () => {
+    await world();
+    const card = { supplierId: SUPPLIER_A, name: 'Aïcha Ouédraogo', phone: '70 00 00 01' };
+    const saved = await opsPost('/fulfillment/supplier-contact', card);
+    expect(saved.status, saved.text).toBe(200);
+
+    const listed = await opsGet('/fulfillment/supplier-contacts');
+    expect(listed.status).toBe(200);
+    expect(listed.json['contacts']).toEqual([card]);
+
+    // Last write wins — his own address book, not an audit log.
+    const moved = { ...card, phone: '76 99 99 99' };
+    await opsPost('/fulfillment/supplier-contact', moved);
+    const after = await opsGet('/fulfillment/supplier-contacts');
+    expect(after.json['contacts']).toEqual([moved]);
+
+    // A name without a number: the call button’s honest empty state, not a 400.
+    const nameOnly = { supplierId: SUPPLIER_B, name: 'Moussa Kaboré', phone: '' };
+    expect((await opsPost('/fulfillment/supplier-contact', nameOnly)).status).toBe(200);
+    const both = await opsGet('/fulfillment/supplier-contacts');
+    expect((both.json['contacts'] as unknown[]).length).toBe(2);
+  });
+
+  it('malformed refuses BY SHAPE, and the door is the founder’s alone on both verbs', async () => {
+    for (const bad of [
+      { supplierId: SUPPLIER_A, name: 'X' },                                   // phone missing
+      { supplierId: SUPPLIER_A, name: '', phone: '70' },                       // empty name
+      { supplierId: '', name: 'X', phone: '70' },                              // empty id
+      { supplierId: SUPPLIER_A, name: 'X', phone: '70', extra: 'smuggled' },   // foreign key
+    ]) {
+      expect((await opsPost('/fulfillment/supplier-contact', bad)).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await opsPost('/fulfillment/supplier-contact', { supplierId: SUPPLIER_A, name: 'X', phone: '70' }, 'wrong-key')).status).toBe(401);
+    expect((await opsGet('/fulfillment/supplier-contacts', 'wrong-key')).status).toBe(401);
+    expect((await opsGet('/fulfillment/supplier-contacts', null)).status).toBe(401);
+  });
+});

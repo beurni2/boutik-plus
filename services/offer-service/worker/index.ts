@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handlePaidOrdersList, handleRelance, handleSupplierCodesList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handleOrderEvidence, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -136,6 +136,26 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handlePaidOrdersList(env);
+    }
+    // RB-1 — three founder-only additions on the SAME credential as the board
+    // read (the Commandes tab is that board's new home): the per-order
+    // readiness evidence (photo + confirmed terms — the /orders list
+    // deliberately never carries it), and his own supplier contact card
+    // (name + phone — founder decision 2026-08-08; no other book holds either).
+    if (request.method === 'GET' && fp === '/fulfillment/order-evidence') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleOrderEvidence(request, env);
+    }
+    if (request.method === 'POST' && fp === '/fulfillment/supplier-contact') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleSupplierContactSet(request, env);
+    }
+    if (request.method === 'GET' && fp === '/fulfillment/supplier-contacts') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleSupplierContactsList(env);
     }
     // CONSOLE-2 — the operator's chase log. HIS credential, not Shop+'s: the
     // relance is the founder's own act (« j'ai appelé le fournisseur »), and
