@@ -4168,5 +4168,95 @@
     "fr": "Ce coursier n’est plus libre. Choisissez-en un autre.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "gains.titre",
+    "fr": "Vos gains",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.explique",
+    "fr": "L’argent des ventes payées, part par part.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "gains.pas_relie",
+    "fr": "Cet écran n’est pas relié au service pour cette version.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "gains.cle_requise",
+    "fr": "Entrez la clé livraisons pour voir les gains.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "gains.vide",
+    "fr": "Pas encore de vente payée. Chaque vente payée arrive ici.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "gains.total",
+    "fr": "La cliente a payé",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.part_fournisseur",
+    "fr": "Part du fournisseur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.part_revendeuse",
+    "fr": "Part de la revendeuse",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.frais_fournisseur",
+    "fr": "Frais côté fournisseur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.frais_revendeuse",
+    "fr": "Frais côté revendeuse",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.livraison",
+    "fr": "Livraison",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.coursier",
+    "fr": "Livrée par",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.coursier_inconnu",
+    "fr": "Coursier pas encore connu ici.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "gains.reconcilie",
+    "fr": "Ces montants viennent du reçu payé, au franc près.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "gains.commande_du",
+    "fr": "Commande du",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

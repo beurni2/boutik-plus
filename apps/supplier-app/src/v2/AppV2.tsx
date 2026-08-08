@@ -31,9 +31,10 @@ import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01, S02Accueil, S03Produits, S05Fiche, S11Detail } from './screens1';
 import { SCommandesReel } from '../commandes/screen';
 import {
-  S17ReadySheet, S19StockSheet, S32Argent, S33Trust,
+  S17ReadySheet, S19StockSheet, S33Trust,
   S34Onboard, S40Celebration,
 } from './screens2';
+import { SGainsReel } from '../gains/screen';
 import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
 import { SOperations } from '../operations/screen';
@@ -164,7 +165,9 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
               onKeyCleared={() => setOpsKey(null)}
             />
           ) : (
-            <S32Argent st={st} d={d} />
+            // RB-3 (founder direction 2026-08-08) — the REAL gains: each paid
+            // order's frozen money split behind key C, never the demo ledger.
+            <SGainsReel />
           )
         ) : v.s === 'product' && product ? (
           <S05Fiche st={st} d={d} product={product} />

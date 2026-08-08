@@ -30,9 +30,20 @@ export interface CoursierLibre {
   readonly assignable: boolean;
 }
 
+/** One LIVE assignment off the board — who is carrying which order. Séra's
+ *  own vocabulary (`assignments` on `/ops/board`, statuses
+ *  active_unacknowledged | ack_pending_offline | acknowledged). */
+export interface AffectationSera {
+  readonly taskId: string;
+  readonly orderId: string;
+  readonly riderId: string;
+  readonly status: string;
+}
+
 export interface BoardSera {
   readonly queued: readonly TacheEnFile[];
   readonly riders: readonly CoursierLibre[];
+  readonly affectations: readonly AffectationSera[];
 }
 
 export interface AdresseTache {
@@ -153,7 +164,23 @@ export function httpSeraDispatch(
             });
           }
         }
-        return { queued, riders };
+        const affectations: AffectationSera[] = [];
+        if (Array.isArray(raw['assignments'])) {
+          for (const e of raw['assignments']) {
+            if (e === null || typeof e !== 'object') continue;
+            const a = e as Record<string, unknown>;
+            if (typeof a['taskId'] !== 'string' || a['taskId'] === '') continue;
+            if (typeof a['orderId'] !== 'string' || a['orderId'] === '') continue;
+            if (typeof a['riderId'] !== 'string' || a['riderId'] === '') continue;
+            affectations.push({
+              taskId: a['taskId'],
+              orderId: a['orderId'],
+              riderId: a['riderId'],
+              status: typeof a['status'] === 'string' ? a['status'] : '',
+            });
+          }
+        }
+        return { queued, riders, affectations };
       });
     },
 

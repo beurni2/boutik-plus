@@ -33,6 +33,16 @@ runScanGate({
     { file: 'apps/supplier-app/src/operations/dispatch-service.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the READ TARGET' },
     { file: 'apps/supplier-app/test/operations-console.test.ts', pattern: 'checkout-route', ruling: 'the dispatch client’s own wire pins' },
     /**
+     * RB-3 (founder direction 2026-08-08: the Gains tab shows « the money
+     * share well explained »). SAME class as BC-1c directly above: the gains
+     * read is a FOUNDER-ONLY key-C read of Shop+'s `/checkout/gains` door —
+     * no buyer surface, no order created, no money moves in Boutik+. The
+     * client file is already carved out; these are its test's wire pins and
+     * the pointer naming the Shop+ Worker e2e that contract-certifies them.
+     */
+    { file: 'apps/supplier-app/test/gains-view.test.ts', pattern: 'checkout-route', ruling: 'the gains client’s own wire pins (RB-3)' },
+    { file: 'apps/supplier-app/test/gains-view.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker e2e as the certification source' },
+    /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
      * `fulfillment.ready.v1` to the Shop+ Worker, whose deployed name is

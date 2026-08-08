@@ -406,6 +406,125 @@ export function resolveAccesService(): AccesServicePort | null {
   };
 }
 
+/* ───── RB-3 — the GAINS read: frozen money splits, Shop+ Worker, key C ───── */
+
+/**
+ * FOUNDER DIRECTION 2026-08-08: « the gains tab […] the successful orders
+ * completed with the money share well explained between supplier, reseller,
+ * and fees and which rider delivered ».
+ *
+ * Every figure in a row is a byte of the order's IMMUTABLE Quote, frozen at
+ * checkout and served by the Shop+ Worker (`GET /checkout/gains`) — this
+ * client copies fields and NEVER derives one franc from another (Ten Laws #1:
+ * the split reconciles at the source; #2: no app computes another domain's
+ * amounts). The Worker itself refuses to serve any split canon's
+ * `assertQuoteReconciles` rejects, so a row that arrives here reconciles.
+ */
+
+/** The ten frozen figures. ALL integer FCFA ≥ 0, or the row is dropped. */
+export interface GainSplit {
+  readonly sellerBasePrice: number;
+  readonly sellerFundedCommission: number;
+  readonly resellerMarkup: number;
+  readonly deliveryFee: number;
+  readonly productSubtotal: number;
+  readonly buyerTotal: number;
+  readonly sellerPlatformFee: number;
+  readonly sellerNet: number;
+  readonly resellerPlatformFee: number;
+  readonly resellerNet: number;
+}
+
+export interface GainRow {
+  readonly orderId: string;
+  readonly createdAt: string;
+  readonly productVersionId: string;
+  readonly zoneTo: string;
+  readonly split: GainSplit;
+}
+
+export type GainsResult =
+  | { readonly ok: true; readonly rows: readonly GainRow[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export interface GainsServicePort {
+  listGains(cleC: string): Promise<GainsResult>;
+}
+
+const SPLIT_CHAMPS: readonly (keyof GainSplit)[] = [
+  'sellerBasePrice',
+  'sellerFundedCommission',
+  'resellerMarkup',
+  'deliveryFee',
+  'productSubtotal',
+  'buyerTotal',
+  'sellerPlatformFee',
+  'sellerNet',
+  'resellerPlatformFee',
+  'resellerNet',
+];
+
+/** Whole or nothing — the console's standing law. A split missing ONE figure
+ *  is dropped entirely: a money card with a hole where « part du
+ *  fournisseur » should be is worse than a row that says to check later. */
+function readGainRow(value: unknown): GainRow | null {
+  if (value === null || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  if (typeof r['orderId'] !== 'string' || r['orderId'] === '') return null;
+  if (typeof r['createdAt'] !== 'string' || Number.isNaN(Date.parse(r['createdAt']))) return null;
+  if (typeof r['productVersionId'] !== 'string') return null;
+  if (typeof r['zoneTo'] !== 'string') return null;
+  const s = r['split'];
+  if (s === null || typeof s !== 'object') return null;
+  const sr = s as Record<string, unknown>;
+  const split: Partial<Record<keyof GainSplit, number>> = {};
+  for (const champ of SPLIT_CHAMPS) {
+    const v = sr[champ];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return null;
+    split[champ] = v;
+  }
+  return {
+    orderId: r['orderId'],
+    createdAt: r['createdAt'],
+    productVersionId: r['productVersionId'],
+    zoneTo: r['zoneTo'],
+    split: split as GainSplit,
+  };
+}
+
+export function resolveGainsService(): GainsServicePort | null {
+  const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
+  if (base === undefined || base === '') return null;
+  const trimmed = base.replace(/\/+$/, '');
+  return {
+    async listGains(cleC: string): Promise<GainsResult> {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/checkout/gains`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
+          signal: ctl.signal,
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      } finally {
+        clearTimeout(timer);
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; gains?: unknown } | null;
+      if (body?.ok !== true || !Array.isArray(body.gains)) return { ok: false, reason: 'unreachable' };
+      const rows: GainRow[] = [];
+      for (const raw of body.gains) {
+        const row = readGainRow(raw);
+        if (row !== null) rows.push(row);
+      }
+      return { ok: true, rows };
+    },
+  };
+}
+
 /* ── RESELLER-ACCOUNTS-1c — the account roster + suivi, Shop+ Worker, key C ── */
 
 /**
