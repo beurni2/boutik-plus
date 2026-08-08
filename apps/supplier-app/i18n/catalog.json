@@ -4024,5 +4024,149 @@
     "fr": "{n} commande(s) attendent un appel — ouvrez l’onglet Commandes.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "confier.pas_relie",
+    "fr": "L'adresse du service Séra n'est pas renseignée pour cette version.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.titre",
+    "fr": "Confier à un coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.cle_aide",
+    "fr": "Entrez votre clé Séra. Elle reste sur cet appareil.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.composer_aide",
+    "fr": "Donnez le point de livraison. Le coursier lira ces mots.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.pin",
+    "fr": "Point GPS (ex. 12.3714, -1.5197)",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.zone",
+    "fr": "Quartier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.repere",
+    "fr": "Repère",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.directions",
+    "fr": "Comment trouver la porte",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.relais",
+    "fr": "Relais (identifiant)",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.fenetre",
+    "fr": "Livraison prévue : aujourd’hui, dans les 6 heures.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.creer",
+    "fr": "Créer la course",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.choisir_aide",
+    "fr": "Choisissez un coursier libre. Il verra la course sur son application Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.aucun_libre",
+    "fr": "Aucun coursier libre pour le moment. Réessayez dans un instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.confier_a",
+    "fr": "Confier à",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.confiee",
+    "fr": "Course confiée à",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.confiee_suite",
+    "fr": "Elle est maintenant sur son application Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.deja",
+    "fr": "Cette course est déjà lancée côté Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.pin_invalide",
+    "fr": "Ce point GPS ne se lit pas. Collez-le comme : 12.3714, -1.5197",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.champs_manquants",
+    "fr": "Remplissez chaque champ avant de créer la course.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.injoignable",
+    "fr": "Séra ne répond pas. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.pas_finance",
+    "fr": "Séra n’a pas encore reçu le paiement de cette commande. Réessayez dans une minute.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.pas_prete",
+    "fr": "Séra n’a pas encore reçu le « colis prêt » du fournisseur. Réessayez dans une minute.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.refus_generique",
+    "fr": "Séra a refusé. Réessayez, ou regardez la commande côté Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.confier_refuse",
+    "fr": "Ce coursier n’est plus libre. Choisissez-en un autre.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

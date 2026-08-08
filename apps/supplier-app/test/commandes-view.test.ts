@@ -114,3 +114,53 @@ describe('[source-text checks] the tab’s discipline', () => {
     expect(screen).toContain('clearStoredCleC();');
   });
 });
+
+describe('RB-2 — the pin the founder pastes, refused before it can reach a rider', () => {
+  it('reads « lat, lng » and nothing else, inside the globe only', async () => {
+    const { lirePin } = await import('../src/commandes/sera-service');
+    expect(lirePin('12.3714, -1.5197')).toEqual({ lat: 12.3714, lng: -1.5197 });
+    expect(lirePin('  -11.5 ,  39.2 ')).toEqual({ lat: -11.5, lng: 39.2 });
+    for (const bad of ['', '12.37', '12,37 -1,52', 'douze, un', '95, 10', '10, 190', '12.3;-1.5']) {
+      expect(lirePin(bad), bad).toBeNull();
+    }
+  });
+});
+
+describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () => {
+  const confier = readFileSync(join(import.meta.dirname, '..', 'src/commandes/confier.tsx'), 'utf8');
+  const sera = readFileSync(join(import.meta.dirname, '..', 'src/commandes/sera-service.ts'), 'utf8');
+
+  it('every confier.* key rendered exists in the catalog', () => {
+    const catalog = JSON.parse(
+      readFileSync(join(import.meta.dirname, '..', 'i18n/catalog.json'), 'utf8'),
+    ) as { key: string }[];
+    const keys = new Set(catalog.map((e) => e.key));
+    const used = [...confier.matchAll(/t\('(confier\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
+    expect(used.length).toBeGreaterThan(12);
+    for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+
+  it('Séra’s gate refusals reach the screen BY NAME, never flattened', () => {
+    expect(confier).toContain("'funding_projection_stale'");
+    expect(confier).toContain("'readiness_projection_stale'");
+  });
+
+  it('the task id is never chosen client-side, and both command ids are deterministic', () => {
+    // The Worker refuses a caller-chosen taskId outright (SE-LIVE-2c blocker);
+    // this port must never even try.
+    expect(sera).not.toMatch(/taskId:.*crypto|taskId:.*uuid/i);
+    expect(sera).toContain('cmd-boutik-tache-${orderId}');
+    expect(sera).toContain('cmd-boutik-confier-${taskId}-${riderId}');
+  });
+
+  it('only ASSIGNABLE riders become buttons — absent is not assignable', () => {
+    expect(sera).toContain("assignable: r['assignable'] === true");
+    expect(confier).toContain('.filter((r) => r.assignable)');
+  });
+
+  it('the fold shares the Coursiers zone’s key slot — one Séra key, typed once', () => {
+    expect(confier).toContain("readStoredCleCoursiers");
+    expect(confier).toContain("clearStoredCleCoursiers");
+    expect(confier).not.toContain('EXPO_PUBLIC_SERA_OPS');
+  });
+});

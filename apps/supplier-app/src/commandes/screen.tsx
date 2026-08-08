@@ -23,6 +23,7 @@ import {
 } from '../operations/dispatch-service';
 import { readStoredCleFonds, resolveFondsService } from '../fonds/service';
 import { resolveMediaBase } from '../supply/media';
+import { ConfierCoursier } from './confier';
 import {
   attenteDepuis,
   nomFournisseur,
@@ -516,6 +517,8 @@ function DetailTerminee({
           </View>
         )}
       </View>
+      {/* RB-2 — the dispatch act itself, the fold this detail was built for. */}
+      <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} />
     </View>
   );
 }
