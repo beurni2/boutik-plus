@@ -3069,3 +3069,25 @@ Shop+ now derives an idempotency key from the order on `POST /checkout/dispatch/
 Workspace typecheck **14/14** · supplier-app **54 files, 782 tests** (+3) · gate board **ALL GATES GREEN**, including `no-emoji` and `copy-lint`. The three new tests were mutation-tested four ways — reinstate the silent guard, turn the early return into a plain branch, clear the form unconditionally, disable the guard — and **each killed exactly one assertion**, with the anchor count verified before any result was believed.
 
 **Stated honestly:** this app has no React renderer in its test setup (vitest only, pure tests), so these are structural assertions on the component source, not render proofs. Adding a renderer is real infrastructure and was not in scope for a UI fix. The render proof is the founder's own screen.
+
+---
+
+## 2026-08-08 · RB-1 — the Commandes tab is the real order book (founder direction, new program)
+
+**FOUNDER DIRECTION (verbatim intent):** de-mock Boutik+; move Commandes/Livraisons out of the ops console into the main Commandes tab; À traiter / Terminées / Incidents; supplier name very noticeably visible; waiting time + call + notify; photo proof + buyer info on Terminées; dispatch to rider (RB-2); Gains with the money split (RB-3). **FOUNDER DECISION (2026-08-08, « Yes »):** a founder-entered supplier contact card (name + phone) may be stored, founder-only — no other book holds either, by privacy design.
+
+### Worker half (`59fa48f`)
+Two founder-only routes on the fulfillment book behind FULFILLMENT_OPS_SECRET: `GET /fulfillment/order-evidence?orderId=` (photoRef + confirmed terms; the readiness CHALLENGE never leaves — B+I-06; the `/orders` list still carries no evidence, held on raw bytes) and `POST/GET /fulfillment/supplier-contact[s]` (his card, last-write-wins, phone may be '').
+
+### App half (`6a69376`)
+`src/commandes/{view,screen}` replaces the demo S07: segments as a strict partition with **incidents first** (a claimed order never reads as settled work), the claims join through the fund key when present (absent ⇒ honest « pas relié », never an empty list), supplier name loudest on every row, waiting clock in market French with tone at 4 h/24 h, Appeler (tel:) + Notifier (relance) + the card form where its absence is felt, Terminées detail = readiness photo + buyer contact through key C **whose door moved here with the flow**. Console keeps revendeuses / fournisseurs / fonds / coursiers.
+
+### ⚠ THE EXCISION THAT CUT TOO MUCH, on the record
+My first cut removed the whole `SLivraisons` component on its own comment anchor (« the dispatch section ») — but the component had grown to house the **revendeuses** sections (access codes, roster, suivi). **Typecheck stayed green**: the amputation was self-contained, which is exactly why source-level surgery cannot be trusted to the compiler. The console suite caught it (12 red). Restored from HEAD, re-cut to the livraisons ARM alone, guard updated. The lesson is §9.1 again, in a new coat: an anchor's NAME is not its extent — map every arm inside a block before cutting it.
+
+Also: the copy-lint refused my own « arrivera » (2.60 syllables/word over the 2.4 status budget) — reworded. The gate works on its author.
+
+### Evidence
+offer-service **211 tests** — including the NO-LOOP seam proofs: the readiness e2e drives **the tab's own `resolveOperationsService()` port** against the real combined Worker (board → card → ready → evidence → wrong-key bad_key), and the route tests hold evidence/contact behavior on raw bytes · supplier-app **791 tests** (+9 view/discipline; 4 console pins evolved with reasons) · workspace typecheck clean · gate board **ALL GATES GREEN**.
+
+**Open, named:** RB-2 dispatch button (Terminées detail ships without a dead primary action) · RB-3 Gains · RB-4 remaining de-mock (accueil still demo) · the stale-clone container incident (all three repos re-based on remote truth mid-slice; nothing lost — the remotes held every merge).
