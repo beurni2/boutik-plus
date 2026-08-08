@@ -4068,18 +4068,6 @@
     "screenClass": "label"
   },
   {
-    "key": "confier.directions",
-    "fr": "Comment trouver la porte",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "confier.relais",
-    "fr": "Relais (identifiant)",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
     "key": "confier.fenetre",
     "fr": "Livraison prévue : aujourd’hui, dans les 6 heures.",
     "register": "neutral",

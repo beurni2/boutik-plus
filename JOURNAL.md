@@ -3147,3 +3147,17 @@ A gate run reported `Boutik-Plus-Build-Spec.md` drifted from canon. Local file, 
 The gains client reads the `livree` fact 5b now serves (absent on the wire reads FALSE — delivered is never a default, pinned) and the card wears the ecosystem's badge words « Livrée par Séra » (successBg/successFg tokens) only from that served fact. A delivered order whose course has left the live board no longer says « pas encore connu ici » — doubt-words on a finished thing. Catalog 718, copy-lint clean; 816/816 tests (+1: the badge gated by the row's own field, exactly one render site).
 
 **Upstream, LIVE as of this entry:** Shop+ 5b (settlement records copied from the frozen quote at Séra's validated signal — storefront deployed) · Séra 5a (the delivery acts + the eligibility outbox — custody-service deployed, run 31271297908). **⚠ The founder's one config act:** `wrangler secret put SHOP_PROGRESS_SECRET` on custody-service (= shop's `PROGRESS_WRITE_SECRET`); until then the signal parks honestly as `unsendable_no_config` and a replayed drop revives it. **Open (sera 5c):** the rider app's drop-code screen · the dispatch board clearing on delivery.
+
+---
+
+## 2026-08-08 · CONFIER-ALLEGE (Boutik+ half) + the Terminées photo cap — two founder reports, one commit
+
+**Founder reports (2026-08-08):** « on commandes terminées when trying to relay the delivery informations to sera rider it asks more useless additional information » · « when I tap the product on terminées to see it, the photo is too large ».
+
+**The confier form is now three fields, two of them prefilled.** Grounded against canon first (kernel `LocationSchema`, §5.6): the required trio is pin + zone + landmark; `directions` and `maskedRelay` are plain `z.string()` — empty is canon-legal. The old form demanded five non-empty fields, which forced a fake « relais-1 » into every course — a value invented to satisfy a gate. The « directions » and « relais » inputs are gone; the worker receives an honest `''` for both. What remains: the GPS pin (canon-required — §7 question to the founder pending), quartier and repère prefilled from what the BUYER typed. The two dead catalog keys removed with their usages (the commandes-view test derives used keys from source — consistent by construction).
+
+**Deploy-order law observed:** sera's `/ops/task` learned to accept the empty pair FIRST (sera `017238a`, logistics-deploy run 31273047538 success) — only then does this form stop sending them; the old worker would have refused the new form 400.
+
+**The photo cap:** the Terminées detail proof photo grew the same desktop-width lesson as the fiche gallery — the PHOTO is capped (`maxWidth: 340`), never the screen.
+
+**Evidence:** supplier-app **816/816** · typecheck clean · gate board **exit 0** (full log kept) · catalog 716 entries, copy-lint in suite.

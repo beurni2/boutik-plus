@@ -475,7 +475,10 @@ function DetailTerminee({
         ) : (
           <Image
             source={{ uri: `${mediaBase}/${preuve.photoRef.ref}` }}
-            style={{ width: '100%', height: 220, borderRadius: 14, marginTop: 8, backgroundColor: '#EDE6D8' }}
+            // Founder report 2026-08-08: « the photo is too large » — the same
+            // desktop-width lesson as the fiche gallery: the PHOTO is capped,
+            // never the screen.
+            style={{ width: '100%', maxWidth: 340, height: 220, borderRadius: 14, marginTop: 8, backgroundColor: '#EDE6D8' }}
             resizeMode="cover"
           />
         )}

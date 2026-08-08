@@ -21,10 +21,12 @@ import type { PaidOrderRow } from '../operations/service';
  *
  *   1. THE TASK. Séra fabricates nothing (his ruling, SE-LIVE-2c option 1):
  *      the founder composes the delivery task himself — GPS pin pasted from
- *      his maps app, zone and repère prefilled from what the BUYER typed,
- *      directions in his words. Séra's admission gate still governs his own
- *      hand: unfunded or unprepared refuses WITH ITS REASON, said in plain
- *      French here, never flattened into « échec ».
+ *      his maps app, zone and repère prefilled from what the BUYER typed.
+ *      CONFIER-ALLEGE (founder report 2026-08-08): directions and relay id
+ *      are canon-optional and were pure friction here — the form stopped
+ *      asking; the worker receives honest '' for both. Séra's admission gate
+ *      still governs his own hand: unfunded or unprepared refuses WITH ITS
+ *      REASON, said in plain French here, never flattened into « échec ».
  *   2. THE RIDER. Only riders Séra itself calls free (`assignable`) are
  *      offered — an off-shift or loaded rider is never a button.
  *   3. THE HANDOVER. On assign, the rider's own Séra app carries the course;
@@ -110,8 +112,6 @@ function ConfierAvecService({
   const [pin, setPin] = useState('');
   const [zone, setZone] = useState(buyer?.contact?.quartier ?? row.zoneTo);
   const [repere, setRepere] = useState(buyer?.contact?.repere ?? '');
-  const [directions, setDirections] = useState('');
-  const [relais, setRelais] = useState('relais-1');
 
   const charger = useCallback(async (): Promise<void> => {
     if (cle === null) return;
@@ -146,7 +146,7 @@ function ConfierAvecService({
       setAvis(t('confier.pin_invalide'));
       return;
     }
-    if (zone.trim() === '' || repere.trim() === '' || directions.trim() === '' || relais.trim() === '') {
+    if (zone.trim() === '' || repere.trim() === '') {
       setAvis(t('confier.champs_manquants'));
       return;
     }
@@ -162,8 +162,11 @@ function ConfierAvecService({
         lng: point.lng,
         zone: zone.trim(),
         landmark: repere.trim(),
-        directions: directions.trim(),
-        maskedRelay: relais.trim(),
+        // CONFIER-ALLEGE (founder report 2026-08-08): canon makes these two
+        // optional — an honest absence beats a fake « relais-1 » typed to
+        // pass a gate. The buyer's repère is the navigation.
+        directions: '',
+        maskedRelay: '',
       },
       { start: start.toISOString(), end: end.toISOString() },
     );
@@ -258,8 +261,6 @@ function ConfierAvecService({
           <Input label={t('confier.pin')} value={pin} onChangeText={setPin} />
           <Input label={t('confier.zone')} value={zone} onChangeText={setZone} />
           <Input label={t('confier.repere')} value={repere} onChangeText={setRepere} />
-          <Input label={t('confier.directions')} value={directions} onChangeText={setDirections} />
-          <Input label={t('confier.relais')} value={relais} onChangeText={setRelais} />
           <Text style={PETIT}>{t('confier.fenetre')}</Text>
           <C07BtnPrimary label={t('confier.creer')} icon="check" onPress={() => void composer()} />
         </View>
