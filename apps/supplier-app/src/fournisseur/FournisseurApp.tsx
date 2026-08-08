@@ -544,7 +544,10 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onC
             <>
               <Image
                 source={{ uri: pret.previewUri }}
-                style={{ width: '100%', height: 180, borderRadius: 12, backgroundColor: P.bg }}
+                // FOUNDER REPORT (2026-08-08): « the proof photos are too big in
+                // the screen » — on the webapp '100%' is the whole browser width.
+                // Same cap as the Terminées photo (commandes/screen.tsx).
+                style={{ width: '100%', maxWidth: 340, height: 180, borderRadius: 12, backgroundColor: P.bg }}
                 resizeMode="cover"
               />
               <View style={{ marginTop: 8 }}>

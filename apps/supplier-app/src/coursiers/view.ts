@@ -57,17 +57,30 @@ export function codePillule(row: CoursierRow): { readonly label: string; readonl
 }
 
 /**
+ * The SECOND pill — can this rider be given a course? (SE1: certified AND
+ * on-shift.) Named in the ORDER the founder can act on it: certification is
+ * HIS act on this desk; the shift is the rider's act in their own app. The
+ * founder hit « aucun coursier libre » with no reason anywhere on screen —
+ * this pill is where the reason lives from now on.
+ */
+export function etatPillule(row: CoursierRow): { readonly label: string; readonly ton: 'ok' | 'attente' } {
+  if (!row.certified) return { label: 'coursiers.pas_certifie', ton: 'attente' };
+  if (!row.enService) return { label: 'coursiers.pas_en_service', ton: 'attente' };
+  return { label: 'coursiers.pret_course', ton: 'ok' };
+}
+
+/**
  * ⚠ A LIVE ONE-TIME CODE BLOCKS EVERY OTHER ACT. The plaintext exists nowhere
  * but that card — the server mints it once and never returns it. A tap that
  * silently destroyed it mid-handover is the finding the supplier-code desk
  * already paid for (verifier MAJOR-1 there). He taps « C'est noté » first.
  */
 export interface CoursiersUi {
-  readonly busy: 'mint' | `revoke:${string}` | null;
+  readonly busy: 'mint' | `revoke:${string}` | `certify:${string}` | null;
   readonly nouveau: { readonly riderId: string; readonly code: string } | null;
   /** Namespaced like `busy`, so a rider literally named « mint » cannot light
    *  the wrong sentence. */
-  readonly echec: 'mint' | `revoke:${string}` | null;
+  readonly echec: 'mint' | `revoke:${string}` | `certify:${string}` | null;
 }
 
 export const COURSIERS_IDLE: CoursiersUi = { busy: null, nouveau: null, echec: null };
@@ -78,7 +91,7 @@ export function refuserActe(ui: CoursiersUi): string | null {
   return null;
 }
 
-export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}`): CoursiersUi | null {
+export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}`): CoursiersUi | null {
   if (refuserActe(ui) !== null) return null;
   return { busy: acte, nouveau: null, echec: null };
 }
@@ -89,7 +102,7 @@ export type ActeResultat =
 
 export function acteRegle(
   ui: CoursiersUi,
-  acte: 'mint' | `revoke:${string}`,
+  acte: 'mint' | `revoke:${string}` | `certify:${string}`,
   r: ActeResultat,
 ): CoursiersUi {
   // A late answer for an act no longer in flight changes nothing — it must not

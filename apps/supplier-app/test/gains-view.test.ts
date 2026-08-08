@@ -147,7 +147,7 @@ describe('RB-3 — the Séra board carries its live assignments to the rider joi
   it('no live assignment — or no board at all — is an honest null, never a guess', () => {
     const board: BoardSera = {
       queued: [],
-      riders: [{ riderId: 'rider-9', displayName: 'Issa', assignable: true }],
+      riders: [{ riderId: 'rider-9', displayName: 'Issa', assignable: true, certified: true, enService: true }],
       affectations: [{ taskId: 't', orderId: 'autre', riderId: 'rider-9', status: 'acknowledged' }],
     };
     expect(nomCoursierPour('ord-gains-1', board)).toBeNull();

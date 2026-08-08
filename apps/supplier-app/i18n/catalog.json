@@ -3774,6 +3774,42 @@
     "screenClass": "instruction"
   },
   {
+    "key": "coursiers.donner_nouveau",
+    "fr": "Donner un nouveau code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.remplace_note",
+    "fr": "Le nouveau code remplace l'ancien tout de suite.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "coursiers.certifier",
+    "fr": "Certifier ce coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.pas_certifie",
+    "fr": "Pas encore certifié — il ne peut pas recevoir de course.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.pas_en_service",
+    "fr": "Pas en service. Il démarre sa journée dans son application Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.pret_course",
+    "fr": "En service — prêt pour une course.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "commandes.titre",
     "fr": "Commandes",
     "register": "neutral",
@@ -4168,6 +4204,24 @@
     "fr": "Ce coursier n’est plus libre. Choisissez-en un autre.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "confier.blocage_certif",
+    "fr": "pas encore certifié — passez par l'onglet Coursiers",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.blocage_service",
+    "fr": "pas en service — il doit démarrer sa journée dans son application Séra",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.blocage_occupe",
+    "fr": "déjà occupé par une autre course",
+    "register": "neutral",
+    "screenClass": "label"
   },
   {
     "key": "gains.titre",

@@ -9,6 +9,7 @@ import {
   avisCodeKey,
   codePillule,
   coursiersVue,
+  etatPillule,
   oublierCode,
   refuserActe,
 } from '../src/coursiers/view';
@@ -16,8 +17,8 @@ import { coursierRows } from '../src/coursiers/service';
 import type { CoursierRow } from '../src/coursiers/service';
 import { t } from '../src/i18n';
 
-const row = (riderId: string, hasCode: boolean): CoursierRow => ({
-  riderId, displayName: riderId, hasCode, certified: true,
+const row = (riderId: string, hasCode: boolean, extra?: Partial<CoursierRow>): CoursierRow => ({
+  riderId, displayName: riderId, hasCode, certified: true, enService: true, assignable: true, ...extra,
 });
 
 describe('SE-LIVE-4e-B+ — what the coursiers desk shows', () => {
@@ -45,6 +46,29 @@ describe('SE-LIVE-4e-B+ — what the coursiers desk shows', () => {
       const label = codePillule(row('r', has)).label;
       expect(t(label)).not.toBe(label);
     }
+    for (const r of [row('r', false, { certified: false }), row('r', false, { enService: false }), row('r', false)]) {
+      const label = etatPillule(r).label;
+      expect(t(label)).not.toBe(label);
+    }
+  });
+});
+
+describe('COURSIER-EN-SERVICE — the state pill names the ONE step that unblocks (founder: « aucun coursier disponible » with no reason anywhere)', () => {
+  it('not certified leads, whatever the shift says — certification is the founder\'s own act on this desk', () => {
+    expect(etatPillule(row('r', false, { certified: false, enService: true }))).toEqual({
+      label: 'coursiers.pas_certifie', ton: 'attente',
+    });
+    expect(etatPillule(row('r', false, { certified: false, enService: false })).label).toBe('coursiers.pas_certifie');
+  });
+
+  it('certified but off shift → the rider\'s own act, named', () => {
+    expect(etatPillule(row('r', false, { enService: false }))).toEqual({
+      label: 'coursiers.pas_en_service', ton: 'attente',
+    });
+  });
+
+  it('certified and on shift → ready for a course', () => {
+    expect(etatPillule(row('r', false))).toEqual({ label: 'coursiers.pret_course', ton: 'ok' });
   });
 });
 
@@ -63,6 +87,22 @@ describe('THE DESK IS A JOIN OF TWO ROUTES (the bug the seam test caught)', () =
 
   it('and absent from that projection is FALSE, never « probably yes »', () => {
     expect(coursierRows(riders, { codes: [] })[0]?.hasCode).toBe(false);
+  });
+
+  it('reads the shift and assignability the roster route has always sent — absent or odd is FALSE', () => {
+    const out = coursierRows(
+      { riders: [
+        { riderId: 'r-on', certified: true, shift: { status: 'on_shift', startedAt: 'x', confirmedBy: 'server' }, assignable: true },
+        { riderId: 'r-off', certified: true, shift: { status: 'off_shift' }, assignable: false },
+        { riderId: 'r-naked', certified: true },
+      ] },
+      { codes: [] },
+    );
+    expect(out.map((r) => [r.riderId, r.enService, r.assignable])).toEqual([
+      ['r-on', true, true],
+      ['r-off', false, false],
+      ['r-naked', false, false],
+    ]);
   });
 
   it('drops rows that name no rider rather than rendering ghosts', () => {

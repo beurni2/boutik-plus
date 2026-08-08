@@ -19,6 +19,7 @@ import {
   avisCodeKey,
   codePillule,
   coursiersVue,
+  etatPillule,
   oublierCode,
   refuserActe,
   type CoursiersRead,
@@ -137,7 +138,7 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
   /** One act at a time — and nothing runs while a one-time code is on screen. */
   const lancer = useCallback(
     async (
-      acte: 'mint' | `revoke:${string}`,
+      acte: 'mint' | `revoke:${string}` | `certify:${string}`,
       riderId: string,
       appel: (s: CoursiersServicePort) => Promise<{ ok: boolean; code?: string | undefined; badKey?: boolean }>,
     ): Promise<void> => {
@@ -252,6 +253,30 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
       {vue !== null && vue.kind === 'liste'
         ? vue.coursiers.map((c) => {
             const pill = codePillule(c);
+            const etat = etatPillule(c);
+            /**
+             * ⚠ ONE PRIMARY PER CARD, IN PROCESS ORDER (founder reports
+             * 2026-08-08): « when I tap donner un code and got the code it
+             * comes back again donner un code » — a full-green « Donner un
+             * code » over a rider whose code is already ACTIVE reads as « it
+             * did not work », and tapping it destroys the live code. And his
+             * rider could never take a course because certification had NO
+             * button anywhere. So: not-certified → « Certifier » is the one
+             * primary; certified without a code → « Donner un code »; a live
+             * code → both code acts whisper, and the loud slot stays empty.
+             */
+            const mint = (): void => {
+              // No silent early return: `lancer` refuses an act while one is
+              // in flight and SAYS SO (« un seul geste à la fois »).
+              void lancer('mint', c.riderId, async (s) => {
+                const a = await s.donnerCode(c.riderId);
+                return {
+                  ok: a.kind === 'ok',
+                  code: a.kind === 'ok' ? a.value : undefined,
+                  badKey: a.kind === 'bad_key',
+                };
+              });
+            };
             return (
               <Card key={c.riderId} variant="Llg" style={{ marginTop: 12 }}>
                 <Text style={NOM}>{c.displayName}</Text>
@@ -263,26 +288,39 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                       : t(pill.label)}
                   </Banner>
                 </View>
-                <View style={{ marginTop: 12 }}>
-                  <C07BtnPrimary
-                    label={t('coursiers.donner')}
-                    icon="check"
-                    onPress={() => {
-                      // No silent early return: `lancer` refuses an act while
-                      // one is in flight and SAYS SO (« un seul geste à la
-                      // fois »). A button that does nothing without a word is
-                      // the confusion this zone already cost the founder once.
-                      void lancer('mint', c.riderId, async (s) => {
-                        const a = await s.donnerCode(c.riderId);
-                        return {
-                          ok: a.kind === 'ok',
-                          code: a.kind === 'ok' ? a.value : undefined,
-                          badKey: a.kind === 'bad_key',
-                        };
-                      });
-                    }}
-                  />
+                <View style={{ marginTop: 8 }}>
+                  <Banner tone={etat.ton === 'ok' ? 'success' : 'info'}>{t(etat.label)}</Banner>
                 </View>
+                {!c.certified ? (
+                  <View style={{ marginTop: 12 }}>
+                    <C07BtnPrimary
+                      label={t('coursiers.certifier')}
+                      icon="check"
+                      onPress={() => {
+                        void lancer(`certify:${c.riderId}`, c.riderId, async (s) => {
+                          const a = await s.certifier(c.riderId);
+                          return { ok: a.kind === 'ok', badKey: a.kind === 'bad_key' };
+                        });
+                      }}
+                    />
+                  </View>
+                ) : null}
+                {c.hasCode ? (
+                  <>
+                    <Text style={[PETIT, { marginTop: 10 }]}>{t('coursiers.remplace_note')}</Text>
+                    <View style={{ marginTop: 8 }}>
+                      <BtnGhost label={t('coursiers.donner_nouveau')} onPress={mint} />
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ marginTop: 12 }}>
+                    {c.certified ? (
+                      <C07BtnPrimary label={t('coursiers.donner')} icon="check" onPress={mint} />
+                    ) : (
+                      <BtnGhost label={t('coursiers.donner')} onPress={mint} />
+                    )}
+                  </View>
+                )}
                 {c.hasCode ? (
                   <View style={{ marginTop: 8 }}>
                     <BtnGhost

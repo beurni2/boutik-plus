@@ -54,6 +54,11 @@ export interface CoursierRow {
   readonly hasCode: boolean;
   readonly mintedAt?: string | undefined;
   readonly certified: boolean;
+  /** SE1: assignable = certified AND on-shift, server-confirmed. The roster
+   *  carries both facts so the desk can say WHICH one is missing — the founder
+   *  spent a day on « aucun coursier libre » with no reason on any screen. */
+  readonly enService: boolean;
+  readonly assignable: boolean;
 }
 
 export type CoursierAnswer<T> =
@@ -71,6 +76,10 @@ export interface CoursiersServicePort {
   inscrire(r: { riderId: string; displayName: string; phoneAlias: string }): Promise<CoursierAnswer<null>>;
   donnerCode(riderId: string): Promise<CoursierAnswer<string>>;
   retirerCode(riderId: string): Promise<CoursierAnswer<null>>;
+  /** The founder's certification act (SE1) — the registry route existed from
+   *  SE-LIVE-4b and NO CLIENT EVER CALLED IT, so every rider stayed
+   *  uncertified and none could ever be assigned. */
+  certifier(riderId: string): Promise<CoursierAnswer<null>>;
 }
 
 const CLE_COURSIERS_STORAGE = 'boutik.coursiers.cle';
@@ -147,6 +156,7 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
     const riderId = typeof r['riderId'] === 'string' ? r['riderId'] : '';
     if (riderId === '') continue;
     const at = minted.get(riderId);
+    const shift = r['shift'];
     out.push({
       riderId,
       displayName: typeof r['displayName'] === 'string' && r['displayName'] !== '' ? r['displayName'] : riderId,
@@ -155,6 +165,12 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
       hasCode: at !== undefined,
       ...(at !== undefined && at !== '' ? { mintedAt: at } : {}),
       certified: r['certified'] === true,
+      // Same conservatism as `assignable` on the dispatch board: absent or
+      // unrecognised is FALSE — a desk must never claim service it cannot see.
+      enService:
+        shift !== null && typeof shift === 'object' &&
+        (shift as Record<string, unknown>)['status'] === 'on_shift',
+      assignable: r['assignable'] === true,
     });
   }
   return out;
@@ -208,6 +224,8 @@ export function httpCoursiersService(
       }),
     retirerCode: (riderId) =>
       call('/ops/rider-code/revoke', { method: 'POST', body: JSON.stringify({ riderId }) }, () => null),
+    certifier: (riderId) =>
+      call('/ops/riders/certify', { method: 'POST', body: JSON.stringify({ riderId, certified: true }) }, () => null),
   };
 }
 

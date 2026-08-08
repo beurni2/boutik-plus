@@ -28,6 +28,11 @@ export interface CoursierLibre {
   readonly riderId: string;
   readonly displayName: string;
   readonly assignable: boolean;
+  /** WHY a rider is not offered (SE1: certified + on-shift). The board has
+   *  always sent both facts; the screen read only `assignable` and could say
+   *  nothing but « aucun coursier libre » — the founder's dead end. */
+  readonly certified: boolean;
+  readonly enService: boolean;
 }
 
 /** One LIVE assignment off the board — who is carrying which order. Séra's
@@ -154,6 +159,7 @@ export function httpSeraDispatch(
             if (e === null || typeof e !== 'object') continue;
             const r = e as Record<string, unknown>;
             if (typeof r['riderId'] !== 'string' || r['riderId'] === '') continue;
+            const shift = r['shift'];
             riders.push({
               riderId: r['riderId'],
               displayName:
@@ -163,6 +169,10 @@ export function httpSeraDispatch(
               // Absent is NOT assignable — an over-eager default here would
               // offer him a rider who is off shift or already carrying.
               assignable: r['assignable'] === true,
+              certified: r['certified'] === true,
+              enService:
+                shift !== null && typeof shift === 'object' &&
+                (shift as Record<string, unknown>)['status'] === 'on_shift',
             });
           }
         }

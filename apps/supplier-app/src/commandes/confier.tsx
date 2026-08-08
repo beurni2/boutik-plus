@@ -270,7 +270,25 @@ function ConfierAvecService({
         <View style={{ marginTop: 10, gap: 8 }}>
           <Text style={CORPS}>{t('confier.choisir_aide')}</Text>
           {etape.board.riders.filter((r) => r.assignable).length === 0 ? (
-            <Banner tone="info">{t('confier.aucun_libre')}</Banner>
+            <>
+              <Banner tone="info">{t('confier.aucun_libre')}</Banner>
+              {/* FOUNDER REPORT (2026-08-08): he registered a rider, saw this
+                  banner, tapped Réessayer, and NOTHING on any screen said the
+                  rider was uncertified and off-shift. The board has always
+                  carried the reason — now each rider is named with the one
+                  step that unblocks them, so the retry has a visible target. */}
+              {etape.board.riders.map((r) => (
+                <Text key={r.riderId} style={PETIT}>
+                  {`${r.displayName} : ${t(
+                    !r.certified
+                      ? 'confier.blocage_certif'
+                      : !r.enService
+                        ? 'confier.blocage_service'
+                        : 'confier.blocage_occupe',
+                  )}`}
+                </Text>
+              ))}
+            </>
           ) : (
             etape.board.riders
               .filter((r) => r.assignable)
