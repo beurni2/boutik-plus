@@ -3091,3 +3091,13 @@ Also: the copy-lint refused my own « arrivera » (2.60 syllables/word over the 
 offer-service **211 tests** — including the NO-LOOP seam proofs: the readiness e2e drives **the tab's own `resolveOperationsService()` port** against the real combined Worker (board → card → ready → evidence → wrong-key bad_key), and the route tests hold evidence/contact behavior on raw bytes · supplier-app **791 tests** (+9 view/discipline; 4 console pins evolved with reasons) · workspace typecheck clean · gate board **ALL GATES GREEN**.
 
 **Open, named:** RB-2 dispatch button (Terminées detail ships without a dead primary action) · RB-3 Gains · RB-4 remaining de-mock (accueil still demo) · the stale-clone container incident (all three repos re-based on remote truth mid-slice; nothing lost — the remotes held every merge).
+
+---
+
+## 2026-08-08 · RB-2 — « Confier à un coursier » (merged `0322655` · deployed run 31247587270)
+
+The Terminées detail now carries its primary act. The founder composes the delivery task himself (his SE-LIVE-2c ruling — Séra fabricates nothing): GPS pin pasted from a maps app (bounds-checked on his side, re-checked by the Worker), quartier and repère **prefilled from what the buyer typed**, directions in his words, a stated six-hour window. Séra's admission gate governs his own hand — `funding_projection_stale` / `readiness_projection_stale` reach the screen in plain French, never « échec ». Then the picker: only riders Séra itself calls `assignable`. Then the handover: the card says the course is on the rider's Séra app, and stops — custody is Séra's from there. Same Séra key as the Coursiers zone, same slot, typed once.
+
+**The seam earned its keep once more:** my test first asserted that a rider leaves the picker at GRANT — the real Worker refused: a granted-but-unacked rider stays `assignable` (the LEASE law: grants can expire or be declined; an invisible granted rider strands tasks). One custodian is enforced at the authority (409 on a second grant, proven under 20-way concurrency), and the fold speaks that 409 by name. The test now pins the law, not my first guess (sera `f2bbd88`: the fold's exact bytes — fund → ready → compose → duplicate replay → board → assign → duplicate replay → `/rider/moi` carries the founder's address verbatim).
+
+**Evidence:** supplier-app 797 (+6) · sera logistics 157 · typecheck clean both · gate board ALL GREEN · CI green both · web deploy green. **Open:** a granted rider may still show in the picker until ack (handled by the named 409; a nicer filter needs the assignments join — noted for RB-4-era polish) · « déjà lancée » state is inferred, not shown with the rider's name (same join).
