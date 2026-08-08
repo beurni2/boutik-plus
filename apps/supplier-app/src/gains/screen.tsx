@@ -168,6 +168,14 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
         <Text style={[PETIT, { marginTop: 2 }]} numberOfLines={1}>{row.zoneTo}</Text>
       ) : null}
 
+      {row.livree ? (
+        // SE-LIVE-5c — the ecosystem's badge words, only when Séra's validated
+        // signal folded the settlement records: never a default, never a guess.
+        <View style={{ marginTop: 8, alignSelf: 'flex-start', backgroundColor: P.successBg, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 }}>
+          <Text style={role({ f: 'IS', w: 700, s: 11.5 }, P.successFg)}>{t('gains.livree')}</Text>
+        </View>
+      ) : null}
+
       <Text style={[LIGNE_NOM, { marginTop: 10 }]}>{t('gains.total')}</Text>
       <Text style={[GROS_MONTANT, TNUM]}>{formatF(s.buyerTotal)}</Text>
 
@@ -182,6 +190,10 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
       <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 8 }}>
         {coursier !== null ? (
           <Text style={LIGNE_NOM} numberOfLines={1}>{`${t('gains.coursier')} ${coursier}`}</Text>
+        ) : row.livree ? (
+          // Delivered: the live board no longer carries this course, and
+          // « pas encore connu » would read as doubt about a finished thing.
+          null
         ) : (
           <Text style={PETIT}>{t('gains.coursier_inconnu')}</Text>
         )}

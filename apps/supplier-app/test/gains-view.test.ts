@@ -40,6 +40,7 @@ const ROW = {
   productVersionId: 'pv-1',
   zoneTo: 'Gounghin, Ouagadougou',
   split: SPLIT,
+  livree: false,
 };
 
 afterEach(() => {
@@ -71,6 +72,8 @@ describe('RB-3 — the gains port copies the frozen split, franc for franc', () 
     expect(row.zoneTo).toBe('Gounghin, Ouagadougou');
     // franc for franc — a port that "normalizes" money is a port that lies
     expect(row.split).toEqual(SPLIT);
+    // SE-LIVE-5c — absent-on-the-wire reads FALSE: delivered is never a default
+    expect(row.livree).toBe(false);
   });
 
   it('a split missing ONE figure — or carrying a fraction or a negative — drops the WHOLE row', async () => {
@@ -161,6 +164,7 @@ describe('RB-3 — newest sale first, deterministically', () => {
       productVersionId: 'pv',
       zoneTo: '',
       split: SPLIT,
+      livree: false,
     };
     const rows: GainRow[] = [
       { ...base, orderId: 'ord-b', createdAt: '2026-08-07T10:00:00.000Z' },
@@ -190,6 +194,13 @@ describe('RB-3 — [source-text checks] the tab’s discipline', () => {
     const used = [...screen.matchAll(/t\('((?:gains|commandes)\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
     expect(used.length).toBeGreaterThan(12);
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
+  });
+
+  it('SE-LIVE-5c — « Livrée par Séra » renders ONLY from the served livree fact', () => {
+    expect(screen).toContain("{t('gains.livree')}");
+    expect(screen).toContain('row.livree ?');
+    // the badge is gated by the row's own field, never unconditioned
+    expect(screen.match(/gains\.livree/g)?.length).toBe(1);
   });
 
   it('no demo import; the service resolves or the screen says « pas relié »', () => {

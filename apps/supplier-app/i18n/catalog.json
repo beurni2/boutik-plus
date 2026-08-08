@@ -4300,5 +4300,11 @@
     "fr": "Ouvrir les Commandes",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "gains.livree",
+    "fr": "Livrée par Séra",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

@@ -441,6 +441,12 @@ export interface GainRow {
   readonly productVersionId: string;
   readonly zoneTo: string;
   readonly split: GainSplit;
+  /**
+   * SE-LIVE-5 — Séra validated the delivery and the settlement records were
+   * folded from the frozen quote. Absent on the wire (older Workers) reads
+   * FALSE: an order is never called delivered by default.
+   */
+  readonly livree: boolean;
 }
 
 export type GainsResult =
@@ -489,6 +495,7 @@ function readGainRow(value: unknown): GainRow | null {
     productVersionId: r['productVersionId'],
     zoneTo: r['zoneTo'],
     split: split as GainSplit,
+    livree: r['livree'] === true,
   };
 }
 

@@ -3139,3 +3139,11 @@ A gate run reported `Boutik-Plus-Build-Spec.md` drifted from canon. Local file, 
 **Evidence:** 815/815 supplier-app tests (+8: stock-bas threshold/order, oldest-first cap, shell source discipline incl. the no-franc pin and the 2× SAccueilReel mounts) · workspace typecheck clean · copy-lint 717 entries 0 violations · gate board + CI: recorded at merge.
 
 **Open, named:** the greeting sentence claims « Boutique ouverte » unconditionally — no real open/closed state exists yet to bind it to · `accueil.*` legacy demo strings (shopline, ech_*, stat_*) remain as catalog orphans, unrendered · SE-LIVE-5 is next (founder order), which will also give « prêtes à confier » its downstream meaning.
+
+---
+
+## 2026-08-08 · SE-LIVE-5c (Boutik+ half) — « Livrée par Séra » on the Gains tab
+
+The gains client reads the `livree` fact 5b now serves (absent on the wire reads FALSE — delivered is never a default, pinned) and the card wears the ecosystem's badge words « Livrée par Séra » (successBg/successFg tokens) only from that served fact. A delivered order whose course has left the live board no longer says « pas encore connu ici » — doubt-words on a finished thing. Catalog 718, copy-lint clean; 816/816 tests (+1: the badge gated by the row's own field, exactly one render site).
+
+**Upstream, LIVE as of this entry:** Shop+ 5b (settlement records copied from the frozen quote at Séra's validated signal — storefront deployed) · Séra 5a (the delivery acts + the eligibility outbox — custody-service deployed, run 31271297908). **⚠ The founder's one config act:** `wrangler secret put SHOP_PROGRESS_SECRET` on custody-service (= shop's `PROGRESS_WRITE_SECRET`); until then the signal parks honestly as `unsendable_no_config` and a replayed drop revives it. **Open (sera 5c):** the rider app's drop-code screen · the dispatch board clearing on delivery.
