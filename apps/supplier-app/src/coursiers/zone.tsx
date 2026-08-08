@@ -173,19 +173,32 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
   );
 
   const vue = coursiersVue(read);
-  const bloque = ui.busy !== null || ui.nouveau !== null;
   const roster = read.kind === 'ok' ? read.coursiers : [];
 
-  return (
-    <View style={{ marginTop: 16 }}>
-      <Text style={TITRE}>{t('coursiers.zone')}</Text>
-      <Text style={[CORPS, { marginTop: 6 }]}>{t('coursiers.intro')}</Text>
-
-      {/* ⚠ THE ONE-TIME CODE — the loudest card, on screen once, and nothing
-          else may run while it is up. The server mints it once and never
-          returns it; a tap that destroyed it mid-handover is the finding the
-          supplier-code desk already paid for. */}
-      {ui.nouveau !== null ? (
+  /**
+   * ⚠ THE ONE-TIME CODE IS THE WHOLE SCREEN — not a card on top of a busy one.
+   *
+   * FOUNDER REPORT (2026-08-08): « after i generate the code the screen becomes
+   * confusing. » He was right, and the cause was mine. The code card used to
+   * render ABOVE the live roster, whose « Donner un code » is styled exactly as
+   * loud as « C'est noté » — two full-width primary greens on one screen — and
+   * every one of those buttons was SILENTLY DEAD, because each `onPress` began
+   * with an early return on the blocked flag. A guard that protects the code by
+   * making buttons LIE is worse than no guard: he taps, nothing happens, nothing
+   * explains why, and the one thing that actually matters — write this down, it
+   * never comes back — competes for attention with a row of traps.
+   *
+   * So the desk steps aside. One primary action per screen, ruthlessly: note the
+   * code, tap « C'est noté », and the roster returns. Nothing can be mis-tapped
+   * because nothing else is offered — the block is now a fact of the LAYOUT,
+   * not a rule the buttons pretend to follow. `refuserActe` keeps the same rule
+   * in the pure logic (defence in depth, still tested); the UI simply no longer
+   * puts the trap on screen.
+   */
+  if (ui.nouveau !== null) {
+    return (
+      <View style={{ marginTop: 16 }}>
+        <Text style={TITRE}>{t('coursiers.zone')}</Text>
         <Card variant="Llg" style={{ marginTop: 16 }}>
           <Text style={TITRE}>{t('coursiers.nouveau_titre')}</Text>
           <Text style={[PETIT, { marginTop: 4 }]}>{ui.nouveau.riderId}</Text>
@@ -202,7 +215,14 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
             />
           </View>
         </Card>
-      ) : null}
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <Text style={TITRE}>{t('coursiers.zone')}</Text>
+      <Text style={[CORPS, { marginTop: 6 }]}>{t('coursiers.intro')}</Text>
 
       {avis !== null ? (
         <View style={{ marginTop: 12 }}>
@@ -248,7 +268,10 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                     label={t('coursiers.donner')}
                     icon="check"
                     onPress={() => {
-                      if (bloque) return;
+                      // No silent early return: `lancer` refuses an act while
+                      // one is in flight and SAYS SO (« un seul geste à la
+                      // fois »). A button that does nothing without a word is
+                      // the confusion this zone already cost the founder once.
                       void lancer('mint', c.riderId, async (s) => {
                         const a = await s.donnerCode(c.riderId);
                         return {
@@ -265,7 +288,6 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                     <BtnGhost
                       label={t('coursiers.retirer')}
                       onPress={() => {
-                        if (bloque) return;
                         void lancer(`revoke:${c.riderId}`, c.riderId, async (s) => {
                           const a = await s.retirerCode(c.riderId);
                           return { ok: a.kind === 'ok', badKey: a.kind === 'bad_key' };
@@ -302,7 +324,6 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
             label={t('coursiers.inscrire')}
             icon="check"
             onPress={() => {
-              if (bloque) return;
               const riderId = nouvelId.trim();
               const displayName = nouveauNom.trim();
               const phoneAlias = nouveauTel.trim();
@@ -314,6 +335,15 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                 // `already_registered` is not a failure to mint — fall through
                 // and give the existing rider a code, which is what he came for.
                 const a = await s.donnerCode(riderId);
+                // Cleared ONLY on a code that actually came back: a form still
+                // holding the name he just registered reads as « it did not
+                // work » and invites a second submit — which would destroy the
+                // code he is holding. A failure keeps what he typed.
+                if (a.kind === 'ok') {
+                  setNouvelId('');
+                  setNouveauNom('');
+                  setNouveauTel('');
+                }
                 return {
                   ok: a.kind === 'ok',
                   code: a.kind === 'ok' ? a.value : undefined,

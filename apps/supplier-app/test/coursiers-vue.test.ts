@@ -159,3 +159,53 @@ describe('the Séra ops key is never bundled and never logged', () => {
     expect(code, 'a demo fallback in the resolver').not.toMatch(/demo|sandbox|fixture/i);
   });
 });
+
+describe('the one-time code takes the whole screen (founder: « the screen becomes confusing »)', () => {
+  // Comments STRIPPED first: the docblock explaining this fix quotes the very
+  // pattern the scan forbids. Same self-inflicted trap as the resolver scan
+  // above — assert on CODE, never on prose written about the code.
+  const zone = readFileSync(join(import.meta.dirname, '..', 'src/coursiers/zone.tsx'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/\/\/.*$/gm, '');
+
+  const at = (needle: string): number => {
+    const i = zone.indexOf(needle);
+    // A mutation that did not apply is not a passing test: prove the anchor
+    // matched before any index comparison is allowed to mean anything.
+    expect(i, `anchor never matched, so this test proves nothing: ${needle}`).toBeGreaterThan(-1);
+    return i;
+  };
+
+  it('returns early on a live code, before the roster or the form can render', () => {
+    // The founder minted a code and got a screen with TWO full-width primary
+    // greens: « C'est noté » and, right under it, « Donner un code » — which
+    // would have destroyed the code he was holding. Now the desk steps aside.
+    const early = at('if (ui.nouveau !== null) {');
+    const noteButton = at("t('coursiers.note')");
+    const roster = at('vue.coursiers.map(');
+    const form = at("t('coursiers.inscrire_titre')");
+
+    expect(zone.slice(early, early + 200), 'the guard must RETURN, not merely branch').toContain('return (');
+    expect(noteButton, 'the code card belongs inside the early return').toBeGreaterThan(early);
+    expect(roster, 'the roster must not render beside a live code').toBeGreaterThan(noteButton);
+    expect(form, 'the registration form must not render beside a live code').toBeGreaterThan(noteButton);
+  });
+
+  it('no button dies in silence: the refusal is spoken, never an early return', () => {
+    // Every onPress used to open with `if (bloque) return` — a tap that did
+    // nothing and said nothing. `lancer` refuses through refuserActe, which
+    // sets a banner the founder can read.
+    expect(zone, 'a silent guard is what made the screen unreadable').not.toMatch(/if \(bloque\)/);
+    expect(zone).not.toMatch(/const bloque =/);
+    expect(zone, 'the spoken refusal path must still exist').toContain('refuserActe(ui)');
+  });
+
+  it('the registration form is cleared only when a code actually came back', () => {
+    // A form still holding the name he just registered reads as « it did not
+    // work » and invites a second submit — which destroys the fresh code.
+    const clear = at("setNouvelId('')");
+    const guard = zone.lastIndexOf("if (a.kind === 'ok')", clear);
+    expect(guard, 'the clear must sit behind an ok check, never run unconditionally').toBeGreaterThan(-1);
+  });
+});
