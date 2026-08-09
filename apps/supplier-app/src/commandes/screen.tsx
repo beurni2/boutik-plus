@@ -28,6 +28,7 @@ import { resolveSeraDispatch, type BoardSera } from './sera-service';
 import { nomCoursierPour } from '../gains/view';
 import { resolveMediaBase } from '../supply/media';
 import { ConfierCoursier } from './confier';
+import { telEnPaires } from './telephone';
 import {
   attenteDepuis,
   nomFournisseur,
@@ -561,7 +562,9 @@ function DetailTerminee({
           <View style={{ marginTop: 6 }}>
             {buyer.contact !== null ? (
               <>
-                <Text style={TITRE}>{buyer.contact.phone}</Text>
+                {/* TEL-PAIRES (founder 2026-08-09): « 76 16 02 55 » — pairs,
+                    exactly as he reads a number to a rider over the phone. */}
+                <Text style={TITRE}>{telEnPaires(buyer.contact.phone)}</Text>
                 <Text style={[CORPS, { marginTop: 4 }]}>{buyer.contact.quartier}</Text>
                 <Text style={[CORPS, { marginTop: 2 }]}>{buyer.contact.repere}</Text>
                 {/* REPERE-AUDIO-REEL — HER OWN VOICE saying where the door is,

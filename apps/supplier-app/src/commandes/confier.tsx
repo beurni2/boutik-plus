@@ -128,8 +128,31 @@ function ConfierAvecService({
 }) {
   const [cleDraft, setCleDraft] = useState('');
   const [pin, setPin] = useState('');
-  const [zone, setZone] = useState(buyer?.contact?.quartier ?? row.zoneTo);
-  const [repere, setRepere] = useState(buyer?.contact?.repere ?? '');
+  /**
+   * ⚠ PRET-SECTIONS (founder order 2026-08-09): « put each one in its section
+   * instead of leaving repère section empty from repère information buyer
+   * gave and do not make them editable. »
+   *
+   * What was wrong, mechanically: the old `useState(buyer?.contact?.quartier
+   * ?? …)` seeded ONCE, at first mount — and this fold mounts while the buyer
+   * row is still LOADING (DetailPret passes `buyer=null` until its fetch
+   * lands), so the seed always captured null and the repère section sat empty
+   * over information the buyer had given. useState never re-seeds.
+   *
+   * So the buyer's fields are no longer copied into state at all: what she
+   * GAVE is read from the prop at render time and shown read-only in its
+   * section — it cannot be stale and it cannot be edited. The typed state
+   * below is ONLY the fallback for what she did NOT give (a repère she spoke
+   * instead of typing — the founder transcribes while listening; a quartier
+   * on an order with no contact row). The pin stays typed: it is HIS field,
+   * pasted from his maps app, never hers.
+   */
+  const [zoneSaisie, setZoneSaisie] = useState(row.zoneTo);
+  const [repereSaisi, setRepereSaisi] = useState('');
+  const zoneDeLaCliente = buyer?.contact?.quartier.trim() ?? '';
+  const repereDeLaCliente = buyer?.contact?.repere.trim() ?? '';
+  const zone = zoneDeLaCliente !== '' ? zoneDeLaCliente : zoneSaisie;
+  const repere = repereDeLaCliente !== '' ? repereDeLaCliente : repereSaisi;
 
   const charger = useCallback(async (): Promise<void> => {
     if (cle === null) return;
@@ -295,8 +318,25 @@ function ConfierAvecService({
         <View style={{ marginTop: 10, gap: 8 }}>
           <Text style={CORPS}>{t('confier.composer_aide')}</Text>
           <Input label={t('confier.pin')} value={pin} onChangeText={setPin} />
-          <Input label={t('confier.zone')} value={zone} onChangeText={setZone} />
-          <Input label={t('confier.repere')} value={repere} onChangeText={setRepere} />
+          {/* PRET-SECTIONS — what the buyer GAVE sits in its section, read-only
+              (her words are the navigation; retyping them is how typos reach a
+              rider). Only a field she did NOT give is typed here. */}
+          {zoneDeLaCliente !== '' ? (
+            <View>
+              <Text style={PETIT}>{t('confier.zone')}</Text>
+              <Text style={TITRE}>{zoneDeLaCliente}</Text>
+            </View>
+          ) : (
+            <Input label={t('confier.zone')} value={zoneSaisie} onChangeText={setZoneSaisie} />
+          )}
+          {repereDeLaCliente !== '' ? (
+            <View>
+              <Text style={PETIT}>{t('confier.repere')}</Text>
+              <Text style={TITRE}>{repereDeLaCliente}</Text>
+            </View>
+          ) : (
+            <Input label={t('confier.repere')} value={repereSaisi} onChangeText={setRepereSaisi} />
+          )}
           <Text style={PETIT}>{t('confier.fenetre')}</Text>
           <C07BtnPrimary label={t('confier.creer')} icon="check" onPress={() => void composer()} />
         </View>
