@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, Input, Overline } from '../v2/components';
 import { readStoredCleCoursiers, storeCleCoursiers, clearStoredCleCoursiers } from '../coursiers/service';
 import {
   lirePin,
@@ -322,16 +322,16 @@ function ConfierAvecService({
               (her words are the navigation; retyping them is how typos reach a
               rider). Only a field she did NOT give is typed here. */}
           {zoneDeLaCliente !== '' ? (
-            <View>
-              <Text style={PETIT}>{t('confier.zone')}</Text>
+            <View style={{ gap: 8 }}>
+              <Overline level="card">{t('confier.zone')}</Overline>
               <Text style={TITRE}>{zoneDeLaCliente}</Text>
             </View>
           ) : (
             <Input label={t('confier.zone')} value={zoneSaisie} onChangeText={setZoneSaisie} />
           )}
           {repereDeLaCliente !== '' ? (
-            <View>
-              <Text style={PETIT}>{t('confier.repere')}</Text>
+            <View style={{ gap: 8 }}>
+              <Overline level="card">{t('confier.repere')}</Overline>
               <Text style={TITRE}>{repereDeLaCliente}</Text>
             </View>
           ) : (

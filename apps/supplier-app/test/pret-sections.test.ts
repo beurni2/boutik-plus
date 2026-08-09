@@ -43,7 +43,8 @@ describe('PRET-SECTIONS — the buyer’s words reach their sections, read-only,
     // Scanned over CODE, not prose: the comment at the fix quotes the banned
     // pattern on purpose (the same law as the rider app's call-form pin).
     const code = confier.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    expect(code).not.toMatch(/useState\(buyer/);
+    // eager AND lazy forms — useState(() => buyer…) seeds exactly as stalely
+    expect(code).not.toMatch(/useState\((\(\)\s*=>\s*)?buyer/);
   });
 
   it('what she GAVE derives from the prop at render time — arriving late still lands in its section', () => {
@@ -53,11 +54,13 @@ describe('PRET-SECTIONS — the buyer’s words reach their sections, read-only,
 
   it('a given field renders as TEXT in its labelled section — never an editable Input', () => {
     // the read-only branch: label + value as Text
+    // labelled through the SAME Overline idiom the Input uses — one label
+    // voice per card, never a snowflake (verifier minor, fixed in-build)
     expect(confier).toMatch(
-      /zoneDeLaCliente !== '' \? \(\s*<View>\s*<Text style=\{PETIT\}>\{t\('confier\.zone'\)\}<\/Text>\s*<Text style=\{TITRE\}>\{zoneDeLaCliente\}<\/Text>/,
+      /zoneDeLaCliente !== '' \? \(\s*<View style=\{\{ gap: 8 \}\}>\s*<Overline level="card">\{t\('confier\.zone'\)\}<\/Overline>\s*<Text style=\{TITRE\}>\{zoneDeLaCliente\}<\/Text>/,
     );
     expect(confier).toMatch(
-      /repereDeLaCliente !== '' \? \(\s*<View>\s*<Text style=\{PETIT\}>\{t\('confier\.repere'\)\}<\/Text>\s*<Text style=\{TITRE\}>\{repereDeLaCliente\}<\/Text>/,
+      /repereDeLaCliente !== '' \? \(\s*<View style=\{\{ gap: 8 \}\}>\s*<Overline level="card">\{t\('confier\.repere'\)\}<\/Overline>\s*<Text style=\{TITRE\}>\{repereDeLaCliente\}<\/Text>/,
     );
     // and no Input is ever bound to the buyer's own values
     expect(confier).not.toMatch(/<Input[^>]*value=\{zoneDeLaCliente\}/);
@@ -75,6 +78,13 @@ describe('PRET-SECTIONS — the buyer’s words reach their sections, read-only,
     // composer still sends zone/landmark from exactly these
     expect(confier).toMatch(/zone: zone\.trim\(\)/);
     expect(confier).toMatch(/landmark: repere\.trim\(\)/);
+  });
+
+  it('B1 — the fold is HANDED the live buyer row: the prop the whole fix turns on is pinned at its call site', () => {
+    // The verifier mutated this exact prop to `buyer={null}` and 840 tests
+    // stayed green while the founder's defect returned in full. The law this
+    // file quotes — assert CALL SITES — applied to the one input that matters.
+    expect(screen).toMatch(/<ConfierCoursier\s+row=\{row\}\s+buyer=\{typeof buyer === 'object' \? buyer : null\}/);
   });
 
   it('the cliente phone renders THROUGH the pair formatter (call site, not the function’s existence)', () => {
