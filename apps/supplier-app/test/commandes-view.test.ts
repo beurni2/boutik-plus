@@ -184,6 +184,20 @@ describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () =>
     expect(confier).toContain('.filter((r) => r.assignable)');
   });
 
+  it('RELAIS-REPRISE — a successful confier RECHARGES the screen, so the row moves to En route (verifier finding: this call site had no pin)', () => {
+    // The fold announces the relay upward on the SUCCESS arm only…
+    expect(confier).toContain('onConfiee?.();');
+    // …and the screen wires that announcement to its own recharge, whose
+    // refetch includes the Séra board — without this chain the relayed order
+    // sits in « Prêt à livrer » offering the same rider again (the founder's
+    // 2026-08-09 report).
+    const screen = readFileSync(join(import.meta.dirname, '..', 'src/commandes/screen.tsx'), 'utf8');
+    expect(screen).toContain('onConfiee={onChanged}');
+    // The recharge is QUIET when the book is already on screen — the move to
+    // En route must never read as the screen flashing back to a loader.
+    expect(screen).toContain("setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'chargement' }));");
+  });
+
   it('the fold shares the Coursiers zone’s key slot — one Séra key, typed once', () => {
     expect(confier).toContain("readStoredCleCoursiers");
     expect(confier).toContain("clearStoredCleCoursiers");

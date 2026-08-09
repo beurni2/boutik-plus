@@ -52,7 +52,7 @@ type Etape =
   | { kind: 'deja' }
   | { kind: 'confiee'; nom: string };
 
-export function ConfierCoursier({ row, buyer }: { row: PaidOrderRow; buyer: LivraisonRow | null }) {
+export function ConfierCoursier({ row, buyer, onConfiee }: { row: PaidOrderRow; buyer: LivraisonRow | null; onConfiee?: () => void }) {
   const service = useMemo(() => resolveSeraDispatch(), []);
   const [cle, setCle] = useState<string | null>(() => readStoredCleCoursiers());
   const [etape, setEtape] = useState<Etape>(cle === null ? { kind: 'porte' } : { kind: 'chargement' });
@@ -79,6 +79,7 @@ export function ConfierCoursier({ row, buyer }: { row: PaidOrderRow; buyer: Livr
       setAvis={setAvis}
       busy={busy}
       setBusy={setBusy}
+      {...(onConfiee !== undefined ? { onConfiee } : {})}
     />
   );
 }
@@ -95,6 +96,7 @@ function ConfierAvecService({
   setAvis,
   busy,
   setBusy,
+  onConfiee,
 }: {
   service: SeraDispatchPort;
   row: PaidOrderRow;
@@ -107,6 +109,7 @@ function ConfierAvecService({
   setAvis: (v: string | null) => void;
   busy: boolean;
   setBusy: (v: boolean) => void;
+  onConfiee?: () => void;
 }) {
   const [cleDraft, setCleDraft] = useState('');
   const [pin, setPin] = useState('');
@@ -224,6 +227,10 @@ function ConfierAvecService({
       return;
     }
     setEtape({ kind: 'confiee', nom });
+    // RELAIS-REPRISE (founder 2026-08-09): the relay must be SEEN taking —
+    // the screen recharges and the order moves to « En route » at once,
+    // instead of this fold quietly keeping its old segment.
+    onConfiee?.();
   };
 
   return (

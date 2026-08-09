@@ -165,7 +165,11 @@ function LivreCommandes({
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
-    setRead({ kind: 'chargement' });
+    // QUIET refresh (verifier finding, RELAIS-REPRISE): a recharge that
+    // already holds the book keeps it on screen while refetching — the
+    // post-confier reload must read as the row MOVING to « En route », never
+    // as the whole screen flashing back to a loader.
+    setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'chargement' }));
     const [orders, contacts] = await Promise.all([
       service.listPaidOrders(cle),
       service.listSupplierContacts(cle),
@@ -349,7 +353,7 @@ function RangCommande({
       </Pressable>
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} />
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} onChanged={onChanged} />
         ) : (
           <DetailATraiter row={row} qui={qui} attente={attente} nowMs={nowMs} service={service} cle={cle} onChanged={onChanged} />
         )
@@ -463,6 +467,7 @@ function DetailTerminee({
   mediaBase,
   etape,
   coursier,
+  onChanged,
 }: {
   row: PaidOrderRow;
   service: OperationsServicePort;
@@ -470,6 +475,7 @@ function DetailTerminee({
   mediaBase: string | null;
   etape: 'pret' | 'en_route' | 'terminees';
   coursier: string | null;
+  onChanged: () => void;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
   const [buyer, setBuyer] = useState<LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec'>(
@@ -583,7 +589,7 @@ function DetailTerminee({
         </Banner>
       ) : (
         /* RB-2 — the dispatch act itself, the fold this detail was built for. */
-        <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} />
+        <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} onConfiee={onChanged} />
       )}
     </View>
   );

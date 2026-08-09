@@ -3192,3 +3192,8 @@ The gains client reads the `livree` fact 5b now serves (absent on the wire reads
 - **Wording joined SERA-FLOW:** the coursiers pills and confier blockers now say « en ligne » (« Pas en ligne. Il doit passer en ligne dans son application Séra. »).
 - **Evidence:** 821/821 (partition matrix incl. one order wearing every hat + degradation law; pill map; accueil source pin evolved) · typecheck clean · catalog +8/reword 4 copy-lint clean · gate board **exit 0**.
 - **Deploy order held:** sera logistics (board semantics) deployed first; this web build follows.
+
+## 2026-08-09 · RELAIS-REPRISE (Boutik+ half) — the relay is SEEN taking
+- **The Séra half carries the root cause** (both dedupe layers replayed a dead course — sera journal, same day). Here: on a successful confier the fold announces upward (`onConfiee`) and the Commandes screen recharges — the order MOVES to « En route » the moment the relay takes, instead of the fold quietly keeping its old segment and re-offering the same rider.
+- **Verifier findings on this slice (one pass, per the new 2026-08-09 standing order — recorded in CLAUDE.md + AGENTS.md, all repos), both fixed once here:** the recharge call site had no pin → source-scan added (announce on the SUCCESS arm only · screen wires it to `charger` · quiet-refresh form pinned); the recharge flashed a loader over the whole book → `charger` now refreshes QUIETLY when the book is already on screen, so the post-confier moment reads as the row moving, never as the screen resetting.
+- **Evidence:** supplier-app **822/822** (+1 pin) · typecheck clean · gate board **exit 0** · verifier verdict SHIP, 0 blockers.
