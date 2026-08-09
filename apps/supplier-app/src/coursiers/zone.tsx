@@ -242,7 +242,12 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
       ) : null}
       {ui.echec !== null ? (
         <View style={{ marginTop: 12 }}>
-          <Banner tone="warn">{t('coursiers.acte_echoue')}</Banner>
+          {/* A failed REREAD names itself (« pas de réponse, réessayez ») —
+              the generic sentence would leave the founder guessing whether
+              the code itself is gone (CODE-REVU verifier MINOR-5). */}
+          <Banner tone="warn">
+            {t(ui.echec.startsWith('reveal:') ? 'coursiers.voir_echec' : 'coursiers.acte_echoue')}
+          </Banner>
         </View>
       ) : null}
 

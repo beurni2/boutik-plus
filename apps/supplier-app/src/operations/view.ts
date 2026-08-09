@@ -400,8 +400,11 @@ export interface AccesUi {
    *  marks a REREAD (CODE-REVU) — same card, its own true sentence. */
   readonly nouveau: { readonly resellerId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Namespaced like `busy`, so a reseller literally named « mint » cannot
-   *  light the wrong sentence (the verifier's note on the supplier section). */
-  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
+   *  light the wrong sentence (the verifier's note on the supplier section).
+   *  `reveal:` is the NETWORK failure (retry); `anterieur:` is the honest
+   *  pre-ruling refusal — collapsing the two told the founder to destroy a
+   *  working code over a hiccup (CODE-REVU verifier BLOCKER-1). */
+  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | `anterieur:${string}` | null;
 }
 
 export const ACCES_IDLE: AccesUi = { busy: null, nouveau: null, echec: null };
@@ -452,8 +455,11 @@ export function accesRevokeSettled(resellerId: string, result: AccesRevokeResult
   return { ui: { busy: null, nouveau: null, echec: `revoke:${resellerId}` }, then: 'none' };
 }
 
-/** CODE-REVU settle. `no_code`/`code_anterieur` mean the LIST was stale about
- *  this row — re-read so the button disappears; the sentence names the act. */
+/** CODE-REVU settle — the supplier desk's split, verbatim law: `no_code`
+ *  refreshes (the list claimed a door the book no longer holds, the row must
+ *  leave); `code_anterieur` lights the honest pre-ruling sentence; ONLY the
+ *  network fall-through says « pas de réponse » — it must never wear the
+ *  anterieur sentence, whose remedy (re-mint) destroys a working code. */
 export function accesRevealSettled(resellerId: string, result: AccesRevealResult): AccesSettlement {
   if (result.ok) {
     return {
@@ -462,8 +468,9 @@ export function accesRevealSettled(resellerId: string, result: AccesRevealResult
     };
   }
   if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
-  if (result.reason === 'no_code' || result.reason === 'code_anterieur') {
-    return { ui: { busy: null, nouveau: null, echec: `reveal:${resellerId}` }, then: 'refresh' };
+  if (result.reason === 'no_code') return { ui: ACCES_IDLE, then: 'refresh' };
+  if (result.reason === 'code_anterieur') {
+    return { ui: { busy: null, nouveau: null, echec: `anterieur:${resellerId}` }, then: 'refresh' };
   }
   return { ui: { busy: null, nouveau: null, echec: `reveal:${resellerId}` }, then: 'none' };
 }
@@ -503,12 +510,16 @@ export function comptesVue(read: ComptesRead): ComptesVue | null {
 }
 
 export type ActeCompte = `code:${string}` | `voir:${string}` | `pause:${string}` | `resume:${string}`;
+/** The echec vocabulary is the acts + `anterieur:` — the honest « ce code ne
+ *  peut plus s'afficher » sentence, which a mere network failure must never
+ *  wear (its remedy destroys a working code — CODE-REVU verifier BLOCKER-1). */
+export type EchecCompte = ActeCompte | `anterieur:${string}`;
 
 export interface ComptesUi {
   readonly busy: ActeCompte | null;
   /** The one-time admission code, until he says he has written it down. */
   readonly nouveau: { readonly accountId: string; readonly code: string; readonly revele?: boolean } | null;
-  readonly echec: ActeCompte | null;
+  readonly echec: EchecCompte | null;
 }
 
 export const COMPTES_IDLE: ComptesUi = { busy: null, nouveau: null, echec: null };
@@ -526,8 +537,10 @@ export type ComptesSettlement =
   | { readonly ui: ComptesUi; readonly then: 'none' };
 
 /** CODE-REVU settle for the admission code: a spent or pre-ruling code
- *  refreshes the roster (the pending flag is the stored truth) with the act's
- *  own sentence; a reread code takes the same card, marked `revele`. */
+ *  refreshes the roster (the pending flag is the stored truth) with the
+ *  honest `anterieur:` sentence; ONLY the network fall-through keeps the
+ *  act's own `voir:` echec (« pas de réponse ») — it must never wear the
+ *  cannot-show-again sentence, whose remedy destroys a working code. */
 export function compteVoirSettled(accountId: string, result: CodeAccesRevealResult): ComptesSettlement {
   if (result.ok) {
     return {
@@ -537,7 +550,7 @@ export function compteVoirSettled(accountId: string, result: CodeAccesRevealResu
   }
   if (result.reason === 'bad_key') return { ui: COMPTES_IDLE, then: 'bad_key' };
   if (result.reason === 'no_code' || result.reason === 'code_anterieur' || result.reason === 'not_found') {
-    return { ui: { busy: null, nouveau: null, echec: `voir:${accountId}` }, then: 'refresh' };
+    return { ui: { busy: null, nouveau: null, echec: `anterieur:${accountId}` }, then: 'refresh' };
   }
   return { ui: { busy: null, nouveau: null, echec: `voir:${accountId}` }, then: 'none' };
 }

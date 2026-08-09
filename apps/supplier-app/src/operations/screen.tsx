@@ -956,6 +956,11 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                 {c.accessCodePending && (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 3 }]}>{t('comptes.code_en_route')}</Text>
                 )}
+                {/* CODE-REVU: a pre-ruling pending code SAYS why there is no
+                    « Voir le code » — never a silently missing button. */}
+                {c.accessCodePending && !c.accessCodeRevelable && (
+                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('comptes.code_anterieur')}</Text>
+                )}
               </View>
               {ui.busy === acte || ui.busy === `voir:${c.accountId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('comptes.acte_encours')}</Text>
@@ -976,7 +981,15 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('comptes.acte_echec')}</Text>
               </View>
             )}
+            {/* A NETWORK failure names itself and asks for a retry — never
+                the cannot-show-again sentence, whose remedy (re-mint) would
+                destroy her working code (CODE-REVU verifier BLOCKER-1). */}
             {ui.echec === `voir:${c.accountId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('comptes.voir_echec')}</Text>
+              </View>
+            )}
+            {ui.echec === `anterieur:${c.accountId}` && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.code_anterieur')}</Text>
               </View>
@@ -1109,9 +1122,18 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoi
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
                   {t('acces.cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
+                {/* CODE-REVU: a pre-ruling code SAYS why there is no « Voir
+                    le code » — never a silently missing button. */}
+                {!c.revelable && (
+                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('acces.code_anterieur')}</Text>
+                )}
               </View>
-              {ui.busy === `revoke:${c.resellerId}` || ui.busy === `reveal:${c.resellerId}` ? (
+              {ui.busy === `revoke:${c.resellerId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.coupure')}</Text>
+              ) : ui.busy === `reveal:${c.resellerId}` ? (
+                // The reveal's wait is NOT a « coupure » — a reading must
+                // never announce itself as a cut (CODE-REVU verifier MINOR-2).
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.voir_encours')}</Text>
               ) : ui.nouveau !== null ? (
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.noter_dabord')}</Text>
               ) : (
@@ -1129,7 +1151,15 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoi
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.coupure_echec')}</Text>
               </View>
             )}
+            {/* A NETWORK failure names itself and asks for a retry — never
+                the cannot-show-again sentence, whose remedy (re-mint) would
+                destroy her working code (CODE-REVU verifier BLOCKER-1). */}
             {ui.echec === `reveal:${c.resellerId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.voir_echec')}</Text>
+              </View>
+            )}
+            {ui.echec === `anterieur:${c.resellerId}` && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.code_anterieur')}</Text>
               </View>
@@ -1260,9 +1290,18 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onV
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
                   {t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
+                {/* CODE-REVU: a pre-ruling code SAYS why there is no « Voir
+                    le code » — never a silently missing button. */}
+                {!c.revelable && (
+                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('operations.code_anterieur')}</Text>
+                )}
               </View>
-              {ui.busy === `revoke:${c.supplierId}` || ui.busy === `reveal:${c.supplierId}` ? (
+              {ui.busy === `revoke:${c.supplierId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_coupure_encours')}</Text>
+              ) : ui.busy === `reveal:${c.supplierId}` ? (
+                // The reveal's wait is NOT a « coupure » — a reading must
+                // never announce itself as a cut (CODE-REVU verifier MINOR-2).
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_voir_encours')}</Text>
               ) : ui.nouveau !== null ? (
                 // a live one-time code blocks every other act — in words, never
                 // a dead tap (verifier MAJOR-1)

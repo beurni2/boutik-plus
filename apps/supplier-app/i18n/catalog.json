@@ -4510,5 +4510,29 @@
     "fr": "Livrée par Séra",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "operations.code_voir_encours",
+    "fr": "Un instant…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.voir_encours",
+    "fr": "Un instant…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.voir_echec",
+    "fr": "Pas de réponse. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.voir_echec",
+    "fr": "Pas de réponse. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

@@ -23,6 +23,7 @@ import {
   accesMintSettled,
   accesMintStart,
   accesReadOf,
+  accesRevealSettled,
   accesRevokeSettled,
   accesRevokeStart,
   accesVue,
@@ -32,6 +33,7 @@ import {
   acteSettled,
   acteStart,
   codeAccesSettled,
+  compteVoirSettled,
   comptesVue,
   type ComptesUi,
 } from '../src/operations/view';
@@ -56,6 +58,7 @@ import {
   operationsView,
   relanceSettled,
   relanceStart,
+  revealSettled,
   revokeSettled,
   revokeStart,
 } from '../src/operations/view';
@@ -1701,5 +1704,61 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     expect([...source.matchAll(/code=\{ui\.nouveau\.code\}/g)].length).toBe(3);
     // …and no branch is switched off instead of deleted
     expect(source).not.toContain('{false &&');
+  });
+});
+
+/**
+ * ═══ CODE-REVU — a network hiccup NEVER wears the « code antérieur » sentence ═══
+ *
+ * The verifier's one blocker on this slice: on two desks, an unreachable
+ * Worker settled into the same echec as `code_anterieur`, whose on-screen
+ * remedy — « give a new code » — destroys the working code the person already
+ * holds. The three settle functions must keep the two roads apart for ever:
+ * `anterieur:` is the honest cannot-show-again refusal; the network
+ * fall-through keeps the act's own retryable echec.
+ */
+describe('CODE-REVU — the reveal settle splits the honest refusal from the network failure, on every desk', () => {
+  it('supplier desk: code_anterieur → anterieur:, unreachable → reveal:, no_code → silent refresh', () => {
+    expect(revealSettled('s1', { ok: false, reason: 'code_anterieur' })).toEqual({
+      ui: { busy: null, nouveau: null, echec: 'anterieur:s1' }, then: 'none',
+    });
+    expect(revealSettled('s1', { ok: false, reason: 'unreachable' })).toEqual({
+      ui: { busy: null, nouveau: null, echec: 'reveal:s1' }, then: 'none',
+    });
+    expect(revealSettled('s1', { ok: false, reason: 'no_code' })).toEqual({ ui: CODES_IDLE, then: 'refresh' });
+  });
+
+  it('feed-code desk: the SAME law (the blocker lived here)', () => {
+    expect(accesRevealSettled('r1', { ok: false, reason: 'code_anterieur' })).toEqual({
+      ui: { busy: null, nouveau: null, echec: 'anterieur:r1' }, then: 'refresh',
+    });
+    expect(accesRevealSettled('r1', { ok: false, reason: 'unreachable' })).toEqual({
+      ui: { busy: null, nouveau: null, echec: 'reveal:r1' }, then: 'none',
+    });
+    expect(accesRevealSettled('r1', { ok: false, reason: 'no_code' })).toEqual({ ui: ACCES_IDLE, then: 'refresh' });
+  });
+
+  it('admission desk: spent/pre-ruling/stale → anterieur: + refresh; unreachable keeps the retryable voir:', () => {
+    for (const reason of ['no_code', 'code_anterieur', 'not_found'] as const) {
+      expect(compteVoirSettled('a1', { ok: false, reason }), reason).toEqual({
+        ui: { busy: null, nouveau: null, echec: 'anterieur:a1' }, then: 'refresh',
+      });
+    }
+    expect(compteVoirSettled('a1', { ok: false, reason: 'unreachable' })).toEqual({
+      ui: { busy: null, nouveau: null, echec: 'voir:a1' }, then: 'none',
+    });
+  });
+
+  it('the screens render the two sentences from DIFFERENT keys — the false instruction cannot come back by render', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    // Each desk's network echec names its retry sentence…
+    expect(source).toContain("ui.echec === `reveal:${c.supplierId}`");
+    expect(source).toContain("t('operations.code_voir_echec')");
+    expect(source).toContain("t('acces.voir_echec')");
+    expect(source).toContain("t('comptes.voir_echec')");
+    // …and each desk's anterieur echec renders its own honest sentence.
+    expect(source).toContain("ui.echec === `anterieur:${c.supplierId}`");
+    expect(source).toContain("ui.echec === `anterieur:${c.resellerId}`");
+    expect(source).toContain("ui.echec === `anterieur:${c.accountId}`");
   });
 });
