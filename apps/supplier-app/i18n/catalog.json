@@ -4534,5 +4534,47 @@
     "fr": "Pas de réponse. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "ramassage.titre",
+    "fr": "Code de ramassage",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "ramassage.aide",
+    "fr": "Le coursier est arrivé ? Demandez son code et tapez-le ici avant de remettre le colis.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "ramassage.placeholder",
+    "fr": "Code du coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "ramassage.verifier",
+    "fr": "Vérifier le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "ramassage.confirme",
+    "fr": "Code confirmé. Vous pouvez remettre le colis au coursier.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ramassage.non_confirme",
+    "fr": "Code non confirmé. Ne remettez pas le colis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "ramassage.cle_requise",
+    "fr": "Entrez la clé Séra dans la zone Coursiers pour vérifier le code.",
+    "register": "neutral",
+    "screenClass": "instruction"
   }
 ]

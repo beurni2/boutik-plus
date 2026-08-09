@@ -149,7 +149,13 @@ function ConfierAvecService({
    */
   const [zoneSaisie, setZoneSaisie] = useState(row.zoneTo);
   const [repereSaisi, setRepereSaisi] = useState('');
-  const zoneDeLaCliente = buyer?.contact?.quartier.trim() ?? '';
+  /** VILLE (founder ruling 2026-08-09, « for the quartier section add the
+   *  ouagadougou »): single-city operation — the quartier she gave carries
+   *  the city into the section AND onto the rider's task line, unless she
+   *  already named it herself. Revisit the constant when a second city opens. */
+  const quartierBrut = buyer?.contact?.quartier.trim() ?? '';
+  const zoneDeLaCliente =
+    quartierBrut === '' ? '' : /ouaga/i.test(quartierBrut) ? quartierBrut : `${quartierBrut}, Ouagadougou`;
   const repereDeLaCliente = buyer?.contact?.repere.trim() ?? '';
   const zone = zoneDeLaCliente !== '' ? zoneDeLaCliente : zoneSaisie;
   const repere = repereDeLaCliente !== '' ? repereDeLaCliente : repereSaisi;

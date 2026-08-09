@@ -48,8 +48,25 @@ describe('PRET-SECTIONS — the buyer’s words reach their sections, read-only,
   });
 
   it('what she GAVE derives from the prop at render time — arriving late still lands in its section', () => {
-    expect(confier).toMatch(/zoneDeLaCliente = buyer\?\.contact\?\.quartier\.trim\(\) \?\? ''/);
+    expect(confier).toMatch(/quartierBrut = buyer\?\.contact\?\.quartier\.trim\(\) \?\? ''/);
     expect(confier).toMatch(/repereDeLaCliente = buyer\?\.contact\?\.repere\.trim\(\) \?\? ''/);
+  });
+
+  it('VILLE (founder 2026-08-09) — her quartier carries « , Ouagadougou » unless she named the city herself', () => {
+    expect(confier).toMatch(
+      /quartierBrut === '' \? '' : \/ouaga\/i\.test\(quartierBrut\) \? quartierBrut : `\$\{quartierBrut\}, Ouagadougou`/,
+    );
+  });
+
+  it('PRET-SECTIONS-2 (founder 2026-08-09) — the Cliente block keeps the phone and her voice note ONLY', () => {
+    // quartier/repère/zoneTo left the block: they live in their own labelled
+    // sections in the compose fold; one fact on one card lives in one place.
+    const bloc = screen.slice(screen.indexOf("t('commandes.cliente_titre')"), screen.indexOf("etape === 'en_route'"));
+    expect(bloc).toContain('telEnPaires(buyer.contact.phone)');
+    expect(bloc).toContain('EcouterRepere');
+    expect(bloc).not.toContain('buyer.contact.quartier');
+    expect(bloc).not.toContain('buyer.contact.repere');
+    expect(bloc).not.toContain('row.zoneTo');
   });
 
   it('a given field renders as TEXT in its labelled section — never an editable Input', () => {

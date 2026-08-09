@@ -83,6 +83,12 @@ export interface SeraDispatchPort {
     fenetre: { start: string; end: string },
     brief?: BriefTache,
   ): Promise<CoursierAnswer<{ taskId: string }>>;
+  /**
+   * RAMASSAGE (founder order 2026-08-09) — the supplier's half of the
+   * two-party pickup: send what the RIDER SAID, receive a VERDICT and
+   * nothing else. The Worker never answers the expected code.
+   */
+  verifierRamassage(cle: string, orderId: string, code: string): Promise<CoursierAnswer<{ verdict: 'confirme' | 'non_confirme' }>>;
   confier(cle: string, taskId: string, riderId: string): Promise<CoursierAnswer<null>>;
 }
 
@@ -246,6 +252,32 @@ export function httpSeraDispatch(
         (b) => {
           const t = b !== null && typeof b === 'object' ? (b as Record<string, unknown>)['taskId'] : null;
           return { taskId: typeof t === 'string' ? t : '' };
+        },
+      );
+    },
+
+    async verifierRamassage(
+      cle: string,
+      orderId: string,
+      code: string,
+    ): Promise<CoursierAnswer<{ verdict: 'confirme' | 'non_confirme' }>> {
+      return call(
+        cle,
+        '/ops/ramassage/verify',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            // Deterministic per (order, typed code) — the file's idiom, no
+            // clock. Safe because the verify door DEDUPES NOTHING: every
+            // attempt is judged fresh against the course that is active NOW.
+            command_id: `cmd-boutik-ramassage-${orderId}-${code.toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
+            orderId,
+            code,
+          }),
+        },
+        (b) => {
+          const v = b !== null && typeof b === 'object' ? (b as Record<string, unknown>)['verdict'] : null;
+          return { verdict: v === 'confirme' ? ('confirme' as const) : ('non_confirme' as const) };
         },
       );
     },
