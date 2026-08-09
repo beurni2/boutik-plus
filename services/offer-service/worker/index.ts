@@ -240,6 +240,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'POST' && fp === '/fulfillment/ready') {
       return forwardSupplierAct(request, env, '/ready');
     }
+    // RAMASSAGE (founder, 2026-08-09: « that screen should be on the
+    // supplier's console not mine ») — the pickup check, through the
+    // supplier's OWN door: his personal code is the identity, the book
+    // proves the order is his, and Séra answers the verdict server-side.
+    if (request.method === 'POST' && fp === '/fulfillment/ramassage/verify') {
+      return forwardSupplierAct(request, env, '/ramassage/verify');
+    }
 
     // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any
     // dispatch or existence lookup (so the 401 is never an existence oracle).

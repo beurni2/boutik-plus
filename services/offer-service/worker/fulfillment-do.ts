@@ -883,6 +883,61 @@ export class FulfillmentDO {
       return Response.json({ ok: true, status: 'accepted', acceptedAt: acceptance.acceptedAt });
     }
 
+    /**
+     * RAMASSAGE — the supplier's half of the two-party pickup (founder,
+     * 2026-08-09: « that screen should be on the supplier's console not
+     * mine »). The coursier ARRIVES and SAYS the code his app shows; the
+     * supplier types it here; Séra's logistics book judges it and this door
+     * relays the VERDICT — never the expected code, which no Boutik+ store
+     * ever holds. Identity is the personal code, ownership is proven on the
+     * ORDER before Séra is asked anything, and the relay is SYNCHRONOUS —
+     * unlike the readiness outbox, a verdict is useless later: the coursier
+     * is standing at the stall now. No verdict is ever invented locally: an
+     * unreachable Séra answers `sera_unreachable`, never « non confirmé ».
+     */
+    if (request.method === 'POST' && pathname === '/ramassage/verify') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const orderId = body?.['orderId'];
+      const dit = body?.['codeRamassage'];
+      if (
+        typeof orderId !== 'string' || orderId === '' ||
+        typeof dit !== 'string' || dit.trim() === '' || dit.length > 32 ||
+        Object.keys(body ?? {}).length !== 3
+      ) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined || !order.supplierResolved || order.supplierId !== resolved.supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      const base = (this.env?.SERA_INTAKE_BASE ?? '').replace(/\/+$/, '');
+      const secret = this.env?.SERA_INTAKE_SECRET ?? '';
+      if (base === '' || secret === '') {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      // Clockless and replay-safe: Séra's door consults no witness, so the
+      // same (order, said-code) pair may share one command id forever.
+      const norme = dit.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let res: Response;
+      try {
+        res = await fetch(`${base}/intake/ramassage/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+          body: JSON.stringify({ command_id: `cmd-boutik-ramassage-${orderId}-${norme}`, orderId, code: dit }),
+        });
+      } catch {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      const answer = res.status === 200 ? ((await res.json().catch(() => null)) as Record<string, unknown> | null) : null;
+      const verdict = answer?.['verdict'];
+      if (answer?.['ok'] !== true || (verdict !== 'confirme' && verdict !== 'non_confirme')) {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      return Response.json({ ok: true, verdict });
+    }
+
     /** B6.2 — issue the short-TTL sellerReadinessChallenge. CSPRNG mint; a
      *  re-issue REPLACES the previous (which then refuses by mismatch). Only
      *  an ACCEPTED order may hold a challenge (B+I-06 ordering). Identity
@@ -1132,7 +1187,7 @@ export async function handleSupplierContactsList(env: FulfillmentEnv): Promise<R
 export async function forwardSupplierAct(
   request: Request,
   env: FulfillmentEnv,
-  path: '/mine' | '/accept' | '/ready/challenge' | '/ready',
+  path: '/mine' | '/accept' | '/ready/challenge' | '/ready' | '/ramassage/verify',
 ): Promise<Response> {
   const auth = request.headers.get('Authorization') ?? '';
   const code = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';

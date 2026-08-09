@@ -3,7 +3,7 @@ import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, ChipSegment, Input, Overline, PageTitle } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, ChipSegment, Input, PageTitle } from '../v2/components';
 import {
   clearStoredOpsKey,
   readStoredOpsKey,
@@ -580,19 +580,14 @@ function DetailTerminee({
         )}
       </View>
       {etape === 'en_route' ? (
-        <>
-          {/* The carrier, named off the Séra board — the same join the Gains
-              tab reads. A board gap degrades to the honest pill, never a guess. */}
-          <Banner tone="info">
-            {coursier !== null ? `${t('commandes.en_route_avec')} ${coursier}` : t('commandes.pill_en_route')}
-          </Banner>
-          {/* RAMASSAGE (founder order 2026-08-09) — the supplier's half of the
-              two-party pickup: the rider ARRIVES and SAYS the code his app
-              shows; the founder types it here; the Worker answers a VERDICT
-              and never the code. Confirmé → hand the package over. Non
-              confirmé → keep it. */}
-          <VerifierRamassage orderId={row.orderId} />
-        </>
+        /* The carrier, named off the Séra board — the same join the Gains
+           tab reads. A board gap degrades to the honest pill, never a guess.
+           RAMASSAGE deliberately does NOT live here (founder, 2026-08-09:
+           « that screen should be on the supplier's console not mine ») —
+           the pickup check is the SUPPLIER's act, on the fournisseur surface. */
+        <Banner tone="info">
+          {coursier !== null ? `${t('commandes.en_route_avec')} ${coursier}` : t('commandes.pill_en_route')}
+        </Banner>
       ) : etape === 'terminees' ? (
         <Banner tone="success" check>
           {t('commandes.livree_banner')}
@@ -609,50 +604,6 @@ function DetailTerminee({
           onConfiee={onChanged}
         />
       )}
-    </View>
-  );
-}
-
-/**
- * RAMASSAGE — « le coursier est là, il donne son code ». One field, one
- * button, one verdict; the verdict names the ACT (remettez / ne remettez
- * pas), never a bare boolean. The Séra key is the same stored coursiers key
- * the confier fold uses; without it the check simply says how to arm it.
- */
-function VerifierRamassage({ orderId }: { orderId: string }) {
-  const service = useMemo(() => resolveSeraDispatch(), []);
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [verdict, setVerdict] = useState<'confirme' | 'non_confirme' | 'echec' | null>(null);
-  const cle = readStoredCleCoursiers();
-  if (service === null || cle === null) {
-    return (
-      <View style={{ marginTop: 8 }}>
-        <Banner tone="info">{t('ramassage.cle_requise')}</Banner>
-      </View>
-    );
-  }
-  const verifier = async (): Promise<void> => {
-    if (busy || code.trim() === '') return;
-    setBusy(true);
-    setVerdict(null);
-    const answer = await service.verifierRamassage(cle, orderId, code.trim());
-    setBusy(false);
-    setVerdict(answer.kind === 'ok' ? answer.value.verdict : 'echec');
-  };
-  return (
-    <View style={{ marginTop: 10, gap: 8 }}>
-      <Overline level="card">{t('ramassage.titre')}</Overline>
-      <Text style={CORPS}>{t('ramassage.aide')}</Text>
-      <Input label={t('ramassage.placeholder')} value={code} onChangeText={(v) => { setCode(v); setVerdict(null); }} />
-      <BtnSoft label={busy ? t('commandes.chargement') : t('ramassage.verifier')} onPress={() => void verifier()} />
-      {verdict === 'confirme' ? (
-        <Banner tone="success" check>{t('ramassage.confirme')}</Banner>
-      ) : verdict === 'non_confirme' ? (
-        <Banner tone="warn">{t('ramassage.non_confirme')}</Banner>
-      ) : verdict === 'echec' ? (
-        <Banner tone="warn">{t('confier.injoignable')}</Banner>
-      ) : null}
     </View>
   );
 }

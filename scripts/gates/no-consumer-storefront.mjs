@@ -68,5 +68,14 @@ runScanGate({
      * in this file.
      */
     { file: 'services/offer-service/test/sera-readiness.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
+    /**
+     * RAMASSAGE-VERIFY — the same class, fourth instance: the miniflare
+     * `serviceBindings` key must spell the wrangler binding name exactly for
+     * the worker to boot; the test itself answers it with a stub so the
+     * readiness outbox stays quiet while the VERIFY relay is driven. No buyer
+     * surface, no checkout, no cart, no order created in Boutik+, and
+     * `checkout`/`cart` remain banned in this file.
+     */
+    { file: 'services/offer-service/test/ramassage-verify.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
   ],
 });

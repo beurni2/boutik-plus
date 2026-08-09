@@ -82,7 +82,7 @@ jobs:
           # this law; when one changes, change both. This deploy refused a
           # good bundle on 2026-08-02 precisely because only the gate copy
           # had been evolved).
-          for want in "boutik.fournisseur.code" "/fulfillment/mine" "/offers/mine"; do
+          for want in "boutik.fournisseur.code" "/fulfillment/mine" "/fulfillment/ramassage/verify" "/offers/mine"; do
             if ! grep -rqF "$want" dist-fournisseur/_expo/static/js/web/; then
               echo "::error::control $want not found — the scan cannot see, refusing to deploy"
               exit 1

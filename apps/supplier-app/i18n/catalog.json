@@ -4572,9 +4572,15 @@
     "screenClass": "status"
   },
   {
-    "key": "ramassage.cle_requise",
-    "fr": "Entrez la clé Séra dans la zone Coursiers pour vérifier le code.",
+    "key": "ramassage.encours",
+    "fr": "On vérifie le code…",
     "register": "neutral",
-    "screenClass": "instruction"
+    "screenClass": "status"
+  },
+  {
+    "key": "ramassage.echec_reseau",
+    "fr": "Pas de réponse pour le moment. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

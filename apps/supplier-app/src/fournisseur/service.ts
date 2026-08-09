@@ -96,12 +96,25 @@ export type ReadyResult =
   | { readonly ok: true; readonly status: 'ready' | 'already_ready'; readonly confirmedAt: string }
   | { readonly ok: false; readonly reason: 'bad_code' | 'unreachable' | ReadyRefusal };
 
+/**
+ * RAMASSAGE (founder, 2026-08-09) — the pickup check, on the SUPPLIER's own
+ * surface: the coursier says the code his app shows, the supplier types it,
+ * Séra judges it behind the Worker. The verdict names the act; everything
+ * that is not a verdict is a refusal, never dressed as one.
+ */
+export type RamassageResult =
+  | { readonly ok: true; readonly verdict: 'confirme' | 'non_confirme' }
+  | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'unreachable' };
+
 export interface FournisseurServicePort {
   listMine(code: string): Promise<MineResult>;
   /** LISTER-POUR-1c — his own products, same door, same Bearer. */
   listProduits(code: string): Promise<ProduitsResult>;
   accept(code: string, orderId: string): Promise<ActResult>;
   challenge(code: string, orderId: string): Promise<ChallengeResult>;
+  /** The typed code travels as `codeRamassage` — `code` is the Bearer's name
+   *  on this wire, and the two must never be confusable. */
+  verifierRamassage(code: string, orderId: string, codeRamassage: string): Promise<RamassageResult>;
   /** The strict canon confirmation travels whole; the Worker re-parses it. */
   ready(code: string, confirmation: {
     orderId: string;
@@ -204,6 +217,20 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
         return { ok: false, reason: 'unreachable' };
       }
       return { ok: true, challenge, expiresAt };
+    },
+
+    async verifierRamassage(code: string, orderId: string, codeRamassage: string): Promise<RamassageResult> {
+      const res = await post('/fulfillment/ramassage/verify', code, { orderId, codeRamassage });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_code' };
+      if (res.status === 404) return { ok: false, reason: 'not_yours_or_unknown' };
+      const verdict = res.json['verdict'];
+      if (res.json['ok'] === true && (verdict === 'confirme' || verdict === 'non_confirme')) {
+        return { ok: true, verdict };
+      }
+      // `sera_unreachable` and every malformed answer land here: try again is
+      // the only honest sentence — a verdict is never invented client-side.
+      return { ok: false, reason: 'unreachable' };
     },
 
     async ready(code, confirmation): Promise<ReadyResult> {

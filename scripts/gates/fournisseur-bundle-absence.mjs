@@ -57,7 +57,7 @@ const FORBIDDEN = ['/offers/assets', '/offers/delete', '/offers', '/media/revoke
 const SECONDARY = ['HttpSupplyService', 'DemoSupplyService'];
 const REQUIRED =
   rootArg === 'fournisseur'
-    ? ['boutik.fournisseur.code', '/fulfillment/mine', GRANTED_READ]
+    ? ['boutik.fournisseur.code', '/fulfillment/mine', '/fulfillment/ramassage/verify', GRANTED_READ]
     : ['supplier-founder-001', 'Ce produit part sans photo'];
 
 const out = mkdtempSync(join(tmpdir(), `fournisseur-bundle-${rootArg}-`));

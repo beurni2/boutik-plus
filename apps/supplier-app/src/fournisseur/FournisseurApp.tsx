@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input, PageTitle, PhotoViewer } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, Input, Overline, PageTitle, PhotoViewer } from '../v2/components';
 import { formatF } from '../v2/money';
 import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
@@ -365,6 +365,20 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
     if (next !== null) setPret(next);
   };
 
+  /** RAMASSAGE — the act rides the session code like every other; a dead code
+   *  escalates the whole screen to the door, exactly as accept does. */
+  const verifierRamassage = async (orderId: string, dit: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
+    if (service === null) return 'echec';
+    try {
+      const res = await service.verifierRamassage(code, orderId, dit);
+      if (res.ok) return res.verdict;
+      if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
+      return 'echec';
+    } catch {
+      return 'echec';
+    }
+  };
+
   const envoyer = async (commande: CommandeVue): Promise<void> => {
     if (service === null) return;
     const started = pretEnvoyer(pret);
@@ -478,6 +492,7 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
               onAccepter={() => { void accepter(c.orderId); }}
               onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
               onEnvoyer={() => { void envoyer(c); }}
+              onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
             />
           ))}
           <View style={{ marginTop: 22 }}>
@@ -489,9 +504,45 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
   );
 }
 
+/**
+ * RAMASSAGE — « le coursier est là, il donne son code ». The founder's ruling
+ * (2026-08-09) puts this check HERE, on the supplier's own surface, behind
+ * his own session code — never the founder's console, whose Séra key no
+ * supplier holds. One field, one button, one verdict naming the ACT
+ * (remettez / ne remettez pas) — and a network refusal that is its own
+ * honest sentence, never dressed as a verdict.
+ */
+function VerifierRamassage({ onVerifier }: { onVerifier: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'> }) {
+  const [dit, setDit] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [verdict, setVerdict] = useState<'confirme' | 'non_confirme' | 'echec' | null>(null);
+  const verifier = async (): Promise<void> => {
+    if (busy || dit.trim() === '') return;
+    setBusy(true);
+    setVerdict(null);
+    setVerdict(await onVerifier(dit.trim()));
+    setBusy(false);
+  };
+  return (
+    <View style={{ marginTop: 10, gap: 8 }}>
+      <Overline level="card">{t('ramassage.titre')}</Overline>
+      <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('ramassage.aide')}</Text>
+      <Input label={t('ramassage.placeholder')} value={dit} onChangeText={(v) => { setDit(v); setVerdict(null); }} />
+      <BtnSoft label={busy ? t('ramassage.encours') : t('ramassage.verifier')} onPress={() => { void verifier(); }} />
+      {verdict === 'confirme' ? (
+        <Banner tone="success" check>{t('ramassage.confirme')}</Banner>
+      ) : verdict === 'non_confirme' ? (
+        <Banner tone="warn">{t('ramassage.non_confirme')}</Banner>
+      ) : verdict === 'echec' ? (
+        <Banner tone="warn">{t('ramassage.echec_reseau')}</Banner>
+      ) : null}
+    </View>
+  );
+}
+
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
-function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onChoisirPhoto, onEnvoyer }: {
+function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage }: {
   commande: CommandeVue;
   pret: PretUi;
   accepting: boolean;
@@ -499,6 +550,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onC
   onAccepter: () => void;
   onChoisirPhoto: () => void;
   onEnvoyer: () => void;
+  onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
 }) {
   const nom = commande.productName !== '' ? commande.productName : commande.productVersionId;
   const modeLabel = commande.paymentMode === 'DELIVERY_FEE_PREPAID_PRODUCT_AT_DOOR'
@@ -518,6 +570,10 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onC
       {commande.etape === 'prete' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="success" check>{t('fournisseur.etape_prete')}</Banner>
+          {/* RAMASSAGE (founder, 2026-08-09) — a ready colis is a colis a
+              coursier is coming for; the two-party check lives on HIS card,
+              behind HIS code, on HIS console. */}
+          <VerifierRamassage onVerifier={onVerifierRamassage} />
         </View>
       )}
 
