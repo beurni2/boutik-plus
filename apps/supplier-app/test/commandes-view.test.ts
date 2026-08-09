@@ -198,6 +198,21 @@ describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () =>
     expect(screen).toContain("setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'chargement' }));");
   });
 
+  it('COURSE-BRIEF — the relay CARRIES the repère audio and the proof photo (a port that is not called sends nothing)', () => {
+    // FOUNDER ORDER 2026-08-09: « nowhere to listen the repère audio … it has
+    // to carry as well the proof photos that the supplier sent ». Both facts
+    // were already on this screen and neither crossed into Séra. The compose
+    // call site is what makes that true, so it is what gets pinned.
+    expect(confier).toContain('repereAudioRef: buyer.contact.audioRef');
+    expect(confier).toContain('preuvePhotoRefs: [preuvePhotoRef]');
+    // …and the screen feeds it the SAME proof it is rendering, not a second read.
+    const screen = readFileSync(join(import.meta.dirname, '..', 'src/commandes/screen.tsx'), 'utf8');
+    expect(screen).toContain("preuvePhotoRef={typeof preuve === 'object' ? preuve.photoRef.ref : null}");
+    // An absent recording stays ABSENT on the wire — never '' standing in for
+    // a voice note nobody made.
+    expect(confier).toContain("buyer?.contact?.audioRef !== undefined");
+  });
+
   it('the fold shares the Coursiers zone’s key slot — one Séra key, typed once', () => {
     expect(confier).toContain("readStoredCleCoursiers");
     expect(confier).toContain("clearStoredCleCoursiers");

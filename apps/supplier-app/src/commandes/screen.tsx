@@ -588,8 +588,16 @@ function DetailTerminee({
           {t('commandes.livree_banner')}
         </Banner>
       ) : (
-        /* RB-2 — the dispatch act itself, the fold this detail was built for. */
-        <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} onConfiee={onChanged} />
+        /* RB-2 — the dispatch act itself, the fold this detail was built for.
+           COURSE-BRIEF (founder order 2026-08-09): the readiness proof photo
+           this very screen is showing travels WITH the relay, so the rider
+           checks the package against the same picture the founder just saw. */
+        <ConfierCoursier
+          row={row}
+          buyer={typeof buyer === 'object' ? buyer : null}
+          preuvePhotoRef={typeof preuve === 'object' ? preuve.photoRef.ref : null}
+          onConfiee={onChanged}
+        />
       )}
     </View>
   );

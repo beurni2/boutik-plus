@@ -62,6 +62,18 @@ export interface AdresseTache {
   readonly maskedRelay: string;
 }
 
+/**
+ * COURSE-BRIEF (founder order 2026-08-09) — what the rider is briefed with,
+ * beside the address: the buyer's recorded repère and the supplier's readiness
+ * proof. Media POINTERS only (`media/…`), never URLs; both optional, because
+ * a buyer who typed their repère and a supplier whose proof predates the photo
+ * step must still be dispatchable.
+ */
+export interface BriefTache {
+  readonly repereAudioRef?: string;
+  readonly preuvePhotoRefs?: readonly string[];
+}
+
 export interface SeraDispatchPort {
   board(cle: string): Promise<CoursierAnswer<BoardSera>>;
   composerTache(
@@ -69,6 +81,7 @@ export interface SeraDispatchPort {
     orderId: string,
     adresse: AdresseTache,
     fenetre: { start: string; end: string },
+    brief?: BriefTache,
   ): Promise<CoursierAnswer<{ taskId: string }>>;
   confier(cle: string, taskId: string, riderId: string): Promise<CoursierAnswer<null>>;
 }
@@ -201,6 +214,7 @@ export function httpSeraDispatch(
       orderId: string,
       adresse: AdresseTache,
       fenetre: { start: string; end: string },
+      brief: BriefTache = {},
     ): Promise<CoursierAnswer<{ taskId: string }>> {
       return call(
         cle,
@@ -221,6 +235,12 @@ export function httpSeraDispatch(
               maskedRelay: adresse.maskedRelay,
             },
             window: fenetre,
+            // COURSE-BRIEF: absent stays ABSENT on the wire — never an empty
+            // string standing in for a recording nobody made.
+            ...(brief.repereAudioRef !== undefined ? { repereAudioRef: brief.repereAudioRef } : {}),
+            ...(brief.preuvePhotoRefs !== undefined && brief.preuvePhotoRefs.length > 0
+              ? { preuvePhotoRefs: brief.preuvePhotoRefs }
+              : {}),
           }),
         },
         (b) => {

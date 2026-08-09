@@ -52,7 +52,18 @@ type Etape =
   | { kind: 'deja' }
   | { kind: 'confiee'; nom: string };
 
-export function ConfierCoursier({ row, buyer, onConfiee }: { row: PaidOrderRow; buyer: LivraisonRow | null; onConfiee?: () => void }) {
+export function ConfierCoursier({
+  row,
+  buyer,
+  preuvePhotoRef = null,
+  onConfiee,
+}: {
+  row: PaidOrderRow;
+  buyer: LivraisonRow | null;
+  /** COURSE-BRIEF — the supplier's readiness proof, travelling to the rider. */
+  preuvePhotoRef?: string | null;
+  onConfiee?: () => void;
+}) {
   const service = useMemo(() => resolveSeraDispatch(), []);
   const [cle, setCle] = useState<string | null>(() => readStoredCleCoursiers());
   const [etape, setEtape] = useState<Etape>(cle === null ? { kind: 'porte' } : { kind: 'chargement' });
@@ -79,6 +90,7 @@ export function ConfierCoursier({ row, buyer, onConfiee }: { row: PaidOrderRow; 
       setAvis={setAvis}
       busy={busy}
       setBusy={setBusy}
+      preuvePhotoRef={preuvePhotoRef}
       {...(onConfiee !== undefined ? { onConfiee } : {})}
     />
   );
@@ -96,11 +108,14 @@ function ConfierAvecService({
   setAvis,
   busy,
   setBusy,
+  preuvePhotoRef,
   onConfiee,
 }: {
   service: SeraDispatchPort;
   row: PaidOrderRow;
   buyer: LivraisonRow | null;
+  /** COURSE-BRIEF — the readiness proof that travels with the relay. */
+  preuvePhotoRef: string | null;
   cle: string | null;
   setCle: (v: string | null) => void;
   etape: Etape;
@@ -174,6 +189,18 @@ function ConfierAvecService({
         maskedRelay: '',
       },
       { start: start.toISOString(), end: end.toISOString() },
+      /**
+       * COURSE-BRIEF (founder order 2026-08-09): « nowhere to listen the
+       * repère audio … it has to carry as well the proof photos ». Both facts
+       * are already on this screen — the buyer's voice note and the readiness
+       * photo the founder just looked at — and until now neither crossed into
+       * Séra. Absent stays absent: a buyer who typed their repère instead of
+       * recording it still gets a rider.
+       */
+      {
+        ...(buyer?.contact?.audioRef !== undefined ? { repereAudioRef: buyer.contact.audioRef } : {}),
+        ...(preuvePhotoRef !== null ? { preuvePhotoRefs: [preuvePhotoRef] } : {}),
+      },
     );
     setBusy(false);
     if (answer.kind === 'bad_key') {
