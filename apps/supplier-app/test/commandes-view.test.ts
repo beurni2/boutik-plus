@@ -31,22 +31,46 @@ const order = (orderId: string, over: Partial<PaidOrderRow> = {}): PaidOrderRow 
   ...over,
 });
 
-describe('the three segments are a PARTITION, incidents first', () => {
+describe('BOUTIK-FLOW — the five segments are a PARTITION of the whole road, incidents first', () => {
   const paid = order('ord-1');
   const ready = order('ord-2', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
   const claimedReady = order('ord-3', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
+  const relayed = order('ord-4', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
+  const delivered = order('ord-5', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
 
-  it('paid lands in à traiter, ready in terminées, claimed in incidents — even a READY claimed order', () => {
-    const s = segmenter([paid, ready, claimedReady], new Set(['ord-3']));
+  it('paid → à traiter · ready → prêt à livrer · relayed → en route · delivered → terminées · claimed → incidents', () => {
+    const s = segmenter(
+      [paid, ready, claimedReady, relayed, delivered],
+      new Set(['ord-3']),
+      new Set(['ord-4']),
+      new Set(['ord-5']),
+    );
     expect(s.a_traiter.map((o) => o.orderId)).toEqual(['ord-1']);
-    expect(s.terminees.map((o) => o.orderId)).toEqual(['ord-2']);
+    expect(s.pret.map((o) => o.orderId)).toEqual(['ord-2']);
+    expect(s.en_route.map((o) => o.orderId)).toEqual(['ord-4']);
+    expect(s.terminees.map((o) => o.orderId)).toEqual(['ord-5']);
     // A contested order must NEVER read as settled work — incidents wins.
     expect(s.incidents.map((o) => o.orderId)).toEqual(['ord-3']);
   });
 
-  it('every order lands in exactly one segment', () => {
-    const s = segmenter([paid, ready, claimedReady], new Set(['ord-3']));
-    expect(s.a_traiter.length + s.terminees.length + s.incidents.length).toBe(3);
+  it('precedence holds on one order wearing every hat: claimed > delivered > en route > prêt', () => {
+    const all = order('ord-all', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
+    const claimed = segmenter([all], new Set(['ord-all']), new Set(['ord-all']), new Set(['ord-all']));
+    expect(claimed.incidents.length).toBe(1);
+    const done = segmenter([all], new Set(), new Set(['ord-all']), new Set(['ord-all']));
+    expect(done.terminees.length).toBe(1);
+    const carried = segmenter([all], new Set(), new Set(['ord-all']), new Set());
+    expect(carried.en_route.length).toBe(1);
+  });
+
+  it('every order lands in exactly one segment; empty road facts degrade toward prêt, never invent', () => {
+    const s = segmenter([paid, ready, claimedReady, relayed, delivered], new Set(['ord-3']), new Set(), new Set());
+    expect(s.a_traiter.length + s.pret.length + s.en_route.length + s.terminees.length + s.incidents.length).toBe(5);
+    // Without board/gains facts, relayed & delivered read as prêt — true-but-
+    // colder; the confier door itself re-refuses a double relay.
+    expect(s.pret.map((o) => o.orderId).sort()).toEqual(['ord-2', 'ord-4', 'ord-5']);
+    expect(s.en_route.length).toBe(0);
+    expect(s.terminees.length).toBe(0);
   });
 });
 
@@ -83,7 +107,9 @@ describe('the supplier’s name comes from HIS card, never invented', () => {
 describe('one pill per row', () => {
   it('names the segment state, and « acceptée » only from the book’s own mark', () => {
     expect(pilluleCommande(order('o'), 'incidents').label).toBe('commandes.pill_incident');
-    expect(pilluleCommande(order('o'), 'terminees').label).toBe('commandes.pill_prete');
+    expect(pilluleCommande(order('o'), 'terminees').label).toBe('commandes.pill_livree');
+    expect(pilluleCommande(order('o'), 'en_route').label).toBe('commandes.pill_en_route');
+    expect(pilluleCommande(order('o'), 'pret').label).toBe('commandes.pill_prete');
     expect(pilluleCommande(order('o'), 'a_traiter').label).toBe('commandes.pill_attente');
     expect(
       pilluleCommande(order('o', { fulfillment: { acceptedAt: '2026-08-08T10:30:00.000Z' } }), 'a_traiter').label,

@@ -89,12 +89,15 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
         }
         // No fund key here, so claimed orders are not split out — the
         // Commandes tab (which reads the claims book) holds incident truth.
-        const s = segmenter(r.orders, new Set());
+        // Same for the Séra board and the gains read: without them the road
+        // facts are unknown here, so « prêtes » counts everything readyAt-set
+        // (relayed or delivered included) — the tab itself splits the stages.
+        const s = segmenter(r.orders, new Set(), new Set(), new Set());
         setVentes({
           kind: 'ok',
           aTraiter: plusAnciennes(s.a_traiter, 3),
           enAttente: s.a_traiter.length,
-          pretes: s.terminees.length,
+          pretes: s.pret.length,
           total: r.orders.length,
         });
       });

@@ -3799,13 +3799,13 @@
   },
   {
     "key": "coursiers.pas_en_service",
-    "fr": "Pas en service. Il démarre sa journée dans son application Séra.",
+    "fr": "Pas en ligne. Il doit passer en ligne dans son application Séra.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "coursiers.pret_course",
-    "fr": "En service — prêt pour une course.",
+    "fr": "En ligne — prêt pour une course.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3895,7 +3895,7 @@
   },
   {
     "key": "commandes.vide_terminees",
-    "fr": "Aucun colis prêt pour l’instant.",
+    "fr": "Aucune commande livrée pour l'instant.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4068,6 +4068,54 @@
     "screenClass": "label"
   },
   {
+    "key": "commandes.seg_pret",
+    "fr": "Prêt à livrer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.seg_en_route",
+    "fr": "En route",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.vide_pret",
+    "fr": "Rien de prêt à livrer pour l'instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.vide_en_route",
+    "fr": "Aucune livraison en cours.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.pill_en_route",
+    "fr": "En route",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_livree",
+    "fr": "Livrée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.en_route_avec",
+    "fr": "En route avec",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.livree_banner",
+    "fr": "Livrée. Tout est complet.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "console.urgent_onglet",
     "fr": "{n} commande(s) attendent un appel — ouvrez l’onglet Commandes.",
     "register": "neutral",
@@ -4213,7 +4261,7 @@
   },
   {
     "key": "confier.blocage_service",
-    "fr": "pas en service — il doit démarrer sa journée dans son application Séra",
+    "fr": "pas en ligne — il doit passer en ligne dans son application Séra",
     "register": "neutral",
     "screenClass": "label"
   },

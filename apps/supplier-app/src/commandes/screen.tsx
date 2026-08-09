@@ -18,10 +18,14 @@ import {
   clearStoredCleC,
   readStoredCleC,
   resolveDispatchService,
+  resolveGainsService,
   storeCleC,
   type LivraisonRow,
 } from '../operations/dispatch-service';
 import { readStoredCleFonds, resolveFondsService } from '../fonds/service';
+import { readStoredCleCoursiers } from '../coursiers/service';
+import { resolveSeraDispatch, type BoardSera } from './sera-service';
+import { nomCoursierPour } from '../gains/view';
 import { resolveMediaBase } from '../supply/media';
 import { ConfierCoursier } from './confier';
 import {
@@ -145,6 +149,19 @@ function LivreCommandes({
   const [ouvert, setOuvert] = useState<string | null>(null);
   /** Claim-carrying orderIds, null = the fund key is not connected. */
   const [claims, setClaims] = useState<ReadonlySet<string> | null>(null);
+  /**
+   * BOUTIK-FLOW (founder 2026-08-09) — the two facts that split the road into
+   * his three stages, each from ITS OWN authority and never inferred:
+   *   · the Séra board — whose live assignments say EN ROUTE (and name the
+   *     carrier on the row);
+   *   · the gains read — whose `livree` says DELIVERED (the settlement's own
+   *     word, SE-LIVE-5).
+   * Both best-effort: a missing key or a down Worker degrades rows toward
+   * « Prêt à livrer » — true-but-colder, and the confier door re-refuses a
+   * double relay by itself.
+   */
+  const [boardSera, setBoardSera] = useState<BoardSera | null>(null);
+  const [livrees, setLivrees] = useState<ReadonlySet<string>>(new Set());
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -161,6 +178,19 @@ function LivreCommandes({
     // A contacts failure never blanks the BOOK — names degrade to supplier
     // ids (true, just colder); the board itself is the load-bearing read.
     setRead({ kind: 'ok', orders: orders.orders, contacts: contacts.ok ? contacts.contacts : [] });
+
+    const cleSera = readStoredCleCoursiers();
+    const dispatchSera = cleSera === null ? null : resolveSeraDispatch();
+    if (cleSera !== null && dispatchSera !== null) {
+      const b = await dispatchSera.board(cleSera);
+      if (b.kind === 'ok') setBoardSera(b.value);
+    }
+    const cleC = readStoredCleC();
+    const gains = resolveGainsService();
+    if (cleC !== null && gains !== null) {
+      const g = await gains.listGains(cleC);
+      if (g.ok) setLivrees(new Set(g.rows.filter((r) => r.livree).map((r) => r.orderId)));
+    }
 
     // Incidents: joined from the claims book ONLY when the fund key is
     // already on this device (typed once in the Fonds zone). Best-effort —
@@ -204,7 +234,8 @@ function LivreCommandes({
     );
   }
 
-  const segments = segmenter(read.orders, claims ?? new Set());
+  const enRoute = new Set(boardSera?.affectations.map((a) => a.orderId) ?? []);
+  const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees);
   const rows = segments[segment];
   const now = Date.now();
 
@@ -218,6 +249,8 @@ function LivreCommandes({
         contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
       >
         <ChipSegment label={t('commandes.seg_a_traiter')} count={segments.a_traiter.length} active={segment === 'a_traiter'} onPress={() => { setSegment('a_traiter'); setOuvert(null); }} />
+        <ChipSegment label={t('commandes.seg_pret')} count={segments.pret.length} active={segment === 'pret'} onPress={() => { setSegment('pret'); setOuvert(null); }} />
+        <ChipSegment label={t('commandes.seg_en_route')} count={segments.en_route.length} active={segment === 'en_route'} onPress={() => { setSegment('en_route'); setOuvert(null); }} />
         <ChipSegment label={t('commandes.seg_terminees')} count={segments.terminees.length} active={segment === 'terminees'} onPress={() => { setSegment('terminees'); setOuvert(null); }} />
         <ChipSegment label={t('commandes.seg_incidents')} count={segments.incidents.length} active={segment === 'incidents'} onPress={() => { setSegment('incidents'); setOuvert(null); }} />
       </ScrollView>
@@ -234,9 +267,13 @@ function LivreCommandes({
             {t(
               segment === 'a_traiter'
                 ? 'commandes.vide_a_traiter'
-                : segment === 'terminees'
-                  ? 'commandes.vide_terminees'
-                  : 'commandes.vide_incidents',
+                : segment === 'pret'
+                  ? 'commandes.vide_pret'
+                  : segment === 'en_route'
+                    ? 'commandes.vide_en_route'
+                    : segment === 'terminees'
+                      ? 'commandes.vide_terminees'
+                      : 'commandes.vide_incidents',
             )}
           </Text>
         </Card>
@@ -254,6 +291,7 @@ function LivreCommandes({
               service={service}
               cle={cle}
               mediaBase={mediaBase}
+              coursier={nomCoursierPour(o.orderId, boardSera)}
               onChanged={() => void charger()}
             />
           ))}
@@ -273,6 +311,7 @@ function RangCommande({
   service,
   cle,
   mediaBase,
+  coursier,
   onChanged,
 }: {
   row: PaidOrderRow;
@@ -284,6 +323,8 @@ function RangCommande({
   service: OperationsServicePort;
   cle: string;
   mediaBase: string | null;
+  /** The carrier's name off the Séra board join — En route rows only. */
+  coursier: string | null;
   onChanged: () => void;
 }) {
   const qui = nomFournisseur(row.supplierId, contacts);
@@ -307,8 +348,8 @@ function RangCommande({
         <Text style={[PETIT, { marginTop: 2 }]} numberOfLines={1}>{row.orderId}</Text>
       </Pressable>
       {ouvert ? (
-        segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} />
+        segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} />
         ) : (
           <DetailATraiter row={row} qui={qui} attente={attente} nowMs={nowMs} service={service} cle={cle} onChanged={onChanged} />
         )
@@ -411,19 +452,24 @@ function DetailATraiter({
   );
 }
 
-/** Terminée: the supplier's photo proof, then the buyer — everything the
- *  dispatch decision needs on one card. The dispatch BUTTON itself is RB-2:
- *  no dead primary action ships here (the SE-LIVE-4c lesson). */
+/** The delivery-road detail, one card per stage (BOUTIK-FLOW, founder
+ *  2026-08-09): « Prêt à livrer » carries the proof, the buyer, and the
+ *  confier act; « En route » names the carrier instead of re-offering the
+ *  act; « Terminées » states the delivery — settled work, no button. */
 function DetailTerminee({
   row,
   service,
   cle,
   mediaBase,
+  etape,
+  coursier,
 }: {
   row: PaidOrderRow;
   service: OperationsServicePort;
   cle: string;
   mediaBase: string | null;
+  etape: 'pret' | 'en_route' | 'terminees';
+  coursier: string | null;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
   const [buyer, setBuyer] = useState<LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec'>(
@@ -525,8 +571,20 @@ function DetailTerminee({
           </View>
         )}
       </View>
-      {/* RB-2 — the dispatch act itself, the fold this detail was built for. */}
-      <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} />
+      {etape === 'en_route' ? (
+        // The carrier, named off the Séra board — the same join the Gains tab
+        // reads. A board gap degrades to the honest pill alone, never a guess.
+        <Banner tone="info">
+          {coursier !== null ? `${t('commandes.en_route_avec')} ${coursier}` : t('commandes.pill_en_route')}
+        </Banner>
+      ) : etape === 'terminees' ? (
+        <Banner tone="success" check>
+          {t('commandes.livree_banner')}
+        </Banner>
+      ) : (
+        /* RB-2 — the dispatch act itself, the fold this detail was built for. */
+        <ConfierCoursier row={row} buyer={typeof buyer === 'object' ? buyer : null} />
+      )}
     </View>
   );
 }

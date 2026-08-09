@@ -7,19 +7,28 @@ import type { PaidOrderRow, SupplierContact } from '../operations/service';
  * always an argument, so every duration on the screen is testable to the
  * minute. Strings are CATALOG KEYS.
  *
- * THE SEGMENTS ARE A PARTITION, in this order of precedence:
+ * THE SEGMENTS ARE A PARTITION — the order's whole road, in the founder's own
+ * stages (his order, 2026-08-09: « rename actual terminées to prêt à livrer,
+ * another screen en route for product in transit, and another Terminées for
+ * product delivered and all completed »). Precedence:
  *   · `incidents`  — the order has a protection-fund claim (any state): a
- *     signaled order is an incident FIRST, whatever its preparation says,
- *     because the founder reading « Terminées » must never see a contested
- *     order filed as settled work.
- *   · `terminees`  — the supplier confirmed « Produit prêt » (readyAt set).
+ *     signaled order is an incident FIRST, whatever its stage says, because
+ *     the founder must never see a contested order filed as settled work.
+ *   · `terminees`  — DELIVERED: Séra validated the drop and the settlement
+ *     records folded (the gains read's own `livree`, never inferred).
+ *   · `en_route`   — a LIVE Séra assignment carries it (the board's active
+ *     set): relayed to a rider, not yet delivered.
+ *   · `pret`       — the supplier confirmed « Produit prêt » (readyAt set):
+ *     ready to relay — the confier act lives HERE.
  *   · `a_traiter`  — everything else: paid, waiting on the supplier.
  */
 
-export type SegmentCommandes = 'a_traiter' | 'terminees' | 'incidents';
+export type SegmentCommandes = 'a_traiter' | 'pret' | 'en_route' | 'terminees' | 'incidents';
 
 export interface CommandesSegments {
   readonly a_traiter: readonly PaidOrderRow[];
+  readonly pret: readonly PaidOrderRow[];
+  readonly en_route: readonly PaidOrderRow[];
   readonly terminees: readonly PaidOrderRow[];
   readonly incidents: readonly PaidOrderRow[];
 }
@@ -27,16 +36,26 @@ export interface CommandesSegments {
 export function segmenter(
   orders: readonly PaidOrderRow[],
   claimedOrderIds: ReadonlySet<string>,
+  /** OrderIds a live Séra assignment carries (board `assignments`). Absent
+   *  keys (no Séra key typed, board unreachable) degrade rows to `pret` —
+   *  true-but-colder, and the confier door re-refuses a double relay anyway. */
+  enRouteOrderIds: ReadonlySet<string>,
+  /** OrderIds whose gains row says `livree` — the settlement's own word. */
+  livreeOrderIds: ReadonlySet<string>,
 ): CommandesSegments {
   const a_traiter: PaidOrderRow[] = [];
+  const pret: PaidOrderRow[] = [];
+  const en_route: PaidOrderRow[] = [];
   const terminees: PaidOrderRow[] = [];
   const incidents: PaidOrderRow[] = [];
   for (const o of orders) {
     if (claimedOrderIds.has(o.orderId)) incidents.push(o);
-    else if (o.fulfillment?.readyAt !== undefined) terminees.push(o);
+    else if (livreeOrderIds.has(o.orderId)) terminees.push(o);
+    else if (enRouteOrderIds.has(o.orderId)) en_route.push(o);
+    else if (o.fulfillment?.readyAt !== undefined) pret.push(o);
     else a_traiter.push(o);
   }
-  return { a_traiter, terminees, incidents };
+  return { a_traiter, pret, en_route, terminees, incidents };
 }
 
 /**
@@ -95,7 +114,9 @@ export function pilluleCommande(
   segment: SegmentCommandes,
 ): { readonly label: string; readonly ton: 'attente' | 'ok' | 'alerte' } {
   if (segment === 'incidents') return { label: 'commandes.pill_incident', ton: 'alerte' };
-  if (segment === 'terminees') return { label: 'commandes.pill_prete', ton: 'ok' };
+  if (segment === 'terminees') return { label: 'commandes.pill_livree', ton: 'ok' };
+  if (segment === 'en_route') return { label: 'commandes.pill_en_route', ton: 'ok' };
+  if (segment === 'pret') return { label: 'commandes.pill_prete', ton: 'ok' };
   return row.fulfillment?.acceptedAt !== undefined
     ? { label: 'commandes.pill_acceptee', ton: 'attente' }
     : { label: 'commandes.pill_attente', ton: 'attente' };

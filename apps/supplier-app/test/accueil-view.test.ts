@@ -99,7 +99,7 @@ describe('RB-4 — [source-text checks] the demo store has no route into the she
   it('the accueil reads REAL ports and never the machine store; counts come from segmenter', () => {
     expect(screen).toContain('resolveSupplyService()');
     expect(screen).toContain('resolveOperationsService()');
-    expect(screen).toContain('segmenter(r.orders, new Set())');
+    expect(screen).toContain('segmenter(r.orders, new Set(), new Set(), new Set())');
     expect(screen).not.toMatch(/from '\.\.\/v2\/seed|st\.products|st\.orders/);
     // the product count is the real list's length, through the catalog's {n}
     expect(screen).toContain("t('accueil.greeting_sub').replace('{n}', String(offres.rows.length))");
