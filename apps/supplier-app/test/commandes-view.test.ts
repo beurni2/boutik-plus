@@ -219,3 +219,39 @@ describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () =>
     expect(confier).not.toContain('EXPO_PUBLIC_SERA_OPS');
   });
 });
+
+/**
+ * VOIX-ÉTAT-2 (founder report 2026-08-09) — « the seconds are not counting ».
+ * On the console the pause STATE was already honest (the label toggles), and
+ * the clock did not exist at all: he could not tell a note that was running
+ * from one stalled on a slow media fetch. Pinned at the call site because this
+ * control is a React Native web component with no renderer in these tests.
+ */
+describe('VOIX-ÉTAT-2 — the repère player on Commandes shows where it is', () => {
+  const screen = readFileSync(join(import.meta.dirname, '..', 'src', 'commandes', 'screen.tsx'), 'utf8');
+
+  it('the position comes from the ELEMENT, never from a timer of our own', () => {
+    expect(screen).toContain("audio.addEventListener('timeupdate', () => setSeconde(lecteur.current?.currentTime ?? 0))");
+    expect(screen).toContain('currentTime: number;'); // the structural type had to grow it
+    expect(screen, 'a self-driven clock would drift off the note').not.toContain('setInterval');
+  });
+
+  it('the clock renders in m:ss, and only once the note has actually run', () => {
+    expect(screen).toContain('{lecture || seconde > 0 ? (');
+    expect(screen).toContain('{dureeVoix(seconde)}');
+  });
+
+  it('every way playback ends resets the clock — ended, error, refused play', () => {
+    expect(screen).toContain('const repos = (): void => { setLecture(false); setSeconde(0); };');
+    expect(screen).toContain("audio.addEventListener('ended', repos)");
+    expect(screen).toContain("audio.addEventListener('error', repos)");
+    expect(screen).toContain('() => { setLecture(false); setSeconde(0); }');
+  });
+
+  it('PAUSE keeps the position — he can see where he stopped', () => {
+    const pause = screen.slice(screen.indexOf('if (lecture) {'), screen.indexOf('if (lecture) {') + 200);
+    expect(pause).toContain('audio.pause();');
+    expect(pause).toContain('setLecture(false);');
+    expect(pause, 'resetting here would erase where he stopped').not.toContain('setSeconde(0)');
+  });
+});

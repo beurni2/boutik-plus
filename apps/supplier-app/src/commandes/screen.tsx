@@ -607,9 +607,17 @@ function DetailTerminee({
  *  no DOM lib (it is a React Native workspace), and the web build is where
  *  this control lives. */
 interface LecteurAudio {
+  currentTime: number;
   play(): Promise<void>;
   pause(): void;
   addEventListener(ev: string, fn: () => void): void;
+}
+
+/** « m:ss » — the SAME shape the buyer's own player and the rider's row use,
+ *  so one note reads identically wherever it is heard. */
+function dureeVoix(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 /**
@@ -617,36 +625,54 @@ interface LecteurAudio {
  * relays it. Web-only by nature (`Audio` is the browser's; the console IS
  * the web app) — on a build without it the control simply does not exist,
  * never a dead button. The label toggles with the truth: écouter ↔ pause.
+ *
+ * VOIX-ÉTAT-2 (founder 2026-08-09) — « the seconds are not counting ». True
+ * here too: the label knew whether it was playing, and nothing knew WHERE. A
+ * repère is a sentence; without a clock there is no way to tell a note that is
+ * running from one that stalled on a slow load. The pause STATE was already
+ * shown (the label says « Pause »), so only the clock was missing — and only
+ * the clock is added: this button has never carried an icon, and giving it one
+ * would be a redesign nobody asked for.
  */
 function EcouterRepere({ url }: { url: string }) {
   const [lecture, setLecture] = useState(false);
+  const [seconde, setSeconde] = useState(0);
   const lecteur = useRef<LecteurAudio | null>(null);
   useEffect(() => () => lecteur.current?.pause(), []);
   const AudioCtor = (globalThis as { Audio?: new (src: string) => LecteurAudio }).Audio;
   if (AudioCtor === undefined) return null;
   return (
-    <View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+    <View style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <BtnSoft
         label={t(lecture ? 'commandes.repere_voix_pause' : 'commandes.repere_voix_ecouter')}
         onPress={() => {
           let audio = lecteur.current;
           if (audio === null) {
             audio = new AudioCtor(url);
-            audio.addEventListener('ended', () => setLecture(false));
-            audio.addEventListener('error', () => setLecture(false));
+            const repos = (): void => { setLecture(false); setSeconde(0); };
+            audio.addEventListener('ended', repos);
+            audio.addEventListener('error', repos);
+            // The position, straight off the element — never a timer of our own
+            // counting alongside a note it cannot see.
+            audio.addEventListener('timeupdate', () => setSeconde(lecteur.current?.currentTime ?? 0));
             lecteur.current = audio;
           }
           if (lecture) {
             audio.pause();
-            setLecture(false);
+            setLecture(false); // the position STAYS: he can see where he stopped
             return;
           }
           void audio.play().then(
             () => setLecture(true),
-            () => setLecture(false), // a refused play never leaves a lying label
+            () => { setLecture(false); setSeconde(0); }, // a refused play never leaves a lying label
           );
         }}
       />
+      {/* Blank before the first tap — a clock over a note nobody started would
+          be claiming a position that does not exist. */}
+      {lecture || seconde > 0 ? (
+        <Text style={[CORPS, { fontVariant: ['tabular-nums'] }]}>{dureeVoix(seconde)}</Text>
+      ) : null}
     </View>
   );
 }
