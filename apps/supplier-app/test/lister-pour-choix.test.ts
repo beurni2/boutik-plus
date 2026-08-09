@@ -96,7 +96,7 @@ describe('lireFournisseurs — the read is BOUNDED, and every failure is named',
   });
 
   it('a successful read becomes the liste, ids in wire order', async () => {
-    const ops = { listCodes: async () => ({ ok: true, codes: [{ supplierId: 'b', mintedAt: 't' }, { supplierId: 'a', mintedAt: 't' }] }) as const };
+    const ops = { listCodes: async () => ({ ok: true, codes: [{ supplierId: 'b', mintedAt: 't', revelable: true }, { supplierId: 'a', mintedAt: 't', revelable: true }] }) as const };
     await expect(lireFournisseurs(ops, 'KEY')).resolves.toEqual({ kind: 'liste', ids: ['b', 'a'] });
   });
 

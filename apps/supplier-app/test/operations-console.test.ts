@@ -615,7 +615,7 @@ describe('the founder’s key — his device only, and honest when storage is ab
 /* ═══════════ CONSOLE-3 — the code inventory, decisions BY VALUE ═══════════ */
 
 describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, one act at a time', () => {
-  const codeRow = (supplierId: string, mintedAt = '2026-08-01T10:00:00.000Z') => ({ supplierId, mintedAt });
+  const codeRow = (supplierId: string, mintedAt = '2026-08-01T10:00:00.000Z') => ({ supplierId, mintedAt, revelable: true });
 
   it('codesView: loading/failed/empty each keep their own catalog sentence; bad_key returns NULL (the board escalates, one door one sentence)', () => {
     const keys = new Set(catalog.map((e) => e.key));
@@ -695,7 +695,7 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
     const good = codeRow('supplier-2');
     let spy = stubFetch(async () =>
-      new Response(JSON.stringify({ ok: true, codes: [good, { supplierId: '' }, { supplierId: 's', mintedAt: 'pas une date' }, null] })),
+      new Response(JSON.stringify({ ok: true, codes: [good, { supplierId: '' }, { supplierId: 's', mintedAt: 'pas une date', revelable: true }, null] })),
     );
     const list = await resolveOperationsService()!.listCodes('cle-ops');
     if (!list.ok) throw new Error(list.reason);
@@ -1137,7 +1137,7 @@ describe('ACCESS-GATE-1 — the inventory decides, and « bad key » speaks once
     // refused key must produce ONE sentence on the console, never two saying
     // the same thing in different words.
     expect(accesVue({ kind: 'bad_key' })).toBeNull();
-    const codes = [{ resellerId: 'rs-0001', mintedAt: '2026-08-04T10:00:00.000Z' }];
+    const codes = [{ resellerId: 'rs-0001', mintedAt: '2026-08-04T10:00:00.000Z', revelable: true }];
     expect(accesVue({ kind: 'ok', codes })).toEqual({ kind: 'liste', codes });
   });
 
@@ -1227,15 +1227,15 @@ describe('ACCESS-GATE-1 — the port speaks to the SHOP+ Worker on key C', () =>
     stubFetch(async () => new Response(JSON.stringify({
       ok: true,
       codes: [
-        { resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z' },
-        { resellerId: '', mintedAt: '2026-08-04T10:00:00.000Z' },
+        { resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z', revelable: true },
+        { resellerId: '', mintedAt: '2026-08-04T10:00:00.000Z', revelable: true },
         { resellerId: 'rs-2' },
         null,
         'nonsense',
       ],
     })));
     const res = await resolveAccesService()!.listAcces('k');
-    expect(res).toEqual({ ok: true, codes: [{ resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z' }] });
+    expect(res).toEqual({ ok: true, codes: [{ resellerId: 'rs-1', mintedAt: '2026-08-04T10:00:00.000Z', revelable: true }] });
   });
 
   it('401 → bad_key on all three calls, and a dead network → unreachable, never a silent success', async () => {
@@ -1332,6 +1332,7 @@ describe('RESELLER-ACCOUNTS — the roster decides, one act at a time, and the c
   const ROW: import('../src/operations/dispatch-service').CompteRow = {
     accountId: 'rs-1234', name: 'Awa Traoré', email: 'awa@example.bf', phone: '+226 70 00 00 01',
     state: 'pending_access', createdAt: '2026-08-04T10:00:00.000Z', accessCodePending: false,
+        accessCodeRevelable: false,
   };
 
   it('every read state maps to a designed sentence; bad_key renders NOTHING (one key, one sentence)', () => {

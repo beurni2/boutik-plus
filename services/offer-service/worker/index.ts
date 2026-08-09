@@ -194,6 +194,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       return forwardOpsCodeAdmin(request, env, '/code/revoke');
     }
+    // CODE-REVU (founder ruling 2026-08-09): reread a code already given —
+    // the same founder-only door as the mint it rereads.
+    if (request.method === 'POST' && fp === '/fulfillment/supplier-code/reveal') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return forwardOpsCodeAdmin(request, env, '/code/reveal');
+    }
     if (request.method === 'GET' && fp === '/fulfillment/mine') {
       return forwardSupplierAct(request, env, '/mine');
     }

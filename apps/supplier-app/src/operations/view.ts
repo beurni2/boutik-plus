@@ -1,4 +1,4 @@
-import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevokeResult } from './service';
+import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevealResult, RevokeResult } from './service';
 import type {
   AccesCodeRow,
   CodeAccesResult,
@@ -11,6 +11,8 @@ import type {
   AccesMintResult,
   AccesRevokeResult,
   LivraisonRow,
+  AccesRevealResult,
+  CodeAccesRevealResult,
 } from './dispatch-service';
 
 /**
@@ -215,13 +217,15 @@ export function mintAvis(
  * renders as done before the book answers.
  */
 export interface CodesUi {
-  /** 'mint' or the supplierId being revoked — one write at a time. */
-  readonly busy: 'mint' | `revoke:${string}` | null;
-  /** The one-time plaintext answer, until the founder dismisses it. */
-  readonly nouveau: { readonly supplierId: string; readonly code: string } | null;
+  /** 'mint', or the supplierId being revoked or reread — one act at a time. */
+  readonly busy: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
+  /** The plaintext on screen, until the founder dismisses it. `revele` marks
+   *  a REREAD (CODE-REVU, 2026-08-09) — same card, its own sentence: a
+   *  reread code is not « il ne s'affichera plus », he can come back. */
+  readonly nouveau: { readonly supplierId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Which act failed — namespaced like `busy`, so a supplier literally
    *  named « mint » can never light the wrong sentence (verifier note). */
-  readonly echec: 'mint' | `revoke:${string}` | null;
+  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | `anterieur:${string}` | null;
 }
 
 export const CODES_IDLE: CodesUi = { busy: null, nouveau: null, echec: null };
@@ -241,6 +245,12 @@ export function mintStart(ui: CodesUi): CodesUi | null {
 export function revokeStart(ui: CodesUi, supplierId: string): CodesUi | null {
   if (ui.busy !== null || ui.nouveau !== null) return null;
   return { busy: `revoke:${supplierId}`, nouveau: null, echec: null };
+}
+
+/** CODE-REVU — the reread act, under the same one-act-at-a-time law. */
+export function revealStart(ui: CodesUi, supplierId: string): CodesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  return { busy: `reveal:${supplierId}`, nouveau: null, echec: null };
 }
 
 export type CodesSettlement =
@@ -264,6 +274,27 @@ export function revokeSettled(supplierId: string, result: RevokeResult): CodesSe
   if (result.ok) return { ui: CODES_IDLE, then: 'refresh' };
   if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
   return { ui: { busy: null, nouveau: null, echec: `revoke:${supplierId}` }, then: 'none' };
+}
+
+/**
+ * CODE-REVU settle: the reread code takes the same full card as a fresh mint
+ * (`revele` picks its sentence). `no_code` refreshes — the list claimed a
+ * door the book no longer holds. `code_anterieur` lights the honest per-row
+ * sentence: only a NEW code can make that supplier rereadable.
+ */
+export function revealSettled(supplierId: string, result: RevealResult): CodesSettlement {
+  if (result.ok) {
+    return {
+      ui: { busy: null, nouveau: { supplierId: result.supplierId, code: result.code, revele: true }, echec: null },
+      then: 'none',
+    };
+  }
+  if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
+  if (result.reason === 'no_code') return { ui: CODES_IDLE, then: 'refresh' };
+  if (result.reason === 'code_anterieur') {
+    return { ui: { busy: null, nouveau: null, echec: `anterieur:${supplierId}` }, then: 'none' };
+  }
+  return { ui: { busy: null, nouveau: null, echec: `reveal:${supplierId}` }, then: 'none' };
 }
 
 export function codesReadOf(result: CodesResult): CodesRead {
@@ -363,13 +394,14 @@ export function accesVue(read: AccesRead): AccesVue | null {
 }
 
 export interface AccesUi {
-  /** 'mint' or the resellerId being cut — ONE write at a time. */
-  readonly busy: 'mint' | `revoke:${string}` | null;
-  /** The one-time plaintext, until he says he has written it down. */
-  readonly nouveau: { readonly resellerId: string; readonly code: string } | null;
+  /** 'mint', or the resellerId being cut or reread — ONE act at a time. */
+  readonly busy: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
+  /** The plaintext on screen, until he says he has written it down. `revele`
+   *  marks a REREAD (CODE-REVU) — same card, its own true sentence. */
+  readonly nouveau: { readonly resellerId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Namespaced like `busy`, so a reseller literally named « mint » cannot
    *  light the wrong sentence (the verifier's note on the supplier section). */
-  readonly echec: 'mint' | `revoke:${string}` | null;
+  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
 }
 
 export const ACCES_IDLE: AccesUi = { busy: null, nouveau: null, echec: null };
@@ -389,6 +421,12 @@ export function accesMintStart(ui: AccesUi): AccesUi | null {
 export function accesRevokeStart(ui: AccesUi, resellerId: string): AccesUi | null {
   if (ui.busy !== null || ui.nouveau !== null) return null;
   return { busy: `revoke:${resellerId}`, nouveau: null, echec: null };
+}
+
+/** CODE-REVU — the reread act, same one-act-at-a-time law. */
+export function accesRevealStart(ui: AccesUi, resellerId: string): AccesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  return { busy: `reveal:${resellerId}`, nouveau: null, echec: null };
 }
 
 export type AccesSettlement =
@@ -412,6 +450,22 @@ export function accesRevokeSettled(resellerId: string, result: AccesRevokeResult
   if (result.ok || (!result.ok && result.reason === 'no_code')) return { ui: ACCES_IDLE, then: 'refresh' };
   if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
   return { ui: { busy: null, nouveau: null, echec: `revoke:${resellerId}` }, then: 'none' };
+}
+
+/** CODE-REVU settle. `no_code`/`code_anterieur` mean the LIST was stale about
+ *  this row — re-read so the button disappears; the sentence names the act. */
+export function accesRevealSettled(resellerId: string, result: AccesRevealResult): AccesSettlement {
+  if (result.ok) {
+    return {
+      ui: { busy: null, nouveau: { resellerId: result.resellerId, code: result.code, revele: true }, echec: null },
+      then: 'none',
+    };
+  }
+  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
+  if (result.reason === 'no_code' || result.reason === 'code_anterieur') {
+    return { ui: { busy: null, nouveau: null, echec: `reveal:${resellerId}` }, then: 'refresh' };
+  }
+  return { ui: { busy: null, nouveau: null, echec: `reveal:${resellerId}` }, then: 'none' };
 }
 
 export function accesReadOf(result: AccesListResult): AccesRead {
@@ -448,12 +502,12 @@ export function comptesVue(read: ComptesRead): ComptesVue | null {
   return { kind: 'liste', comptes: read.comptes };
 }
 
-export type ActeCompte = `code:${string}` | `pause:${string}` | `resume:${string}`;
+export type ActeCompte = `code:${string}` | `voir:${string}` | `pause:${string}` | `resume:${string}`;
 
 export interface ComptesUi {
   readonly busy: ActeCompte | null;
   /** The one-time admission code, until he says he has written it down. */
-  readonly nouveau: { readonly accountId: string; readonly code: string } | null;
+  readonly nouveau: { readonly accountId: string; readonly code: string; readonly revele?: boolean } | null;
   readonly echec: ActeCompte | null;
 }
 
@@ -470,6 +524,23 @@ export type ComptesSettlement =
   | { readonly ui: ComptesUi; readonly then: 'refresh' }
   | { readonly ui: ComptesUi; readonly then: 'bad_key' }
   | { readonly ui: ComptesUi; readonly then: 'none' };
+
+/** CODE-REVU settle for the admission code: a spent or pre-ruling code
+ *  refreshes the roster (the pending flag is the stored truth) with the act's
+ *  own sentence; a reread code takes the same card, marked `revele`. */
+export function compteVoirSettled(accountId: string, result: CodeAccesRevealResult): ComptesSettlement {
+  if (result.ok) {
+    return {
+      ui: { busy: null, nouveau: { accountId: result.accountId, code: result.code, revele: true }, echec: null },
+      then: 'none',
+    };
+  }
+  if (result.reason === 'bad_key') return { ui: COMPTES_IDLE, then: 'bad_key' };
+  if (result.reason === 'no_code' || result.reason === 'code_anterieur' || result.reason === 'not_found') {
+    return { ui: { busy: null, nouveau: null, echec: `voir:${accountId}` }, then: 'refresh' };
+  }
+  return { ui: { busy: null, nouveau: null, echec: `voir:${accountId}` }, then: 'none' };
+}
 
 export function codeAccesSettled(accountId: string, result: CodeAccesResult): ComptesSettlement {
   if (result.ok) {

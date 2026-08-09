@@ -233,6 +233,45 @@ describe('1b-i — the personal code: minted by the FOUNDER alone, hash-stored, 
   });
 });
 
+describe('CODE-REVU (founder ruling 2026-08-09) — the founder rereads a code he already gave', () => {
+  it('mint → reveal answers the SAME bytes, the door still opens with them, and the list says revelable without ever carrying the code', async () => {
+    const minted = await opsPost('/fulfillment/supplier-code', { supplierId: 'supplier-revu-1' });
+    expect(minted.json['ok']).toBe(true);
+    const code = minted.json['code'] as string;
+
+    const revu = await opsPost('/fulfillment/supplier-code/reveal', { supplierId: 'supplier-revu-1' });
+    expect(revu.status).toBe(200);
+    expect(revu.json['code']).toBe(code);
+    // The reread is a POINTER READ, not a rotation: the original bytes still
+    // open the supplier's own door after the founder looked at them again.
+    expect((await mine(code)).status).toBe(200);
+
+    const liste = await mf.dispatchFetch('http://o/fulfillment/supplier-codes', {
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
+    });
+    const listeText = await liste.text();
+    const rows = (JSON.parse(listeText) as { codes: Record<string, unknown>[] }).codes;
+    expect(rows.find((r) => r['supplierId'] === 'supplier-revu-1')).toMatchObject({ revelable: true });
+    expect(listeText.includes(code)).toBe(false); // the allowlist law holds: revelable is a FLAG, never the bytes
+  });
+
+  it('reveal is founder-only and honest about absence: 401 without his key, no_code for a stranger and after revoke', async () => {
+    for (const bearer of [null, FULFILL_SECRET]) {
+      const res = await opsPost('/fulfillment/supplier-code/reveal', { supplierId: 'supplier-revu-1' }, bearer);
+      expect(res.status, String(bearer)).toBe(401);
+    }
+    const inconnu = await opsPost('/fulfillment/supplier-code/reveal', { supplierId: 'supplier-nowhere' });
+    expect(inconnu.status).toBe(404);
+    expect(inconnu.json['reason']).toBe('no_code');
+
+    await opsPost('/fulfillment/supplier-code', { supplierId: 'supplier-revu-2' });
+    await opsPost('/fulfillment/supplier-code/revoke', { supplierId: 'supplier-revu-2' });
+    const apres = await opsPost('/fulfillment/supplier-code/reveal', { supplierId: 'supplier-revu-2' });
+    expect(apres.status).toBe(404);
+    expect(apres.json['reason']).toBe('no_code'); // revoke kills the pointer — the reread dies with the door
+  });
+});
+
 describe('1b-i — /fulfillment/mine: the code is the identity, and only YOUR orders leave', () => {
   it('supplier A sees exactly A’s orders (allowlisted fields, no relance, no supplierId echo); B sees B’s; a bad code sees a 401', async () => {
     const { codeA, codeB } = await world();
@@ -555,13 +594,16 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
     expect(ok.json['ok']).toBe(true);
   });
 
-  it('every row is EXACTLY {supplierId, mintedAt} — the hash never leaves the book, on ANY row', async () => {
+  it('every row is EXACTLY {supplierId, mintedAt, revelable} — the hash and the code never leave the book, on ANY row', async () => {
+    // CODE-REVU (2026-08-09) widened the allowlist by ONE boolean flag —
+    // `revelable` says « Voir le code » can answer, never what it would say.
     await opsPost('/fulfillment/supplier-code', { supplierId: INV_A });
     const res = await inventory();
     const codes = res.json['codes'] as Record<string, unknown>[];
     expect(codes.length).toBeGreaterThan(0);
     for (const row of codes) {
-      expect(Object.keys(row).sort(), JSON.stringify(row)).toEqual(['mintedAt', 'supplierId']);
+      expect(Object.keys(row).sort(), JSON.stringify(row)).toEqual(['mintedAt', 'revelable', 'supplierId']);
+      expect(typeof row['revelable']).toBe('boolean');
     }
   });
 

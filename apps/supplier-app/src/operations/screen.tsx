@@ -46,6 +46,8 @@ import {
   operationsView,
   relanceSettled,
   relanceStart,
+  revealSettled,
+  revealStart,
   revokeSettled,
   revokeStart,
   type CodesRead,
@@ -58,6 +60,8 @@ import {
   accesMintSettled,
   accesMintStart,
   accesReadOf,
+  accesRevealSettled,
+  accesRevealStart,
   accesRevokeSettled,
   accesRevokeStart,
   accesVue,
@@ -68,6 +72,7 @@ import {
   acteSettled,
   acteStart,
   codeAccesSettled,
+  compteVoirSettled,
   comptesReadOf,
   comptesVue,
   suiviReadOf,
@@ -342,6 +347,21 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     await settleCodes(revokeSettled(supplierId, result));
   };
 
+  /** CODE-REVU (founder ruling 2026-08-09) — reread a code already given. */
+  const revoirCode = async (supplierId: string): Promise<void> => {
+    if (service === null) return;
+    const started = revealStart(codesUi, supplierId);
+    if (started === null) return;
+    setCodesUi(started);
+    let result;
+    try {
+      result = await service.revealCode(opsKey, supplierId);
+    } catch {
+      result = { ok: false, reason: 'unreachable' } as const;
+    }
+    await settleCodes(revealSettled(supplierId, result));
+  };
+
   // Impure substance only — every decision below is `view.ts`'s, by value.
   const relancer = async (orderId: string): Promise<void> => {
     if (service === null) return;
@@ -467,6 +487,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             onDraft={setCodeDraft}
             onCreer={() => { void creerCode(codeDraft.trim()); }}
             onCouper={(supplierId) => { void couperCode(supplierId); }}
+            onVoir={(supplierId) => { void revoirCode(supplierId); }}
             onVu={() => setCodesUi(CODES_IDLE)}
             onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
           />
@@ -599,6 +620,10 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     if (acte.startsWith('code:')) {
       const res = await comptes.codeAcces(key, accountId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
       await settleCompte(codeAccesSettled(accountId, res), key);
+    } else if (acte.startsWith('voir:')) {
+      // CODE-REVU (founder 2026-08-09): reread the unconsumed admission code.
+      const res = await comptes.revoirCodeAcces(key, accountId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+      await settleCompte(compteVoirSettled(accountId, res), key);
     } else {
       const verbe = acte.startsWith('pause:') ? comptes.pause : comptes.resume;
       const res = await verbe(key, accountId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
@@ -645,6 +670,15 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
       .catch(() => ({ ok: false, reason: 'unreachable' } as const));
     setAccesDraft('');
     await settleAcces(accesMintSettled(res), key);
+  };
+
+  const voirAcces = async (resellerId: string, key: string): Promise<void> => {
+    if (acces === null) return;
+    const started = accesRevealStart(accesUi, resellerId);
+    if (started === null) return;
+    setAccesUi(started);
+    const res = await acces.revealAcces(key, resellerId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    await settleAcces(accesRevealSettled(resellerId, res), key);
   };
 
   const couperAcces = async (resellerId: string, key: string): Promise<void> => {
@@ -829,6 +863,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             }
             onDraft={setAccesDraft}
             onCreer={() => { void creerAcces(accesDraft.trim(), cleC); }}
+            onVoir={(resellerId) => { void voirAcces(resellerId, cleC); }}
             onCouper={(id) => { void couperAcces(id, cleC); }}
             onVu={() => setAccesUi(ACCES_IDLE)}
             onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
@@ -922,17 +957,28 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 3 }]}>{t('comptes.code_en_route')}</Text>
                 )}
               </View>
-              {ui.busy === acte ? (
+              {ui.busy === acte || ui.busy === `voir:${c.accountId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('comptes.acte_encours')}</Text>
               ) : ui.nouveau !== null ? (
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.noter_dabord')}</Text>
               ) : (
-                <BtnSoft label={label} onPress={() => onActe(acte, c.accountId)} />
+                <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                  {/* CODE-REVU: reread the UNCONSUMED admission code. */}
+                  {c.accessCodePending && c.accessCodeRevelable ? (
+                    <BtnSoft label={t('comptes.voir_code')} onPress={() => onActe(`voir:${c.accountId}`, c.accountId)} />
+                  ) : null}
+                  <BtnSoft label={label} onPress={() => onActe(acte, c.accountId)} />
+                </View>
               )}
             </View>
             {ui.echec === acte && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('comptes.acte_echec')}</Text>
+              </View>
+            )}
+            {ui.echec === `voir:${c.accountId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('comptes.code_anterieur')}</Text>
               </View>
             )}
           </Card>
@@ -943,7 +989,7 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
         <CarteCodeUnique
           pour={t('comptes.code_pour').replace('{id}', ui.nouveau.accountId)}
           code={ui.nouveau.code}
-          note={t('comptes.code_note')}
+          note={t(ui.nouveau.revele === true ? 'comptes.code_revu_note' : 'comptes.code_note')}
           vuLabel={t('comptes.vu')}
           onVu={onVu}
         />
@@ -1018,7 +1064,7 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
  * he is reading it out over the phone, and the screen says so in words where
  * the buttons were rather than leaving a dead tap.
  */
-function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu, onRetry }: {
+function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
   read: AccesRead;
   ui: AccesUi;
   draft: string;
@@ -1026,6 +1072,7 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
   onDraft: (v: string) => void;
   onCreer: () => void;
   onCouper: (resellerId: string) => void;
+  onVoir: (resellerId: string) => void;
   onVu: () => void;
   onRetry: () => void;
 }) {
@@ -1063,12 +1110,18 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
                   {t('acces.cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
               </View>
-              {ui.busy === `revoke:${c.resellerId}` ? (
+              {ui.busy === `revoke:${c.resellerId}` || ui.busy === `reveal:${c.resellerId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.coupure')}</Text>
               ) : ui.nouveau !== null ? (
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.noter_dabord')}</Text>
               ) : (
-                <BtnSoft label={t('acces.couper')} onPress={() => onCouper(c.resellerId)} />
+                <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                  {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN. */}
+                  {c.revelable ? (
+                    <BtnSoft label={t('acces.voir')} onPress={() => onVoir(c.resellerId)} />
+                  ) : null}
+                  <BtnSoft label={t('acces.couper')} onPress={() => onCouper(c.resellerId)} />
+                </View>
               )}
             </View>
             {ui.echec === `revoke:${c.resellerId}` && (
@@ -1076,14 +1129,19 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVu,
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.coupure_echec')}</Text>
               </View>
             )}
+            {ui.echec === `reveal:${c.resellerId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.code_anterieur')}</Text>
+              </View>
+            )}
           </Card>
         ))}
 
       {ui.nouveau !== null && (
         <CarteCodeUnique
-          pour={t('acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
+          pour={t(ui.nouveau.revele === true ? 'acces.revu_pour' : 'acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
           code={ui.nouveau.code}
-          note={t('acces.nouveau_note')}
+          note={t(ui.nouveau.revele === true ? 'acces.revu_note' : 'acces.nouveau_note')}
           vuLabel={t('acces.vu')}
           onVu={onVu}
         />
@@ -1157,7 +1215,7 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
@@ -1165,6 +1223,7 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
   onDraft: (v: string) => void;
   onCreer: () => void;
   onCouper: (supplierId: string) => void;
+  onVoir: (supplierId: string) => void;
   onVu: () => void;
   onRetry: () => void;
 }) {
@@ -1202,14 +1261,22 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
                   {t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
                 </Text>
               </View>
-              {ui.busy === `revoke:${c.supplierId}` ? (
+              {ui.busy === `revoke:${c.supplierId}` || ui.busy === `reveal:${c.supplierId}` ? (
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_coupure_encours')}</Text>
               ) : ui.nouveau !== null ? (
                 // a live one-time code blocks every other act — in words, never
                 // a dead tap (verifier MAJOR-1)
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
               ) : (
-                <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+                <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                  {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN the
+                      code already given — only for codes the book can show
+                      back (minted after the ruling). */}
+                  {c.revelable ? (
+                    <BtnSoft label={t('operations.code_voir')} onPress={() => onVoir(c.supplierId)} />
+                  ) : null}
+                  <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+                </View>
               )}
             </View>
             {ui.echec === `revoke:${c.supplierId}` && (
@@ -1217,14 +1284,26 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVu, onRet
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_coupure_echec')}</Text>
               </View>
             )}
+            {ui.echec === `reveal:${c.supplierId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_voir_echec')}</Text>
+              </View>
+            )}
+            {ui.echec === `anterieur:${c.supplierId}` && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_anterieur')}</Text>
+              </View>
+            )}
           </Card>
         ))}
 
       {ui.nouveau !== null && (
         <CarteCodeUnique
-          pour={t('operations.code_nouveau_pour').replace('{id}', ui.nouveau.supplierId)}
+          pour={t(ui.nouveau.revele === true ? 'operations.code_revu_pour' : 'operations.code_nouveau_pour').replace('{id}', ui.nouveau.supplierId)}
           code={ui.nouveau.code}
-          note={t('operations.code_nouveau_note')}
+          // A REREAD code is not « il ne s'affichera plus » — he can come
+          // back. Same card, its own true sentence.
+          note={t(ui.nouveau.revele === true ? 'operations.code_revu_note' : 'operations.code_nouveau_note')}
           vuLabel={t('operations.code_nouveau_vu')}
           onVu={onVu}
         />

@@ -315,6 +315,9 @@ export function resolveRefusService(): RefusServicePort | null {
 export interface AccesCodeRow {
   readonly resellerId: string;
   readonly mintedAt: string;
+  /** CODE-REVU (2026-08-09): « Voir le code » can answer — false for codes
+   *  minted before the plaintext was kept. Absent reads FALSE. */
+  readonly revelable: boolean;
 }
 
 export type AccesListResult =
@@ -329,10 +332,16 @@ export type AccesRevokeResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_code' };
 
+export type AccesRevealResult =
+  | { readonly ok: true; readonly resellerId: string; readonly code: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_code' | 'code_anterieur' };
+
 export interface AccesServicePort {
   listAcces(cleC: string): Promise<AccesListResult>;
   mintAcces(cleC: string, resellerId: string): Promise<AccesMintResult>;
   revokeAcces(cleC: string, resellerId: string): Promise<AccesRevokeResult>;
+  /** CODE-REVU — reread a feed code already given (founder ruling 2026-08-09). */
+  revealAcces(cleC: string, resellerId: string): Promise<AccesRevealResult>;
 }
 
 /** Mirrors the DO's row projection; anything malformed is DROPPED rather than
@@ -345,7 +354,7 @@ function readAccesRow(raw: unknown): AccesCodeRow | null {
   const mintedAt = r['mintedAt'];
   if (typeof resellerId !== 'string' || resellerId === '') return null;
   if (typeof mintedAt !== 'string' || mintedAt === '') return null;
-  return { resellerId, mintedAt };
+  return { resellerId, mintedAt, revelable: r['revelable'] === true };
 }
 
 export function resolveAccesService(): AccesServicePort | null {
@@ -407,6 +416,22 @@ export function resolveAccesService(): AccesServicePort | null {
         return { ok: false, reason: 'unreachable' };
       }
       return { ok: true, resellerId: body.resellerId, code: body.code };
+    },
+
+    async revealAcces(cleC: string, resellerId: string): Promise<AccesRevealResult> {
+      const res = await appel('/reseller/code/reveal', cleC, {
+        method: 'POST',
+        body: JSON.stringify({ resellerId }),
+      });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404 || res.status === 409) {
+        const raison = res.body !== null && typeof res.body === 'object' ? (res.body as Record<string, unknown>)['reason'] : null;
+        return { ok: false, reason: raison === 'no_code' || raison === 'code_anterieur' ? raison : 'unreachable' };
+      }
+      const code = res.body !== null && typeof res.body === 'object' ? (res.body as Record<string, unknown>)['code'] : null;
+      if (typeof code !== 'string' || code === '') return { ok: false, reason: 'unreachable' };
+      return { ok: true, resellerId, code };
     },
 
     async revokeAcces(cleC: string, resellerId: string): Promise<AccesRevokeResult> {
@@ -573,6 +598,8 @@ export interface CompteRow {
   readonly state: EtatCompte;
   readonly createdAt: string;
   readonly accessCodePending: boolean;
+  /** CODE-REVU: « Voir le code » can answer for the pending admission code. */
+  readonly accessCodeRevelable: boolean;
 }
 
 /** One suivi line: an EXACT COUNT and a summed net copied off frozen quotes —
@@ -602,9 +629,15 @@ export type SuiviResult =
   | { readonly ok: true; readonly lignes: readonly SuiviLigne[] }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
+export type CodeAccesRevealResult =
+  | { readonly ok: true; readonly accountId: string; readonly code: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_code' | 'code_anterieur' | 'not_found' };
+
 export interface ComptesServicePort {
   listComptes(cleC: string): Promise<ComptesResult>;
   codeAcces(cleC: string, accountId: string): Promise<CodeAccesResult>;
+  /** CODE-REVU — reread the UNCONSUMED admission code (spent = gone). */
+  revoirCodeAcces(cleC: string, accountId: string): Promise<CodeAccesRevealResult>;
   pause(cleC: string, accountId: string): Promise<CompteActeResult>;
   resume(cleC: string, accountId: string): Promise<CompteActeResult>;
   listSuivi(cleC: string): Promise<SuiviResult>;
@@ -625,6 +658,7 @@ function readCompteRow(raw: unknown): CompteRow | null {
     accountId: r['accountId'], name: r['name'], email: r['email'], phone: r['phone'],
     state: r['state'] as EtatCompte, createdAt: r['createdAt'],
     accessCodePending: r['accessCodePending'] === true,
+    accessCodeRevelable: r['accessCodeRevelable'] === true,
   };
 }
 
@@ -703,6 +737,28 @@ export function resolveComptesService(): ComptesServicePort | null {
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
       if (res.status === 404) return { ok: false, reason: 'not_found' };
       if (res.status === 409) return { ok: false, reason: 'not_pending' };
+      const code = res.body?.['code'];
+      const id = res.body?.['accountId'];
+      if (res.body?.['ok'] !== true || typeof code !== 'string' || typeof id !== 'string') {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, accountId: id, code };
+    },
+
+    async revoirCodeAcces(cleC: string, accountId: string): Promise<CodeAccesRevealResult> {
+      const res = await appel('/reseller/accounts/access-code/reveal', cleC, {
+        method: 'POST',
+        body: JSON.stringify({ accountId }),
+      });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404 || res.status === 409) {
+        const raison = res.body !== null && typeof res.body === 'object' ? (res.body as Record<string, unknown>)['reason'] : null;
+        return {
+          ok: false,
+          reason: raison === 'no_code' || raison === 'code_anterieur' || raison === 'not_found' ? raison : 'unreachable',
+        };
+      }
       const code = res.body?.['code'];
       const id = res.body?.['accountId'];
       if (res.body?.['ok'] !== true || typeof code !== 'string' || typeof id !== 'string') {

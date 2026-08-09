@@ -2274,6 +2274,36 @@
     "screenClass": "status"
   },
   {
+    "key": "operations.code_voir",
+    "fr": "Voir le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.code_voir_echec",
+    "fr": "Pas de réponse. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_anterieur",
+    "fr": "Ce code a été donné avant cette fonction. Donnez un nouveau code pour pouvoir le revoir.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "operations.code_revu_pour",
+    "fr": "Code de {id}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.code_revu_note",
+    "fr": "Gardez-le pour lui. Vous pouvez le revoir ici quand vous voulez.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "fournisseur.titre",
     "fr": "Mes commandes",
     "register": "neutral",
@@ -2868,6 +2898,30 @@
     "screenClass": "general"
   },
   {
+    "key": "acces.voir",
+    "fr": "Voir le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.revu_pour",
+    "fr": "Code de {id}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "acces.revu_note",
+    "fr": "Gardez-le pour elle. Vous pouvez le revoir ici quand vous voulez.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "acces.code_anterieur",
+    "fr": "Ce code a été donné avant cette fonction. Donnez un nouveau code pour pouvoir le revoir.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "comptes.titre",
     "fr": "Revendeuses Shop+",
     "register": "neutral",
@@ -2980,6 +3034,24 @@
     "fr": "C'est noté",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "comptes.voir_code",
+    "fr": "Voir le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.code_revu_note",
+    "fr": "Gardez-le pour elle. Vous pouvez le revoir ici tant qu'il n'est pas utilisé.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "comptes.code_anterieur",
+    "fr": "Ce code ne peut plus s'afficher : déjà utilisé, ou donné avant cette fonction.",
+    "register": "neutral",
+    "screenClass": "instruction"
   },
   {
     "key": "suivi.titre",
@@ -3808,6 +3880,36 @@
     "fr": "En ligne — prêt pour une course.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "coursiers.voir",
+    "fr": "Voir le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.voir_echec",
+    "fr": "Pas de réponse. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.code_anterieur",
+    "fr": "Ce code a été donné avant cette fonction. Donnez un nouveau code pour pouvoir le revoir.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "coursiers.revu_titre",
+    "fr": "Le code de ce coursier",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "coursiers.revu_aide",
+    "fr": "Gardez-le pour lui. Vous pouvez le revoir ici quand vous voulez.",
+    "register": "neutral",
+    "screenClass": "instruction"
   },
   {
     "key": "commandes.titre",

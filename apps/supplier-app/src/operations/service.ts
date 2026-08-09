@@ -87,6 +87,10 @@ export type RelanceResult =
 export interface CodeRow {
   readonly supplierId: string;
   readonly mintedAt: string;
+  /** CODE-REVU (founder ruling 2026-08-09): true when « Voir le code » can
+   *  answer — false for codes minted before the plaintext was kept. Absent
+   *  on the wire reads FALSE, never « probably yes ». */
+  readonly revelable: boolean;
 }
 
 export type CodesResult =
@@ -149,7 +153,14 @@ export interface OperationsServicePort {
   mintCode(opsKey: string, supplierId: string): Promise<MintResult>;
   /** Cut a supplier off. Idempotent — `no_code` is an honest answer. */
   revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult>;
+  /** CODE-REVU — reread a code already given (founder ruling 2026-08-09).
+   *  `code_anterieur` names a pre-ruling code the book cannot show back. */
+  revealCode(opsKey: string, supplierId: string): Promise<RevealResult>;
 }
+
+export type RevealResult =
+  | { readonly ok: true; readonly code: string; readonly supplierId: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'no_code' | 'code_anterieur' | 'unreachable' };
 
 /**
  * Dot access on `process.env.EXPO_PUBLIC_*` (member expression), the same
@@ -348,6 +359,29 @@ export function resolveOperationsService(): OperationsServicePort | null {
       return { ok: true, code: body['code'], supplierId: body['supplierId'], mintedAt: body['mintedAt'] };
     },
 
+    async revealCode(opsKey: string, supplierId: string): Promise<RevealResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier-code/reveal`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          body: JSON.stringify({ supplierId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (res.status === 404 || res.status === 409) {
+        const reason = body?.['reason'];
+        return { ok: false, reason: reason === 'no_code' || reason === 'code_anterieur' ? reason : 'unreachable' };
+      }
+      if (!res.ok || body?.['ok'] !== true || typeof body['code'] !== 'string' || body['code'] === '') {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, code: body['code'], supplierId };
+    },
+
     async revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult> {
       let res: Response;
       try {
@@ -376,7 +410,7 @@ function readCodeRow(value: unknown): CodeRow | null {
   const r = value as Record<string, unknown>;
   if (typeof r['supplierId'] !== 'string' || r['supplierId'] === '') return null;
   if (typeof r['mintedAt'] !== 'string' || r['mintedAt'] === '' || Number.isNaN(Date.parse(r['mintedAt']))) return null;
-  return { supplierId: r['supplierId'], mintedAt: r['mintedAt'] };
+  return { supplierId: r['supplierId'], mintedAt: r['mintedAt'], revelable: r['revelable'] === true };
 }
 
 function readPaidOrderRow(value: unknown): PaidOrderRow | null {

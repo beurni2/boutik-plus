@@ -59,6 +59,9 @@ export interface CoursierRow {
    *  spent a day on « aucun coursier libre » with no reason on any screen. */
   readonly enService: boolean;
   readonly assignable: boolean;
+  /** CODE-REVU (2026-08-09): « Voir le code » can answer — false for codes
+   *  minted before the plaintext was kept. Absent reads FALSE. */
+  readonly revelable: boolean;
 }
 
 export type CoursierAnswer<T> =
@@ -80,6 +83,9 @@ export interface CoursiersServicePort {
    *  SE-LIVE-4b and NO CLIENT EVER CALLED IT, so every rider stayed
    *  uncertified and none could ever be assigned. */
   certifier(riderId: string): Promise<CoursierAnswer<null>>;
+  /** CODE-REVU — reread a code already given. `refused` carries the book's
+   *  name: `code_anterieur` for a pre-ruling code. */
+  voirCode(riderId: string): Promise<CoursierAnswer<string>>;
 }
 
 const CLE_COURSIERS_STORAGE = 'boutik.coursiers.cle';
@@ -133,7 +139,7 @@ function reasonOf(body: unknown): string {
 /** Defensive: this crosses the network into the only rider surface there is,
  *  and a malformed row must not blank the desk or invent a ghost. */
 export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly CoursierRow[] {
-  const minted = new Map<string, string>();
+  const minted = new Map<string, { mintedAt: string; revelable: boolean }>();
   if (codesBody !== null && typeof codesBody === 'object') {
     const raw = (codesBody as Record<string, unknown>)['codes'];
     if (Array.isArray(raw)) {
@@ -141,7 +147,10 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
         if (e === null || typeof e !== 'object') continue;
         const c = e as Record<string, unknown>;
         if (typeof c['riderId'] === 'string' && c['riderId'] !== '') {
-          minted.set(c['riderId'], typeof c['mintedAt'] === 'string' ? c['mintedAt'] : '');
+          minted.set(c['riderId'], {
+            mintedAt: typeof c['mintedAt'] === 'string' ? c['mintedAt'] : '',
+            revelable: c['revelable'] === true,
+          });
         }
       }
     }
@@ -163,7 +172,8 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
       // Absent from the codes projection is FALSE, never « probably yes » —
       // the « a new code kills the old one » warning depends on this.
       hasCode: at !== undefined,
-      ...(at !== undefined && at !== '' ? { mintedAt: at } : {}),
+      ...(at !== undefined && at.mintedAt !== '' ? { mintedAt: at.mintedAt } : {}),
+      revelable: at?.revelable === true,
       certified: r['certified'] === true,
       // Same conservatism as `assignable` on the dispatch board: absent or
       // unrecognised is FALSE — a desk must never claim service it cannot see.
@@ -226,6 +236,11 @@ export function httpCoursiersService(
       call('/ops/rider-code/revoke', { method: 'POST', body: JSON.stringify({ riderId }) }, () => null),
     certifier: (riderId) =>
       call('/ops/riders/certify', { method: 'POST', body: JSON.stringify({ riderId, certified: true }) }, () => null),
+    voirCode: (riderId) =>
+      call('/ops/rider-code/reveal', { method: 'POST', body: JSON.stringify({ riderId }) }, (b) => {
+        const code = b !== null && typeof b === 'object' ? (b as Record<string, unknown>)['code'] : null;
+        return typeof code === 'string' ? code : '';
+      }),
   };
 }
 

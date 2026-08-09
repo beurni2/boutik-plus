@@ -138,9 +138,9 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
   /** One act at a time — and nothing runs while a one-time code is on screen. */
   const lancer = useCallback(
     async (
-      acte: 'mint' | `revoke:${string}` | `certify:${string}`,
+      acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`,
       riderId: string,
-      appel: (s: CoursiersServicePort) => Promise<{ ok: boolean; code?: string | undefined; badKey?: boolean }>,
+      appel: (s: CoursiersServicePort) => Promise<{ ok: boolean; code?: string | undefined; revele?: boolean; badKey?: boolean }>,
     ): Promise<void> => {
       const refus = refuserActe(ui);
       if (refus !== null) {
@@ -164,7 +164,14 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
         acteRegle(
           prev,
           acte,
-          r.ok ? { ok: true, riderId, ...(r.code !== undefined ? { code: r.code } : {}) } : { ok: false },
+          r.ok
+            ? {
+                ok: true,
+                riderId,
+                ...(r.code !== undefined ? { code: r.code } : {}),
+                ...(r.revele === true ? { revele: true } : {}),
+              }
+            : { ok: false },
         ),
       );
       // The roster reflects the server only AFTER the server answered.
@@ -201,10 +208,13 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
       <View style={{ marginTop: 16 }}>
         <Text style={TITRE}>{t('coursiers.zone')}</Text>
         <Card variant="Llg" style={{ marginTop: 16 }}>
-          <Text style={TITRE}>{t('coursiers.nouveau_titre')}</Text>
+          {/* CODE-REVU: a REREAD code keeps the same whole-screen treatment
+              but its own true sentence — he can come back; a fresh mint
+              stays « il ne s'affiche qu'une fois ». */}
+          <Text style={TITRE}>{t(ui.nouveau.revele === true ? 'coursiers.revu_titre' : 'coursiers.nouveau_titre')}</Text>
           <Text style={[PETIT, { marginTop: 4 }]}>{ui.nouveau.riderId}</Text>
           <Text style={[CODE, { marginTop: 10 }]}>{ui.nouveau.code}</Text>
-          <Text style={[CORPS, { marginTop: 10 }]}>{t('coursiers.nouveau_aide')}</Text>
+          <Text style={[CORPS, { marginTop: 10 }]}>{t(ui.nouveau.revele === true ? 'coursiers.revu_aide' : 'coursiers.nouveau_aide')}</Text>
           <View style={{ marginTop: 16 }}>
             <C07BtnPrimary
               label={t('coursiers.note')}
@@ -307,6 +317,35 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                 ) : null}
                 {c.hasCode ? (
                   <>
+                    {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN the
+                        code already given. Only codes minted after the ruling
+                        can answer; older ones say so in one honest line. */}
+                    {c.revelable ? (
+                      <View style={{ marginTop: 10 }}>
+                        <BtnGhost
+                          label={t('coursiers.voir')}
+                          onPress={() => {
+                            void lancer(`reveal:${c.riderId}`, c.riderId, async (s) => {
+                              const a = await s.voirCode(c.riderId);
+                              if (a.kind === 'refused' && a.reason === 'code_anterieur') {
+                                // Stale list: the roster refresh below hides
+                                // the button; the sentence says why.
+                                setAvis(t('coursiers.code_anterieur'));
+                                return { ok: true, badKey: false };
+                              }
+                              return {
+                                ok: a.kind === 'ok',
+                                code: a.kind === 'ok' ? a.value : undefined,
+                                revele: true,
+                                badKey: a.kind === 'bad_key',
+                              };
+                            });
+                          }}
+                        />
+                      </View>
+                    ) : (
+                      <Text style={[PETIT, { marginTop: 10 }]}>{t('coursiers.code_anterieur')}</Text>
+                    )}
                     <Text style={[PETIT, { marginTop: 10 }]}>{t('coursiers.remplace_note')}</Text>
                     <View style={{ marginTop: 8 }}>
                       <BtnGhost label={t('coursiers.donner_nouveau')} onPress={mint} />

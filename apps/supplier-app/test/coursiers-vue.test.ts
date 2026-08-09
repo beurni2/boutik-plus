@@ -18,7 +18,7 @@ import type { CoursierRow } from '../src/coursiers/service';
 import { t } from '../src/i18n';
 
 const row = (riderId: string, hasCode: boolean, extra?: Partial<CoursierRow>): CoursierRow => ({
-  riderId, displayName: riderId, hasCode, certified: true, enService: true, assignable: true, ...extra,
+  riderId, displayName: riderId, hasCode, certified: true, enService: true, assignable: true, revelable: hasCode, ...extra,
 });
 
 describe('SE-LIVE-4e-B+ — what the coursiers desk shows', () => {

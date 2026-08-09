@@ -607,8 +607,16 @@ export class FulfillmentDO {
 
     /** THE FOUNDER MINTS a personal code (ops-key-gated at the router). ONE
      *  active code per supplier: re-mint atomically replaces — the previous
-     *  code dies at that instant, which is also revocation-by-rotation. The
-     *  plaintext appears in THIS response once and is never stored. */
+     *  code dies at that instant, which is also revocation-by-rotation.
+     *
+     *  ⚠ FOUNDER RULING (2026-08-09): « make it so that i can tap and see
+     *  again the code of a supplier already generated. » The plaintext is now
+     *  KEPT on the founder-side pointer record so `/code/reveal` can show it
+     *  back — a deliberate trade: these are supplier door codes (never money,
+     *  never one of the four custody secrets), they live only behind his
+     *  FULFILLMENT_OPS_SECRET, and the VERIFICATION path still matches on the
+     *  hash alone. The supplier-facing allowlists (`/codes`, `/mine`, every
+     *  order read) still never carry it. */
     if (request.method === 'POST' && pathname === '/code/mint') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
       const supplierId = body?.['supplierId'];
@@ -622,9 +630,29 @@ export class FulfillmentDO {
       if (previous !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${previous.hash}`);
       await this.state.storage.put({
         [`${CODEHASH_PREFIX}${hash}`]: { supplierId, mintedAt } satisfies SupplierCodeRecord,
-        [`${SUPPLIERCODE_PREFIX}${supplierId}`]: { hash, mintedAt },
+        [`${SUPPLIERCODE_PREFIX}${supplierId}`]: { hash, mintedAt, code },
       });
       return Response.json({ ok: true, code, supplierId, mintedAt });
+    }
+
+    /** The founder REREADS a code he already gave (same door as the mint —
+     *  his ops credential at the router). A code minted before the 2026-08-09
+     *  ruling exists only as a hash and answers `code_anterieur` — the honest
+     *  refusal; the screen then offers a re-mint instead of pretending. */
+    if (request.method === 'POST' && pathname === '/code/reveal') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const pointer = await this.state.storage.get<{ mintedAt: string; code?: string }>(
+        `${SUPPLIERCODE_PREFIX}${supplierId}`,
+      );
+      if (pointer === undefined) return Response.json({ ok: false, reason: 'no_code' }, { status: 404 });
+      if (pointer.code === undefined) {
+        return Response.json({ ok: false, reason: 'code_anterieur' }, { status: 409 });
+      }
+      return Response.json({ ok: true, code: pointer.code, supplierId, mintedAt: pointer.mintedAt });
     }
 
     /** CONSOLE-3 — THE CODE INVENTORY (ops read; the router gates it behind
@@ -635,9 +663,16 @@ export class FulfillmentDO {
      *  before this list existed, a typo'd supplierId minted a working code
      *  for a phantom and nothing could ever show it. */
     if (request.method === 'GET' && pathname === '/codes') {
-      const entries = await this.state.storage.list<{ mintedAt: string }>({ prefix: SUPPLIERCODE_PREFIX });
+      const entries = await this.state.storage.list<{ mintedAt: string; code?: string }>({ prefix: SUPPLIERCODE_PREFIX });
       const codes = [...entries.entries()]
-        .map(([key, v]) => ({ supplierId: key.slice(SUPPLIERCODE_PREFIX.length), mintedAt: v.mintedAt }))
+        .map(([key, v]) => ({
+          supplierId: key.slice(SUPPLIERCODE_PREFIX.length),
+          mintedAt: v.mintedAt,
+          // The allowlist HOLDS — never the code, never the hash. `revelable`
+          // only says whether « Voir le code » can answer (2026-08-09 ruling):
+          // false for codes minted before the plaintext was kept.
+          revelable: v.code !== undefined,
+        }))
         .sort((a, b) => (a.supplierId < b.supplierId ? -1 : 1));
       return Response.json({ ok: true, codes });
     }
@@ -1163,7 +1198,7 @@ export async function handleSupplierCodesList(env: FulfillmentEnv): Promise<Resp
 export async function forwardOpsCodeAdmin(
   request: Request,
   env: FulfillmentEnv,
-  path: '/code/mint' | '/code/revoke',
+  path: '/code/mint' | '/code/revoke' | '/code/reveal',
 ): Promise<Response> {
   const body = await request.text();
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));

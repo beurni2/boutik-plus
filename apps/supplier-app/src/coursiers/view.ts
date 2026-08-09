@@ -76,11 +76,11 @@ export function etatPillule(row: CoursierRow): { readonly label: string; readonl
  * already paid for (verifier MAJOR-1 there). He taps « C'est noté » first.
  */
 export interface CoursiersUi {
-  readonly busy: 'mint' | `revoke:${string}` | `certify:${string}` | null;
-  readonly nouveau: { readonly riderId: string; readonly code: string } | null;
+  readonly busy: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | null;
+  readonly nouveau: { readonly riderId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Namespaced like `busy`, so a rider literally named « mint » cannot light
    *  the wrong sentence. */
-  readonly echec: 'mint' | `revoke:${string}` | `certify:${string}` | null;
+  readonly echec: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | null;
 }
 
 export const COURSIERS_IDLE: CoursiersUi = { busy: null, nouveau: null, echec: null };
@@ -91,18 +91,18 @@ export function refuserActe(ui: CoursiersUi): string | null {
   return null;
 }
 
-export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}`): CoursiersUi | null {
+export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`): CoursiersUi | null {
   if (refuserActe(ui) !== null) return null;
   return { busy: acte, nouveau: null, echec: null };
 }
 
 export type ActeResultat =
-  | { readonly ok: true; readonly code?: string | undefined; readonly riderId: string }
+  | { readonly ok: true; readonly code?: string | undefined; readonly riderId: string; readonly revele?: boolean }
   | { readonly ok: false };
 
 export function acteRegle(
   ui: CoursiersUi,
-  acte: 'mint' | `revoke:${string}` | `certify:${string}`,
+  acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`,
   r: ActeResultat,
 ): CoursiersUi {
   // A late answer for an act no longer in flight changes nothing — it must not
@@ -112,7 +112,10 @@ export function acteRegle(
   const code = r.code;
   return {
     busy: null,
-    nouveau: typeof code === 'string' && code !== '' ? { riderId: r.riderId, code } : null,
+    nouveau:
+      typeof code === 'string' && code !== ''
+        ? { riderId: r.riderId, code, ...(r.revele === true ? { revele: true } : {}) }
+        : null,
     echec: null,
   };
 }
