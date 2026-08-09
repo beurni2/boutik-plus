@@ -249,9 +249,23 @@ describe('VOIX-ÉTAT-2 — the repère player on Commandes shows where it is', (
   });
 
   it('PAUSE keeps the position — he can see where he stopped', () => {
-    const pause = screen.slice(screen.indexOf('if (lecture) {'), screen.indexOf('if (lecture) {') + 200);
+    // Sliced to the BRANCH, not to a character count. The first cut took a
+    // fixed 200 chars from the anchor and the nearest `setSeconde(0)` sat at
+    // roughly +215 — so a few characters of unrelated edit would have flipped
+    // this test either way (verifier, 2026-08-09).
+    const depuis = screen.indexOf('if (lecture) {');
+    expect(depuis, 'the pause branch anchor').toBeGreaterThan(-1);
+    const fin = screen.indexOf('return;', depuis);
+    expect(fin, 'the branch must end in an early return').toBeGreaterThan(depuis);
+    const pause = screen.slice(depuis, fin);
     expect(pause).toContain('audio.pause();');
     expect(pause).toContain('setLecture(false);');
     expect(pause, 'resetting here would erase where he stopped').not.toContain('setSeconde(0)');
+  });
+
+  it('an EXTERNAL pause stops the claim too — audio focus lost, another tab', () => {
+    // The other three players in the ecosystem all listen for `pause`; this one
+    // did not, so a pause it had not asked for left « Pause » over silence.
+    expect(screen).toContain("audio.addEventListener('pause', () => setLecture(false))");
   });
 });

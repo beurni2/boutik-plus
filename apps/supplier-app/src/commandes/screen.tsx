@@ -652,6 +652,13 @@ function EcouterRepere({ url }: { url: string }) {
             const repos = (): void => { setLecture(false); setSeconde(0); };
             audio.addEventListener('ended', repos);
             audio.addEventListener('error', repos);
+            // EVERY way playback can stop puts the control back — including a
+            // pause this code did not ask for (audio focus lost, another tab
+            // taking the media session). Without it the label sat on « Pause »
+            // over silence, which is the defect this whole change is about.
+            // It stops the CLAIM and keeps the POSITION — the same thing the
+            // button's own pause does, so the two cannot disagree.
+            audio.addEventListener('pause', () => setLecture(false));
             // The position, straight off the element — never a timer of our own
             // counting alongside a note it cannot see.
             audio.addEventListener('timeupdate', () => setSeconde(lecteur.current?.currentTime ?? 0));
