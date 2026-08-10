@@ -4,6 +4,20 @@ import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnGhost, C07BtnPrimary, Card, Input } from '../v2/components';
+import { mintCommandId } from '../offline/commandId';
+import {
+  RETRAIT_IDLE,
+  retraitAnnule,
+  retraitDemande,
+  retraitSettled,
+  retraitStart,
+  sweepAnnule,
+  sweepAvance,
+  sweepDemande,
+  sweepFini,
+  sweepStart,
+  type RetraitUi,
+} from '../operations/view';
 import {
   clearStoredCleCoursiers,
   readStoredCleCoursiers,
@@ -22,6 +36,8 @@ import {
   etatPillule,
   oublierCode,
   refuserActe,
+  retraitDepuisAnswer,
+  type CoursesRead,
   type CoursiersRead,
   type CoursiersUi,
 } from './view';
@@ -383,6 +399,9 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
           })
         : null}
 
+      {/* ── PURGE-ESSAI-COURSES — le tableau Séra, et de quoi le vider ──── */}
+      <CoursesDuTableau cle={cle} onCleRefusee={onCleRefusee} />
+
       {/* ── inscrire ────────────────────────────────────────────────────── */}
       <Card variant="Llg" style={{ marginTop: 16 }}>
         <Text style={TITRE}>{t('coursiers.inscrire_titre')}</Text>
@@ -437,5 +456,202 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
         </View>
       </Card>
     </View>
+  );
+}
+
+/**
+ * ═══ PURGE-ESSAI-COURSES — the Séra board, and how he empties it ═══
+ *
+ * Founder ruling (2026-08-10): « Board yes, custody no » — the test courses
+ * leave the dispatch board; the custody ledger stays (append-only proof, on
+ * no console). The retire door lives in `logistics-service`; this desk is a
+ * second client of the SAME key-gated door it already opens for the roster.
+ *
+ * WHY IT IS HERE AND NOT IN SÉRA'S OWN CONSOLE: that console has no deploy
+ * workflow — built and browser-tested in CI, published nowhere — so a button
+ * there had no screen to appear on. He chose this desk. No authority moves:
+ * logistics remains the only book that owns a course.
+ *
+ * ITS OWN READ, DELIBERATELY: the roster read beside it must not be delayed,
+ * blanked or failed by a board that is slow. Each desk answers for itself.
+ */
+function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: () => void }) {
+  const [read, setRead] = useState<CoursesRead>({ kind: 'chargement' });
+  const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
+
+  const charger = useCallback(async (): Promise<void> => {
+    const service = resolveCoursiersService(cle);
+    if (service === null) {
+      setRead({ kind: 'echec' });
+      return;
+    }
+    const answer = await service.courses();
+    if (answer.kind === 'bad_key') {
+      onCleRefusee();
+      return;
+    }
+    setRead(answer.kind === 'ok' ? { kind: 'ok', courses: answer.value } : { kind: 'echec' });
+  }, [cle, onCleRefusee]);
+
+  useEffect(() => {
+    void charger();
+  }, [charger]);
+
+  /** ONE named call, then the BOARD is asked again — never this screen's hope
+   *  that a row is gone. */
+  const retirer = async (orderId: string): Promise<'ok' | 'bad_key' | 'echec'> => {
+    const service = resolveCoursiersService(cle);
+    if (service === null) return 'echec';
+    const answer = await service.retirerCourse(orderId, mintCommandId());
+    const settled = retraitSettled(orderId, retraitDepuisAnswer(answer));
+    setUi(settled.ui);
+    if (settled.then === 'refresh') return 'ok';
+    return settled.then === 'bad_key' ? 'bad_key' : 'echec';
+  };
+
+  if (read.kind === 'chargement') {
+    return (
+      <Card variant="Llg" style={{ marginTop: 16 }}>
+        <Text style={TITRE}>{t('coursiers.courses_titre')}</Text>
+        <Text style={[CORPS, { marginTop: 8 }]}>{t('coursiers.courses_chargement')}</Text>
+      </Card>
+    );
+  }
+  if (read.kind === 'echec') {
+    return (
+      <Card variant="Llg" style={{ marginTop: 16 }}>
+        <Text style={TITRE}>{t('coursiers.courses_titre')}</Text>
+        <Text style={[CORPS, { marginTop: 8 }]}>{t('coursiers.courses_echec')}</Text>
+        <View style={{ marginTop: 10 }}>
+          <BtnGhost label={t('coursiers.reessayer')} onPress={() => { void charger(); }} />
+        </View>
+      </Card>
+    );
+  }
+
+  const sweep = ui.sweep;
+  return (
+    <Card variant="Llg" style={{ marginTop: 16 }}>
+      <Text style={TITRE}>{t('coursiers.courses_titre')}</Text>
+      {read.courses.length === 0 ? (
+        <Text style={[CORPS, { marginTop: 8 }]}>{t('coursiers.courses_vide')}</Text>
+      ) : (
+        <>
+          {read.courses.map((c) => (
+            <View key={c.orderId} style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+              <Text style={[CORPS, { marginTop: 0 }]} numberOfLines={1}>{c.orderId}</Text>
+              <Text style={[PETIT, { marginTop: 2 }]}>
+                {c.confiee
+                  ? t('coursiers.course_confiee').replace('{n}', c.coursier ?? '')
+                  : t('coursiers.course_attente')}
+              </Text>
+              {ui.busy === c.orderId ? (
+                <Text style={[PETIT, { marginTop: 8 }]}>{t('coursiers.course_encours')}</Text>
+              ) : ui.demande === c.orderId ? (
+                <View style={{ marginTop: 8, gap: 8 }}>
+                  <Text style={CORPS}>{t('coursiers.course_question')}</Text>
+                  {/* A CARRIED COURSE IS THE DANGEROUS ONE — say it here, at
+                      the moment of the decision, not only in a journal. */}
+                  {c.confiee ? (
+                    <Banner tone="warn">{t('coursiers.course_question_confiee')}</Banner>
+                  ) : null}
+                  <BtnGhost
+                    label={t('coursiers.course_oui')}
+                    onPress={() => {
+                      const started = retraitStart(ui, c.orderId);
+                      if (started === null) return void 0;
+                      setUi(started);
+                      void retirer(c.orderId).then((r) => {
+                        if (r === 'bad_key') onCleRefusee();
+                        else if (r === 'ok') void charger();
+                      });
+                    }}
+                  />
+                  <BtnGhost label={t('coursiers.course_annuler')} onPress={() => setUi(retraitAnnule(ui))} />
+                </View>
+              ) : (
+                <View style={{ marginTop: 8 }}>
+                  <BtnGhost
+                    label={t('coursiers.course_retirer')}
+                    onPress={() => {
+                      const asked = retraitDemande(ui, c.orderId);
+                      if (asked === null) return void 0;
+                      setUi(asked);
+                    }}
+                  />
+                </View>
+              )}
+              {ui.echec === c.orderId ? (
+                <Text style={[PETIT, { marginTop: 6 }]}>{t('coursiers.course_echec')}</Text>
+              ) : null}
+            </View>
+          ))}
+
+          {/* The sweep, under the list: one question for the set, the ids it
+              named carried inside it, one call per course. */}
+          <View style={{ marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EDE6D8', gap: 8 }}>
+            {sweep.kind === 'encours' ? (
+              <Text style={PETIT}>
+                {t('coursiers.courses_balayage_encours')
+                  .replace('{n}', String(sweep.faits))
+                  .replace('{t}', String(sweep.total))}
+              </Text>
+            ) : sweep.kind === 'demande' ? (
+              <>
+                <Text style={CORPS}>
+                  {t('coursiers.courses_balayage_question').replace('{n}', String(sweep.orderIds.length))}
+                </Text>
+                <BtnGhost
+                  label={t('coursiers.courses_balayage_oui')}
+                  onPress={() => {
+                    const started = sweepStart(ui);
+                    if (started === null) return void 0;
+                    setUi(started.ui);
+                    void (async () => {
+                      let vivant = started.ui;
+                      let faits = 0;
+                      let echecs = 0;
+                      let cleRefusee = false;
+                      for (const orderId of started.orderIds) {
+                        const r = await retirer(orderId);
+                        if (r === 'ok') faits += 1;
+                        else {
+                          echecs += 1;
+                          if (r === 'bad_key') cleRefusee = true;
+                        }
+                        vivant = sweepAvance(vivant);
+                        setUi(vivant);
+                        if (cleRefusee) break;
+                      }
+                      setUi(sweepFini(vivant, faits, echecs));
+                      if (cleRefusee) onCleRefusee();
+                      else void charger();
+                    })();
+                  }}
+                />
+                <BtnGhost label={t('coursiers.course_annuler')} onPress={() => setUi(sweepAnnule(ui))} />
+              </>
+            ) : sweep.kind === 'fini' ? (
+              <Text style={PETIT}>
+                {sweep.echecs === 0
+                  ? t('coursiers.courses_balayage_fini').replace('{n}', String(sweep.faits))
+                  : t('coursiers.courses_balayage_reste')
+                      .replace('{n}', String(sweep.faits))
+                      .replace('{e}', String(sweep.echecs))}
+              </Text>
+            ) : (
+              <BtnGhost
+                label={t('coursiers.courses_balayage')}
+                onPress={() => {
+                  const asked = sweepDemande(ui, read.courses.map((c) => c.orderId));
+                  if (asked === null) return void 0;
+                  setUi(asked);
+                }}
+              />
+            )}
+          </View>
+        </>
+      )}
+    </Card>
   );
 }

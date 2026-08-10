@@ -4720,5 +4720,119 @@
     "fr": "{n} retirées, {e} n'ont pas pu l'être. Réessayez pour celles qui restent.",
     "register": "money",
     "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_titre",
+    "fr": "Courses sur le tableau Séra",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "coursiers.courses_chargement",
+    "fr": "Lecture du tableau…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_echec",
+    "fr": "Le tableau Séra ne répond pas. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_vide",
+    "fr": "Aucune course sur le tableau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_confiee",
+    "fr": "Confiée à {n}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.course_attente",
+    "fr": "En attente d'un coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.course_retirer",
+    "fr": "Retirer cette course",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.course_question",
+    "fr": "Retirer cette course d'essai du tableau ?",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_question_confiee",
+    "fr": "Un coursier a déjà cette course. S'il tient le colis, reprenez la course avant de la retirer.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_oui",
+    "fr": "Oui, retirer",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.course_annuler",
+    "fr": "Annuler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.course_encours",
+    "fr": "Retrait en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_echec",
+    "fr": "Cette course n'a pas été retirée. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage",
+    "fr": "Retirer les courses d'essai",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.courses_balayage_question",
+    "fr": "Retirer les {n} courses du tableau ? Vos commandes et vos produits ne bougent pas.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_oui",
+    "fr": "Oui, tout retirer",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.courses_balayage_encours",
+    "fr": "Retrait {n} sur {t}…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_fini",
+    "fr": "{n} courses retirées.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_reste",
+    "fr": "{n} retirées, {e} n'ont pas pu l'être. Réessayez pour celles qui restent.",
+    "register": "money",
+    "screenClass": "status"
   }
 ]

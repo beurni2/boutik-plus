@@ -74,8 +74,37 @@ export type CoursierAnswer<T> =
   /** Nothing came back. Never confused with a refusal. */
   | { readonly kind: 'unreachable' };
 
+/**
+ * PURGE-ESSAI-COURSES (founder, 2026-08-10) — ONE COURSE ON SÉRA'S BOARD, as
+ * this console needs to name it. Deliberately thin: what he must see to
+ * decide is WHICH order, and whether a rider is already carrying it.
+ *
+ * ⚠ WHY THIS DESK AND NOT SÉRA'S OWN. The retire was built into the Séra
+ * dispatch console first — and that console has NO deploy workflow: it is
+ * built and browser-tested in CI and published nowhere, so the button had no
+ * screen to appear on. He chose this desk, which already holds
+ * `SERA_OPS_SECRET` and is deployed. Same door, same key, no authority moves:
+ * `logistics-service` remains the only book that owns a course.
+ */
+export interface CourseRow {
+  readonly orderId: string;
+  readonly taskId: string;
+  /** Named when a rider is CARRYING it — absent when it is merely queued. The
+   *  distinction is the whole safety of the decision below. */
+  readonly coursier?: string | undefined;
+  /** True when an assignment is live: retiring one of these takes the course
+   *  off a rider's phone, so the screen must say so before he taps. */
+  readonly confiee: boolean;
+}
+
 export interface CoursiersServicePort {
   liste(): Promise<CoursierAnswer<readonly CoursierRow[]>>;
+  /** PURGE-ESSAI-COURSES — the board, as the founder's own `/ops/board`
+   *  read gives it. Queued tasks and live assignments, nothing else. */
+  courses(): Promise<CoursierAnswer<readonly CourseRow[]>>;
+  /** PURGE-ESSAI-COURSES — retire ONE course. One order per call: the Worker
+   *  has no « tout retirer » and must never grow one. */
+  retirerCourse(orderId: string, commandId: string): Promise<CoursierAnswer<null>>;
   inscrire(r: { riderId: string; displayName: string; phoneAlias: string }): Promise<CoursierAnswer<null>>;
   donnerCode(riderId: string): Promise<CoursierAnswer<string>>;
   retirerCode(riderId: string): Promise<CoursierAnswer<null>>;
@@ -186,6 +215,51 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
   return out;
 }
 
+/**
+ * PURGE-ESSAI-COURSES — the board, read defensively. A course appears ONCE:
+ * a live assignment wins over the queued row for the same order, because
+ * « confiée à Boss » is the fact that changes what retiring it costs. A row
+ * that cannot name its order is dropped rather than shown nameless — this
+ * desk offers a destructive act, and it must never offer one on a row it
+ * cannot identify.
+ */
+export function courseRows(boardBody: unknown): readonly CourseRow[] {
+  const board =
+    boardBody !== null && typeof boardBody === 'object'
+      ? ((boardBody as Record<string, unknown>)['board'] as Record<string, unknown> | undefined)
+      : undefined;
+  if (board === undefined) return [];
+  const par = new Map<string, CourseRow>();
+  const queued = board['queued'];
+  if (Array.isArray(queued)) {
+    for (const e of queued) {
+      if (e === null || typeof e !== 'object') continue;
+      const q = e as Record<string, unknown>;
+      const orderId = typeof q['orderId'] === 'string' ? q['orderId'] : '';
+      const taskId = typeof q['taskId'] === 'string' ? q['taskId'] : '';
+      if (orderId === '') continue;
+      par.set(orderId, { orderId, taskId, confiee: false });
+    }
+  }
+  const assignments = board['assignments'];
+  if (Array.isArray(assignments)) {
+    for (const e of assignments) {
+      if (e === null || typeof e !== 'object') continue;
+      const a = e as Record<string, unknown>;
+      const orderId = typeof a['orderId'] === 'string' ? a['orderId'] : '';
+      if (orderId === '') continue;
+      const rider = typeof a['riderId'] === 'string' && a['riderId'] !== '' ? a['riderId'] : undefined;
+      par.set(orderId, {
+        orderId,
+        taskId: typeof a['taskId'] === 'string' ? a['taskId'] : (par.get(orderId)?.taskId ?? ''),
+        ...(rider !== undefined ? { coursier: rider } : {}),
+        confiee: true,
+      });
+    }
+  }
+  return [...par.values()].sort((x, y) => (x.orderId < y.orderId ? -1 : 1));
+}
+
 export function httpCoursiersService(
   base: string,
   cle: string,
@@ -224,6 +298,19 @@ export function httpCoursiersService(
       if (codes.kind !== 'ok') return codes;
       return { kind: 'ok', value: coursierRows(roster.value, codes.value) };
     },
+    async courses(): Promise<CoursierAnswer<readonly CourseRow[]>> {
+      const board = await call('/ops/board', { method: 'GET' }, (b) => b);
+      if (board.kind !== 'ok') return board;
+      return { kind: 'ok', value: courseRows(board.value) };
+    },
+    retirerCourse: (orderId, commandId) =>
+      call(
+        '/ops/order/retirer',
+        // ONLY the id and the command — the same envelope discipline every
+        // act on this desk follows.
+        { method: 'POST', body: JSON.stringify({ command_id: commandId, orderId }) },
+        () => null,
+      ),
     inscrire: (r) => call('/ops/riders', { method: 'POST', body: JSON.stringify(r) }, () => null),
     donnerCode: (riderId) =>
       call('/ops/rider-code/mint', { method: 'POST', body: JSON.stringify({ riderId }) }, (b) => {

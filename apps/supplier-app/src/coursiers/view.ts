@@ -1,4 +1,5 @@
-import type { CoursierRow } from './service';
+import type { CourseRow, CoursierRow } from './service';
+import type { RetraitResult } from '../operations/service';
 
 /**
  * SE-LIVE-4e-B+ — the rider-code desk's PURE decisions, the same shapes the
@@ -6,6 +7,31 @@ import type { CoursierRow } from './service';
  * same grammar: the two desks do the same job and the founder should not have
  * to learn two. No DOM, no fetch, no timer; every string is a CATALOG KEY.
  */
+
+/**
+ * PURGE-ESSAI-COURSES — this desk's answers, translated into the SAME retire
+ * grammar the Commandes tab already uses (`operations/view.ts`). Deliberately
+ * a mapping and not a second state machine: the two-tap guard, the keyed
+ * failures and the sweep accounting are already proven there, and a
+ * destructive control is the last place to grow a second dialect.
+ *
+ * A named refusal from the book (`refused`) reads as unreachable ON PURPOSE:
+ * the retire door answers `inconnu` with `ok:true`, so the only refusals that
+ * can arrive here are ones this screen cannot act on — « we do not know that
+ * it happened » is the honest sentence, and the row stays.
+ */
+export function retraitDepuisAnswer(answer: { readonly kind: string }): RetraitResult {
+  if (answer.kind === 'ok') return { ok: true };
+  if (answer.kind === 'bad_key') return { ok: false, reason: 'bad_key' };
+  return { ok: false, reason: 'unreachable' };
+}
+
+/** The course list, as the desk reads it. Same three honest states as the
+ *  roster beside it — a board that cannot be read never renders as empty. */
+export type CoursesRead =
+  | { kind: 'chargement' }
+  | { kind: 'echec' }
+  | { kind: 'ok'; courses: readonly CourseRow[] };
 
 export type CoursiersRead =
   | { readonly kind: 'chargement' }
