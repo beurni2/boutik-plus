@@ -137,8 +137,11 @@ export function relanceSettled(orderId: string, result: RelanceResult): RelanceS
  *     refuses unless THIS order is the one standing confirmed. A screen that
  *     lost track of its own state cannot delete a row the founder never
  *     pointed at.
- *   · ONE AT A TIME. While any removal is in flight every other card's
- *     control goes quiet — a board mid-purge must not take a second order.
+ *   · ONE AT A TIME WITHIN A CONTROL — while ITS removal is in flight, the
+ *     card that owns this state takes no second tap. (Stated precisely after
+ *     a verifier MINOR: each card holds its own `RetraitUi`, so this is not
+ *     board-wide mutual exclusion, and claiming otherwise was false. It costs
+ *     nothing that it is not: every call names ONE order and is idempotent.)
  *   · The sweep is a LOOP OVER WHAT HE CAN SEE, one named call each, with its
  *     own single confirmation naming the count. The Worker has no
  *     « retirer tout » and must never grow one.
@@ -154,11 +157,20 @@ export interface RetraitUi {
   readonly sweep: SweepUi;
 }
 
-/** The sweep's own life. `fini` carries what actually happened rather than a
- *  cheerful nothing: a sweep that could not finish must SAY how far it got. */
+/**
+ * The sweep's own life. `fini` carries what actually happened rather than a
+ * cheerful nothing: a sweep that could not finish must SAY how far it got.
+ *
+ * ⚠ VERIFIER MAJOR (PURGE-ESSAI round 1) — THE CONFIRMED SET IS CARRIED, NOT
+ * RE-READ. The first cut stored only a COUNT and the loop iterated the
+ * screen's current rows, so: ask on « À traiter » (3 rows) → switch to
+ * « Terminées » (7 rows) → confirm → SEVEN orders were retired against a
+ * question about three. A destructive act must remove exactly what the
+ * sentence he read named, so the ids he was shown travel with the question.
+ */
 export type SweepUi =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'demande'; readonly total: number }
+  | { readonly kind: 'demande'; readonly orderIds: readonly string[] }
   | { readonly kind: 'encours'; readonly faits: number; readonly total: number }
   | { readonly kind: 'fini'; readonly faits: number; readonly echecs: number };
 
@@ -200,21 +212,29 @@ export function retraitSettled(orderId: string, result: RetraitResult): RetraitS
   return { ui: { ...RETRAIT_IDLE, echec: orderId }, then: 'none' };
 }
 
-/** The sweep asks ONCE, naming the count he is about to lose. */
-export function sweepDemande(ui: RetraitUi, total: number): RetraitUi | null {
-  if (ui.busy !== null || ui.sweep.kind === 'encours' || total <= 0) return null;
-  return { ...RETRAIT_IDLE, sweep: { kind: 'demande', total } };
+/** The sweep asks ONCE, naming the rows he is about to lose — and REMEMBERS
+ *  which ones they were. */
+export function sweepDemande(ui: RetraitUi, orderIds: readonly string[]): RetraitUi | null {
+  if (ui.busy !== null || ui.sweep.kind === 'encours' || orderIds.length === 0) return null;
+  return { ...RETRAIT_IDLE, sweep: { kind: 'demande', orderIds: [...orderIds] } };
 }
 
 export function sweepAnnule(ui: RetraitUi): RetraitUi {
   return { ...ui, sweep: { kind: 'idle' } };
 }
 
-/** Confirmed — same law as the per-card confirm: only from a standing
- *  question, and the count must be the one he was shown. */
-export function sweepStart(ui: RetraitUi, total: number): RetraitUi | null {
-  if (ui.sweep.kind !== 'demande' || ui.sweep.total !== total || total <= 0) return null;
-  return { ...RETRAIT_IDLE, sweep: { kind: 'encours', faits: 0, total } };
+/**
+ * Confirmed — only from a standing question, and it RETURNS THE SET to remove
+ * so the caller cannot loop anything else. The ids come from the question, not
+ * from whatever the screen is showing when the thumb lands.
+ */
+export function sweepStart(ui: RetraitUi): { ui: RetraitUi; orderIds: readonly string[] } | null {
+  if (ui.sweep.kind !== 'demande' || ui.sweep.orderIds.length === 0) return null;
+  const orderIds = ui.sweep.orderIds;
+  return {
+    ui: { ...RETRAIT_IDLE, sweep: { kind: 'encours', faits: 0, total: orderIds.length } },
+    orderIds,
+  };
 }
 
 export function sweepAvance(ui: RetraitUi): RetraitUi {

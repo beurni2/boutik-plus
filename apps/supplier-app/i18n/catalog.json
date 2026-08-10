@@ -4657,7 +4657,7 @@
   },
   {
     "key": "operations.retrait_question",
-    "fr": "Retirer cette vente de test ? Elle part de votre écran et de celui du vendeur.",
+    "fr": "Retirer cette vente de test ? Elle part de votre écran et de celui du fournisseur.",
     "register": "money",
     "screenClass": "status"
   },
@@ -4686,12 +4686,6 @@
     "screenClass": "status"
   },
   {
-    "key": "operations.retrait_bloque",
-    "fr": "Un retrait est déjà en cours.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
     "key": "operations.balayage_action",
     "fr": "Retirer les commandes d'essai",
     "register": "neutral",
@@ -4699,7 +4693,7 @@
   },
   {
     "key": "operations.balayage_question",
-    "fr": "Retirer les {n} commandes de cet écran ? Elles quitteront votre écran et celui du fournisseur. Vos produits restent en place.",
+    "fr": "Retirer les {n} commandes de cet écran ? Elles partent de votre écran et de celui du fournisseur. Vos produits restent en place. Le tableau Séra se vide à part.",
     "register": "money",
     "screenClass": "status"
   },

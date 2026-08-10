@@ -313,6 +313,7 @@ function LivreCommandes({
               mediaBase={mediaBase}
               coursier={nomCoursierPour(o.orderId, boardSera)}
               onChanged={() => void charger()}
+              onCleRefusee={onCleRefusee}
             />
           ))}
         </View>
@@ -322,7 +323,19 @@ function LivreCommandes({
           destructive control does not greet him. It loops the rows he can
           SEE, one named call each; the Worker has no « retirer tout ». */}
       {rows.length > 0 ? (
-        <BalayageEssai rows={rows} service={service} cle={cle} onChanged={() => void charger()} />
+        // KEYED BY SEGMENT (verifier MAJOR, round 1): switching tabs must
+        // START THE QUESTION OVER, never carry a standing confirmation onto
+        // a different set of rows. Belt and braces — the confirmed ids now
+        // travel inside the question too, so the loop can only ever remove
+        // what he was actually shown.
+        <BalayageEssai
+          key={segment}
+          rows={rows}
+          service={service}
+          cle={cle}
+          onChanged={() => void charger()}
+          onCleRefusee={onCleRefusee}
+        />
       ) : null}
     </ScrollView>
   );
@@ -338,11 +351,12 @@ function LivreCommandes({
  * left and how many did not, and the rows that survived are still on screen
  * to try again. Nothing here reports a removal the book did not confirm.
  */
-function BalayageEssai({ rows, service, cle, onChanged }: {
+function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
   rows: readonly PaidOrderRow[];
   service: OperationsServicePort;
   cle: string;
   onChanged: () => void;
+  onCleRefusee: () => void;
 }) {
   const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
   const sweep = ui.sweep;
@@ -354,28 +368,39 @@ function BalayageEssai({ rows, service, cle, onChanged }: {
         </Text>
       ) : sweep.kind === 'demande' ? (
         <>
-          <Text style={CORPS}>{t('operations.balayage_question').replace('{n}', String(sweep.total))}</Text>
+          <Text style={CORPS}>
+            {t('operations.balayage_question').replace('{n}', String(sweep.orderIds.length))}
+          </Text>
           <BtnSoft
             label={t('operations.balayage_oui')}
             onPress={() => {
-              const started = sweepStart(ui, sweep.total);
+              const started = sweepStart(ui);
               if (started === null) return void 0;
-              setUi(started);
+              setUi(started.ui);
               // Sequential on purpose: the progress line must be true, and a
               // console mid-purge must not fire a burst at the book.
               void (async () => {
-                let vivant = started;
+                let vivant = started.ui;
                 let faits = 0;
                 let echecs = 0;
-                for (const o of rows) {
-                  const r = await service.retirerCommande(cle, o.orderId);
+                let cleRefusee = false;
+                // THE CONFIRMED SET, never the current rows (verifier MAJOR).
+                for (const orderId of started.orderIds) {
+                  const r = await service.retirerCommande(cle, orderId);
                   if (r.ok) faits += 1;
-                  else echecs += 1;
+                  else {
+                    echecs += 1;
+                    // A refused key is not N stubborn orders — say the true
+                    // thing once and stop blaming the rows.
+                    if (r.reason === 'bad_key') cleRefusee = true;
+                  }
                   vivant = sweepAvance(vivant);
                   setUi(vivant);
+                  if (cleRefusee) break;
                 }
                 setUi(sweepFini(vivant, faits, echecs));
-                onChanged();
+                if (cleRefusee) onCleRefusee();
+                else onChanged();
               })();
             }}
           />
@@ -393,7 +418,7 @@ function BalayageEssai({ rows, service, cle, onChanged }: {
         <BtnSoft
           label={t('operations.balayage_action')}
           onPress={() => {
-            const asked = sweepDemande(ui, rows.length);
+            const asked = sweepDemande(ui, rows.map((o) => o.orderId));
             if (asked === null) return void 0;
             setUi(asked);
           }}
@@ -415,6 +440,7 @@ function RangCommande({
   mediaBase,
   coursier,
   onChanged,
+  onCleRefusee,
 }: {
   row: PaidOrderRow;
   segment: SegmentCommandes;
@@ -428,6 +454,9 @@ function RangCommande({
   /** The carrier's name off the Séra board join — En route rows only. */
   coursier: string | null;
   onChanged: () => void;
+  /** Threaded down for the retire control: a refused key escalates to the
+   *  console's own surface instead of dying silently on this card. */
+  onCleRefusee: () => void;
 }) {
   const qui = nomFournisseur(row.supplierId, contacts);
   const pill = pilluleCommande(row, segment);
@@ -460,7 +489,9 @@ function RangCommande({
           one place for all five segments, and reachable only on a card the
           founder deliberately opened. It whispers (§5: one primary action per
           screen — this is never it) and it asks before it acts. */}
-      {ouvert ? <RetraitCommande row={row} service={service} cle={cle} onChanged={onChanged} /> : null}
+      {ouvert ? (
+        <RetraitCommande row={row} service={service} cle={cle} onChanged={onChanged} onCleRefusee={onCleRefusee} />
+      ) : null}
     </Card>
   );
 }
@@ -474,11 +505,17 @@ function RangCommande({
  * remember that. A failure says so and keeps the row; nothing here reports a
  * removal the book did not confirm.
  */
-function RetraitCommande({ row, service, cle, onChanged }: {
+function RetraitCommande({ row, service, cle, onChanged, onCleRefusee }: {
   row: PaidOrderRow;
   service: OperationsServicePort;
   cle: string;
   onChanged: () => void;
+  /** ⚠ VERIFIER MAJOR (round 1) — A REFUSED KEY MUST NOT BE A SILENT NO-OP.
+   *  The first cut handled only `refresh`, so a mid-session key refusal reset
+   *  the card to its button with no sentence at all: he taps, nothing
+   *  happens, nothing explains. Every other act on this console escalates;
+   *  so does this one now. */
+  onCleRefusee: () => void;
 }) {
   const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
   return (
@@ -498,6 +535,7 @@ function RetraitCommande({ row, service, cle, onChanged }: {
                 const settled = retraitSettled(row.orderId, r);
                 setUi(settled.ui);
                 if (settled.then === 'refresh') onChanged();
+                else if (settled.then === 'bad_key') onCleRefusee();
               });
             }}
           />

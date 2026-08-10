@@ -194,8 +194,12 @@ describe('PURGE-ESSAI — one named order leaves both consoles, and nothing else
 
   it('leaves NO residue: the evidence read is empty and a replayed readiness cannot resurrect it', async () => {
     // The founder's per-order evidence read no longer has anything to show.
+    // Asserted as TWO facts, not one disjunction (a verifier NOTE: the old
+    // `ok && evidence !== undefined` form passed on either half, so it could
+    // never fail for the reason it claimed).
     const preuve = await ops(`/fulfillment/order-evidence?orderId=${A}`, undefined, 'GET');
-    expect(preuve.json['ok'] === true && preuve.json['evidence'] !== undefined).toBe(false);
+    expect(preuve.json['evidence'], 'the readiness photo left with the order').toBeUndefined();
+    expect(preuve.json['ok'], 'and the read says so honestly').not.toBe(true);
 
     // The challenge died with the order: replaying the supplier's readiness
     // against the purged id cannot re-register it (and must not 500).

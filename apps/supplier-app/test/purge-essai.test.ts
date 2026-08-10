@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resolveOperationsService } from '../src/operations/service';
 import {
   RETRAIT_IDLE,
   retraitAnnule,
@@ -25,6 +26,52 @@ import {
 
 const appDir = join(import.meta.dirname, '..');
 const read = (f: string): string => readFileSync(join(appDir, f), 'utf8');
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+function stubFetch(reply: () => Promise<Response>) {
+  const spy = vi.fn((_url: string, _init?: RequestInit) => reply());
+  vi.stubGlobal('fetch', spy);
+  return spy;
+}
+
+/**
+ * ⚠ THE VERIFIER'S EVIDENCE GAP, CLOSED: nothing executed this wire. The
+ * screen's call site was pinned by source scan and the Worker's door by an
+ * e2e that spoke raw HTTP — so the URL, the verb, the Bearer and the body
+ * the CONSOLE actually sends were proven by nobody. A typo in the path would
+ * have shipped green.
+ */
+describe('the retire port — the exact bytes the console puts on the wire', () => {
+  it('POSTs to /fulfillment/order/retirer with the founder Bearer and a body of EXACTLY {orderId}', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'retire' })));
+    const res = await resolveOperationsService()!.retirerCommande('cle-ops', 'ord-7');
+    expect(res).toEqual({ ok: true });
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('https://offer.example/fulfillment/order/retirer');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-ops');
+    expect(JSON.parse(String(init?.body)), 'only the id crosses').toEqual({ orderId: 'ord-7' });
+  });
+
+  it('401 is bad_key; every other refusal and a dead network are unreachable — never a cheerful default', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const port = resolveOperationsService()!;
+    for (const [reply, expected] of [
+      [async () => new Response('no', { status: 401 }), 'bad_key'],
+      [async () => new Response('no', { status: 400 }), 'unreachable'],
+      [async () => new Response('no', { status: 500 }), 'unreachable'],
+      [() => Promise.reject(new Error('down')), 'unreachable'],
+    ] as const) {
+      stubFetch(reply as () => Promise<Response>);
+      expect(await port.retirerCommande('k', 'ord-1'), expected).toEqual({ ok: false, reason: expected });
+    }
+  });
+});
 
 describe('two taps, and the second one is checked by value', () => {
   it('a confirm with NO standing question does nothing — this is the whole safety of the control', () => {
@@ -65,19 +112,33 @@ describe('two taps, and the second one is checked by value', () => {
 
 describe('the sweep asks once, counts honestly, and cannot start unasked', () => {
   it('cannot start without its own standing question, and not on an empty board', () => {
-    expect(sweepStart(RETRAIT_IDLE, 3)).toBeNull();
-    expect(sweepDemande(RETRAIT_IDLE, 0), 'nothing to retire, nothing to ask').toBeNull();
+    expect(sweepStart(RETRAIT_IDLE)).toBeNull();
+    expect(sweepDemande(RETRAIT_IDLE, []), 'nothing to retire, nothing to ask').toBeNull();
   });
 
-  it('cannot start for a DIFFERENT count than the one he was shown', () => {
-    const asked = sweepDemande(RETRAIT_IDLE, 3)!;
-    expect(asked.sweep).toEqual({ kind: 'demande', total: 3 });
-    expect(sweepStart(asked, 5), 'the board grew under him — ask again').toBeNull();
-    expect(sweepStart(asked, 3)).toMatchObject({ sweep: { kind: 'encours', faits: 0, total: 3 } });
+  /**
+   * ⚠ THE VERIFIER'S MAJOR, PINNED: the question CARRIES ITS SET. The first
+   * cut stored a count and the loop read the screen's current rows, so
+   * asking on a 3-row segment and confirming on a 7-row one retired seven
+   * orders against a question about three. `sweepStart` now HANDS BACK the
+   * ids it was asked about, and nothing else can be looped.
+   */
+  it('hands back EXACTLY the orders he was shown — never whatever the screen now holds', () => {
+    const asked = sweepDemande(RETRAIT_IDLE, ['ord-1', 'ord-2', 'ord-3'])!;
+    expect(asked.sweep).toEqual({ kind: 'demande', orderIds: ['ord-1', 'ord-2', 'ord-3'] });
+    const started = sweepStart(asked)!;
+    expect(started.orderIds).toEqual(['ord-1', 'ord-2', 'ord-3']);
+    expect(started.ui.sweep).toMatchObject({ kind: 'encours', faits: 0, total: 3 });
+    // …and the set is a COPY: a caller mutating its own array afterwards
+    // cannot re-target a standing question.
+    const rows = ['ord-a', 'ord-b'];
+    const q = sweepDemande(RETRAIT_IDLE, rows)!;
+    rows.push('ord-c');
+    expect(sweepStart(q)!.orderIds).toEqual(['ord-a', 'ord-b']);
   });
 
   it('counts what it did and says what it could not', () => {
-    let ui = sweepStart(sweepDemande(RETRAIT_IDLE, 2)!, 2)!;
+    let ui = sweepStart(sweepDemande(RETRAIT_IDLE, ['ord-1', 'ord-2'])!)!.ui;
     ui = sweepAvance(ui);
     expect(ui.sweep).toEqual({ kind: 'encours', faits: 1, total: 2 });
     ui = sweepAvance(ui);
@@ -86,9 +147,9 @@ describe('the sweep asks once, counts honestly, and cannot start unasked', () =>
   });
 
   it('cancelling the sweep arms nothing', () => {
-    const annule = sweepAnnule(sweepDemande(RETRAIT_IDLE, 4)!);
+    const annule = sweepAnnule(sweepDemande(RETRAIT_IDLE, ['ord-1'])!);
     expect(annule.sweep).toEqual({ kind: 'idle' });
-    expect(sweepStart(annule, 4)).toBeNull();
+    expect(sweepStart(annule)).toBeNull();
   });
 });
 
@@ -102,9 +163,11 @@ describe('the console actually calls the port, and the strings come from the cat
     expect(screen).toContain('if (started === null) return void 0;');
   });
 
-  it('the sweep loops the VISIBLE rows, one named call each — never a bulk server route', () => {
-    expect(screen).toContain('for (const o of rows) {');
-    expect(screen).toContain('await service.retirerCommande(cle, o.orderId)');
+  it('the sweep loops THE CONFIRMED SET, one named call each — never a bulk server route', () => {
+    expect(screen).toContain('for (const orderId of started.orderIds) {');
+    expect(screen).toContain('await service.retirerCommande(cle, orderId)');
+    // and it must NOT be reading the live rows at confirm time (the defect)
+    expect(screen).not.toContain('for (const o of rows) {');
     // No « retirer tout » path may exist on the wire.
     expect(read('src/operations/service.ts')).not.toContain('/fulfillment/orders/retirer');
   });
@@ -123,10 +186,25 @@ describe('the console actually calls the port, and the strings come from the cat
     }
   });
 
+  it('a refused key ESCALATES on both controls — never a silent no-op (verifier MAJOR)', () => {
+    expect(screen).toContain("else if (settled.then === 'bad_key') onCleRefusee();");
+    expect(screen).toContain("if (r.reason === 'bad_key') cleRefusee = true;");
+    expect(screen).toContain('if (cleRefusee) onCleRefusee();');
+    // and a segment switch restarts the question rather than carrying it
+    expect(screen).toContain('key={segment}');
+  });
+
   it('the control is SECONDARY and sits under the list — a destructive act never greets him', () => {
-    // It renders through the soft button, never the screen's primary.
+    // It renders through the SOFT button, never the screen's primary — and
+    // the check is whitespace-insensitive (a verifier NOTE killed the exact
+    // string version: it could never fail, so it protected nothing).
     expect(screen).toContain("label={t('operations.retrait_action')}");
-    expect(screen).not.toContain("C07BtnPrimary\n            label={t('operations.retrait_action')}");
+    const primaires = screen.match(/<C07BtnPrimary[\s\S]{0,200}?\/>/g) ?? [];
+    for (const bloc of primaires) {
+      expect(bloc, 'a destructive act is never the primary button').not.toContain('operations.retrait_action');
+      expect(bloc).not.toContain('operations.balayage_action');
+      expect(bloc).not.toContain('operations.balayage_oui');
+    }
     // The sweep is mounted AFTER the rows block, and only when rows exist.
     const sweepAt = screen.indexOf('<BalayageEssai');
     const rowsAt = screen.indexOf('<RangCommande');
