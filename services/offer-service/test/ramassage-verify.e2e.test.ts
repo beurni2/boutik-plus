@@ -144,12 +144,18 @@ const verifier = (m: Miniflare, bearer: string, orderId: string, dit: string) =>
     ...(bearer === '' ? {} : { Authorization: `Bearer ${bearer}` }),
   });
 
-/** Seed one product + one PAID order for supplier A, and mint both codes. */
-async function seedWorld(m: Miniflare): Promise<void> {
-  codeA = (await post(m, '/fulfillment/supplier-code', { supplierId: SUPPLIER_A }, {
+/**
+ * Seed one product + one PAID order for supplier A, and mint both codes.
+ * ⚠ RETURNS the codes rather than only assigning the shared ones: the codes
+ * belong to the RUNTIME that minted them, and seeding the second (unwired)
+ * runtime used to overwrite the first's — a later act then answered 401 for a
+ * reason that had nothing to do with what it was testing.
+ */
+async function seedWorld(m: Miniflare): Promise<{ a: string; b: string }> {
+  const a = (await post(m, '/fulfillment/supplier-code', { supplierId: SUPPLIER_A }, {
     Authorization: `Bearer ${OPS_SECRET}`,
   })).json['code'] as string;
-  codeB = (await post(m, '/fulfillment/supplier-code', { supplierId: SUPPLIER_B }, {
+  const b = (await post(m, '/fulfillment/supplier-code', { supplierId: SUPPLIER_B }, {
     Authorization: `Bearer ${OPS_SECRET}`,
   })).json['code'] as string;
   expect((await post(m, '/offers', {
@@ -180,13 +186,16 @@ async function seedWorld(m: Miniflare): Promise<void> {
     },
   }, { Authorization: `Bearer ${FULFILL_SECRET}` });
   expect(confirmed.status, confirmed.text).toBe(200);
+  return { a, b };
 }
 
 describe('the supplier door proves the order is HIS, asks Séra, and relays only the verdict', () => {
   it('his own order + the said code → Séra is asked with the intake bearer and exactly {code, command_id, orderId}; both verdicts come back verbatim', async () => {
     mf = makeMf(persist, true);
     unwired = makeMf(persistUnwired, false);
-    await seedWorld(mf);
+    const codes = await seedWorld(mf);
+    codeA = codes.a;
+    codeB = codes.b;
     seraMode = 'ok';
     verifyPosts.length = 0;
 
@@ -265,9 +274,89 @@ describe('the supplier door proves the order is HIS, asks Séra, and relays only
     seraMode = 'ok';
 
     // the deploy-order case: Boutik+ shipped before Séra's door is configured
-    await seedWorld(unwired);
-    const jamais = await verifier(unwired, codeA, ORDER, 'KVN-38M');
+    const codesUnwired = await seedWorld(unwired);
+    const jamais = await verifier(unwired, codesUnwired.a, ORDER, 'KVN-38M');
     expect(jamais.status).toBe(503);
     expect(jamais.json).toEqual({ ok: false, reason: 'sera_unreachable' });
+  });
+});
+
+/**
+ * BOUTIK-SUIVI — the DELIVERY door, and the two screens it feeds. Séra proved
+ * the delivery; Shop+ relays the SAME canonical `delivery.validated.v1` here
+ * on the credential it already holds. This book witnesses nothing: it records
+ * what travelled, and only for an order it already registered.
+ */
+describe('the delivery arrives from Shop+, and the supplier’s own list moves', () => {
+  const evenement = (orderId, serverTime) => ({
+    name: 'delivery.validated.v1',
+    envelope: {
+      command_id: `eligibility-${orderId}`, correlation_id: `corr-${orderId}`,
+      aggregateVersion: 9, actor: 'custody-service:e1', serverTime, version: '1',
+    },
+    payload: {
+      order_id: orderId, task_id: `task-${orderId}`, validation_id: `val-${orderId}`,
+      result: 'validated', settlement_eligibility: true, supplier_ref: SUPPLIER_A,
+    },
+  });
+  const livrer = (body, bearer = FULFILL_SECRET) =>
+    post(mf, '/fulfillment/delivered', body, bearer === '' ? {} : { Authorization: `Bearer ${bearer}` });
+  const mine = async (code) => {
+    const res = await mf.dispatchFetch('http://o/fulfillment/mine', { headers: { Authorization: `Bearer ${code}` } });
+    const body = (await res.json()) as { orders?: Record<string, unknown>[] };
+    return body.orders ?? [];
+  };
+
+  it('the confirmed code puts the order EN ROUTE, and the delivery puts it LIVRÉE — the two marks the three screens read', async () => {
+    // en route: his own confirmed ramassage check wrote the handover mark
+    seraMode = 'ok';
+    expect((await verifier(mf, codeA, ORDER, 'KVN-38M')).json).toEqual({ ok: true, verdict: 'confirme' });
+    const enRoute = (await mine(codeA)).find((o) => o['orderId'] === ORDER);
+    const marks = enRoute?.['fulfillment'] as Record<string, unknown>;
+    expect(marks['handedOverAt'], 'a confirmed code must mark the handover').toEqual(expect.any(String));
+    expect(marks['deliveredAt'], 'nothing has delivered it yet').toBeUndefined();
+
+    // livrée: the fact travelled from Shop+, and the PRODUCER's instant is kept
+    const instant = '2026-08-09T14:30:00.000Z';
+    const relay = await livrer(evenement(ORDER, instant));
+    expect(relay.status, relay.text).toBe(200);
+    expect(relay.json).toEqual({ ok: true, status: 'delivered', deliveredAt: instant });
+    const livree = (await mine(codeA)).find((o) => o['orderId'] === ORDER);
+    expect((livree?.['fulfillment'] as Record<string, unknown>)['deliveredAt']).toBe(instant);
+  });
+
+  it('a REDELIVERY never moves the date a supplier already read', async () => {
+    const encore = await livrer(evenement(ORDER, '2026-08-09T23:59:00.000Z'));
+    expect(encore.json).toEqual({ ok: true, status: 'already_delivered', deliveredAt: '2026-08-09T14:30:00.000Z' });
+    const row = (await mine(codeA)).find((o) => o['orderId'] === ORDER);
+    expect((row?.['fulfillment'] as Record<string, unknown>)['deliveredAt']).toBe('2026-08-09T14:30:00.000Z');
+  });
+
+  it('an order this book never registered is a 404 — the producer RETRIES, and nothing is invented', async () => {
+    const res = await livrer(evenement('ord-ramv-jamais', '2026-08-09T14:30:00.000Z'));
+    expect(res.status).toBe(404);
+    expect(res.json).toEqual({ ok: false, reason: 'unknown_order' });
+  });
+
+  it('only the CANONICAL event opens this door, and only on the fulfillment secret', async () => {
+    // every wrong credential is the one uniform 401 — including the supplier's
+    // own code and the founder's ops key
+    for (const bearer of ['', 'wrong', codeA, OPS_SECRET, WRITE_SECRET, SERA_SECRET]) {
+      const res = await livrer(evenement(ORDER, '2026-08-09T14:30:00.000Z'), bearer);
+      expect(res.status, bearer === '' ? '(none)' : bearer).toBe(401);
+    }
+    // and an uncanonical body is a 400, never a delivered order
+    const arms = [
+      { ...evenement(ORDER, '2026-08-09T14:30:00.000Z'), name: 'order.confirmed.v1' },
+      { ...evenement(ORDER, '2026-08-09T14:30:00.000Z'), payload: { ...evenement(ORDER, 'x').payload, result: 'refused' } },
+      { ...evenement(ORDER, '2026-08-09T14:30:00.000Z'), payload: { ...evenement(ORDER, 'x').payload, settlement_eligibility: false } },
+      { ...evenement(ORDER, '2026-08-09T14:30:00.000Z'), payload: { ...evenement(ORDER, 'x').payload, order_id: '' } },
+      { rien: true },
+    ];
+    for (const body of arms) {
+      const res = await livrer(body);
+      expect(res.status, JSON.stringify(body).slice(0, 60)).toBe(400);
+      expect(res.json).toEqual({ ok: false, reason: 'event_not_canonical' });
+    }
   });
 });

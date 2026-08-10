@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleOrderConfirmedIntake, handleOrderEvidence, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -128,6 +128,19 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
       return handleOrderConfirmedIntake(request, store, env);
+    }
+    /**
+     * BOUTIK-SUIVI (founder, 2026-08-09: « when the delivery is completed …
+     * the product leaves en route to that screen ») — Séra proves the
+     * delivery, Shop+ receives its `delivery.validated.v1` and relays that
+     * SAME canonical event here, on the SAME credential it already uses to
+     * register a paid order. No new event name (canon's enum is closed), no
+     * new secret, no third road: the fact travels the wire that exists.
+     */
+    if (request.method === 'POST' && fp === '/fulfillment/delivered') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      if (refused) return refused;
+      return handleDeliveredIntake(request, env);
     }
     // The OPS READ of the book — gated by the FOUNDER'S OWN credential, never
     // the intake secret: the list carries `supplierId`, and the intake secret

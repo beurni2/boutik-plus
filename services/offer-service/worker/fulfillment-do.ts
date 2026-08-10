@@ -3,6 +3,7 @@ import {
   FulfillmentReadyEventSchema,
   OrderConfirmedEventSchema,
   PackageReadinessConfirmationSchema,
+  PlatformEventSchema,
   type OrderConfirmedEvent,
   type PackageReadinessConfirmation,
 } from '@platform/contracts';
@@ -56,6 +57,26 @@ const CHALLENGE_PREFIX = 'challenge:';
 const READY_PREFIX = 'ready:';
 const CODEHASH_PREFIX = 'codehash:';
 const SUPPLIERCODE_PREFIX = 'suppliercode:';
+/**
+ * BOUTIK-SUIVI (founder, 2026-08-09: « when rider's code is confirmed the
+ * product leaves from commandes screen to that en route screen ») — the
+ * moment the supplier's own two-party check CONFIRMED, so his colis left his
+ * hands. FIRST-WINS, this Worker's clock, and never a claim: it is written
+ * only after Séra itself answered `confirme` at the verify door.
+ *
+ * ⚠ THIS IS NOT CUSTODY. Séra's chain still begins at ITS verification + seal
+ * (SE-I05); this row records what the SUPPLIER saw, for the supplier's own
+ * three screens. Nothing here releases money or transfers custody.
+ */
+const HANDOVER_PREFIX = 'handover:';
+/**
+ * BOUTIK-SUIVI — Séra DELIVERED it (founder: « when the delivery is completed
+ * and the product leaves en route to that screen »). Boutik+ never witnesses
+ * a delivery and never asserts one: this row exists only because the fact
+ * TRAVELLED here from the authority that proved it. Absent = still en route,
+ * which is the honest reading of « we have not been told ».
+ */
+const LIVRAISON_PREFIX = 'livraison:';
 /** RB-1 — the founder's own contact card per supplier (name + phone), behind
  *  his ops key on both verbs. See the /supplier-contact handler for why this
  *  exists at all (founder decision 2026-08-08). */
@@ -231,6 +252,21 @@ interface IssuedChallengeRecord {
   readonly expiresAt: string;
   /** Single-use: set on consumption; a consumed challenge refuses forever. */
   readonly consumedAt?: string;
+}
+
+/** BOUTIK-SUIVI — the confirmed handover, one row per order. */
+interface HandoverRecord {
+  readonly orderId: string;
+  /** THIS Worker's clock at the moment Séra answered `confirme`. */
+  readonly handedOverAt: string;
+}
+
+/** BOUTIK-SUIVI — the delivery, as the authority that proved it told us. */
+interface LivraisonRecord {
+  readonly orderId: string;
+  /** The PRODUCER's instant (Séra validated it; Shop+ relayed it), kept
+   *  verbatim — unlike our own acts, this clock is not ours to mint. */
+  readonly deliveredAt: string;
 }
 
 interface ReadinessRecord {
@@ -807,12 +843,18 @@ export class FulfillmentDO {
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
       const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
       const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
+      // BOUTIK-SUIVI — the two marks that move a row off « Mes commandes »:
+      // his own confirmed handover, and Séra's delivery as Shop+ relayed it.
+      const handovers = await this.state.storage.list<HandoverRecord>({ prefix: HANDOVER_PREFIX });
+      const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
       const orders = [...entries.values()]
         .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
         .map((r) => {
           const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
           const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
+          const handed = handovers.get(`${HANDOVER_PREFIX}${r.orderId}`);
+          const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -822,11 +864,13 @@ export class FulfillmentDO {
             paidAt: r.paidAt,
             zoneTo: r.zoneTo,
             sellerBasePrice: r.sellerBasePrice,
-            ...(accepted !== undefined || ready !== undefined
+            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined
               ? {
                   fulfillment: {
                     ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
                     ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+                    ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
+                    ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
                   },
                 }
               : {}),
@@ -934,6 +978,19 @@ export class FulfillmentDO {
       const verdict = answer?.['verdict'];
       if (answer?.['ok'] !== true || (verdict !== 'confirme' && verdict !== 'non_confirme')) {
         return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      // BOUTIK-SUIVI — a CONFIRMED code is the colis leaving his hands, so the
+      // row leaves « Mes commandes » for « En route ». Written only on Séra's
+      // own verdict, first-wins (a second confirmation keeps the first clock —
+      // the same law `/accept` follows), and never on `non_confirme`.
+      if (verdict === 'confirme') {
+        const key = `${HANDOVER_PREFIX}${orderId}`;
+        if ((await this.state.storage.get<HandoverRecord>(key)) === undefined) {
+          await this.state.storage.put(key, {
+            orderId,
+            handedOverAt: new Date().toISOString(),
+          } satisfies HandoverRecord);
+        }
       }
       return Response.json({ ok: true, verdict });
     }
@@ -1052,6 +1109,31 @@ export class FulfillmentDO {
       await this.enqueueProgress('ready', orderId, now);
       await this.enqueueSeraReadiness(orderId, now);
       return Response.json({ ok: true, status: 'ready', confirmedAt: now });
+    }
+
+    /**
+     * BOUTIK-SUIVI — the delivery, recorded. FIRST-WINS on the producer's own
+     * instant, so an at-least-once redelivery never moves the date a supplier
+     * already read. An order this book never registered is a 404 — the
+     * composition above turns that into the producer's retry.
+     */
+    if (request.method === 'POST' && pathname === '/delivered') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      const deliveredAt = body?.['deliveredAt'];
+      if (typeof orderId !== 'string' || orderId === '' || typeof deliveredAt !== 'string' || deliveredAt === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      if ((await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`)) === undefined) {
+        return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      }
+      const key = `${LIVRAISON_PREFIX}${orderId}`;
+      const existing = await this.state.storage.get<LivraisonRecord>(key);
+      if (existing !== undefined) {
+        return Response.json({ ok: true, status: 'already_delivered', deliveredAt: existing.deliveredAt });
+      }
+      await this.state.storage.put(key, { orderId, deliveredAt } satisfies LivraisonRecord);
+      return Response.json({ ok: true, status: 'delivered', deliveredAt });
     }
 
     /** RECORD A RELANCE — the operator called this supplier, just now.
@@ -1204,6 +1286,46 @@ export async function forwardSupplierAct(
         : { ...(raw !== null && typeof raw === 'object' ? raw : {}), code };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(`https://do${path}`, { method: 'POST', body: JSON.stringify(envelope) });
+}
+
+/**
+ * BOUTIK-SUIVI — THE DELIVERY ARRIVES (founder, 2026-08-09). Séra proved it,
+ * Shop+ relays the SAME canonical `delivery.validated.v1` here on the wire it
+ * already uses for `order.confirmed.v1`.
+ *
+ * ⚠ NO NEW EVENT NAME. Canon's `EventNameSchema` is a closed enum and a §7
+ * change is the founder's alone; this door parses the event canon ALREADY
+ * defines, with the same payload bounds Shop+'s own progress door applies —
+ * an uncanonical byte is a 400, never a delivered order.
+ *
+ * AN UNKNOWN ORDER IS A 404, DELIBERATELY: the producer is at-least-once and
+ * `order.confirmed.v1` may still be in flight on the same road. Refusing
+ * makes Shop+ retry; inventing a delivery row for an order this book never
+ * registered would be a lie no screen could later correct.
+ */
+export async function handleDeliveredIntake(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const raw: unknown = await request.json().catch(() => null);
+  const parsed = PlatformEventSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.name !== 'delivery.validated.v1') {
+    return Response.json({ ok: false, reason: 'event_not_canonical' }, { status: 400 });
+  }
+  const p = parsed.data.payload as Record<string, unknown>;
+  const orderId = p['order_id'];
+  if (
+    typeof orderId !== 'string' || orderId === '' || orderId.length > 256 ||
+    p['result'] !== 'validated' || p['settlement_eligibility'] !== true
+  ) {
+    return Response.json({ ok: false, reason: 'event_not_canonical' }, { status: 400 });
+  }
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(
+    new Request('https://do/delivered', {
+      method: 'POST',
+      // The PRODUCER's instant travels with the fact — this book witnessed no
+      // delivery and has no clock of its own to offer for one.
+      body: JSON.stringify({ orderId, deliveredAt: parsed.data.envelope.serverTime }),
+    }),
+  );
 }
 
 /** LISTER-POUR-1a — derive the supplier behind a presented code, or null.

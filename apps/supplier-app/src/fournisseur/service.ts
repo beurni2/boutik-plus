@@ -30,7 +30,19 @@ export interface CommandeRow {
   readonly paidAt: string;
   readonly zoneTo: string;
   readonly sellerBasePrice: number;
-  readonly fulfillment?: { readonly acceptedAt?: string; readonly readyAt?: string };
+  /**
+   * The book's marks, in road order. BOUTIK-SUIVI (founder, 2026-08-09) adds
+   * the last two: `handedOverAt` is HIS confirmed ramassage check (the colis
+   * left his hands → « En route »), `deliveredAt` is Séra's delivery as it
+   * reached this book (→ « Livré et terminé »). Neither is ever asserted by
+   * this app.
+   */
+  readonly fulfillment?: {
+    readonly acceptedAt?: string;
+    readonly readyAt?: string;
+    readonly handedOverAt?: string;
+    readonly deliveredAt?: string;
+  };
 }
 
 export type MineResult =
@@ -308,13 +320,19 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     if (f === null || typeof f !== 'object') return null;
     const fr = f as Record<string, unknown>;
     const validIso = (v: unknown): v is string => typeof v === 'string' && v !== '' && !Number.isNaN(Date.parse(v));
-    const acceptedAt = validIso(fr['acceptedAt']) ? fr['acceptedAt'] : undefined;
-    const readyAt = validIso(fr['readyAt']) ? fr['readyAt'] : undefined;
-    if ((fr['acceptedAt'] !== undefined && acceptedAt === undefined) || (fr['readyAt'] !== undefined && readyAt === undefined)) {
-      return null;
+    // BOUTIK-SUIVI — the same strictness across all FOUR marks: a malformed
+    // one drops the WHOLE row. A row demoted to « no handover » would re-arm
+    // the ramassage check over a colis already gone (verifier N4's law, now
+    // guarding two more fields).
+    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt'] as const;
+    const lus: Partial<Record<(typeof marks)[number], string>> = {};
+    for (const m of marks) {
+      if (fr[m] === undefined) continue;
+      if (!validIso(fr[m])) return null;
+      lus[m] = fr[m];
     }
-    if (acceptedAt === undefined && readyAt === undefined) return null;
-    fulfillment = { ...(acceptedAt !== undefined ? { acceptedAt } : {}), ...(readyAt !== undefined ? { readyAt } : {}) };
+    if (Object.keys(lus).length === 0) return null;
+    fulfillment = lus;
   }
   return {
     orderId: r['orderId'] as string,

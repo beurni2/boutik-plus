@@ -2550,6 +2550,66 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.onglet_en_route",
+    "fr": "En route",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.onglet_livrees",
+    "fr": "Livré",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.titre_en_route",
+    "fr": "En route",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.titre_livrees",
+    "fr": "Livré et terminé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.vide_en_route",
+    "fr": "Aucun colis en route. Dès qu'un coursier prend un colis chez vous, il arrive ici.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.vide_livrees",
+    "fr": "Aucune livraison terminée pour l'instant.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.compte_en_route",
+    "fr": "En route : {n}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.compte_livrees",
+    "fr": "Livrés : {n}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_en_route",
+    "fr": "Remis au coursier. Séra s'occupe de la livraison.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_livree",
+    "fr": "Livré au client. Cette commande est terminée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "livraisons.titre",
     "fr": "Livraisons",
     "register": "neutral",

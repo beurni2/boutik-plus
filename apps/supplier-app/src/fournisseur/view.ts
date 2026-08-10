@@ -22,9 +22,41 @@ export type EtapeCommande =
   | 'a_accepter'
   /** Accepted, not yet readied — « Produit prêt » (photo) is the action. */
   | 'a_preparer'
-  /** Readiness confirmed with evidence — the follow-up continues at Séra's
-   *  side; no action, and the screen says so honestly. */
-  | 'prete';
+  /** Readiness confirmed with evidence — the colis waits for the coursier,
+   *  and the ramassage check is the one act left on this card. */
+  | 'prete'
+  /**
+   * BOUTIK-SUIVI (founder, 2026-08-09) — his own ramassage check CONFIRMED,
+   * so the colis left his hands: « the product leaves from commandes screen
+   * to that en route screen ». Nothing to do; the road is Séra's now.
+   */
+  | 'en_route'
+  /** Séra delivered it and the fact reached us: « livré et terminé ». */
+  | 'livree';
+
+/**
+ * BOUTIK-SUIVI — the three screens the founder asked for, as data. A zone is
+ * a FILTER over the one list, never a second read: the same `/fulfillment/mine`
+ * answer feeds all three, so a row cannot appear in two places or vanish
+ * between them.
+ */
+export type ZoneCommandes = 'commandes' | 'en_route' | 'livrees';
+
+const ZONE_DE: Record<EtapeCommande, ZoneCommandes> = {
+  a_accepter: 'commandes',
+  a_preparer: 'commandes',
+  prete: 'commandes',
+  en_route: 'en_route',
+  livree: 'livrees',
+};
+
+/** Each zone's own empty sentence — « rien à faire » and « rien en route »
+ *  are different facts, and a supplier reads the difference. */
+const ZONE_VIDE: Record<ZoneCommandes, string> = {
+  commandes: 'fournisseur.vide',
+  en_route: 'fournisseur.vide_en_route',
+  livrees: 'fournisseur.vide_livrees',
+};
 
 export interface CommandeVue extends CommandeRow {
   readonly etape: EtapeCommande;
@@ -46,32 +78,48 @@ export type FournisseurVue =
       readonly aFaire: number;
     };
 
+/**
+ * The order's true state, read from the marks the book keeps — never from
+ * anything this app remembers. LATEST MARK WINS, in the road's own order:
+ * delivered beats handed-over beats ready beats accepted.
+ */
 export function etapeOf(row: CommandeRow): EtapeCommande {
+  if (row.fulfillment?.deliveredAt !== undefined) return 'livree';
+  if (row.fulfillment?.handedOverAt !== undefined) return 'en_route';
   if (row.fulfillment?.readyAt !== undefined) return 'prete';
   if (row.fulfillment?.acceptedAt !== undefined) return 'a_preparer';
   return 'a_accepter';
 }
 
-const ETAPE_RANK: Record<EtapeCommande, number> = { a_accepter: 0, a_preparer: 1, prete: 2 };
+const ETAPE_RANK: Record<EtapeCommande, number> = {
+  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4,
+};
 
-export function fournisseurVue(read: FournisseurRead): FournisseurVue {
+/** Rows that need no act read as an archive — newest first. */
+const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree'];
+
+export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'commandes'): FournisseurVue {
   if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };
   if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'fournisseur.non_configure' };
   if (read.kind === 'bad_code') return { kind: 'bad_code', message: 'fournisseur.code_refuse' };
   if (read.kind === 'failed') return { kind: 'failed', message: 'fournisseur.echec' };
-  if (read.rows.length === 0) return { kind: 'empty', message: 'fournisseur.vide' };
   const commandes = read.rows
     .map((r) => ({ ...r, etape: etapeOf(r) }))
+    .filter((c) => ZONE_DE[c.etape] === zone)
     .sort((a, b) => {
       if (ETAPE_RANK[a.etape] !== ETAPE_RANK[b.etape]) return ETAPE_RANK[a.etape] - ETAPE_RANK[b.etape];
       // inside the work: oldest paid first (the longest-waiting buyer wins);
       // inside the done: newest first (the archive reads backwards).
-      return a.etape === 'prete' ? (a.paidAt < b.paidAt ? 1 : -1) : (a.paidAt < b.paidAt ? -1 : 1);
+      return ARCHIVE.includes(a.etape) ? (a.paidAt < b.paidAt ? 1 : -1) : (a.paidAt < b.paidAt ? -1 : 1);
     });
+  // EMPTY IS PER ZONE (BOUTIK-SUIVI): « aucune commande » on a screen whose
+  // orders have all moved on would be a lie about the book, not about the
+  // zone — each screen says what IT is missing.
+  if (commandes.length === 0) return { kind: 'empty', message: ZONE_VIDE[zone] };
   return {
     kind: 'liste',
     commandes,
-    aFaire: commandes.filter((c) => c.etape !== 'prete').length,
+    aFaire: commandes.filter((c) => !ARCHIVE.includes(c.etape)).length,
   };
 }
 

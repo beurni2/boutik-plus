@@ -27,6 +27,7 @@ import {
   type FournisseurRead,
   type PretUi,
   type ProduitsRead,
+  type ZoneCommandes,
 } from './view';
 import { galleryPhotos, photoSlot, type GalleryPhoto } from '../supply/produits-view';
 import { FicheVideo } from '../v2/fiche-video';
@@ -62,28 +63,43 @@ export function FournisseurApp() {
   // LISTER-POUR-1c — two views, ONE door: Commandes (his hands) and Mes
   // produits (his eyes). Both read through the same stored code; clearing it
   // from either returns to the door for both.
-  const [onglet, setOnglet] = useState<'commandes' | 'produits'>('commandes');
+  /**
+   * BOUTIK-SUIVI (founder, 2026-08-09) — the road, as three screens: what
+   * needs his hands, what a coursier is carrying, what is finished. « Mes
+   * produits » stays the fourth, his eyes-only shelf. One door, four views.
+   */
+  const [onglet, setOnglet] = useState<'commandes' | 'en_route' | 'livrees' | 'produits'>('commandes');
+  const onglets: readonly { readonly cle: typeof onglet; readonly label: string }[] = [
+    { cle: 'commandes', label: t('fournisseur.onglet_commandes') },
+    { cle: 'en_route', label: t('fournisseur.onglet_en_route') },
+    { cle: 'livrees', label: t('fournisseur.onglet_livrees') },
+    { cle: 'produits', label: t('fournisseur.onglet_produits') },
+  ];
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       {code === null ? (
         <SPorteCode onCodeSaved={setCode} />
       ) : (
         <>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+          {/* Four tabs WRAP rather than shrink: a label squeezed to « Livr… »
+              fails the 5-second test on the 320px phones this app targets,
+              and BtnSoft's ≥44px geometry is kept whole on every row. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
             {/* The active tab is STATED, not implied: full-opacity label on
-                the live tab, softened on the other — ≥44px targets held by
-                BtnSoft's own geometry. */}
-            <View style={{ flex: 1, opacity: onglet === 'commandes' ? 1 : 0.55 }}>
-              <BtnSoft label={t('fournisseur.onglet_commandes')} onPress={() => setOnglet('commandes')} />
-            </View>
-            <View style={{ flex: 1, opacity: onglet === 'produits' ? 1 : 0.55 }}>
-              <BtnSoft label={t('fournisseur.onglet_produits')} onPress={() => setOnglet('produits')} />
-            </View>
+                the live tab, softened on the others. */}
+            {onglets.map((o) => (
+              <View key={o.cle} style={{ flexGrow: 1, flexBasis: '46%', opacity: onglet === o.cle ? 1 : 0.55 }}>
+                <BtnSoft label={o.label} onPress={() => setOnglet(o.cle)} />
+              </View>
+            ))}
           </View>
-          {onglet === 'commandes' ? (
-            <SMesCommandes code={code} onCodeCleared={() => setCode(null)} />
-          ) : (
+          {onglet === 'produits' ? (
             <SMesProduits code={code} onCodeCleared={() => setCode(null)} />
+          ) : (
+            // ONE screen, three zones: the same `/fulfillment/mine` answer
+            // feeds all of them, so a row can never be in two places at once.
+            // `key` remounts it per zone — each screen starts on its own read.
+            <SMesCommandes key={onglet} zone={onglet} code={code} onCodeCleared={() => setCode(null)} />
           )}
         </>
       )}
@@ -301,11 +317,22 @@ function SPorteCode({ onCodeSaved }: { onCodeSaved: (code: string) => void }) {
 
 /* ───────────────────────────── mes commandes ─────────────────────────────── */
 
-function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: () => void }) {
+function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: ZoneCommandes; onCodeCleared: () => void }) {
   const service = useMemo<FournisseurServicePort | null>(() => resolveFournisseurService(), []);
   const [read, setRead] = useState<FournisseurRead>(() =>
     service === null ? { kind: 'not_configured' } : { kind: 'loading' },
   );
+  const mediaBase = process.env.EXPO_PUBLIC_MEDIA_BASE ?? null;
+  /**
+   * PHOTOS SUR LES COMMANDES (founder, 2026-08-09: « on commandes put the
+   * product photos to each commande »). The order carries no photo of its
+   * own — the wire's allowlist is deliberately narrow — so the card joins on
+   * `productVersionId` against the products he can already see on his own
+   * « Mes produits » screen. BEST-EFFORT BY DESIGN: this read failing costs a
+   * thumbnail, never the list, and a product he no longer lists degrades to
+   * the honest « pas de photo » slot rather than a broken image.
+   */
+  const [photos, setPhotos] = useState<ReadonlyMap<string, readonly string[]>>(new Map());
   const inFlight = useRef(false);
   /** MONOTONIC READ TOKEN (verifier M3): load(force) bypasses the in-flight
    *  guard, so a background interval read and a post-act forced read can
@@ -323,10 +350,15 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
     readSeq.current += 1;
     const seq = readSeq.current;
     try {
-      const res = await service.listMine(code);
+      const [res, prods] = await Promise.all([service.listMine(code), service.listProduits(code)]);
       if (seq !== readSeq.current) return; // a newer read owns the screen
       if (res.ok) setRead({ kind: 'ok', rows: res.orders });
       else setRead({ kind: res.reason === 'bad_code' ? 'bad_code' : 'failed' });
+      // The photo join never speaks for the list: a products failure leaves
+      // the previous map alone (his thumbnails do not blink on one bad read).
+      if (prods.ok) {
+        setPhotos(new Map(prods.produits.map((p) => [p.productVersionId, p.assetRefs] as const)));
+      }
     } finally {
       inFlight.current = false;
     }
@@ -432,11 +464,19 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
     else if (issue.then === 'bad_code') setRead({ kind: 'bad_code' });
   };
 
-  const vue = fournisseurVue(read);
+  const vue = fournisseurVue(read, zone);
+  const titreKey =
+    zone === 'en_route' ? 'fournisseur.titre_en_route'
+    : zone === 'livrees' ? 'fournisseur.titre_livrees'
+    : 'fournisseur.titre';
+  const compteKey =
+    zone === 'en_route' ? 'fournisseur.compte_en_route'
+    : zone === 'livrees' ? 'fournisseur.compte_livrees'
+    : 'fournisseur.a_faire';
 
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>{t('fournisseur.titre')}</PageTitle>
+      <PageTitle>{t(titreKey)}</PageTitle>
 
       {vue.kind === 'loading' && (
         <View style={{ marginTop: 14 }}>
@@ -479,7 +519,7 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
         <>
           <View style={{ marginTop: 8 }}>
             <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)}>
-              {t('fournisseur.a_faire').replace('{n}', String(vue.aFaire))}
+              {t(compteKey).replace('{n}', String(zone === 'commandes' ? vue.aFaire : vue.commandes.length))}
             </Text>
           </View>
           {vue.commandes.map((c) => (
@@ -489,6 +529,8 @@ function SMesCommandes({ code, onCodeCleared }: { code: string; onCodeCleared: (
               pret={pret}
               accepting={accepting === c.orderId}
               acceptEchec={acceptEchec === c.orderId}
+              assetRefs={photos.get(c.productVersionId) ?? []}
+              mediaBase={mediaBase}
               onAccepter={() => { void accepter(c.orderId); }}
               onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
               onEnvoyer={() => { void envoyer(c); }}
@@ -542,17 +584,25 @@ function VerifierRamassage({ onVerifier }: { onVerifier: (dit: string) => Promis
 
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
-function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage }: {
+function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage }: {
   commande: CommandeVue;
   pret: PretUi;
   accepting: boolean;
   acceptEchec: boolean;
+  assetRefs: readonly string[];
+  mediaBase: string | null;
   onAccepter: () => void;
   onChoisirPhoto: () => void;
   onEnvoyer: () => void;
   onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
 }) {
   const nom = commande.productName !== '' ? commande.productName : commande.productVersionId;
+  /** The product's own photographs, through the SAME two helpers « Mes
+   *  produits » uses — one photo-opening behaviour in this app, so the two
+   *  surfaces cannot drift, and no new French. */
+  const slot = photoSlot(assetRefs, mediaBase);
+  const galerie = galleryPhotos(assetRefs, mediaBase);
+  const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   const modeLabel = commande.paymentMode === 'DELIVERY_FEE_PREPAID_PRODUCT_AT_DOOR'
     ? t('operations.mode_porte')
     : t('operations.mode_paye');
@@ -562,10 +612,50 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, onAccepter, onC
 
   return (
     <Card variant="Llist" style={{ marginTop: 10 }}>
-      <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{nom}</Text>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={1}>
-        {commande.zoneTo} · {modeLabel} · {formatF(commande.sellerBasePrice)}
-      </Text>
+      {/* PHOTOS SUR LES COMMANDES — the product he is being asked about, shown
+          beside its name. The thumbnail opens the first photograph; the strip
+          below carries the rest, exactly as his produits card does. */}
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {slot.kind === 'photo' ? (
+          <Pressable onPress={() => setViewing(galerie[0] ?? null)} accessibilityRole="button" disabled={galerie.length === 0}>
+            <Image source={{ uri: slot.uri }} style={{ width: 64, height: 64, borderRadius: 10 }} resizeMode="cover" />
+          </Pressable>
+        ) : (
+          <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: P.borderCard, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={role({ f: 'IS', w: 400, s: 10 }, P.sub)} numberOfLines={2}>{t(slot.message)}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={2}>{nom}</Text>
+          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={2}>
+            {commande.zoneTo} · {modeLabel} · {formatF(commande.sellerBasePrice)}
+          </Text>
+        </View>
+      </View>
+      {galerie.length > 1 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {galerie.map((ph) => (
+            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button">
+              <Image source={{ uri: ph.uri }} style={{ width: 48, height: 48, borderRadius: 8 }} resizeMode="cover" />
+            </Pressable>
+          ))}
+        </View>
+      )}
+      <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
+
+      {/* BOUTIK-SUIVI — the two screens after his hands: nothing to do on
+          either card, and each says plainly who holds the colis now. */}
+      {commande.etape === 'en_route' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">{t('fournisseur.etape_en_route')}</Banner>
+        </View>
+      )}
+
+      {commande.etape === 'livree' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="success" check>{t('fournisseur.etape_livree')}</Banner>
+        </View>
+      )}
 
       {commande.etape === 'prete' && (
         <View style={{ marginTop: 10 }}>
