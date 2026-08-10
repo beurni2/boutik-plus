@@ -1121,7 +1121,16 @@ export class FulfillmentDO {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
       const orderId = body?.['orderId'];
       const deliveredAt = body?.['deliveredAt'];
-      if (typeof orderId !== 'string' || orderId === '' || typeof deliveredAt !== 'string' || deliveredAt === '') {
+      // ⚠ THE INSTANT MUST BE A READABLE DATE (verifier, 2026-08-10). Canon's
+      // envelope bounds `serverTime` to a non-empty string, not to ISO — and
+      // the supplier app drops a WHOLE ROW whose date it cannot parse. So an
+      // unreadable instant here would not cost a date, it would make the
+      // order VANISH from all three of his screens. Refused at this door
+      // instead, where the producer still retries.
+      if (
+        typeof orderId !== 'string' || orderId === '' ||
+        typeof deliveredAt !== 'string' || deliveredAt === '' || Number.isNaN(Date.parse(deliveredAt))
+      ) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
       if ((await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`)) === undefined) {

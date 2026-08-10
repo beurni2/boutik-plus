@@ -332,6 +332,14 @@ describe('the delivery arrives from Shop+, and the supplier’s own list moves',
     expect((row?.['fulfillment'] as Record<string, unknown>)['deliveredAt']).toBe('2026-08-09T14:30:00.000Z');
   });
 
+  it('an UNREADABLE instant is refused here — the app drops a whole row it cannot date, so the order would VANISH', async () => {
+    // Canon bounds the envelope's serverTime to a non-empty string, not to
+    // ISO. This door is where that gap is closed.
+    const res = await livrer(evenement(ORDER, 'pas-une-date'));
+    expect(res.status).toBe(400);
+    expect(res.json).toEqual({ ok: false, reason: 'malformed' });
+  });
+
   it('an order this book never registered is a 404 — the producer RETRIES, and nothing is invented', async () => {
     const res = await livrer(evenement('ord-ramv-jamais', '2026-08-09T14:30:00.000Z'));
     expect(res.status).toBe(404);

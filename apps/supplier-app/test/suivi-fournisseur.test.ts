@@ -114,11 +114,15 @@ describe('one row, exactly one screen', () => {
 
   it('each empty zone says ITS own sentence — « no orders » on a screen whose orders all moved on would be a lie', () => {
     const seulementLivree: FournisseurRead = { kind: 'ok', rows: [rows[4]!] };
-    expect(fournisseurVue(seulementLivree, 'commandes')).toEqual({ kind: 'empty', message: 'fournisseur.vide' });
+    // ⚠ « Aucune commande… dès qu'un client paie » is TRUE only over an empty
+    // book. With his orders merely moved to the two new screens it is a lie,
+    // and he would think he had lost a sale (verifier, 2026-08-10).
+    expect(fournisseurVue(seulementLivree, 'commandes')).toEqual({ kind: 'empty', message: 'fournisseur.vide_a_faire' });
+    expect(fournisseurVue({ kind: 'ok', rows: [] }, 'commandes')).toEqual({ kind: 'empty', message: 'fournisseur.vide' });
     expect(fournisseurVue(seulementLivree, 'en_route')).toEqual({ kind: 'empty', message: 'fournisseur.vide_en_route' });
     expect(fournisseurVue(seulementLivree, 'livrees').kind).toBe('liste');
     const catalog = JSON.parse(read('i18n/catalog.json')) as { key: string }[];
-    for (const k of ['fournisseur.vide_en_route', 'fournisseur.vide_livrees', 'fournisseur.etape_en_route', 'fournisseur.etape_livree']) {
+    for (const k of ['fournisseur.vide_en_route', 'fournisseur.vide_livrees', 'fournisseur.vide_a_faire', 'fournisseur.etape_en_route', 'fournisseur.etape_livree']) {
       expect(catalog.some((e) => e.key === k), k).toBe(true);
     }
   });

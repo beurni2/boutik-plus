@@ -58,6 +58,17 @@ const ZONE_VIDE: Record<ZoneCommandes, string> = {
   livrees: 'fournisseur.vide_livrees',
 };
 
+/**
+ * ⚠ AND « NOTHING TO DO » IS NOT « NO ORDERS » (verifier, 2026-08-10). The
+ * Commandes screen kept one sentence — « Aucune commande pour l'instant. Dès
+ * qu'un client paie, elle apparaît ici. » — which became a lie the moment his
+ * orders merely MOVED to the two new screens: he has commandes, they are on
+ * the road. An empty zone over a non-empty book says so.
+ */
+const ZONE_VIDE_MAIS_ACTIF: Partial<Record<ZoneCommandes, string>> = {
+  commandes: 'fournisseur.vide_a_faire',
+};
+
 export interface CommandeVue extends CommandeRow {
   readonly etape: EtapeCommande;
 }
@@ -115,7 +126,10 @@ export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'com
   // EMPTY IS PER ZONE (BOUTIK-SUIVI): « aucune commande » on a screen whose
   // orders have all moved on would be a lie about the book, not about the
   // zone — each screen says what IT is missing.
-  if (commandes.length === 0) return { kind: 'empty', message: ZONE_VIDE[zone] };
+  if (commandes.length === 0) {
+    const actif = read.rows.length > 0 ? ZONE_VIDE_MAIS_ACTIF[zone] : undefined;
+    return { kind: 'empty', message: actif ?? ZONE_VIDE[zone] };
+  }
   return {
     kind: 'liste',
     commandes,

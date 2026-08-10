@@ -2610,6 +2610,12 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.vide_a_faire",
+    "fr": "Rien à préparer pour le moment. Vos autres commandes sont en route ou livrées.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "livraisons.titre",
     "fr": "Livraisons",
     "register": "neutral",
