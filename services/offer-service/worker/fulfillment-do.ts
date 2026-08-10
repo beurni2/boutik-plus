@@ -1194,6 +1194,77 @@ export class FulfillmentDO {
       return Response.json({ ok: true, relance: mark });
     }
 
+    /**
+     * ═══ PURGE-ESSAI — THE FOUNDER RETIRES ONE TEST ORDER FROM HIS BOOK ═══
+     *
+     * Founder ruling (2026-08-10): « products on my ops console and suppliers
+     * console that i used for the testing, remove all of them ». Asked what
+     * exactly, he ruled TEST ORDERS ONLY — the product catalogue stays. This
+     * is the only route in this Worker that erases anything from the book, so
+     * every bound on it is deliberate:
+     *
+     * ONE ORDER PER CALL. There is no « retirer tout » primitive on the
+     * server, and there must never be one: this book will hold REAL paid
+     * orders, and a route that empties it is a catastrophe waiting for a
+     * mis-click. The console loops over the rows the founder can SEE, one
+     * named call each — bounded blast radius, and every removal is one
+     * auditable request naming one order.
+     *
+     * WHAT IT REMOVES — the order's own rows, on both consoles' wires:
+     * the paid record itself (which is what makes it appear at all), his
+     * relance mark, the acceptance, the readiness challenge and confirmation,
+     * the supplier's handover mark, the delivery mark, and the three
+     * progress-outbox rows keyed by this order.
+     *
+     * WHAT IT NEVER TOUCHES: supplier codes, code hashes, and supplier
+     * contact cards. Those are IDENTITY, not this order — retiring a test
+     * sale must never cost a supplier the door he logs in with. They live
+     * under their own prefixes and are not in the list below; that omission
+     * is the enforcement, and the e2e asserts the supplier can still read his
+     * book afterwards.
+     *
+     * ⚠ AN UNSENT OUTBOX ROW DIES WITH IT, and that is the point: a purged
+     * test order must not go on telling Shop+ and Séra about itself an hour
+     * later. Stated plainly rather than discovered — this is the one fact
+     * that makes the purge irreversible in effect as well as in storage.
+     *
+     * IDEMPOTENT, and 200 EITHER WAY: an order this book never knew (or one
+     * already retired) answers `inconnu`, never an error — a re-run after a
+     * lost response must converge, and the console's sweep must not paint a
+     * red row for work that is already done.
+     */
+    if (request.method === 'POST' && pathname === '/order/retirer') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      if (typeof orderId !== 'string' || orderId === '' || orderId.length > 256) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const existing = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      // The outbox rows are keyed `progressoutbox:{orderId}:{fact}` — listed
+      // by prefix rather than guessed, so a fact added later is swept too
+      // instead of being left behind by a hard-coded list.
+      const outbox = await this.state.storage.list({ prefix: `${PROGRESS_OUTBOX_PREFIX}${orderId}:` });
+      const keys = [
+        `${ORDER_PREFIX}${orderId}`,
+        `${RELANCE_PREFIX}${orderId}`,
+        `${ACCEPT_PREFIX}${orderId}`,
+        `${CHALLENGE_PREFIX}${orderId}`,
+        `${READY_PREFIX}${orderId}`,
+        `${HANDOVER_PREFIX}${orderId}`,
+        `${LIVRAISON_PREFIX}${orderId}`,
+        ...outbox.keys(),
+      ];
+      // ONE DELETE CALL, so the row and its marks leave together or not at
+      // all — the « ONE WRITE, NOT TWO » law this repo already lives by. A
+      // half-purged order (record gone, marks stranded) would be invisible
+      // and un-retirable, the disappearance family.
+      await this.state.storage.delete(keys);
+      if (existing === undefined) {
+        return Response.json({ ok: true, status: 'inconnu' });
+      }
+      return Response.json({ ok: true, status: 'retire', orderId });
+    }
+
     return Response.json({ error: 'not_found' }, { status: 404 });
   }
 }
@@ -1427,6 +1498,23 @@ export async function handleRelance(request: Request, env: FulfillmentEnv): Prom
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   return stub.fetch(
     new Request('https://do/relance', {
+      method: 'POST',
+      body: JSON.stringify({ orderId: body?.orderId }),
+    }),
+  );
+}
+
+/**
+ * PURGE-ESSAI — forward the founder's retire of ONE test order (ops-gated at
+ * the composition root). Only the order id crosses: like the relance above,
+ * the envelope is rebuilt rather than forwarded, so no field a caller invents
+ * can ever reach the object's delete path.
+ */
+export async function handleOrderRetirer(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(
+    new Request('https://do/order/retirer', {
       method: 'POST',
       body: JSON.stringify({ orderId: body?.orderId }),
     }),

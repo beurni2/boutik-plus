@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -178,6 +178,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handleRelance(request, env);
+    }
+    // PURGE-ESSAI (founder ruling 2026-08-10) — retire ONE test order from the
+    // book. HIS credential alone, on the same door as the board read whose
+    // rows it removes: the supplier's personal code must never open it (a
+    // supplier erasing an order is a supplier erasing evidence), and Shop+'s
+    // intake secret must never open it (a producer must not be able to
+    // un-deliver what it delivered). The object bounds what a purge means;
+    // this line bounds who may ask.
+    if (request.method === 'POST' && fp === '/fulfillment/order/retirer') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleOrderRetirer(request, env);
     }
     // ═══ READINESS-WIRE-1b-i — THE PERSONAL CODE DOOR (founder ruling
     // 2026-08-02: authoring is HIS webapp alone; suppliers are fulfillment-

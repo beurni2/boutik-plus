@@ -37,6 +37,21 @@ import {
   tonAttente,
   type SegmentCommandes,
 } from './view';
+// PURGE-ESSAI — the two-tap decision is PURE and lives with the other ops
+// decisions; these components hold substance only.
+import {
+  RETRAIT_IDLE,
+  retraitAnnule,
+  retraitDemande,
+  retraitSettled,
+  retraitStart,
+  sweepAnnule,
+  sweepAvance,
+  sweepDemande,
+  sweepFini,
+  sweepStart,
+  type RetraitUi,
+} from '../operations/view';
 
 /**
  * ═══ RB-1 — THE COMMANDES TAB, REAL (founder direction 2026-08-08) ═══
@@ -302,7 +317,89 @@ function LivreCommandes({
           ))}
         </View>
       )}
+
+      {/* PURGE-ESSAI — the sweep, UNDER the list and never above it: a
+          destructive control does not greet him. It loops the rows he can
+          SEE, one named call each; the Worker has no « retirer tout ». */}
+      {rows.length > 0 ? (
+        <BalayageEssai rows={rows} service={service} cle={cle} onChanged={() => void charger()} />
+      ) : null}
     </ScrollView>
+  );
+}
+
+/**
+ * PURGE-ESSAI — « Retirer les commandes d'essai » for the segment on screen.
+ *
+ * ONE CONFIRMATION FOR THE SET, naming the count he is about to lose and
+ * saying plainly that his products stay. Then one call per row, sequential
+ * (the board is small and a serial loop keeps the progress line true), each
+ * failure counted rather than swallowed: the closing sentence says how many
+ * left and how many did not, and the rows that survived are still on screen
+ * to try again. Nothing here reports a removal the book did not confirm.
+ */
+function BalayageEssai({ rows, service, cle, onChanged }: {
+  rows: readonly PaidOrderRow[];
+  service: OperationsServicePort;
+  cle: string;
+  onChanged: () => void;
+}) {
+  const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
+  const sweep = ui.sweep;
+  return (
+    <View style={{ marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', gap: 8 }}>
+      {sweep.kind === 'encours' ? (
+        <Text style={PETIT}>
+          {t('operations.balayage_encours').replace('{n}', String(sweep.faits)).replace('{t}', String(sweep.total))}
+        </Text>
+      ) : sweep.kind === 'demande' ? (
+        <>
+          <Text style={CORPS}>{t('operations.balayage_question').replace('{n}', String(sweep.total))}</Text>
+          <BtnSoft
+            label={t('operations.balayage_oui')}
+            onPress={() => {
+              const started = sweepStart(ui, sweep.total);
+              if (started === null) return void 0;
+              setUi(started);
+              // Sequential on purpose: the progress line must be true, and a
+              // console mid-purge must not fire a burst at the book.
+              void (async () => {
+                let vivant = started;
+                let faits = 0;
+                let echecs = 0;
+                for (const o of rows) {
+                  const r = await service.retirerCommande(cle, o.orderId);
+                  if (r.ok) faits += 1;
+                  else echecs += 1;
+                  vivant = sweepAvance(vivant);
+                  setUi(vivant);
+                }
+                setUi(sweepFini(vivant, faits, echecs));
+                onChanged();
+              })();
+            }}
+          />
+          <BtnSoft label={t('operations.retrait_annuler')} onPress={() => setUi(sweepAnnule(ui))} />
+        </>
+      ) : sweep.kind === 'fini' ? (
+        <Text style={PETIT}>
+          {sweep.echecs === 0
+            ? t('operations.balayage_fini').replace('{n}', String(sweep.faits))
+            : t('operations.balayage_reste')
+                .replace('{n}', String(sweep.faits))
+                .replace('{e}', String(sweep.echecs))}
+        </Text>
+      ) : (
+        <BtnSoft
+          label={t('operations.balayage_action')}
+          onPress={() => {
+            const asked = sweepDemande(ui, rows.length);
+            if (asked === null) return void 0;
+            setUi(asked);
+          }}
+        />
+      )}
+    </View>
   );
 }
 
@@ -359,7 +456,67 @@ function RangCommande({
           <DetailATraiter row={row} qui={qui} attente={attente} nowMs={nowMs} service={service} cle={cle} onChanged={onChanged} />
         )
       ) : null}
+      {/* PURGE-ESSAI — the retire lives HERE, under whichever detail is open:
+          one place for all five segments, and reachable only on a card the
+          founder deliberately opened. It whispers (§5: one primary action per
+          screen — this is never it) and it asks before it acts. */}
+      {ouvert ? <RetraitCommande row={row} service={service} cle={cle} onChanged={onChanged} /> : null}
     </Card>
+  );
+}
+
+/**
+ * PURGE-ESSAI (founder ruling 2026-08-10) — retire ONE test order.
+ *
+ * TWO TAPS, and the decision belongs to `operations/view.ts`: this component
+ * holds substance only. The question names what leaves and what STAYS — his
+ * products are not touched, and a founder mid-cleanup should not have to
+ * remember that. A failure says so and keeps the row; nothing here reports a
+ * removal the book did not confirm.
+ */
+function RetraitCommande({ row, service, cle, onChanged }: {
+  row: PaidOrderRow;
+  service: OperationsServicePort;
+  cle: string;
+  onChanged: () => void;
+}) {
+  const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
+  return (
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+      {ui.busy === row.orderId ? (
+        <Text style={PETIT}>{t('operations.retrait_encours')}</Text>
+      ) : ui.demande === row.orderId ? (
+        <View style={{ gap: 8 }}>
+          <Text style={CORPS}>{t('operations.retrait_question')}</Text>
+          <BtnSoft
+            label={t('operations.retrait_oui')}
+            onPress={() => {
+              const started = retraitStart(ui, row.orderId);
+              if (started === null) return void 0;
+              setUi(started);
+              void service.retirerCommande(cle, row.orderId).then((r) => {
+                const settled = retraitSettled(row.orderId, r);
+                setUi(settled.ui);
+                if (settled.then === 'refresh') onChanged();
+              });
+            }}
+          />
+          <BtnSoft label={t('operations.retrait_annuler')} onPress={() => setUi(retraitAnnule(ui))} />
+        </View>
+      ) : (
+        <BtnSoft
+          label={t('operations.retrait_action')}
+          onPress={() => {
+            const asked = retraitDemande(ui, row.orderId);
+            if (asked === null) return void 0;
+            setUi(asked);
+          }}
+        />
+      )}
+      {ui.echec === row.orderId ? (
+        <Text style={[PETIT, { marginTop: 6 }]}>{t('operations.retrait_echec')}</Text>
+      ) : null}
+    </View>
   );
 }
 

@@ -4648,5 +4648,83 @@
     "fr": "Pas de réponse pour le moment. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "operations.retrait_action",
+    "fr": "Retirer cette commande",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.retrait_question",
+    "fr": "Retirer cette vente de test ? Elle part de votre écran et de celui du vendeur.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.retrait_oui",
+    "fr": "Oui, retirer",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.retrait_annuler",
+    "fr": "Annuler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.retrait_encours",
+    "fr": "Retrait en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.retrait_echec",
+    "fr": "Cette commande n'a pas été retirée. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.retrait_bloque",
+    "fr": "Un retrait est déjà en cours.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.balayage_action",
+    "fr": "Retirer les commandes d'essai",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.balayage_question",
+    "fr": "Retirer les {n} commandes de cet écran ? Elles quitteront votre écran et celui du fournisseur. Vos produits restent en place.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.balayage_oui",
+    "fr": "Oui, tout retirer",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.balayage_encours",
+    "fr": "Retrait {n} sur {t}…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.balayage_fini",
+    "fr": "{n} commandes retirées.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.balayage_reste",
+    "fr": "{n} retirées, {e} n'ont pas pu l'être. Réessayez pour celles qui restent.",
+    "register": "money",
+    "screenClass": "status"
   }
 ]

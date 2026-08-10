@@ -1,4 +1,4 @@
-import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RevealResult, RevokeResult } from './service';
+import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RetraitResult, RevealResult, RevokeResult } from './service';
 import type {
   AccesCodeRow,
   CodeAccesResult,
@@ -123,6 +123,108 @@ export function relanceSettled(orderId: string, result: RelanceResult): RelanceS
   // `unknown_order` lands here too: the board is stale rather than the call
   // lost — either way NOTHING is claimed, and the honest line invites a retry.
   return { ui: { busy: null, echec: orderId }, then: 'none' };
+}
+
+/* ══════════ PURGE-ESSAI — retiring test orders (founder, 2026-08-10) ══════════
+ *
+ * « products on my ops console and suppliers console that i used for the
+ * testing, remove all of them ». Asked what exactly, he ruled: the test
+ * ORDERS; the product catalogue stays.
+ *
+ * THIS IS THE ONLY DESTRUCTIVE CONTROL ON THIS CONSOLE, so its whole shape is
+ * a refusal to make deletion easy by accident:
+ *   · TWO TAPS, and the second one is checked HERE, by value: `retraitStart`
+ *     refuses unless THIS order is the one standing confirmed. A screen that
+ *     lost track of its own state cannot delete a row the founder never
+ *     pointed at.
+ *   · ONE AT A TIME. While any removal is in flight every other card's
+ *     control goes quiet — a board mid-purge must not take a second order.
+ *   · The sweep is a LOOP OVER WHAT HE CAN SEE, one named call each, with its
+ *     own single confirmation naming the count. The Worker has no
+ *     « retirer tout » and must never grow one.
+ */
+export interface RetraitUi {
+  /** Asked, not yet confirmed — the card showing « Retirer cette commande ? ». */
+  readonly demande: string | null;
+  /** Being removed right now. One at a time, board-wide. */
+  readonly busy: string | null;
+  /** Whose removal failed. KEYED, so one card's failure never appears on
+   *  another's — the relance rule, for a heavier act. */
+  readonly echec: string | null;
+  readonly sweep: SweepUi;
+}
+
+/** The sweep's own life. `fini` carries what actually happened rather than a
+ *  cheerful nothing: a sweep that could not finish must SAY how far it got. */
+export type SweepUi =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'demande'; readonly total: number }
+  | { readonly kind: 'encours'; readonly faits: number; readonly total: number }
+  | { readonly kind: 'fini'; readonly faits: number; readonly echecs: number };
+
+export const RETRAIT_IDLE: RetraitUi = { demande: null, busy: null, echec: null, sweep: { kind: 'idle' } };
+
+/** First tap. Returns null when the tap must be IGNORED — a removal is
+ *  already in flight, or a sweep is running. */
+export function retraitDemande(ui: RetraitUi, orderId: string): RetraitUi | null {
+  if (ui.busy !== null || ui.sweep.kind === 'encours') return null;
+  return { ...ui, demande: orderId, echec: null };
+}
+
+/** « Annuler » — and the ONLY other way out of a standing question. */
+export function retraitAnnule(ui: RetraitUi): RetraitUi {
+  return { ...ui, demande: null };
+}
+
+/**
+ * Second tap. THE GUARD THAT MAKES THE FIRST TAP MEAN SOMETHING: a confirm
+ * for an order that is not the one standing confirmed does NOTHING — null,
+ * and the caller must not reach the port at all.
+ */
+export function retraitStart(ui: RetraitUi, orderId: string): RetraitUi | null {
+  if (ui.busy !== null || ui.sweep.kind === 'encours') return null;
+  if (ui.demande !== orderId) return null;
+  return { ...ui, demande: null, busy: orderId, echec: null };
+}
+
+export type RetraitSettlement =
+  /** Re-read the board: what he sees must be the BOOK's answer, never this
+   *  screen's hope that a row is gone. */
+  | { readonly ui: RetraitUi; readonly then: 'refresh' }
+  | { readonly ui: RetraitUi; readonly then: 'bad_key' }
+  | { readonly ui: RetraitUi; readonly then: 'none' };
+
+export function retraitSettled(orderId: string, result: RetraitResult): RetraitSettlement {
+  if (result.ok) return { ui: RETRAIT_IDLE, then: 'refresh' };
+  if (result.reason === 'bad_key') return { ui: RETRAIT_IDLE, then: 'bad_key' };
+  return { ui: { ...RETRAIT_IDLE, echec: orderId }, then: 'none' };
+}
+
+/** The sweep asks ONCE, naming the count he is about to lose. */
+export function sweepDemande(ui: RetraitUi, total: number): RetraitUi | null {
+  if (ui.busy !== null || ui.sweep.kind === 'encours' || total <= 0) return null;
+  return { ...RETRAIT_IDLE, sweep: { kind: 'demande', total } };
+}
+
+export function sweepAnnule(ui: RetraitUi): RetraitUi {
+  return { ...ui, sweep: { kind: 'idle' } };
+}
+
+/** Confirmed — same law as the per-card confirm: only from a standing
+ *  question, and the count must be the one he was shown. */
+export function sweepStart(ui: RetraitUi, total: number): RetraitUi | null {
+  if (ui.sweep.kind !== 'demande' || ui.sweep.total !== total || total <= 0) return null;
+  return { ...RETRAIT_IDLE, sweep: { kind: 'encours', faits: 0, total } };
+}
+
+export function sweepAvance(ui: RetraitUi): RetraitUi {
+  if (ui.sweep.kind !== 'encours') return ui;
+  return { ...ui, sweep: { kind: 'encours', faits: ui.sweep.faits + 1, total: ui.sweep.total } };
+}
+
+/** The end, told truthfully: how many left, how many could not. */
+export function sweepFini(ui: RetraitUi, faits: number, echecs: number): RetraitUi {
+  return { ...RETRAIT_IDLE, sweep: { kind: 'fini', faits, echecs } };
 }
 
 /** Whole minutes between a stored instant and now; never negative — a clock

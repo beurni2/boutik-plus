@@ -80,6 +80,19 @@ export type RelanceResult =
   | { readonly ok: false; readonly reason: 'bad_key' | 'unknown_order' | 'unreachable' };
 
 /**
+ * PURGE-ESSAI (founder ruling 2026-08-10) — retiring ONE test order.
+ *
+ * There is deliberately no `unknown_order` arm: the Worker answers 200
+ * `inconnu` for an order it never knew or already retired, because a sweep
+ * that re-runs after a lost response must converge quietly instead of
+ * painting a red row for work that is already done. « Gone » is the outcome
+ * the founder asked for, and it is true in both cases.
+ */
+export type RetraitResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+/**
  * CONSOLE-3 — one active door per supplier, as the book holds it. Mirrors the
  * DO's /codes allowlist: supplierId + mintedAt, NOTHING else ever arrives
  * (no hash, no code — a code's plaintext exists only in the mint answer).
@@ -147,6 +160,9 @@ export interface OperationsServicePort {
   /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
    *  the Worker stamps its own clock. */
   recordRelance(opsKey: string, orderId: string): Promise<RelanceResult>;
+  /** PURGE-ESSAI — retire ONE test order from the book. One id per call: the
+   *  Worker has no « retirer tout » and must never grow one. */
+  retirerCommande(opsKey: string, orderId: string): Promise<RetraitResult>;
   /** CONSOLE-3 — the code inventory (who holds a door, since when). */
   listCodes(opsKey: string): Promise<CodesResult>;
   /** Mint (or re-mint — the book replaces atomically) one supplier's code. */
@@ -305,6 +321,30 @@ export function resolveOperationsService(): OperationsServicePort | null {
       }
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
       if (res.status === 404) return { ok: false, reason: 'unknown_order' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      return { ok: true };
+    },
+
+    async retirerCommande(opsKey: string, orderId: string): Promise<RetraitResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/order/retirer`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${opsKey}`,
+          },
+          // ONLY the id — the same envelope discipline as the relance beside
+          // it: nothing a caller invents reaches the object's delete path.
+          body: JSON.stringify({ orderId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      // Anything else non-2xx is « we do not know that it happened » — the row
+      // stays on the board and he can ask again. Never a cheerful default.
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       return { ok: true };
     },
