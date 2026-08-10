@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input, Overline, PageTitle, PhotoViewer } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, ChipCategory, Input, Overline, PageTitle, PhotoViewer } from '../v2/components';
 import { formatF } from '../v2/money';
 import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
@@ -81,18 +81,27 @@ export function FournisseurApp() {
         <SPorteCode onCodeSaved={setCode} />
       ) : (
         <>
-          {/* Four tabs WRAP rather than shrink: a label squeezed to « Livr… »
-              fails the 5-second test on the 320px phones this app targets,
-              and BtnSoft's ≥44px geometry is kept whole on every row. */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
-            {/* The active tab is STATED, not implied: full-opacity label on
-                the live tab, softened on the others. */}
+          {/*
+            ONE ROW, AS ON THE OPS CONSOLE (founder, 2026-08-10). The four tabs
+            are chips in a horizontally scrolling row — the same component and
+            the same geometry his own board uses, so the two surfaces read as
+            one product. Scrolling rather than wrapping keeps every label
+            whole: « Livré » squeezed to « Livr… » fails the 5-second test on
+            the 320px phones this app targets. `flexGrow: 0` keeps the row
+            content-height inside this flex column.
+          */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0, flexShrink: 0, paddingTop: 12 }}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 4 }}
+          >
+            {/* The active tab is STATED, not implied — the chip's own active
+                treatment, not an opacity trick. */}
             {onglets.map((o) => (
-              <View key={o.cle} style={{ flexGrow: 1, flexBasis: '46%', opacity: onglet === o.cle ? 1 : 0.55 }}>
-                <BtnSoft label={o.label} onPress={() => setOnglet(o.cle)} />
-              </View>
+              <ChipCategory key={o.cle} label={o.label} active={onglet === o.cle} onPress={() => setOnglet(o.cle)} />
             ))}
-          </View>
+          </ScrollView>
           {onglet === 'produits' ? (
             <SMesProduits code={code} onCodeCleared={() => setCode(null)} />
           ) : (

@@ -148,11 +148,22 @@ describe('the wire’s new marks are read as strictly as the old ones', () => {
 describe('the screens exist, and the photos ride each commande (call sites)', () => {
   const app = read('src/fournisseur/FournisseurApp.tsx');
 
-  it('the tab row offers the two NEW screens beside the old two', () => {
+  it('the four tabs sit on ONE row, as chips, exactly as the ops console builds its own (founder 2026-08-10)', () => {
     const barre = bloc(app, 'const onglets:', 'return (');
     for (const k of ['fournisseur.onglet_commandes', 'fournisseur.onglet_en_route', 'fournisseur.onglet_livrees', 'fournisseur.onglet_produits']) {
       expect(barre).toContain(k);
     }
+    // ONE horizontally scrolling row of the SAME chip component the ops
+    // console uses — never a wrapping grid, and never squeezed labels.
+    const rangee = bloc(app, '<ScrollView', '{onglet === \'produits\' ?');
+    expect(rangee).toContain('horizontal');
+    expect(rangee).toContain('<ChipCategory');
+    expect(rangee).toContain('active={onglet === o.cle}');
+    expect(rangee).not.toContain('flexWrap');
+    // the ops console's own row, for comparison — same component family
+    const ops = read('src/commandes/screen.tsx');
+    expect(ops).toContain('horizontal');
+    expect(ops).toMatch(/<ChipSegment|<ChipCategory/);
     // ONE screen serves the three zones — a second reader could drift from it
     expect(app).toContain('<SMesCommandes key={onglet} zone={onglet}');
   });
