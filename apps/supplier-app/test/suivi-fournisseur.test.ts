@@ -148,7 +148,7 @@ describe('the wire’s new marks are read as strictly as the old ones', () => {
 describe('the screens exist, and the photos ride each commande (call sites)', () => {
   const app = read('src/fournisseur/FournisseurApp.tsx');
 
-  it('the four tabs sit on ONE row, as chips, exactly as the ops console builds its own (founder 2026-08-10)', () => {
+  it('the four tabs sit on ONE row, as chips, the way the ops console builds its own (founder 2026-08-10)', () => {
     const barre = bloc(app, 'const onglets:', 'return (');
     for (const k of ['fournisseur.onglet_commandes', 'fournisseur.onglet_en_route', 'fournisseur.onglet_livrees', 'fournisseur.onglet_produits']) {
       expect(barre).toContain(k);
@@ -160,10 +160,13 @@ describe('the screens exist, and the photos ride each commande (call sites)', ()
     expect(rangee).toContain('<ChipCategory');
     expect(rangee).toContain('active={onglet === o.cle}');
     expect(rangee).not.toContain('flexWrap');
-    // the ops console's own row, for comparison — same component family
-    const ops = read('src/commandes/screen.tsx');
-    expect(ops).toContain('horizontal');
-    expect(ops).toMatch(/<ChipSegment|<ChipCategory/);
+    // ⚠ AND THE ONE PROPERTY THE LAYOUT TURNS ON (verifier, 2026-08-10):
+    // react-native-web gives a horizontal ScrollView `flexGrow: 1`, so
+    // without this override the 44 px row EATS the free height of the flex
+    // column and starves the list below it. Deleting it used to keep this
+    // test green.
+    expect(rangee).toContain('flexGrow: 0');
+    expect(rangee).toContain('flexShrink: 0');
     // ONE screen serves the three zones — a second reader could drift from it
     expect(app).toContain('<SMesCommandes key={onglet} zone={onglet}');
   });

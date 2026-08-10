@@ -183,9 +183,27 @@ export const ChipSegment = ({ label, count, active, onPress }: { label: string; 
     <Text style={[s.chipSegCount, active && s.chipSegTxtActive, TNUM]}>{count}</Text>
   </Pressable>
 );
+/**
+ * ⚠ THE 44 px TOUCH BOX AROUND THE 42 px PAINTED PILL (verifier, 2026-08-10)
+ * — the F18 pattern, second application. `C13.chip` paints at 42, under the
+ * §5 doctrine minimum, and these chips are now the WHOLE navigation of the
+ * fournisseur surface. The painted geometry is a design token and stays
+ * exactly as designed; only the box a thumb must hit grows.
+ *
+ * `accessibilityState.selected` for the same reason the fill and the border
+ * exist: the active tab is STATED, and a screen reader is owed the same
+ * statement as an eye.
+ */
 export const ChipCategory = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.chipCategory, [s.chipCat, active ? s.chipCatActive : s.chipCatInactive])} accessibilityRole="button">
-    <Text style={[s.chipCatTxt, active && s.chipCatTxtActive]}>{label}</Text>
+  <Pressable
+    onPress={onPress}
+    style={press(PRESSED.chipCategory, s.chipCatHit)}
+    accessibilityRole="button"
+    accessibilityState={{ selected: active }}
+  >
+    <View style={[s.chipCat, active ? s.chipCatActive : s.chipCatInactive]}>
+      <Text style={[s.chipCatTxt, active && s.chipCatTxtActive]}>{label}</Text>
+    </View>
   </Pressable>
 );
 /**
@@ -664,6 +682,8 @@ const s = StyleSheet.create({
   chipVerified: C14.chip, chipVerifiedTxt: C14.txt,
   /** F18 — the 44 px touch box around the 38 px painted pill. */
   chipVerifiedHit: { minHeight: 44, justifyContent: 'center' as const },
+  /** The same box, around C13's 42 px pill (verifier 2026-08-10). */
+  chipCatHit: { minHeight: 44, justifyContent: 'center' as const },
   stepperRow: C15.row, stepperBtn: C15.btn, stepperGlyph: C15.glyph, stepperValue: C15.value,
   input: C16.input,
   cardL: C17.L, cardLlg: C17.Llg, cardLlist: C17.Llist, cardRow: C17.row,

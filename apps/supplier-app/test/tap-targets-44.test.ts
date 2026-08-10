@@ -64,6 +64,20 @@ describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web roo
     expect(c14, 'the painted pill height changed — that is a design change, not an a11y fix').toContain('height: 38');
   });
 
+  it('the CATEGORY chip carries one too — it is the whole navigation of the fournisseur surface', () => {
+    // ⚠ THE GATE MISSED THIS ONCE (verifier, 2026-08-10): it covered
+    // ChipVerified and not ChipCategory, so a 42 px painted pill became the
+    // only way a supplier moves between his four screens while CI stayed
+    // green. The same F18 box, and now the same guard.
+    const src = lire('src/v2/components.tsx');
+    const region = bloc(src, 'export const ChipCategory', 'export const ChipVerified', 200);
+    expect(region, 'ChipCategory no longer uses the 44 px hit style').toContain('chipCatHit');
+    expect(region, 'the painted pill must stay the design token, inside the box').toContain('s.chipCat,');
+    const hit = bloc(src, 'chipCatHit:', '},');
+    expect(hit, 'the touch box fell below the 44 px doctrine minimum').toContain('minHeight: 44');
+    expect(hit, 'a 44 px box with top-aligned text still reads as a thin strip').toContain("justifyContent: 'center'");
+  });
+
   it('the « parcours d’inscription » link carries minHeight 44 and centres its text', () => {
     const src = lire('src/v2/screens1.tsx');
     const region = bloc(src, 'OPEN_ONBOARD', 'accueil.gratuite_link');
