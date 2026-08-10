@@ -372,10 +372,29 @@ export class FulfillmentDO {
         }
         return;
       }
+      /**
+       * VRAI-ROUTE (founder ruling 3, 2026-08-10) — WHO the package comes from
+       * rides the fact, server to server: Séra's dispatch opens the custody
+       * chain itself now, and a chain must name its supplier (SE-I05's record
+       * answers disputes; a chain with no supplier answers nothing). This is
+       * the ops-gated `supplierId`, spoken by this book to Séra's intake door
+       * alone — never echoed to Shop+, never on a public read, and never a
+       * code or a secret. Both call sites run after the ownership gate, so
+       * the supplier is resolved; the guard keeps an anomalous record honest
+       * (absent, not '' standing in for an identity nobody established).
+       */
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
       await this.state.storage.put(key, {
         status: 'pending' as const,
         target: 'sera' as const,
-        event: { orderId, ready: true, asOf: at },
+        event: {
+          orderId,
+          ready: true,
+          asOf: at,
+          ...(order !== undefined && order.supplierResolved && order.supplierId !== ''
+            ? { supplierRef: order.supplierId }
+            : {}),
+        },
         attempts: 0,
         nextAttemptAt: 0,
       });

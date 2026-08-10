@@ -218,10 +218,19 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
     // The instant is the supplier's own confirmation time, as this object
     // recorded it — the same value the Shop+ progress event carries.
     expect(fact['asOf']).toBe(confirmedAt);
-    expect(Object.keys(fact).sort()).toEqual(['asOf', 'orderId', 'ready']);
+    /**
+     * VRAI-ROUTE (founder ruling 3, 2026-08-10) — the fact now NAMES ITS
+     * SUPPLIER, because Séra opens the custody chain itself at dispatch and
+     * a chain must say whose hands the package left. This deliberately
+     * amends SE-LIVE-2b's « supplier identity crosses no wire »: ONE wire,
+     * server to server, behind Séra's intake key — and it is the resolved
+     * supplierId, never the supplier's code.
+     */
+    expect(fact['supplierRef']).toBe(SUPPLIER);
+    expect(Object.keys(fact).sort()).toEqual(['asOf', 'orderId', 'ready', 'supplierRef']);
   });
 
-  it('THE BOUNDARY, on the raw bytes: no readiness secret, no photo, no supplier identity, no franc', async () => {
+  it('THE BOUNDARY, on the raw bytes: no readiness secret, no photo, no supplier CODE, no franc', async () => {
     const raw = seraPosts[0]!.body;
     for (const banned of [
       'srch-',              // the readiness challenge's own prefix (§5.4 secret)
@@ -229,7 +238,9 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
       'photoRef',           // seller-side evidence
       'media/readiness',    // the photo's ref
       'dropCode',           // Ten Laws #3 — never in anything seller-side
-      SUPPLIER,             // supplier identity crosses no wire
+      // The supplier's IDENTITY rides this wire since VRAI-ROUTE (ruling 3,
+      // asserted above); his CODE — the credential — still never does.
+      firstDrive.code,
       '8000', '8 000',      // no franc figure belongs on this wire
     ]) {
       expect(raw, `« ${banned} » must never reach Séra`).not.toContain(banned);
