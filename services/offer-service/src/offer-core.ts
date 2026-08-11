@@ -70,6 +70,20 @@ export interface OfferEntry {
   readonly variantsNote?: string;
   /** The completion path's idempotency key — set when assets were ATTACHED after create. */
   readonly attachCommandId?: string;
+  /**
+   * RETRAIT-ACCÈS (founder order 2026-08-11) — WHEN this offer was taken off
+   * sale because its supplier's access was cut. Absent for every other offer,
+   * including ones the founder retired for his own reasons.
+   *
+   * IT EXISTS TO MAKE THE ACT REVERSIBLE AND NARROW: re-minting that supplier a
+   * code restores exactly the offers carrying this mark and nothing else. See
+   * `src/retrait-acces.ts` for the whole decision.
+   *
+   * BOUTIK-LOCAL, like `assets` and `variantsNote` above and for the same
+   * reason: canon `SupplierOffer` (§5.6) is not changed for a linkage only this
+   * producer needs.
+   */
+  readonly retraitAcces?: string;
 }
 
 /**

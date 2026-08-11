@@ -30,6 +30,7 @@ const persist = mkdtempSync(join(tmpdir(), 'fulfillment-readiness-'));
 const WRITE_SECRET = 'test-offer-write-secret-0002';
 const FULFILL_SECRET = 'test-fulfillment-write-secret-0002';
 const OPS_SECRET = 'test-fulfillment-ops-secret-0002';
+const SUPPLY_SECRET = 'test-supply-read-secret-0002';
 const TTL_MS = 300;
 const T0 = '2026-08-02T08:00:00.000Z';
 const PV_A = 'pv-ready-001';
@@ -65,6 +66,9 @@ const mf = new Miniflare({
     OFFER_WRITE_SECRET: WRITE_SECRET,
     FULFILLMENT_WRITE_SECRET: FULFILL_SECRET,
     FULFILLMENT_OPS_SECRET: OPS_SECRET,
+    // RETRAIT-ACCÈS — so « the product left Shop+ » can be asked of the REAL
+    // collection Opportunités reads, not inferred from a local flag.
+    SUPPLY_READ_SECRET: SUPPLY_SECRET,
     READINESS_TTL_MS: String(TTL_MS),
   },
 });
@@ -795,25 +799,35 @@ describe('RB-1 — the Commandes TAB’s own port, driven against the real Worke
   });
 });
 
-describe('INVENTAIRE-COMPLET — every offer, including one whose supplier holds no code', () => {
+describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him', () => {
   /**
-   * FOUNDER REPORT 2026-08-11, with a screenshot of three products still on
-   * Opportunités: « these 3 products was deleted from boutik+ and does not
-   * exist anymore there, but they are still present in opportunites on shop+. »
+   * ⚠ THIS TEST REVERSED ON 2026-08-11, IN THE SAME DAY, BY THE FOUNDER — kept
+   * as one story because the second half only makes sense against the first.
    *
-   * They had never been deletable. His Produits tab can only ask
-   * `?supplierId=…` and it sourced those ids from the ACTIVE-CODE roster, so a
-   * supplier whose code was REVOKED took his products out of every read that
-   * screen could make — while `/supply-projections` kept serving them, because
-   * that collection walks the INDEX and the index does not care about codes.
+   * MORNING (INVENTAIRE-COMPLET). He sent a screenshot: « these 3 products was
+   * deleted from boutik+ and does not exist anymore there, but they are still
+   * present in opportunites on shop+. » They had never been deletable — his
+   * Produits tab can only ask `?supplierId=…` and sourced those ids from the
+   * ACTIVE-CODE roster, so a REVOKED supplier's products fell out of every read
+   * that screen could make while `/supply-projections` kept serving them. The
+   * fix made the inventory reach them, and this test asserted exactly that.
    *
-   * This drives the real Worker through exactly that state: mint, list, REVOKE,
-   * then ask the inventory.
+   * AFTERNOON (RETRAIT-ACCÈS). Seeing the result: « these 3 suppliers was cut
+   * access from fournisseurs but they are still showing with their products on
+   * produits », then « their products and their chip on boutik+ gets removed as
+   * well when they have been cut access ». Asked what should happen to the
+   * products, he chose: **cutting access retires them.**
+   *
+   * So the assertion below INVERTS: a revoked supplier's product must now leave
+   * Shop+ AND leave his screens, in the one act. That does not undo the morning
+   * — it removes the harm at the source instead of relying on him to find and
+   * delete each orphan — and the morning's safety net is asserted right after,
+   * because a half-completed act must still be recoverable.
    */
   const ORPHELIN = 'supplier-orphelin-9001';
   const FOUNDER_001_SUPPLIER = 'supplier-founder-001';
 
-  it('lists an offer whose supplier no longer holds a code — and the scoped list still cannot', async () => {
+  it('revoking the code takes the product OFF SHOP+ and off his screens, in one act', async () => {
     // 1. Mint the code, so the create is allowed at all.
     expect((await opsPost('/fulfillment/supplier-code', { supplierId: ORPHELIN })).status).toBe(200);
 
@@ -840,9 +854,18 @@ describe('INVENTAIRE-COMPLET — every offer, including one whose supplier holds
     });
     expect(created.status, await created.clone().text()).toBe(200);
 
-    // 3. HIS CODE IS REVOKED — the exact state that orphaned the product.
+    // 2b. BEFORE: it is genuinely on sale — or « it left Shop+ » would be
+    //     proven by a product that was never there.
+    const avant = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await avant.text(), 'the product must be ON SALE before the act').toContain('pv-orphelin-9001');
+
+    // 3. HIS ACCESS IS CUT — the founder's act, through his own route.
     const revoked = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: ORPHELIN });
     expect(revoked.status, JSON.stringify(revoked.json)).toBe(200);
+    // The answer says how many products moved — a measured number, not a hope.
+    expect((revoked.json as { produits?: number }).produits, 'the act must report what it retired').toBe(1);
 
     // 4. THE ROSTER NO LONGER NAMES HIM, so nothing his screen could ask for
     //    would ever reach this product — that is the bug, asserted.
@@ -857,14 +880,52 @@ describe('INVENTAIRE-COMPLET — every offer, including one whose supplier holds
     });
     expect(await sien.text()).not.toContain('pv-orphelin-9001');
 
-    // 6. THE FIX: the inventory reaches it, tagged with whose it is.
+    // 6. IT IS OFF SHOP+ — the harm, gone. This is the assertion that matters:
+    //    the collection Opportunités reads no longer carries it.
+    const apres = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await apres.text(), 'cutting access must take the product OFF SALE').not.toContain('pv-orphelin-9001');
+
+    // 7. …AND off his own screens: gone from the inventory, so the chip row —
+    //    which is derived from who owns visible products — loses him too.
     const inv = await opsGet('/offers/inventaire');
     expect(inv.status).toBe(200);
     const items = (inv.json as { items?: { offerId: string; supplierId: string }[] }).items ?? [];
-    const orphelin = items.find((i) => i.offerId === 'offer-orphelin-9001');
-    expect(orphelin, 'the inventory must reach a product no scoped list can').toBeDefined();
-    expect(orphelin?.supplierId).toBe(ORPHELIN);
+    expect(items.find((i) => i.offerId === 'offer-orphelin-9001'), 'and off Produits').toBeUndefined();
+    expect(JSON.stringify(items), 'his chip has nothing left to derive from').not.toContain(ORPHELIN);
+    // His OWN products are untouched — the act is scoped to one supplier.
+    expect(items.length, 'the founder’s own products survive').toBeGreaterThan(0);
   });
+
+  it('RE-MINTING his code puts them all back — the act is reversible', async () => {
+    const reminted = await opsPost('/fulfillment/supplier-code', { supplierId: ORPHELIN });
+    expect(reminted.status, JSON.stringify(reminted.json)).toBe(200);
+    expect((reminted.json as { produits?: number }).produits, 'the restore reports what it put back').toBe(1);
+
+    const back = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await back.text(), 'a re-minted supplier sells again').toContain('pv-orphelin-9001');
+
+    const inv = await opsGet('/offers/inventaire');
+    const items = (inv.json as { items?: { offerId: string }[] }).items ?? [];
+    expect(items.find((i) => i.offerId === 'offer-orphelin-9001'), 'and is back on Produits').toBeDefined();
+  });
+
+  it('the act is IDEMPOTENT — a replayed revoke moves nothing the second time', async () => {
+    const first = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: ORPHELIN });
+    expect((first.json as { produits?: number }).produits).toBe(1);
+    const again = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: ORPHELIN });
+    expect(again.status).toBe(200);
+    expect((again.json as { produits?: number }).produits, 'nothing left to move').toBe(0);
+    // …and the product is still off sale, not flipped back by the replay.
+    const apres = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await apres.text()).not.toContain('pv-orphelin-9001');
+  });
+
 
   it('the inventory is the FOUNDER’s read — the write key and no key alike are refused', async () => {
     const bare = await mf.dispatchFetch('http://o/offers/inventaire');

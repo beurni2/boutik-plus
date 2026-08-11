@@ -1,5 +1,6 @@
 import { decideAttachAssets, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
+import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -91,6 +92,33 @@ export class OfferDO {
       const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
       return Response.json(entry);
+    }
+
+    /**
+     * RETRAIT-ACCÈS (founder order 2026-08-11) — take this offer off sale
+     * because its supplier's access was cut, or put it back after a re-mint.
+     *
+     * THE DECISION IS PURE AND LIVES IN `src/retrait-acces.ts`; this route only
+     * loads, applies and stores. `changed:false` means the entry already had
+     * the outcome asked for, so a replay is free and a walk over hundreds of
+     * offers writes only the ones that actually move.
+     *
+     * ⚠ THE SUPPLIER IS NOT CHECKED HERE, and that is deliberate: this instance
+     * holds one offer and cannot know whose walk it belongs to. The scoping is
+     * done by the caller that walks the index (`/offers/retrait-acces`), which
+     * is the only thing with the index and the supplier id in hand.
+     */
+    if (request.method === 'POST' && (pathname === '/entry/retrait-acces' || pathname === '/entry/restauration-acces')) {
+      const body = (await request.json().catch(() => null)) as { at?: unknown } | null;
+      const current = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!current) return Response.json({ changed: false, reason: 'not_found' }, { status: 404 });
+      const next =
+        pathname === '/entry/retrait-acces'
+          ? retirerPourAcces(current, typeof body?.at === 'string' ? body.at : new Date().toISOString())
+          : restaurerApresAcces(current);
+      if (next === null) return Response.json({ changed: false });
+      await this.state.storage.put(ENTRY_KEY, next);
+      return Response.json({ changed: true, status: next.offer.status });
     }
 
     // OFFER-DELETE-1 (founder feature 2026-07-27): remove this offer's entry.
@@ -350,6 +378,55 @@ export default {
         entries.push((await eRes.json()) as OfferEntry);
       }
       return Response.json(buildFullInventory(entries, new Date().toISOString()));
+    }
+
+    /**
+     * RETRAIT-ACCÈS — the WALK. `POST /offers/retrait-acces` and
+     * `POST /offers/restauration-acces`, body `{supplierId, at}`.
+     *
+     * It walks the INDEX, exactly as the inventory read does, because the index
+     * is the only thing that knows every offer that exists — the code registry
+     * (a different durable object) knows only who may log in. That split is
+     * what let a revoked supplier's products keep selling: the two were never
+     * joined, and this route is the join.
+     *
+     * ONE ENTRY READ, ONE CONDITIONAL WRITE. Entries belonging to anyone else
+     * are skipped without a write; an entry already in the asked-for state
+     * answers `changed:false` and is not stored again. The answer counts what
+     * actually moved so the caller can report a real number rather than a hope.
+     *
+     * AN ORPHANED INDEX ROW IS SKIPPED, honestly — the same rule every other
+     * walk here follows: one missing offer must not fail the whole act.
+     */
+    if (
+      request.method === 'POST' &&
+      (pathname === '/offers/retrait-acces' || pathname === '/offers/restauration-acces')
+    ) {
+      const body = (await request.json().catch(() => null)) as { supplierId?: unknown; at?: unknown } | null;
+      const supplierId = body?.supplierId;
+      if (typeof supplierId !== 'string' || supplierId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'supplierId' }, { status: 400 });
+      }
+      const at = typeof body?.at === 'string' ? body.at : new Date().toISOString();
+      const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
+      const rows = (await idxRes.json()) as IndexRow[];
+      let changed = 0;
+      for (const r of rows) {
+        const stub = offerStub(env, r.offerId);
+        const eRes = await stub.fetch(new Request('https://do/entry'));
+        if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
+        const entry = (await eRes.json()) as OfferEntry;
+        if (entry.product.supplierId !== supplierId) continue;
+        const res = await stub.fetch(
+          new Request(`https://do${pathname === '/offers/retrait-acces' ? '/entry/retrait-acces' : '/entry/restauration-acces'}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ at }),
+          }),
+        );
+        if (res.status === 200 && ((await res.json()) as { changed?: boolean }).changed === true) changed += 1;
+      }
+      return Response.json({ ok: true, supplierId, changed });
     }
 
     // DISCOVERY (SLICE B) — every supply entry, RAW. The collection analogue of

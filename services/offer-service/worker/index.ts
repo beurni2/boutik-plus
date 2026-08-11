@@ -25,6 +25,73 @@ import {
  */
 export { OfferDO, FulfillmentDO };
 
+/**
+ * ═══ RETRAIT-ACCÈS — THE JOIN (founder order 2026-08-11) ═══
+ *
+ * « their products and their chip on boutik+ gets removed as well when they have
+ * been cut access. »
+ *
+ * A supplier's CODE lives in the fulfillment durable object; his OFFERS live in
+ * the offer one. Nothing joined them, so revoking a code closed the door and
+ * left the shelves stocked: he could not log in, and his products kept selling
+ * on Shop+ and kept sitting on Produits. THIS FUNCTION IS THAT JOIN, and it is
+ * at the composition root because the composition root is the only place that
+ * holds both objects.
+ *
+ * ORDER MATTERS AND IS THE SAFE ONE. The code act runs FIRST and its answer is
+ * what the caller gets:
+ *   · revoke → then retire his offers. If the retirement half fails, the door
+ *     is still shut (nobody is let in on a half-done act) and a replayed revoke
+ *     finishes the job — the walk is idempotent by construction.
+ *   · mint → then restore the offers that THIS act had retired, and nothing
+ *     else (the mark in `OfferEntry.retraitAcces` is the whole test). Giving a
+ *     brand-new supplier a code restores nothing, which is correct.
+ *
+ * THE PRODUCTS ARE NEVER DELETED — see `src/retrait-acces.ts`. Retired means
+ * off sale and off his screens, reversibly; a mis-click costs nothing permanent.
+ *
+ * ⚠ THE SECOND HALF IS BEST-EFFORT AND SAYS SO IN THE ANSWER (`produits`): a
+ * count when the walk ran, `null` when it could not. Reporting a number nobody
+ * measured is the failure this project refuses.
+ */
+async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke'): Promise<Response> {
+  const raw = await request.text();
+  const supplierId = ((): string | null => {
+    try {
+      const b = JSON.parse(raw) as { supplierId?: unknown };
+      return typeof b.supplierId === 'string' && b.supplierId.trim() !== '' ? b.supplierId : null;
+    } catch {
+      return null;
+    }
+  })();
+  const codeRes = await forwardOpsCodeAdmin(
+    new Request(request.url, { method: 'POST', body: raw }),
+    env,
+    acte === 'mint' ? '/code/mint' : '/code/revoke',
+  );
+  // A REFUSED CODE ACT TOUCHES NO PRODUCT. Retiring a catalogue on the strength
+  // of a malformed request would be the worst kind of side effect.
+  if (!codeRes.ok || supplierId === null) return codeRes;
+
+  const chemin = acte === 'revoke' ? '/offers/retrait-acces' : '/offers/restauration-acces';
+  let produits: number | null = null;
+  try {
+    const walk = await offerRouter.fetch(
+      new Request(`https://do${chemin}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierId, at: new Date().toISOString() }),
+      }),
+      env,
+    );
+    if (walk.ok) produits = ((await walk.json()) as { changed?: number }).changed ?? null;
+  } catch {
+    produits = null; // best-effort; the code act already stands, and a replay finishes it
+  }
+  const body = (await codeRes.json()) as Record<string, unknown>;
+  return Response.json({ ...body, produits }, { status: codeRes.status });
+}
+
 interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
   OFFER: DurableObjectNamespace;
   /** ORDER-PAID-WIRE-1c — the paid-order book (one singleton instance). */
@@ -235,12 +302,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      return forwardOpsCodeAdmin(request, env, '/code/mint');
+      return acteSurAcces(request, env, 'mint');
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code/revoke') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      return forwardOpsCodeAdmin(request, env, '/code/revoke');
+      return acteSurAcces(request, env, 'revoke');
     }
     // CODE-REVU (founder ruling 2026-08-09): reread a code already given —
     // the same founder-only door as the mint it rereads.

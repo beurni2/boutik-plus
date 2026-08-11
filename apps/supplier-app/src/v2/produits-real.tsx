@@ -75,7 +75,27 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // picker reads with his ops key; no key in this browser ⇒ no chips, and the
   // screen is exactly what it was before (his own products), never an empty
   // filter row implying suppliers he cannot see.
-  const [roster, setRoster] = useState<readonly string[]>([]);
+  /**
+   * ⚠ TWO SOURCES, EACH REPLACEABLE — and the union DERIVED, never accumulated
+   * (RETRAIT-ACCÈS, founder 2026-08-11: « their products and their chip on
+   * boutik+ gets removed as well when they have been cut access »).
+   *
+   * These answer different questions and both belong: who holds a DOOR (an
+   * active code — so a supplier who has listed nothing still gets his honest
+   * « rien encore »), and who OWNS products (so nothing is unreachable). The
+   * first version merged them into one accumulating set, which could only ever
+   * GROW: a supplier cut off while this tab was open kept his chip until the app
+   * was killed — the same silent-staleness family as the bug this screen already
+   * cost him once. Replacing each source separately lets the union shrink.
+   */
+  const [codes, setCodes] = useState<readonly string[]>([]);
+  const [proprietaires, setProprietaires] = useState<readonly string[]>([]);
+  /** The two sources, unioned and SORTED so the value is stable across renders
+   *  — the chip row and the fan-out plan both key off this. */
+  const roster = useMemo(
+    () => [...new Set([...codes, ...proprietaires])].sort((a, b) => a.localeCompare(b, 'fr')),
+    [codes, proprietaires],
+  );
   /**
    * HIS DEFAULT IS « TOUS » WHEN HIS OPS KEY IS ON THE DEVICE.
    *
@@ -99,7 +119,8 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     if (opsKey === null || ops === null) return undefined;
     void lireFournisseurs(ops, opsKey).then((res) => {
       if (alive && res.kind === 'liste') {
-        setRoster((tenu) => memeEnsemble(tenu, [...new Set([...tenu, ...res.ids])]));
+        // REPLACED, not merged — a revoked code must be able to LEAVE.
+        setCodes((tenu) => memeEnsemble(tenu, [...new Set(res.ids)]));
       }
     });
     return () => {
@@ -165,12 +186,12 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
           const rows = attribuees.map((m) => m.row);
           cache.current = { rows, asOf: new Date().toISOString() };
           // Whoever OWNS a product is a supplier this screen must be able to
-          // name — that is what makes the orphans reachable.
-          // UNION, NEVER REPLACE (verifier MAJOR). Owners and code-holders answer
-          // DIFFERENT questions: replacing dropped a supplier who holds a door
-          // and has listed nothing — his honest « rien encore » became
-          // unreachable, which is the inverse of the bug being fixed.
-          setRoster((tenu) => memeEnsemble(tenu, [...new Set([...tenu, ...inv.rows.map((r) => r.supplierId)])]));
+          // name — that is what makes an orphan reachable. REPLACED, not merged
+          // (see the two-source note above): a supplier whose products were
+          // retired must be able to leave this set. The UNION with code-holders
+          // still happens — derived below — so a door-holder who has listed
+          // nothing keeps his honest « rien encore ».
+          setProprietaires((tenu) => memeEnsemble(tenu, [...new Set(inv.rows.map((r) => r.supplierId))]));
           setRead({ kind: 'ok', rows });
           return;
         }

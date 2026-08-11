@@ -96,10 +96,25 @@ function livre(bySupplier: Record<string, ReturnType<typeof row>[]>): {
         },
       };
     },
-    // The roster read (his ops key) — the chips come from it.
+    // The roster read (his ops key) — the DOOR-HOLDERS half of the chip row.
+    //
+    // ⚠ `mintedAt` IS A REAL DATE, and that is a fix, not a detail (§9.8): this
+    // fake used to answer `mintedAt: 'x'`, which `readCodeRow` DROPS as
+    // malformed (`Date.parse` → NaN). So every row was silently discarded and
+    // this half of the roster had never once reached the screen — the fake made
+    // a wired read look wired while producing nothing.
     (path) =>
       path === '/fulfillment/supplier-codes'
-        ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: 'x', revelable: true }, { supplierId: AUTRE, mintedAt: 'x', revelable: true }] } }
+        ? {
+            status: 200,
+            json: {
+              ok: true,
+              codes: [
+                { supplierId: MOI, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true },
+                { supplierId: AUTRE, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true },
+              ],
+            },
+          }
         : null,
   ];
   return { routes, state };
@@ -235,7 +250,7 @@ describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable'
       // route itself comes from `livre` below, credential check included.)
       (path) =>
         path === '/fulfillment/supplier-codes'
-          ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: 'x', revelable: true }] } }
+          ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }] } }
           : null,
       ...base.routes,
     ];
@@ -334,6 +349,65 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
       screen.shows('Liste partielle : seuls vos produits sont affichés. Vérifiez votre clé, onglet Opérations.'),
       'a list that is not « Tous » must say so',
     ).toBe(true);
+    screen.unmount();
+  });
+
+  /**
+   * ═══ RETRAIT-ACCÈS (founder, 2026-08-11) ═══
+   *
+   * « these 3 suppliers was cut access from fournisseurs but they are still
+   * showing with their products on produits », then « their products and their
+   * chip on boutik+ gets removed as well when they have been cut access ».
+   *
+   * The SERVICE side is proven on real workerd (revoke → the product leaves
+   * `/supply-projections` and the inventory; re-mint → it comes back). What only
+   * a walk can answer is his actual sentence: is the CHIP gone from the screen.
+   */
+  it('a cut-off supplier loses his chip AND his products — his own are untouched', async () => {
+    // The service has already retired Aïcha's products: they are in neither the
+    // inventory nor the code roster, which is exactly what the real Worker
+    // answers after a revoke.
+    const svc = livre({ [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')] });
+    wire([
+      (path) =>
+        path === '/fulfillment/supplier-codes'
+          ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }] } }
+          : null,
+      ...svc.routes,
+    ]);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    // Settled FULLY first — otherwise « the chip is gone » would be proven by a
+    // read that had simply not landed yet, which is no proof at all.
+    await screen.settle();
+    // HIS SENTENCE, asserted: the supplier is nowhere on the screen.
+    expect(screen.shows(AUTRE), 'the cut-off supplier’s chip must be gone').toBe(false);
+    expect(screen.shows('Sac de Aïcha'), 'and his products with it').toBe(false);
+    // …and the founder's own product is still there — the act is scoped to one
+    // supplier, and a screen that lost everything would « pass » this test.
+    expect(screen.shows('Bazin du fondateur'), 'his own products survive').toBe(true);
+    screen.unmount();
+  });
+
+  it('a supplier who holds a code but has listed NOTHING keeps his chip', async () => {
+    // The narrowness that stops the fix over-reaching: the chip row is the
+    // union of door-holders and product-owners, so a real supplier with an
+    // empty shelf is still selectable — his honest « rien encore », not an
+    // absence that looks like a cut-off.
+    const svc = livre({ [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')] });
+    wire(svc.routes); // the default roster names MOI *and* AUTRE
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+    // The roster read is a SECOND round trip behind the inventory's — settle
+    // once more so the chip row is asserted against the screen he ends up with,
+    // not the one that exists for a few milliseconds.
+    await screen.settle();
+    expect(screen.shows(AUTRE), 'a door-holder with no products keeps his chip').toBe(true);
     screen.unmount();
   });
 });

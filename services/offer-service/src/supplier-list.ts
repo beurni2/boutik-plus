@@ -1,5 +1,6 @@
 import type { OfferEntry } from './offer-core.js';
 import { buildSupplyProjection, wireAssetRefs } from './projection.js';
+import { estRetireAcces } from './retrait-acces.js';
 
 /**
  * THE SUPPLIER-FACING LIST (PRODUITS-READ-1, founder rulings 2026-07-25).
@@ -139,6 +140,16 @@ export function buildSupplierList(
   const items: SupplierOfferRow[] = [];
   for (const entry of entries) {
     if (entry.product.supplierId !== supplierId) continue;
+    // RETRAIT-ACCÈS (founder 2026-08-11: « their products and their chip on
+    // boutik+ gets removed as well when they have been cut access »). Dropped
+    // HERE, in the one builder both his reads share, so the list and the
+    // inventory can never disagree — and the chip row, which is derived from
+    // who owns visible products, empties itself with no screen-side rule.
+    //
+    // HIDING IS SAFE ONLY BECAUSE THE SAME ACT TOOK THEM OFF SALE: they are
+    // gone from Shop+ too, so an invisible product here is not a product still
+    // being sold — which was the entire harm in the INVENTAIRE-COMPLET report.
+    if (estRetireAcces(entry)) continue;
     const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets);
     const row: SupplierOfferRow = {
       offerId: entry.offerId,

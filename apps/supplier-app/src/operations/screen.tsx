@@ -1315,6 +1315,15 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onV
                     <BtnSoft label={t('operations.code_voir')} onPress={() => onVoir(c.supplierId)} />
                   ) : null}
                   <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+                  {/* RETRAIT-ACCÈS (founder 2026-08-11) — CAUSE AND EFFECT, IN
+                      PLAIN WORDS, BEFORE THE TAP. Cutting a code now also takes
+                      that supplier's products off sale and off Produits; an act
+                      with a consequence this large must not be silent about it
+                      (§5, the trust test). The second half is what keeps it
+                      calm rather than frightening: it is reversible. */}
+                  <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { maxWidth: 220, textAlign: 'right' }]}>
+                    {t('operations.code_couper_effet')}
+                  </Text>
                 </View>
               )}
             </View>

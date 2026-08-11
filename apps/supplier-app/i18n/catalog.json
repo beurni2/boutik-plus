@@ -4840,5 +4840,11 @@
     "fr": "{n} retirées, {e} n'ont pas pu l'être. Réessayez pour celles qui restent.",
     "register": "money",
     "screenClass": "status"
+  },
+  {
+    "key": "operations.code_couper_effet",
+    "fr": "Couper l'accès retire aussi ses produits de la vente. Ils reviennent si vous lui redonnez un code.",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]
