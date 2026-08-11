@@ -344,16 +344,29 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const [aEffacer, setAEffacer] = useState<string | null>(null);
   /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
    *  must read, not a silent no-op. */
-  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'autre' } | null>(null);
+  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'autre' } | null>(null);
 
   const effacerFournisseur = async (supplierId: string): Promise<void> => {
     if (service === null) return;
     setAEffacer(null);
     setEffacerEchec(null);
     const res = await service.effacerFournisseur(opsKey, supplierId);
+    /**
+     * ⚠ THE BYTES ARE DESTROYED ON THE PARTIAL TOO (verifier BLOCKER). When the
+     * catalogue went but the registry row did not, the products are ALREADY
+     * gone and the refs came back with the failure — and a retry cannot
+     * recompute them, because it re-walks an index those offers have left. So
+     * this is the only moment those photographs can ever be revoked, and
+     * treating the partial as a plain failure leaked every one of them, forever.
+     */
+    const refs = res.ok || res.reason === 'registre_echoue' ? res.refs : [];
     if (!res.ok) {
-      setEffacerEchec({ id: supplierId, raison: res.reason === 'a_des_commandes' ? 'commandes' : 'autre' });
-      return;
+      setEffacerEchec({
+        id: supplierId,
+        raison:
+          res.reason === 'a_des_commandes' ? 'commandes' : res.reason === 'registre_echoue' ? 'partiel' : 'autre',
+      });
+      if (res.reason !== 'registre_echoue') return;
     }
     /**
      * THE BYTES, DESTROYED HERE — the offer service cannot: the media revoke
@@ -369,7 +382,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
      */
     const media = resolveMediaService();
     if (media !== null) {
-      for (const ref of res.refs) await media.revokeImage(ref);
+      for (const ref of refs) await media.revokeImage(ref);
     }
     // The list is re-read so the row he just erased actually leaves the screen —
     // a destructive act that appears to do nothing is how a founder taps twice.
@@ -1311,7 +1324,7 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onA
   arme: string | null;
   onArmer: (supplierId: string | null) => void;
   onEffacer: (supplierId: string) => void;
-  echecEffacer: { id: string; raison: 'commandes' | 'autre' } | null;
+  echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'autre' } | null;
   onCouper: (supplierId: string) => void;
   onVoir: (supplierId: string) => void;
   onVu: () => void;
@@ -1433,7 +1446,13 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onA
             {echecEffacer?.id === c.supplierId && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
-                  {t(echecEffacer.raison === 'commandes' ? 'operations.supprimer_def_commandes' : 'operations.supprimer_def_echec')}
+                  {t(
+                    echecEffacer.raison === 'commandes'
+                      ? 'operations.supprimer_def_commandes'
+                      : echecEffacer.raison === 'partiel'
+                        ? 'operations.supprimer_def_partiel'
+                        : 'operations.supprimer_def_echec',
+                  )}
                 </Text>
               </View>
             )}

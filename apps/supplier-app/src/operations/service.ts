@@ -191,7 +191,19 @@ export type MintResult =
  */
 export type EffacerResult =
   | { readonly ok: true; readonly supprimes: number; readonly refs: readonly string[] }
-  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' };
+  /**
+   * ⚠ THE PARTIAL THAT MUST NOT BE FLATTENED (verifier BLOCKER). The service
+   * deletes the CATALOGUE first and the registry row last; when the second half
+   * fails it answers `registre_echoue` — 502, but CARRYING the media refs it
+   * already orphaned. The first version of this type had no such case, so the
+   * branch collapsed to `unreachable` and the refs were DROPPED: the products
+   * were gone forever and every photograph stayed readable at its url, with no
+   * second chance, because a retry re-walks an index those offers already left
+   * and recomputes `refs: []`. A permanent leak, on an irreversible act, in the
+   * one branch the design claims to cover.
+   */
+  | { readonly ok: false; readonly reason: 'registre_echoue'; readonly supprimes: number; readonly refs: readonly string[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' | 'purge_echouee' };
 
 export type RevokeResult =
   | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
@@ -566,6 +578,20 @@ export function resolveOperationsService(): OperationsServicePort | null {
         // each in its own words.
         const r = body?.reason;
         if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu') return { ok: false, reason: r };
+        // THE PARTIAL — the catalogue is already gone and the refs came with
+        // the failure. They are carried out so the caller can still destroy the
+        // bytes; dropping them here is unrecoverable (see the type above).
+        if (r === 'registre_echoue') {
+          return {
+            ok: false,
+            reason: 'registre_echoue',
+            supprimes: typeof body?.supprimes === 'number' ? body.supprimes : 0,
+            refs: Array.isArray(body?.refs)
+              ? body.refs.filter((x): x is string => typeof x === 'string' && x.startsWith('media/'))
+              : [],
+          };
+        }
+        if (r === 'purge_echouee') return { ok: false, reason: 'purge_echouee' };
         return { ok: false, reason: 'unreachable' };
       }
       if (body?.ok !== true || typeof body.supprimes !== 'number' || !Array.isArray(body.refs)) {

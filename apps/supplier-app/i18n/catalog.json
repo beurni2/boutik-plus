@@ -4894,5 +4894,11 @@
     "fr": "La suppression n'a pas abouti. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_partiel",
+    "fr": "Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

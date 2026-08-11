@@ -430,4 +430,49 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
     expect(screen.shows('Supprimer définitivement')).toBe(false);
     screen.unmount();
   });
+
+  /**
+   * ⚠ THE PARTIAL — the branch a verifier found silently leaking (BLOCKER).
+   *
+   * The service deletes the CATALOGUE first and the registry row last. When the
+   * second half fails it answers 502 `registre_echoue` — carrying the media refs
+   * it already orphaned. The products are gone for good at that point, and a
+   * retry CANNOT recompute those refs, because it re-walks an index those
+   * offers have already left. So this is the only moment those photographs can
+   * ever be destroyed, and the first version treated it as a plain failure:
+   * every one of them stayed readable at its url, forever, on an irreversible
+   * act — and the founder was told « réessayez » about something that had
+   * already happened.
+   */
+  it('a HALF-DONE erase still destroys the photographs, and says what really happened', async () => {
+    const REF = 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const w = wire([
+      (path) =>
+        path === '/fulfillment/supplier/effacer'
+          ? { status: 502, json: { ok: false, reason: 'registre_echoue', supprimes: 1, refs: [REF] } }
+          : null,
+      (path) => (path === '/media/revoke' ? { status: 200, json: { status: 'revoked', ref: REF } } : null),
+      ...console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
+    ]);
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    await screen.press('Supprimer définitivement');
+    await screen.settle();
+    await screen.press('Oui, tout effacer');
+    await screen.settle();
+
+    // THE BYTES GO ANYWAY — the assertion this branch exists for.
+    const revoke = w.calls.find((c) => c.path === '/media/revoke');
+    expect(revoke, 'the only chance to destroy these photographs must not be missed').toBeDefined();
+    expect(revoke?.body?.['ref']).toBe(REF);
+    // …and he is told the TRUTH: the products are gone, the supplier is not.
+    expect(
+      screen.shows("Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever."),
+    ).toBe(true);
+    // Never the generic « réessayez », which would be false here.
+    expect(screen.shows("La suppression n'a pas abouti. Réessayez.")).toBe(false);
+    // The tree survived, and the row can still be acted on.
+    expect(screen.canPress('Redonner un code')).toBe(true);
+    screen.unmount();
+  });
 });
