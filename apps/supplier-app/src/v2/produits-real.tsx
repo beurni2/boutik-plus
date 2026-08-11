@@ -112,21 +112,28 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   /** Whose product each row is — only ever the id the READ was scoped to. */
   const [attribue, setAttribue] = useState<readonly RangeeAttribuee[]>([]);
 
-  useEffect(() => {
-    let alive = true;
+  /**
+   * THE DOOR-HOLDERS HALF, RE-READ ON EVERY LOAD — not once at mount.
+   *
+   * ⚠ THE DEFECT THIS CLOSES (verifier MAJOR): it used to run in a mount-only
+   * effect, so `codes` was frozen for the component's lifetime while
+   * `proprietaires` stayed live. This is a WEB app and he keeps tabs open: cut a
+   * supplier off in Fournisseurs, come back to Produits, and the chip was still
+   * there — served by the frozen half — even though the products had correctly
+   * gone. That is the founder's own complaint, reproduced by the fix meant to
+   * end it. Both halves refresh together now, so the union can genuinely shrink
+   * without a remount.
+   */
+  const lireCodes = async (): Promise<void> => {
     const opsKey = readStoredOpsKey();
     const ops = resolveOperationsService();
-    if (opsKey === null || ops === null) return undefined;
-    void lireFournisseurs(ops, opsKey).then((res) => {
-      if (alive && res.kind === 'liste') {
-        // REPLACED, not merged — a revoked code must be able to LEAVE.
-        setCodes((tenu) => memeEnsemble(tenu, [...new Set(res.ids)]));
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    if (opsKey === null || ops === null) return;
+    const res = await lireFournisseurs(ops, opsKey);
+    // REPLACED, not merged — a revoked code must be able to LEAVE.
+    if (res.kind === 'liste') setCodes((tenu) => memeEnsemble(tenu, [...new Set(res.ids)]));
+  };
+  const codesRef = useRef<() => Promise<void>>(async () => {});
+  codesRef.current = lireCodes;
 
   const loadRef = useRef<(cible?: string) => Promise<void>>(async () => {});
   const load = async (cible: string = choix): Promise<void> => {
@@ -172,7 +179,11 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       const opsKey = readStoredOpsKey();
       const ops = resolveOperationsService();
       if (opsKey !== null && ops !== null) {
-        const inv = await ops.listInventaire(opsKey);
+        // BOTH HALVES OF THE ROSTER, TOGETHER. Concurrent, because they are
+        // independent reads and the screen should not pay for them twice over.
+        // A failed roster read leaves the held value rather than emptying the
+        // chip row — the same fail-soft the inventory branch below uses.
+        const [inv] = await Promise.all([ops.listInventaire(opsKey), codesRef.current()]);
         if (inv.ok) {
           setInventaireRefuse(false);
           const tous = cible === TOUS;

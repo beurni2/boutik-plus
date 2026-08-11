@@ -410,4 +410,63 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
     expect(screen.shows(AUTRE), 'a door-holder with no products keeps his chip').toBe(true);
     screen.unmount();
   });
+
+  /**
+   * ⚠ THE SHRINK, ON A SCREEN THAT IS ALREADY OPEN (verifier MAJOR).
+   *
+   * The two walks above both mount FRESH with the revoke already applied, so
+   * neither could see the real defect: the door-holders half of the chip row was
+   * read once at mount and frozen for the component's lifetime. This is a web
+   * app and he keeps tabs open — cut a supplier off in Fournisseurs, come back
+   * to Produits, and the chip was still there, served by the frozen half, while
+   * his products had correctly gone. That is his original complaint, recreated
+   * by the fix meant to end it.
+   *
+   * So this walk keeps ONE mounted screen and changes what the service answers
+   * underneath it, exactly as a revoke in another tab does.
+   */
+  it('a supplier cut off WHILE THIS SCREEN IS OPEN loses his chip on the next read', async () => {
+    // ⚠ AÏCHA HOLDS A DOOR AND OWNS NOTHING — and that is the whole design of
+    // this test. If she owned products, the INVENTORY half alone would drop her
+    // chip when they were retired, and this walk would pass while the frozen
+    // door-holder half stayed broken (it did, in its first version — proven by
+    // mutation: freezing that half left this green). Her chip can ONLY come from
+    // the code roster, so only a REFRESHED roster can take it away.
+    const book: Record<string, ReturnType<typeof row>[]> = {
+      [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')],
+    };
+    // The roster the service answers, MUTABLE — this is the revoke.
+    let porteurs = [MOI, AUTRE];
+    const svc = livre(book);
+    wire([
+      (path) =>
+        path === '/fulfillment/supplier-codes'
+          ? {
+              status: 200,
+              json: {
+                ok: true,
+                codes: porteurs.map((supplierId) => ({ supplierId, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true })),
+              },
+            }
+          : null,
+      ...svc.routes,
+    ]);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+    await screen.settle();
+    expect(screen.shows(AUTRE), 'he is on screen to begin with').toBe(true);
+
+    // ── THE REVOKE, in another tab: her code is gone ──
+    porteurs = [MOI];
+
+    // A read the founder himself triggers — tapping « Tous ». No remount.
+    await screen.press('Tous');
+    await screen.settle();
+
+    expect(screen.shows(AUTRE), 'the chip must go without an app restart').toBe(false);
+    expect(screen.shows('Bazin du fondateur'), 'his own products survive').toBe(true);
+    screen.unmount();
+  });
 });
