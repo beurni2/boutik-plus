@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { bloc } from './_region.js';
 import { readSupplierOfferList, HIDDEN_REASONS, type SupplierOfferRow } from '../src/supply/service';
-import { galleryPhotos, produitsView, hiddenSentence, photoSlot, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
+import { galleryPhotos, produitsView, hiddenSentence, photoSlot, photoUri, type ProduitsRead, type HiddenReason } from '../src/supply/produits-view';
 import { catalog } from '../src/i18n';
 
 /**
@@ -265,6 +265,41 @@ describe('THE HIDDEN SENTENCE — mapped PURELY, and true of every reason it ans
     const fr = catalog.find((e) => e.key === 'produits.retiree')!.fr;
     expect(fr).toBe("Cette offre n'est plus en ligne.");
     expect(fr).not.toMatch(/renouvel|prolong|réactiv|relanc/i);
+  });
+});
+
+describe('PHOTO-À-TRAITER — the thumbnail url, two-state on purpose', () => {
+  /**
+   * `photoUri` is `photoSlot`'s counterpart for a 54px order-row vignette, and
+   * it deliberately collapses the three facts above into two: at that size
+   * there is no room for the sentence that tells « he uploaded none » apart
+   * from « we cannot fetch it », so both become « no picture » and the row
+   * renders as it always has.
+   *
+   * ⚠ ASSERTED BY VALUE because nothing else could reach it (verifier MAJOR):
+   * the screen walk sets a media base unconditionally and the seam test is
+   * server-side, so the null-base branch — the one that decides whether an
+   * unconfigured console shows a broken image — was proven by reading only.
+   */
+  it('NO configured media base is null — never a url with « null » in it', () => {
+    expect(photoUri('media/hero-bazin', null)).toBeNull();
+  });
+
+  it('an empty or blank ref is null WHATEVER the config', () => {
+    for (const base of [null, 'https://media.example']) {
+      expect(photoUri('', base)).toBeNull();
+      expect(photoUri('   ', base)).toBeNull();
+    }
+  });
+
+  it('a real ref with a real base builds the url, with exactly one separator', () => {
+    expect(photoUri('media/hero-bazin', 'https://media.example')).toBe('https://media.example/media/hero-bazin');
+  });
+
+  it('a ref with stray whitespace is TRIMMED into the url, not interpolated raw', () => {
+    // Deciding on the trimmed string and interpolating the untrimmed one is
+    // how a url ships with a space in it and 404s for reasons nobody can see.
+    expect(photoUri('  media/hero-bazin  ', 'https://media.example')).toBe('https://media.example/media/hero-bazin');
   });
 });
 

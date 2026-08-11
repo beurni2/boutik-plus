@@ -516,12 +516,14 @@ export const C48 = {
  * ── C49 VignetteProduit ──────────────────────────────────────────────────────
  * PHOTO-À-TRAITER (founder, 2026-08-10) — the small square photograph that now
  * rides the LEFT of an order row, on his console's « À traiter » and on every
- * Commandes card. Built from the same tokens as C26's tile: the warm-paper
- * ground under a picture that has not painted yet, the card border, the row
- * radius. No one-off values, and no size other than this one.
+ * Commandes card. Warm-paper ground under a picture that has not painted yet
+ * (`P.bg`) and the card border (`P.borderCard`), both straight from C26's tile;
+ * the radius is `GEO.r.iconTileOrder` (13) rather than the tile's `GEO.r.row`
+ * (18) — a 54px square wants the small-tile curvature, not a card's. No one-off
+ * values, and no size other than this one. (`side` was declared here and read
+ * by nobody — deleted rather than left as a second place the size can drift.)
  */
 export const C49 = {
-  side: 54,
   box: {
     width: 54,
     height: 54,

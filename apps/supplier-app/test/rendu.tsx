@@ -122,6 +122,15 @@ export interface Screen {
    * photograph is any good.
    */
   images(): string[];
+  /**
+   * Fire an `<Image>`'s own `onError` — the native « this url did not paint »
+   * callback. A REAL React semantic and the only way to walk the broken-image
+   * path; nothing about how the image looks is claimed or claimable.
+   */
+  imageError(nth?: number): Promise<void>;
+  /** Re-render the same tree with new props — how a walk asks « does this
+   *  component honour a CHANGE », which is where per-instance state hides. */
+  rerender(element: React.ReactElement): Promise<void>;
   unmount(): void;
 }
 
@@ -282,6 +291,28 @@ export async function mountEcran(element: React.ReactElement): Promise<Screen> {
       if (typeof onChangeText !== 'function') throw new Error(`${describe(input)} does not accept typing`);
       await act(async () => {
         onChangeText(value);
+      });
+      await settle();
+    },
+    imageError: async (nth = 0) => {
+      const imgs = tree.root.findAllByType('Image' as never);
+      const img = imgs[nth];
+      if (img === undefined) {
+        throw new Error(`no <Image> #${String(nth)} on screen (there are ${imgs.length})`);
+      }
+      const onError = img.props['onError'] as (() => void) | undefined;
+      if (typeof onError !== 'function') {
+        throw new Error('this <Image> has NO onError — a url that 404s would leave a hole nobody handles');
+      }
+      await act(async () => {
+        onError();
+        await Promise.resolve();
+      });
+      await settle();
+    },
+    rerender: async (next) => {
+      await act(async () => {
+        tree.update(next);
       });
       await settle();
     },

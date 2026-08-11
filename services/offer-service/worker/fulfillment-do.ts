@@ -1387,13 +1387,27 @@ export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEn
 
   const found = await Promise.all(
     distinct.map(async (pv): Promise<readonly [string, string]> => {
-      // `heroSquare` is the SQUARE crop of his hero shot — the one asset shaped
-      // for a thumbnail. Wire order is [heroSquare, heroVertical, proof, …] and
-      // `masterRef` never travels; naming the field beats an index here because
-      // this read does not go through `wireAssetRefs`.
-      const entry = await store.getEntryByProductVersion(pv).catch(() => undefined);
-      const ref = entry?.assets?.heroSquare.ref;
-      return [pv, typeof ref === 'string' ? ref : ''] as const;
+      try {
+        // `heroSquare` is the SQUARE crop of his hero shot — the one asset
+        // shaped for a thumbnail. Wire order is [heroSquare, heroVertical,
+        // proof, …] and `masterRef` never travels; naming the field beats an
+        // index here because this read does not go through `wireAssetRefs`.
+        //
+        // ⚠ THE READ IS INSIDE THE try AND EVERY HOP IS OPTIONAL (verifier
+        // MAJOR). `DurableOfferStore` casts any non-404 body to `OfferEntry`
+        // without validating it, and the router has no catch-all — so an entry
+        // whose `assets` exists but is malformed would have thrown here,
+        // rejected the whole `Promise.all`, and 500'd HIS ENTIRE BOARD to
+        // protect a 54px thumbnail. Unreachable today (both write paths run
+        // `ProductAssetsSchema.parse`), but this function's own promise is that
+        // no failure of the join may ever cost him the board, and a promise
+        // that depends on a neighbour's strictness is not a promise.
+        const entry = await store.getEntryByProductVersion(pv);
+        const ref = entry?.assets?.heroSquare?.ref;
+        return [pv, typeof ref === 'string' ? ref : ''] as const;
+      } catch {
+        return [pv, ''] as const;
+      }
     }),
   );
   const photoByPv = new Map(found.filter(([, ref]) => ref !== ''));

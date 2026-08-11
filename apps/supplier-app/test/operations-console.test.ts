@@ -558,11 +558,21 @@ describe('the resolver — unset means NOTHING, never demo (standing law of this
 
   it('a MALFORMED row is dropped, the true rows survive — no half-formed line ever renders', async () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
-    const good = rowAt('ord-true', '2026-08-01T11:00:00.000Z');
-    // A row registered BEFORE the productName enrichment: no productName, no
-    // offerVersion. It must SURVIVE with '' — the screen then falls back to
-    // the pv id instead of rendering a blank title.
-    const { productName: _pn, offerVersion: _ov, ...legacy } = rowAt('ord-legacy', '2026-08-01T10:00:00.000Z');
+    const good = rowAt('ord-true', '2026-08-01T11:00:00.000Z', { productPhotoRef: 'media/hero-good' });
+    // A row registered BEFORE the productName enrichment, AND served by a
+    // Worker built before the PHOTO-À-TRAITER join: no productName, no
+    // offerVersion, no productPhotoRef AT ALL. It must SURVIVE with '' on all
+    // three — the screen then falls back to the pv id instead of a blank
+    // title, and renders no thumbnail instead of a broken <Image>.
+    // ⚠ `productPhotoRef` is stripped, not set to '' (verifier MAJOR): a
+    // fixture that carries the field cannot prove the ABSENT-field branch the
+    // port's own comment promises.
+    const {
+      productName: _pn,
+      offerVersion: _ov,
+      productPhotoRef: _pp,
+      ...legacy
+    } = rowAt('ord-legacy', '2026-08-01T10:00:00.000Z');
     stubFetch(async () =>
       new Response(JSON.stringify({
         ok: true,
@@ -581,6 +591,10 @@ describe('the resolver — unset means NOTHING, never demo (standing law of this
     expect(res.orders.map((r) => r.orderId)).toEqual(['ord-true', 'ord-legacy']);
     expect(res.orders[1]!.productName).toBe(''); // normalized, never undefined
     expect(res.orders[1]!.offerVersion).toBe('');
+    expect(res.orders[1]!.productPhotoRef).toBe('');
+    // …and a row that DOES carry one keeps it VERBATIM, so the normalization
+    // above is proven to be a fallback rather than a blanket ''.
+    expect(res.orders[0]!.productPhotoRef).toBe('media/hero-good');
   });
 });
 

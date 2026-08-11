@@ -162,7 +162,7 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
                         {/* PHOTO-À-TRAITER — the photograph leads the row, and
                             the text keeps its own column so a row WITHOUT one
                             reads identically to the row he has today. */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: GEO.gap.grid }}>
                           <VignetteProduit uri={photoUri(row.productPhotoRef, mediaBase)} />
                           <View style={{ flex: 1 }}>
                             <Text style={NOM_ROW} numberOfLines={1}>

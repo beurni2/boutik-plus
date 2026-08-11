@@ -59,10 +59,14 @@ export interface PaidOrderRow {
    * url: the screen builds `${mediaBase}/${ref}` exactly as the produits
    * screens do, and reads are unauthenticated.
    *
-   * '' IS THE HONEST ABSENCE and covers three different truths — the pv is
-   * unknown to the store, the product carries no assets, or this app is
-   * talking to a Worker built before the join existed. All three render the
-   * row with no picture; none of them ever substitutes a stand-in image.
+   * '' IS THE HONEST ABSENCE and covers FOUR different truths — the pv is
+   * unknown to the store · the product carries no assets · this app is talking
+   * to a Worker built before the join existed · or the row fell past the
+   * Worker's per-read lookup cap (`PHOTO_LOOKUP_MAX`, oldest rows first). All
+   * four render the row with no picture; none of them ever substitutes a
+   * stand-in image. The fourth is the only one that can differ between two
+   * reads of the SAME row, which is why the screen must never treat '' as a
+   * fact about the product.
    */
   readonly productPhotoRef: string;
   readonly offerVersion: string;

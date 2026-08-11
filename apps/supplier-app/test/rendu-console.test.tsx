@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { SAccueilReel } from '../src/accueil/screen';
 import { SCommandesReel } from '../src/commandes/screen';
+import { VignetteProduit } from '../src/v2/components';
 
 /**
  * ═══ RENDU-RÉEL — THE FOUNDER'S CONSOLE, DRIVEN ═══
@@ -88,6 +89,10 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
     expect(screen.shows('À faire maintenant')).toBe(true);
     expect(screen.shows('Bazin riche')).toBe(true);
     expect(screen.shows('Sac en cuir')).toBe(true);
+    // ⚠ AND NOTHING ELSE WAS ASKED FOR (verifier MINOR). The harness 404s and
+    // RECORDS an unrouted call, but a recording nobody reads is not a check —
+    // a port added later would reach a dead url under a green walk.
+    expect([...new Set(w.calls.map((c) => c.path))].sort()).toEqual(['/fulfillment/orders', '/offers']);
     screen.unmount();
   });
 
@@ -104,6 +109,21 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
     expect(screen.images()).toHaveLength(1);
     // The photo-less row is NOT a hole — its name is still readable.
     expect(screen.shows('Sac en cuir')).toBe(true);
+    screen.unmount();
+  });
+
+  it('with NO media base configured the row is whole and asks for NO image', async () => {
+    // The console CAN run unconfigured — `resolveMediaBase()` answers null and
+    // the vignette must simply not exist. Proven on the real screen because
+    // the alternative is a broken <Image> on his board, which no source scan
+    // can rule out (verifier MAJOR).
+    delete process.env['EXPO_PUBLIC_MEDIA_BASE'];
+    wire([livre([AVEC_PHOTO]), offresVides]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
+
+    expect(screen.images()).toEqual([]);
+    expect(screen.shows('Bazin riche')).toBe(true);
+    expect(screen.shows('À faire maintenant')).toBe(true);
     screen.unmount();
   });
 
@@ -177,10 +197,54 @@ describe('COMMANDES — the board itself', () => {
     ]);
     const screen = await mountEcran(<SCommandesReel />);
 
-    // 401 ⇒ the stored key is cleared and the door is shown again. He can type
-    // a new one; he is not stranded looking at an empty list.
+    // ⚠ « Commandes » IS THE TITLE OF THE DOOR, THE BOARD AND THE FAILURE CARD
+    // ALIKE (verifier MAJOR) — asserting it proves nothing about which one he
+    // is looking at. The door is identified by the ONE thing only it has: a
+    // field to type a key into, and a pressable button to enter it. Route a
+    // 401 to `commandes.echec` instead of `onCleRefusee` and this goes red.
     expect(screen.shows('Commandes')).toBe(true);
+    expect(screen.shows('Votre clé d’opérateur')).toBe(true);
+    expect(screen.canPress('Ouvrir')).toBe(true);
+    await screen.type('nouvelle-cle');
     expect(screen.texts().join(' ')).not.toContain('Bazin riche');
     screen.unmount();
+  });
+});
+
+describe('LA VIGNETTE — a blip must not hide a photograph for the rest of the session', () => {
+  /**
+   * ⚠ WRITTEN BECAUSE OF A VERIFIER MAJOR, and it is a React SEMANTIC no source
+   * scan could reach. The board keys its rows by `orderId`, so the component
+   * INSTANCE survives every `charger()` refresh. With a bare `broken` boolean,
+   * one failed image load on a patchy connection hid that row's photograph
+   * until he left the tab — and worse, kept hiding the NEXT product's
+   * photograph once the row's data changed underneath it.
+   *
+   * These press the real `onError` and then change the prop. Nothing here says
+   * anything about appearance: an `onError` is a callback and a `source.uri` is
+   * a string the app computed.
+   */
+  it('a failed load hides THAT url — and a NEW url is tried on the same instance', async () => {
+    const screen = await mountEcran(<VignetteProduit uri="http://media.test/a.jpg" />);
+    expect(screen.images()).toEqual(['http://media.test/a.jpg']);
+
+    await screen.imageError();
+    expect(screen.images(), 'the url that failed must stop being requested').toEqual([]);
+
+    // The SAME component instance, new data. Before the fix this stayed empty.
+    await screen.rerender(<VignetteProduit uri="http://media.test/b.jpg" />);
+    expect(screen.images(), 'a different photograph must never inherit the last one’s failure').toEqual([
+      'http://media.test/b.jpg',
+    ]);
+    screen.unmount();
+  });
+
+  it('no ref and no base both render nothing at all — never an empty framed box', async () => {
+    for (const uri of [null, '']) {
+      const screen = await mountEcran(<VignetteProduit uri={uri} />);
+      expect(screen.images()).toEqual([]);
+      expect(screen.tree.toJSON()).toBeNull();
+      screen.unmount();
+    }
   });
 });

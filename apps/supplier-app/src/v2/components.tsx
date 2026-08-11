@@ -430,10 +430,23 @@ export function PhotoViewer({ photo, onClose }: { photo: { uri: string; label: s
  * than no square at all. The full explanation of a missing photograph already
  * has its designed home on the product tile (`OfferTile`), where there is room
  * to say it.
+ *
+ * ⚠ THE FAILURE IS REMEMBERED PER-URL, NOT PER-COMPONENT (verifier MAJOR). The
+ * first cut held a bare `broken` boolean, and the board keys its rows by
+ * `orderId` — so the component INSTANCE survives every `charger()` refresh. One
+ * blip on a patchy connection therefore hid that row's photograph for the rest
+ * of the session, and worse, the SAME instance would go on hiding the next
+ * product's photograph after the row's data changed. Keying the memory to the
+ * url that actually failed fixes both: a new url is always tried.
+ *
+ * ⚠ WHAT REMAINS, JOURNALLED: the SAME url is not re-attempted while the
+ * instance lives. That is deliberate — re-attempting on every render would put
+ * a genuinely dead ref into a request loop on the very network this design
+ * exists to respect. Switching tab or segment remounts and tries again.
  */
 export function VignetteProduit({ uri }: { uri: string | null }) {
-  const [broken, setBroken] = useState(false);
-  if (uri === null || uri === '' || broken) return null;
+  const [brokenUri, setBrokenUri] = useState<string | null>(null);
+  if (uri === null || uri === '' || brokenUri === uri) return null;
   return (
     <View style={s.vignette}>
       <Image
@@ -441,7 +454,7 @@ export function VignetteProduit({ uri }: { uri: string | null }) {
         style={s.vignetteImg}
         // A thumbnail is a glance, not an inspection — the frame is filled.
         resizeMode="cover"
-        onError={() => setBroken(true)}
+        onError={() => setBrokenUri(uri)}
       />
     </View>
   );

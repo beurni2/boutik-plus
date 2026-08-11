@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
+import { GEO } from '../ui/v2/tokens';
 import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, Card, ChipSegment, Input, PageTitle, VignetteProduit } from '../v2/components';
 import {
@@ -471,7 +472,7 @@ function RangCommande({
             the supplier's name stays the loudest LINE (his explicit ask) while
             the card can be recognised by the product at a glance. A row with
             no photograph keeps the exact layout it has today. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: GEO.gap.grid }}>
           <VignetteProduit uri={photoUri(row.productPhotoRef, mediaBase)} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

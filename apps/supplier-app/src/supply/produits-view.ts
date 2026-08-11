@@ -117,8 +117,12 @@ export type PhotoSlot =
  * three-state explanation stays where it can be read — the product tile.
  */
 export function photoUri(ref: string, mediaBase: string | null): string | null {
-  if (mediaBase === null || ref.trim() === '') return null;
-  return `${mediaBase}/${ref}`;
+  // Trimmed for the DECISION and for the URL alike (verifier MINOR): deciding
+  // on one string and interpolating another is how ` media/x` ships a url with
+  // a space in it.
+  const clean = ref.trim();
+  if (mediaBase === null || clean === '') return null;
+  return `${mediaBase}/${clean}`;
 }
 
 export function photoSlot(assetRefs: readonly string[], mediaBase: string | null): PhotoSlot {
