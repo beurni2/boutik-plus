@@ -66,6 +66,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   const inFlight = useRef(false);
   /** The scope a read asked for while another was running — replayed after it. */
   const enAttente = useRef<string | null>(null);
+  /** True when his ops key is on the device and the inventory read REFUSED —
+   *  the list is then his own products, not « Tous », and the screen says so. */
+  const [inventaireRefuse, setInventaireRefuse] = useState(false);
   // PRODUITS-PAR-FOURNISSEUR (founder order 2026-08-03) — he lists FOR every
   // supplier and monitors all of them, so his own Produits screen filters by
   // whose product it is. The roster is the SAME code inventory the publish
@@ -95,13 +98,16 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     const ops = resolveOperationsService();
     if (opsKey === null || ops === null) return undefined;
     void lireFournisseurs(ops, opsKey).then((res) => {
-      if (alive && res.kind === 'liste') setRoster(res.ids);
+      if (alive && res.kind === 'liste') {
+        setRoster((tenu) => memeEnsemble(tenu, [...new Set([...tenu, ...res.ids])]));
+      }
     });
     return () => {
       alive = false;
     };
   }, []);
 
+  const loadRef = useRef<(cible?: string) => Promise<void>>(async () => {});
   const load = async (cible: string = choix): Promise<void> => {
     if (service === null) return;
     /**
@@ -147,6 +153,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       if (opsKey !== null && ops !== null) {
         const inv = await ops.listInventaire(opsKey);
         if (inv.ok) {
+          setInventaireRefuse(false);
           const tous = cible === TOUS;
           const vise = cible === '' ? supplierId : cible;
           const gardees = inv.rows.filter((r) => tous || r.supplierId === vise);
@@ -159,12 +166,20 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
           cache.current = { rows, asOf: new Date().toISOString() };
           // Whoever OWNS a product is a supplier this screen must be able to
           // name — that is what makes the orphans reachable.
-          setRoster([...new Set(inv.rows.map((r) => r.supplierId))]);
+          // UNION, NEVER REPLACE (verifier MAJOR). Owners and code-holders answer
+          // DIFFERENT questions: replacing dropped a supplier who holds a door
+          // and has listed nothing — his honest « rien encore » became
+          // unreachable, which is the inverse of the bug being fixed.
+          setRoster((tenu) => memeEnsemble(tenu, [...new Set([...tenu, ...inv.rows.map((r) => r.supplierId)])]));
           setRead({ kind: 'ok', rows });
           return;
         }
         // A refused or unreachable inventory falls through to the fan-out
-        // rather than blanking his screen — the read he always had still works.
+        // rather than blanking his screen — but it is NAMED (verifier MAJOR).
+        // Falling through in silence while the screen still says « Tous » shows
+        // a list that is not tous with nothing admitting it, which is a worse
+        // version of the very complaint this slice answers.
+        setInventaireRefuse(true);
       }
       // « Tous » is COMPOSED from reads he is entitled to make — the service
       // requires a scope and answers 400 without one (see produits-filtre.ts).
@@ -193,7 +208,11 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       inFlight.current = false;
       const differe = enAttente.current;
       enAttente.current = null;
-      if (differe !== null) void load(differe);
+      // THROUGH THE REF, never this render's closure (verifier MAJOR): the
+      // replay exists for the case where the roster lands mid-read, and the
+      // mount-render's `load` closes over an EMPTY roster — so the correction
+      // would have re-run the same wrong fan-out it was added to correct.
+      if (differe !== null) void loadRef.current(differe);
     }
   };
 
@@ -219,6 +238,15 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   const clefRoster = [...roster].sort().join('|');
   useEffect(() => {
     if (clefRoster === '' || choix !== TOUS) return;
+    /**
+     * THE FAN-OUT ONLY (verifier MAJOR). The inventory read ALREADY returns
+     * every supplier's products, and it also SETS the roster — so leaving this
+     * effect to fire on that path made the first read re-trigger itself, then
+     * the code roster arrived and flipped the set again: two to four full
+     * catalogue reads per mount, each blanking the list to « Chargement… » on
+     * the way. The fan-out is the only path that needs the roster first.
+     */
+    if (readStoredOpsKey() !== null) return;
     void load(TOUS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clefRoster]);
@@ -226,6 +254,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // THE ONE DECISION IS PURE (`supply/produits-view.ts`) — this component only
   // renders it. That is what lets a test put a state IN and read the sentence
   // OUT, instead of asserting the ORDER of branches in this file.
+  loadRef.current = load;
   const view = produitsView(read, cache.current.rows);
 
   // OFFER-DELETE-1 (founder 2026-07-27): remove the open offer from EVERY wire
@@ -289,8 +318,20 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // list on screen is always the list the service just answered — never a
   // client-side slice of a stale merge pretending to be a fresh read.
   const chips = chipsProduits(roster, supplierId);
-  const filtre =
-    chips.length === 0 ? null : (
+  /**
+   * THE PARTIAL-LIST SENTENCE (verifier MAJOR). When his ops key is on the
+   * device and the inventory read REFUSED, the screen falls back to the
+   * fan-out — which is his own products — while the selection still reads
+   * « Tous ». Saying nothing there would be showing a list that is not tous
+   * with nothing admitting it. It sits ABOVE the chips, where the claim it
+   * corrects is made.
+   */
+  const filtre = (
+    <>
+      {inventaireRefuse ? (
+        <Banner tone="warn" style={{ marginTop: 12 }}>{t('produits.inventaire_refuse')}</Banner>
+      ) : null}
+      {chips.length === 0 ? null : (
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 }}>
         {chips.map((c) => (
           <ChipCategory
@@ -304,7 +345,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
           />
         ))}
       </View>
-    );
+      )}
+    </>
+  );
 
   if (view.kind === 'list') {
     return (

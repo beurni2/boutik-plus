@@ -1572,6 +1572,12 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.inventaire_refuse",
+    "fr": "Liste partielle : seuls vos produits sont affichés. Vérifiez votre clé, onglet Opérations.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "produits.filtre_tous",
     "fr": "Tous",
     "register": "neutral",

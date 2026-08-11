@@ -24,6 +24,7 @@ import { initialState } from '../src/v2/machine';
  * tell you which offerId a row actually carried.
  */
 
+const OPS_KEY = 'cle-ops';
 const MOI = 'supplier-founder-001';
 const AUTRE = 'supplier-aicha-002';
 
@@ -62,7 +63,9 @@ function livre(bySupplier: Record<string, ReturnType<typeof row>[]>): {
       // screen reading the WRONG scope pass — and it did, until this was fixed
       // (an INVENTAIRE-COMPLET mutation stayed green over it).
       const scope = search.get('supplierId');
-      if (scope === null || scope === '') return { status: 400, json: { error: 'missing_supplier_id' } };
+      // `.trim()`, as the real route does (`offer-do.ts`): a whitespace scope
+      // passed this fake and 400s in production.
+      if (scope === null || scope.trim() === '') return { status: 400, json: { error: 'missing_supplier_id' } };
       return {
         status: 200,
         json: {
@@ -74,18 +77,25 @@ function livre(bySupplier: Record<string, ReturnType<typeof row>[]>): {
     // THE INVENTORY — the read his device really makes, because his ops key is
     // on it. Every offer, tagged with whose it is; this is what makes « Tous »
     // true and what makes an orphan reachable.
-    (path) =>
-      path === '/offers/inventaire'
-        ? {
-            status: 200,
-            json: {
-              asOf: '2026-08-11T08:00:00.000Z',
-              items: Object.entries(bySupplier).flatMap(([sup, rows]) =>
-                rows.map((r) => ({ ...r, supplierId: sup })),
-              ) as never,
-            },
-          }
-        : null,
+    (path, _b, _s, headers) => {
+      if (path !== '/offers/inventaire') return null;
+      // THE CREDENTIAL IS CHECKED, as the real route checks it (verifier
+      // BLOCKER). A fake that answered 200 to anything would go green over a
+      // port sending the wrong header — and the screen would fall back to the
+      // poorer read in production with every suite still passing.
+      if (headers['authorization'] !== `Bearer ${OPS_KEY}`) {
+        return { status: 401, json: { error: 'unauthorized' } };
+      }
+      return {
+        status: 200,
+        json: {
+          asOf: '2026-08-11T08:00:00.000Z',
+          items: Object.entries(bySupplier).flatMap(([sup, rows]) =>
+            rows.map((r) => ({ ...r, supplierId: sup })),
+          ) as never,
+        },
+      };
+    },
     // The roster read (his ops key) — the chips come from it.
     (path) =>
       path === '/fulfillment/supplier-codes'
@@ -99,7 +109,7 @@ beforeEach(() => {
   wiredEnv();
   process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
   process.env['EXPO_PUBLIC_OFFER_WRITE_KEY'] = 'cle-de-test';
-  storage({ 'boutik.operateur.cle': 'cle-ops' });
+  storage({ 'boutik.operateur.cle': OPS_KEY });
 });
 
 afterEach(() => {
@@ -220,20 +230,9 @@ describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable'
     const routes: Route[] = [
       // The INVENTORY — every offer, tagged with whose it is. This is the read
       // that makes an orphan reachable.
-      (path) =>
-        path === '/offers/inventaire'
-          ? {
-              status: 200,
-              json: {
-                asOf: '2026-08-11T08:00:00.000Z',
-                items: Object.entries(book).flatMap(([sup, rows]) =>
-                  rows.map((r) => ({ ...r, supplierId: sup })),
-                ) as never,
-              },
-            }
-          : null,
       // The ROSTER names only HIM — the orphan's code was revoked. This is
-      // exactly the state that made the product unreachable.
+      // exactly the state that made the product unreachable. (The inventory
+      // route itself comes from `livre` below, credential check included.)
       (path) =>
         path === '/fulfillment/supplier-codes'
           ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: 'x', revelable: true }] } }
@@ -288,6 +287,53 @@ describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable'
 
     expect(w.calls.map((c) => c.path)).not.toContain('/offers/inventaire');
     expect(screen.shows('Bazin du fondateur')).toBe(true);
+    // …AND THE ORPHAN IS ABSENT, which is what « exactly what it was » means.
+    // Asserting only that his own product renders would pass even if the
+    // inventory had leaked into a keyless device.
+    expect(screen.texts().join(' ')).not.toContain('CHOIN');
+    screen.unmount();
+  });
+});
+
+describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
+  /**
+   * VERIFIER BLOCKER: nothing in this app could assert a credential, because
+   * the harness did not record headers. A port sending the wrong header name,
+   * the wrong scheme, or the bundled write key would have left every suite
+   * green while his Produits tab silently fell back to the poorer read.
+   */
+  it('sends HIS ops key as a Bearer — not the bundled write key', async () => {
+    const svc = livre({ [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')] });
+    const w = wire(svc.routes);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    const inv = w.calls.find((c) => c.path === '/offers/inventaire');
+    expect(inv, 'the inventory must actually be asked for').toBeDefined();
+    expect(inv?.headers['authorization']).toBe(`Bearer ${OPS_KEY}`);
+    // The bundled write key must NEVER be what opens supplier identity.
+    expect(inv?.headers['x-write-key']).toBeUndefined();
+    screen.unmount();
+  });
+
+  it('a REFUSED inventory says the list is partial instead of quietly showing less', async () => {
+    const svc = livre({
+      [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')],
+      [AUTRE]: [row('offer-autre', 'pv-autre', 'Sac de Aïcha')],
+    });
+    // A stale ops key, or an app deployed ahead of the Worker.
+    wire([(path) => (path === '/offers/inventaire' ? { status: 401, json: { error: 'unauthorized' } } : null), ...svc.routes]);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    expect(
+      screen.shows('Liste partielle : seuls vos produits sont affichés. Vérifiez votre clé, onglet Opérations.'),
+      'a list that is not « Tous » must say so',
+    ).toBe(true);
     screen.unmount();
   });
 });

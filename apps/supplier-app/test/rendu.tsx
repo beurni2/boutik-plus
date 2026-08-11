@@ -43,12 +43,26 @@ export type Route = (
   path: string,
   body: Record<string, unknown> | null,
   search: URLSearchParams,
+  headers: Record<string, string>,
 ) => { status: number; json: Record<string, unknown> } | null;
 
 export interface Wire {
-  /** Every request the app made, in order — the record a test asks « was this
-   *  port actually CALLED », which is the question source scans cannot answer. */
-  readonly calls: { path: string; method: string; body: Record<string, unknown> | null }[];
+  /**
+   * Every request the app made, in order — the record a test asks « was this
+   * port actually CALLED », which is the question source scans cannot answer.
+   *
+   * HEADERS ARE RECORDED (verifier BLOCKER). Without them no walk in this app
+   * could assert a CREDENTIAL, so a port sending the wrong header name, the
+   * wrong scheme, or the bundled write key where the founder's ops key belongs
+   * would leave every suite green while his screen silently fell back to a
+   * poorer read in production — the very symptom the slice was fixing.
+   */
+  readonly calls: {
+    path: string;
+    method: string;
+    body: Record<string, unknown> | null;
+    headers: Record<string, string>;
+  }[];
 }
 
 /**
@@ -62,9 +76,13 @@ export function wire(routes: readonly Route[]): Wire {
     const path = url.pathname;
     const raw = init?.body;
     const body = typeof raw === 'string' ? (JSON.parse(raw) as Record<string, unknown>) : null;
-    calls.push({ path, method: init?.method ?? 'GET', body });
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries((init?.headers ?? {}) as Record<string, string>)) {
+      headers[k.toLowerCase()] = v;
+    }
+    calls.push({ path, method: init?.method ?? 'GET', body, headers });
     for (const r of routes) {
-      const answer = r(path, body, url.searchParams);
+      const answer = r(path, body, url.searchParams, headers);
       if (answer !== null) {
         return new Response(JSON.stringify(answer.json), {
           status: answer.status,
