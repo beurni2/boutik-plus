@@ -1642,6 +1642,47 @@ export async function handleSupplierCodesList(env: FulfillmentEnv): Promise<Resp
   return stub.fetch(new Request('https://do/codes'));
 }
 
+/**
+ * WHICH SUPPLIERS HAVE HAD THEIR ACCESS CUT — the registry's tombstones, as a
+ * set the read paths can join against.
+ *
+ * WHY THIS EXISTS (founder, 2026-08-11, after the retirement shipped: « on
+ * boutik+ the other suppliers and their listings are still showing »). Cutting
+ * access retires a supplier's offers by WRITING to each of them, and that write
+ * happens once, at the moment of the revoke. It therefore could not reach the
+ * suppliers he had already cut off before it existed: their codes are dead, his
+ * screens still list them, and Shop+ still sells their products. Nothing on the
+ * Fournisseurs row could run it either — a cut-off supplier is offered « Redonner
+ * un code » and « Supprimer définitivement », never « Couper l'accès » again.
+ *
+ * So the reads join too. The mark stays the live mechanism; this is the SAFETY
+ * NET that makes the outcome true however the state was reached — history, or a
+ * walk that failed halfway.
+ *
+ * IT KEYS ON THE TOMBSTONE, NEVER ON « HOLDS NO CODE », and that distinction is
+ * load-bearing: INVENTAIRE-COMPLET exists because a product whose supplier held
+ * no code was invisible AND undeletable on his own screen. A supplier the
+ * registry has never heard of is NOT in this set, so his products stay visible
+ * and stay deletable. Only an access explicitly CUT hides anything.
+ */
+export async function revokedSupplierIds(env: FulfillmentEnv): Promise<ReadonlySet<string>> {
+  const res = await handleSupplierCodesList(env);
+  if (!res.ok) return new Set();
+  const body = (await res.json().catch(() => null)) as { codes?: unknown } | null;
+  const rows = Array.isArray(body?.codes) ? body.codes : [];
+  const out = new Set<string>();
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object') continue;
+    const r = row as Record<string, unknown>;
+    // A row must be WHOLE to mean anything — the same law the console's reader
+    // follows. A malformed `revokedAt` reads as « not revoked », because
+    // inventing a revocation would hide a live supplier's catalogue.
+    if (typeof r['supplierId'] !== 'string' || r['supplierId'] === '') continue;
+    if (typeof r['revokedAt'] === 'string' && r['revokedAt'] !== '') out.add(r['supplierId']);
+  }
+  return out;
+}
+
 /** The founder's code administration (mint/revoke) — his ops key ran at the
  *  composition root. The body crosses VERBATIM so the object's exact-key
  *  check REFUSES a smuggled field instead of this layer silently stripping

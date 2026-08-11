@@ -1,8 +1,8 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, revokedSupplierIds, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
-import { resolveOfferStore } from '../src/offer-store.js';
+import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
 import {
   keyAuthorized,
   rejectUnauthorizedBearer,
@@ -171,6 +171,43 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
   }
   const body = (await codeRes.json()) as Record<string, unknown>;
   return Response.json({ ...body, produits }, { status: codeRes.status });
+}
+
+/**
+ * THE SAME JOIN, ON THE READ SIDE — an OfferStore that cannot hand out the
+ * entries of a supplier whose access was cut.
+ *
+ * Founder, 2026-08-11, after the retirement shipped: « on boutik+ the other
+ * suppliers and their listings are still showing. » The retirement is a WRITE
+ * that runs once, at the revoke, so it never reached the suppliers he had cut
+ * off before it existed — and their row offers no way to run it now. The mark
+ * remains the live mechanism; this makes the outcome true regardless of when
+ * the cut happened, and it cannot half-finish, because it writes nothing.
+ *
+ * BOTH READS ARE COVERED OR NEITHER IS: the collection Shop+ browses AND the
+ * single `/supply-projection/:pv` a signed link resolves. Filtering only the
+ * collection would take the product off Opportunités and leave every link that
+ * had already been shared still selling it — the quieter half of the same harm.
+ *
+ * IT FAILS OPEN, deliberately and narrowly. `revokedSupplierIds` answers an
+ * empty set when the registry cannot be read, so a hiccup there serves exactly
+ * what this service served yesterday rather than emptying every reseller's
+ * Opportunités. That is safe BECAUSE the write-time mark is the primary
+ * defence: a properly cut supplier's offers carry `retiré_accès` and the
+ * refusal ladder drops them with no registry read at all. This net is for the
+ * desynced, and a net that tears in a blip is better than a floor that falls in.
+ */
+async function sansAccesCoupe(store: OfferStore, env: Env): Promise<OfferStore> {
+  const coupes = await revokedSupplierIds(env);
+  if (coupes.size === 0) return store;
+  return {
+    create: (cmd) => store.create(cmd),
+    getEntryByProductVersion: async (pv) => {
+      const entry = await store.getEntryByProductVersion(pv);
+      return entry !== undefined && coupes.has(entry.product.supplierId) ? undefined : entry;
+    },
+    listEntries: async () => (await store.listEntries()).filter((e) => !coupes.has(e.product.supplierId)),
+  };
 }
 
 interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
@@ -373,7 +410,24 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'GET' && fp === '/offers/inventaire') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      return offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
+      const inv = await offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
+      // THE SAME JOIN HIS SCREEN NEEDS. « their products and their chip on
+      // boutik+ gets removed as well when they have been cut access » — the
+      // chip row is derived from who owns visible products, so dropping the
+      // items here empties his chip in the same read. Nothing is lost by
+      // hiding them: the supply reads above drop them too, so an invisible
+      // product here is not a product still being sold. And « Supprimer
+      // définitivement » on his Fournisseurs row still erases them for good.
+      if (!inv.ok) return inv;
+      const coupes = await revokedSupplierIds(env);
+      if (coupes.size === 0) return inv;
+      const body = (await inv.json().catch(() => null)) as { items?: unknown } | null;
+      if (body === null || !Array.isArray(body.items)) return Response.json(body ?? {});
+      const items = body.items.filter((i) => {
+        const s = (i as { supplierId?: unknown })?.supplierId;
+        return !(typeof s === 'string' && coupes.has(s));
+      });
+      return Response.json({ ...body, items });
     }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
@@ -530,5 +584,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // over the DURABLE store, resolved here against the DO namespace via the
     // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
-    return makeSupplyFetch(store, undefined, undefined, undefined, env)(request);
+    // THE JOIN IS FOR SUPPLY READS ONLY, and the guard is not a micro-optimisation.
+    // `/health` and every unknown route fall through to this same composition, so
+    // wrapping unconditionally would make the health door — the thing that tells
+    // us a deploy landed — read the FULFILLMENT durable object on every ping, and
+    // fail slower whenever that object is unwell. The health answer carries no
+    // supply data and must not acquire a dependency on the code registry.
+    const lisible = isSupplyRoute(p) ? await sansAccesCoupe(store, env) : store;
+    return makeSupplyFetch(lisible, undefined, undefined, undefined, env)(request);
 }

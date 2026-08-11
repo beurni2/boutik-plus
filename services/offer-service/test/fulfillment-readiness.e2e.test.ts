@@ -977,6 +977,122 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
   });
 
   /**
+   * ═══ ACCÈS-COUPÉ-AVANT — the reads join too, so history cannot strand a supplier ═══
+   *
+   * Founder, 2026-08-11, hours after the retirement above shipped and deployed:
+   * « On boutik+ the other suppliers and their listings are still showing. »
+   *
+   * WHY HIS THREE WERE STUCK, and why nothing above catches it: the retirement is
+   * a WRITE that runs once, inside the revoke. The suppliers he had cut off
+   * BEFORE it existed were never walked — their codes are dead, their offers are
+   * still `active` and unmarked, and Shop+ went on selling them. Nor could he fix
+   * it himself: a cut-off row offers « Redonner un code » and « Supprimer
+   * définitivement », never « Couper l\u2019accès » a second time.
+   *
+   * SO THE READS JOIN AGAINST THE REGISTRY TOO, and this asserts that half ALONE.
+   * It deliberately says NOTHING about the `produits` count — that number is the
+   * write\u2019s, and a test that read it would fail for the write\u2019s reasons and tell us
+   * nothing about the net. Mutation-proved both ways in the journal: kill the
+   * write and this still passes (his bug is fixed); kill the write AND the join
+   * and it fails exactly as he reported it.
+   */
+  it('a cut-off supplier is off Shop+ and off Produits — the READ says so, whatever the write did', async () => {
+    const AVANT = 'supplier-coupe-avant-9300';
+    const PV = 'pv-coupe-avant-9300';
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: AVANT })).status).toBe(200);
+    const created = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commandId: 'seed-coupe-avant-9300',
+        offerId: 'offer-coupe-avant-9300',
+        product: {
+          id: PV, supplierId: AVANT, version: 1, name: 'PAGNE',
+          productCode: 'AVANT-9300', facts: {}, category: 'fashion_bags_fabrics',
+          zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
+        },
+        draft: {
+          productVersionId: PV, basePrice: 6_000, resellerCommission: 900,
+          eligibleVariants: [], zones: [],
+          effective: '2026-07-10T00:00:00.000Z', expiry: '2026-12-31T00:00:00.000Z',
+        },
+        available: 4,
+        asOf: '2026-08-11T08:00:00.000Z',
+      }),
+    });
+    expect(created.status, await created.clone().text()).toBe(200);
+
+    // A NEIGHBOUR, created here rather than borrowed from whatever else this
+    // file happened to leave behind: the last assertion says « everyone else
+    // stays visible », and leaning on ambient products would make it pass for
+    // reasons this test does not control (§9.7).
+    const VOISIN = 'supplier-voisin-9301';
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: VOISIN })).status).toBe(200);
+    const voisin = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commandId: 'seed-voisin-9301',
+        offerId: 'offer-voisin-9301',
+        product: {
+          id: 'pv-voisin-9301', supplierId: VOISIN, version: 1, name: 'BAZIN',
+          productCode: 'VOIS-9301', facts: {}, category: 'fashion_bags_fabrics',
+          zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
+        },
+        draft: {
+          productVersionId: 'pv-voisin-9301', basePrice: 5_000, resellerCommission: 700,
+          eligibleVariants: [], zones: [],
+          effective: '2026-07-10T00:00:00.000Z', expiry: '2026-12-31T00:00:00.000Z',
+        },
+        available: 2,
+        asOf: '2026-08-11T08:00:00.000Z',
+      }),
+    });
+    expect(voisin.status, await voisin.clone().text()).toBe(200);
+
+    // BEFORE — genuinely on sale, on BOTH supply reads, or every absence below
+    // would be the absence of something that never existed.
+    const avantColl = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await avantColl.text()).toContain(PV);
+    const avantUn = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(avantUn.status, 'and reachable by a link already shared').toBe(200);
+
+    // HIS ACCESS IS CUT.
+    expect((await opsPost('/fulfillment/supplier-code/revoke', { supplierId: AVANT })).status).toBe(200);
+
+    // 1. OFF THE COLLECTION — Opportunités loses it.
+    const coll = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await coll.text(), 'a cut-off supplier sells nothing').not.toContain(PV);
+
+    // 2. OFF THE SINGLE READ — the quieter half. Filtering only the collection
+    //    would leave every link ALREADY SHARED still selling the product.
+    const un = await mf.dispatchFetch(`http://o/supply-projection/${PV}`, {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(un.status, 'a signed link already in the wild must stop resolving too').not.toBe(200);
+
+    // 3. OFF PRODUITS — and with it his chip, which is derived from who owns
+    //    visible products. This is the sentence he wrote.
+    const inv = await opsGet('/offers/inventaire');
+    expect(inv.status).toBe(200);
+    const items = (inv.json as { items?: { offerId: string; supplierId: string }[] }).items ?? [];
+    expect(items.find((i) => i.offerId === 'offer-coupe-avant-9300')).toBeUndefined();
+    expect(JSON.stringify(items), 'his chip has nothing left to derive from').not.toContain(AVANT);
+    // The neighbours are untouched — the join is scoped to who was CUT, never
+    // to who merely holds no code (INVENTAIRE-COMPLET\u2019s property survives).
+    expect(
+      items.find((i) => i.offerId === 'offer-voisin-9301'),
+      'everyone else stays visible and deletable',
+    ).toBeDefined();
+  });
+
+  /**
    * ═══ PURGE-FOURNISSEUR — « remove and erase completely » (founder 2026-08-11) ═══
    *
    * IRREVERSIBLE, so what is asserted here is mostly what STOPS it. The three
