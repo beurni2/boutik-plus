@@ -285,6 +285,13 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
   beforeEach(() => {
     wiredEnv();
     process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
+    // ⚠ THE MEDIA WRITE + REVOKE KEYS, because the erase destroys BYTES and the
+    // offer service cannot. `resolveMediaService()` answers null without them,
+    // and a console deployed without them would erase every record while
+    // leaving every photograph readable at its url — silently. This env is what
+    // the founder's own bundle carries (web-deploy sets both).
+    process.env['EXPO_PUBLIC_MEDIA_WRITE_KEY'] = 'cle-media';
+    process.env['EXPO_PUBLIC_MEDIA_REVOKE_KEY'] = 'cle-revoke';
     storage({ 'boutik.operateur.cle': OPS });
   });
 
@@ -329,6 +336,98 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
     await screen.settle();
     expect(screen.canPress('Couper l’accès') || screen.canPress("Couper l'accès"), 'the live door still cuts').toBe(true);
     expect(screen.shows('Créé le 2026-08-01'), 'and still reads as a live door').toBe(true);
+    screen.unmount();
+  });
+
+  /**
+   * PURGE-FOURNISSEUR (founder 2026-08-11: « add a button to remove and erase
+   * completely the supplier and all its products »). ONE-WAY, so the walk's
+   * first job is proving it CANNOT fire on a single press.
+   */
+  it('the erase is ARMED first — one press destroys nothing', async () => {
+    const w = wire(
+      console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
+    );
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+
+    expect(screen.canPress('Supprimer définitivement')).toBe(true);
+    await screen.press('Supprimer définitivement');
+    await screen.settle();
+    // NOTHING LEFT THE APP on the first press — the assertion that matters.
+    expect(w.calls.some((c) => c.path === '/fulfillment/supplier/effacer'), 'one press must not erase').toBe(false);
+    // …and he is told what the second press will do, with the way out present.
+    expect(screen.shows('Ses produits et ses photos seront effacés. On ne peut pas revenir en arrière.')).toBe(true);
+    expect(screen.canPress('Non, garder'), 'the way out must be reachable').toBe(true);
+
+    // Backing out really disarms — the tree survives and the door closes.
+    await screen.press('Non, garder');
+    await screen.settle();
+    expect(screen.canPress('Supprimer définitivement'), 'the tree survived the cancel').toBe(true);
+    expect(w.calls.some((c) => c.path === '/fulfillment/supplier/effacer')).toBe(false);
+    screen.unmount();
+  });
+
+  it('the SECOND press erases him, for HIM, and destroys his photographs', async () => {
+    const w = wire([
+      (path, _b, _s, headers) =>
+        path === '/fulfillment/supplier/effacer'
+          ? headers['authorization'] === `Bearer ${OPS}`
+            ? { status: 200, json: { ok: true, supplierId: COUPE, supprimes: 1, refs: ['media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'] } }
+            : { status: 401, json: { error: 'unauthorized' } }
+          : null,
+      (path) => (path === '/media/revoke' ? { status: 200, json: { status: 'revoked', ref: 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } } : null),
+      ...console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
+    ]);
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    await screen.press('Supprimer définitivement');
+    await screen.settle();
+    await screen.press('Oui, tout effacer');
+    await screen.settle();
+
+    const efface = w.calls.find((c) => c.path === '/fulfillment/supplier/effacer');
+    expect(efface, 'the second press must actually erase').toBeDefined();
+    // FOR HIM — naming the wrong supplier here destroys the wrong catalogue.
+    expect(efface?.body?.['supplierId']).toBe(COUPE);
+    // AND THE PHOTOGRAPHS GO WITH HIM: the offer service cannot destroy bytes,
+    // so a console that dropped the refs would leave every photograph readable
+    // at its url while calling the supplier « effacé ».
+    const revoke = w.calls.find((c) => c.path === '/media/revoke');
+    expect(revoke, 'the bytes must be destroyed too').toBeDefined();
+    expect(revoke?.body?.['ref']).toBe('media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    screen.unmount();
+  });
+
+  it('a supplier WITH ORDERS is refused, in words he can act on', async () => {
+    wire([
+      (path) =>
+        path === '/fulfillment/supplier/effacer'
+          ? { status: 409, json: { ok: false, reason: 'a_des_commandes' } }
+          : null,
+      ...console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
+    ]);
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    await screen.press('Supprimer définitivement');
+    await screen.settle();
+    await screen.press('Oui, tout effacer');
+    await screen.settle();
+    // The refusal is an ANSWER, and it says what stays true — not only what failed.
+    expect(
+      screen.shows('Ce fournisseur a des commandes. Ses produits restent, pour que les commandes gardent leur sens.'),
+    ).toBe(true);
+    // …and the tree survived: he can still act on this row.
+    expect(screen.canPress('Redonner un code')).toBe(true);
+    screen.unmount();
+  });
+
+  it('an ACTIVE supplier is never offered the erase at all', async () => {
+    wire(console_([{ supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }]));
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    // Cut him off first — a one-way door must not sit beside a live supplier.
+    expect(screen.shows('Supprimer définitivement')).toBe(false);
     screen.unmount();
   });
 });

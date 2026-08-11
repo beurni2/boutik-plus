@@ -333,6 +333,66 @@ export default {
       return Response.json({ status: existed ? 'deleted' : 'idempotent', offerId: cmd.offerId });
     }
 
+    /**
+     * ═══ PURGE-FOURNISSEUR — ERASE ONE SUPPLIER'S WHOLE CATALOGUE ═══
+     *
+     * Founder, 2026-08-11: « add a button to remove and erase completely the
+     * supplier and all its products. » IRREVERSIBLE, unlike RETRAIT-ACCÈS, and
+     * every guard that makes it safe to offer lives at the composition root
+     * (`effacerFournisseur`): his ops credential, the supplier must ALREADY be
+     * cut off, and he must have NO paid orders. This route is the hands, not
+     * the judgement.
+     *
+     * IT REUSES THE OFFER-DELETE-1 ORDER, per offer, exactly — pointer, then
+     * index, then entry. That order is the fail-safety across three durable
+     * objects with no transaction between them, and a purge that invented its
+     * own order would be a second, less-tested delete.
+     *
+     * IT RETURNS THE MEDIA REFS IT ORPHANED, and that is load-bearing: this
+     * service cannot reach the media Worker (different deployable, and the
+     * revoke credential is the founder's alone, never in this Worker's env). So
+     * the caller that HAS that credential — his console — destroys the bytes.
+     * Erasing the records and silently leaving every photograph readable at its
+     * url would be « erased » as a word, not as a fact.
+     */
+    if (request.method === 'POST' && pathname === '/offers/purge-fournisseur') {
+      const body = (await request.json().catch(() => null)) as { supplierId?: unknown } | null;
+      const supplierId = body?.supplierId;
+      if (typeof supplierId !== 'string' || supplierId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'supplierId' }, { status: 400 });
+      }
+      const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
+      const rows = (await idxRes.json()) as IndexRow[];
+      const refs: string[] = [];
+      let supprimes = 0;
+      for (const r of rows) {
+        const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
+        if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
+        const entry = (await eRes.json()) as OfferEntry;
+        if (entry.product.supplierId !== supplierId) continue;
+        // EVERY ref this product owns, the MASTER excluded — it never left the
+        // device, so there is nothing at a url to destroy (`private/device/…`).
+        const a = entry.assets;
+        for (const m of [a?.heroSquare, a?.heroVertical, a?.proof, ...(a?.detail ?? []), a?.video]) {
+          if (m !== undefined && typeof m.ref === 'string' && m.ref.startsWith('media/')) refs.push(m.ref);
+        }
+        // …the same three removals as OFFER-DELETE-1, in the same order.
+        const ptrRes = await pvStub(env, entry.product.id).fetch(new Request('https://do/pointer'));
+        if (ptrRes.status === 200) {
+          const ptr = (await ptrRes.json()) as PvPointer;
+          if (ptr.offerId === r.offerId) {
+            await pvStub(env, entry.product.id).fetch(new Request('https://do/pointer/delete', { method: 'POST' }));
+          }
+        }
+        await indexStub(env).fetch(
+          new Request('https://do/index/remove', { method: 'PUT', body: JSON.stringify({ offerId: r.offerId }) }),
+        );
+        const delRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry/delete', { method: 'POST' }));
+        if (((await delRes.json()) as { existed: boolean }).existed) supprimes += 1;
+      }
+      return Response.json({ ok: true, supplierId, supprimes, refs: [...new Set(refs)] });
+    }
+
     // THE SUPPLIER LIST — key-gated at the composition root (a GET, so the write
     // gate skips it). Reads the write-once index, then the LIVE fields off each
     // offer entry, so the list can never show stale state. No seller-net: money

@@ -175,6 +175,24 @@ export type MintResult =
   | { readonly ok: true; readonly code: string; readonly supplierId: string; readonly mintedAt: string }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
+/**
+ * PURGE-FOURNISSEUR (founder 2026-08-11: « add a button to remove and erase
+ * completely the supplier and all its products »). IRREVERSIBLE.
+ *
+ * `refs` is what the service could not destroy itself — the photographs' opaque
+ * keys. The media revoke credential is the founder's alone and never enters the
+ * offer Worker, so the CONSOLE destroys the bytes with them. An erase that
+ * dropped the records and left every photograph readable at its url would be
+ * « erased » as a word, not as a fact.
+ *
+ * The two refusals that are NOT failures are named: `acces_actif` (cut him off
+ * first — the erase is a second, deliberate step) and `a_des_commandes` (money
+ * history makes a supplier un-erasable; the ledger wins over tidiness).
+ */
+export type EffacerResult =
+  | { readonly ok: true; readonly supprimes: number; readonly refs: readonly string[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' };
+
 export type RevokeResult =
   | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
@@ -231,6 +249,9 @@ export interface OperationsServicePort {
   mintCode(opsKey: string, supplierId: string): Promise<MintResult>;
   /** Cut a supplier off. Idempotent — `no_code` is an honest answer. */
   revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult>;
+  /** PURGE-FOURNISSEUR — erase him and every product he owns. IRREVERSIBLE, and
+   *  refused by name when his access is still live or he has paid orders. */
+  effacerFournisseur(opsKey: string, supplierId: string): Promise<EffacerResult>;
   /** CODE-REVU — reread a code already given (founder ruling 2026-08-09).
    *  `code_anterieur` names a pre-ruling code the book cannot show back. */
   revealCode(opsKey: string, supplierId: string): Promise<RevealResult>;
@@ -522,6 +543,38 @@ export function resolveOperationsService(): OperationsServicePort | null {
         return { ok: false, reason: 'unreachable' };
       }
       return { ok: true, code: body['code'], supplierId };
+    },
+
+    async effacerFournisseur(opsKey: string, supplierId: string): Promise<EffacerResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/supplier/effacer`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          body: JSON.stringify({ supplierId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = (await res.json().catch(() => null)) as
+        | { ok?: boolean; supprimes?: unknown; refs?: unknown; reason?: unknown }
+        | null;
+      if (!res.ok) {
+        // The service's TYPED refusals travel verbatim — « cut him off first »
+        // and « he has orders » are answers, not errors, and the screen says
+        // each in its own words.
+        const r = body?.reason;
+        if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu') return { ok: false, reason: r };
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (body?.ok !== true || typeof body.supprimes !== 'number' || !Array.isArray(body.refs)) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      // Strict: a ref outside the minted namespace is not one this system made,
+      // and the console must never be talked into revoking an arbitrary key.
+      const refs = body.refs.filter((r): r is string => typeof r === 'string' && r.startsWith('media/'));
+      return { ok: true, supprimes: body.supprimes, refs };
     },
 
     async revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult> {

@@ -83,6 +83,7 @@ import {
   type ComptesUi,
   type SuiviRead,
 } from './view';
+import { resolveMediaService } from '../supply/media';
 import { SZoneFonds } from '../fonds/zone';
 import { SZoneCoursiers } from '../coursiers/zone';
 
@@ -333,6 +334,48 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     await settleCodes(mintSettled(result));
   };
 
+  /**
+   * PURGE-FOURNISSEUR (founder 2026-08-11) — WHICH supplier is one tap from
+   * being erased. `null` means nobody: the destructive button never fires on
+   * its first press, it ARMS, and the row then shows what will happen and two
+   * ways out. The same two-tap discipline the product delete uses, because this
+   * one is worse — it takes a whole catalogue and cannot be undone.
+   */
+  const [aEffacer, setAEffacer] = useState<string | null>(null);
+  /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
+   *  must read, not a silent no-op. */
+  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'autre' } | null>(null);
+
+  const effacerFournisseur = async (supplierId: string): Promise<void> => {
+    if (service === null) return;
+    setAEffacer(null);
+    setEffacerEchec(null);
+    const res = await service.effacerFournisseur(opsKey, supplierId);
+    if (!res.ok) {
+      setEffacerEchec({ id: supplierId, raison: res.reason === 'a_des_commandes' ? 'commandes' : 'autre' });
+      return;
+    }
+    /**
+     * THE BYTES, DESTROYED HERE — the offer service cannot: the media revoke
+     * credential is the founder's alone and rides only this bundle. Each is
+     * fire-and-forget and BOUNDED by the port's own timeout; a photograph that
+     * fails to revoke orphans in the bucket exactly as a failed product delete
+     * already leaves one, and the records are gone either way.
+     *
+     * ⚠ BOUNDED-LATENCY, NEVER INSTANT: a copy already in an edge or browser
+     * cache keeps answering for up to its TTL. « Effacé » is true of the
+     * origin, not of every cache on earth, and the sentence he reads says
+     * « seront effacés » rather than claiming the past tense.
+     */
+    const media = resolveMediaService();
+    if (media !== null) {
+      for (const ref of res.refs) await media.revokeImage(ref);
+    }
+    // The list is re-read so the row he just erased actually leaves the screen —
+    // a destructive act that appears to do nothing is how a founder taps twice.
+    await loadCodes();
+  };
+
   const couperCode = async (supplierId: string): Promise<void> => {
     if (service === null) return;
     const started = revokeStart(codesUi, supplierId);
@@ -487,6 +530,10 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             onDraft={setCodeDraft}
             onCreer={() => { void creerCode(codeDraft.trim()); }}
             onRedonner={(supplierId) => { void creerCode(supplierId); }}
+            arme={aEffacer}
+            onArmer={setAEffacer}
+            onEffacer={(supplierId) => { void effacerFournisseur(supplierId); }}
+            echecEffacer={effacerEchec}
             onCouper={(supplierId) => { void couperCode(supplierId); }}
             onVoir={(supplierId) => { void revoirCode(supplierId); }}
             onVu={() => setCodesUi(CODES_IDLE)}
@@ -1246,7 +1293,7 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, onCouper, onVoir, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
@@ -1258,6 +1305,13 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, onCouper,
    *  whatever is typed in the field, this one names a supplier already known,
    *  and conflating them would let a stray draft value ride a row's button. */
   onRedonner: (supplierId: string) => void;
+  /** PURGE-FOURNISSEUR — which row is ARMED (null = none), who arms it, and the
+   *  refusal to show. Held by the screen, not the row, so only ever ONE row is
+   *  one tap from a one-way door. */
+  arme: string | null;
+  onArmer: (supplierId: string | null) => void;
+  onEffacer: (supplierId: string) => void;
+  echecEffacer: { id: string; raison: 'commandes' | 'autre' } | null;
   onCouper: (supplierId: string) => void;
   onVoir: (supplierId: string) => void;
   onVu: () => void;
@@ -1336,10 +1390,29 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, onCouper,
               ) : (
                 <View style={{ gap: 6, alignItems: 'flex-end' }}>
                   {c.revokedAt !== undefined ? (
-                    /* THE WAY BACK, one tap. Minting is what lifts the
-                       tombstone server-side, so this is the ordinary mint —
-                       and it restores exactly the products this act retired. */
-                    <BtnSoft label={t('operations.code_redonner')} onPress={() => onRedonner(c.supplierId)} />
+                    <>
+                      {/* THE WAY BACK, one tap. Minting is what lifts the
+                          tombstone server-side, so this is the ordinary mint —
+                          and it restores exactly the products this act retired. */}
+                      <BtnSoft label={t('operations.code_redonner')} onPress={() => onRedonner(c.supplierId)} />
+                      {/* PURGE-FOURNISSEUR — THE ONE-WAY DOOR, and it never
+                          fires on its first press. Armed, it states what will
+                          happen and offers the way out FIRST, because the
+                          dangerous act must never be the easy one. Only offered
+                          on a supplier already cut off: erasing is a second,
+                          deliberate step. */}
+                      {arme === c.supplierId ? (
+                        <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                          <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { maxWidth: 240, textAlign: 'right' }]}>
+                            {t('operations.supprimer_def_avert')}
+                          </Text>
+                          <BtnSoft label={t('operations.supprimer_def_annuler')} onPress={() => onArmer(null)} />
+                          <BtnSoft label={t('operations.supprimer_def_confirmer')} onPress={() => onEffacer(c.supplierId)} />
+                        </View>
+                      ) : (
+                        <BtnSoft label={t('operations.supprimer_def')} onPress={() => onArmer(c.supplierId)} />
+                      )}
+                    </>
                   ) : (
                     <>
                       {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN the
@@ -1354,6 +1427,16 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, onCouper,
                 </View>
               )}
             </View>
+            {/* PURGE-FOURNISSEUR — a REFUSAL he can read. « Il a des
+                commandes » is an answer, not an error, and it says what stays
+                true rather than only what failed. */}
+            {echecEffacer?.id === c.supplierId && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
+                  {t(echecEffacer.raison === 'commandes' ? 'operations.supprimer_def_commandes' : 'operations.supprimer_def_echec')}
+                </Text>
+              </View>
+            )}
             {ui.echec === `revoke:${c.supplierId}` && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_coupure_echec')}</Text>

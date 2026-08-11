@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -54,6 +54,87 @@ export { OfferDO, FulfillmentDO };
  * count when the walk ran, `null` when it could not. Reporting a number nobody
  * measured is the failure this project refuses.
  */
+/**
+ * ═══ PURGE-FOURNISSEUR — THE ERASE, AND THE THREE THINGS THAT GUARD IT ═══
+ *
+ * Founder, 2026-08-11: « add a button to remove and erase completely the
+ * supplier and all its products. » This one does not come back, so what makes
+ * it safe to OFFER is not the act — it is what has to be true first:
+ *
+ *   1. HIS CREDENTIAL — checked at the route above, like every act here.
+ *   2. HE MUST ALREADY BE CUT OFF. Erasing is a second, deliberate step after
+ *      « couper l'accès », never a single tap that can destroy a live
+ *      supplier's whole catalogue by accident.
+ *   3. HE MUST HAVE NO PAID ORDER. Money history is what makes a supplier
+ *      un-erasable: an order book naming a product nobody can describe is a
+ *      ledger with a hole in it, and this project does not put holes in
+ *      ledgers to tidy a screen. REFUSED BY NAME so the console can say why.
+ *
+ * ORDER: catalogue FIRST, registry row LAST. Erasing the row first would leave
+ * a catalogue nobody could attribute — and every step is idempotent, so a
+ * replay after a failure finishes the job rather than half-undoing it.
+ *
+ * ⚠ WHAT THIS CANNOT ERASE, STATED RATHER THAN IMPLIED: the photographs' BYTES
+ * are destroyed by the CONSOLE, not here — the media revoke credential is the
+ * founder's alone and never enters this Worker's env, so this route hands back
+ * the refs it orphaned and his console destroys them. And even then, revocation
+ * is BOUNDED-LATENCY, never instant: a copy already in an edge or browser cache
+ * keeps answering for up to its TTL (an hour). Nothing about this act is a
+ * promise that no byte exists anywhere from this second onward.
+ */
+async function effacerFournisseur(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { supplierId?: unknown } | null;
+  const supplierId = body?.supplierId;
+  if (typeof supplierId !== 'string' || supplierId.trim() === '') {
+    return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+  }
+  // ⚠ `BOOK_NAME`, IMPORTED — never a literal. A hand-typed name addresses a
+  // DIFFERENT, empty durable object: every guard fact would come back false and
+  // the erase would refuse everything with `inconnu`, forever, silently.
+  const book = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  const faitsRes = await book.fetch(
+    new Request('https://do/supplier/effacable', { method: 'POST', body: JSON.stringify({ supplierId }) }),
+  );
+  const faits = (await faitsRes.json().catch(() => null)) as
+    | { connu?: boolean; coupe?: boolean; aDesCommandes?: boolean }
+    | null;
+  if (faits === null || faits.connu !== true) {
+    return Response.json({ ok: false, reason: 'inconnu' }, { status: 404 });
+  }
+  if (faits.coupe !== true) {
+    // GUARD 2 — cut him off first. Named, so the screen can say what to do.
+    return Response.json({ ok: false, reason: 'acces_actif' }, { status: 409 });
+  }
+  if (faits.aDesCommandes === true) {
+    // GUARD 3 — the ledger wins over tidiness, always.
+    return Response.json({ ok: false, reason: 'a_des_commandes' }, { status: 409 });
+  }
+
+  const purge = await offerRouter.fetch(
+    new Request('https://do/offers/purge-fournisseur', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supplierId }),
+    }),
+    env,
+  );
+  if (!purge.ok) {
+    // THE ROW SURVIVES A FAILED PURGE. Erasing it here would orphan whatever
+    // the walk did not reach, with nothing left to attribute it to.
+    return Response.json({ ok: false, reason: 'purge_echouee' }, { status: 502 });
+  }
+  const { supprimes, refs } = (await purge.json()) as { supprimes: number; refs: string[] };
+
+  const efface = await book.fetch(
+    new Request('https://do/code/effacer', { method: 'POST', body: JSON.stringify({ supplierId }) }),
+  );
+  if (!efface.ok) return Response.json({ ok: false, reason: 'registre_echoue', supprimes, refs }, { status: 502 });
+
+  // `refs` travels so his console can destroy the bytes with the credential
+  // this Worker deliberately does not hold.
+  return Response.json({ ok: true, supplierId, supprimes, refs });
+}
+
 async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke'): Promise<Response> {
   const raw = await request.text();
   const supplierId = ((): string | null => {
@@ -303,6 +384,16 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return acteSurAcces(request, env, 'mint');
+    }
+    /**
+     * PURGE-FOURNISSEUR — « remove and erase completely the supplier and all
+     * its products » (founder 2026-08-11). IRREVERSIBLE, and gated on his own
+     * credential like every other act on this screen.
+     */
+    if (request.method === 'POST' && fp === '/fulfillment/supplier/effacer') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return effacerFournisseur(request, env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code/revoke') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);

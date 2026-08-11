@@ -4858,5 +4858,41 @@
     "fr": "Redonner un code",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "operations.supprimer_def",
+    "fr": "Supprimer définitivement",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.supprimer_def_confirmer",
+    "fr": "Oui, tout effacer",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.supprimer_def_avert",
+    "fr": "Ses produits et ses photos seront effacés. On ne peut pas revenir en arrière.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_annuler",
+    "fr": "Non, garder",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.supprimer_def_commandes",
+    "fr": "Ce fournisseur a des commandes. Ses produits restent, pour que les commandes gardent leur sens.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_echec",
+    "fr": "La suppression n'a pas abouti. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

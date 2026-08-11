@@ -976,6 +976,115 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     expect(await apres.text()).not.toContain('pv-orphelin-9001');
   });
 
+  /**
+   * ═══ PURGE-FOURNISSEUR — « remove and erase completely » (founder 2026-08-11) ═══
+   *
+   * IRREVERSIBLE, so what is asserted here is mostly what STOPS it. The three
+   * guards are the feature; the deletion is the easy part.
+   */
+  it('REFUSES to erase a supplier whose access is still ACTIVE — cut him off first', async () => {
+    const VIVANT = 'supplier-vivant-9100';
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: VIVANT })).status).toBe(200);
+    const res = await opsPost('/fulfillment/supplier/effacer', { supplierId: VIVANT });
+    expect(res.status).toBe(409);
+    expect((res.json as { reason?: string }).reason).toBe('acces_actif');
+    // …and he is untouched: still a live door.
+    const codes = await opsGet('/fulfillment/supplier-codes');
+    const ligne = (codes.json as { codes?: { supplierId: string; revokedAt?: string }[] }).codes?.find(
+      (c) => c.supplierId === VIVANT,
+    );
+    expect(ligne?.revokedAt, 'a refused erase changes nothing').toBeUndefined();
+  });
+
+  it('REFUSES to erase a supplier who has PAID ORDERS — the ledger wins over tidiness', async () => {
+    /**
+     * ⚠ SELF-CONTAINED, DELIBERATELY. The first version leaned on SUPPLIER_A
+     * having orders from the readiness suites above — and it FLAKED in a full
+     * run, because whether an order resolves to a supplier depends on whether
+     * that product still existed at intake time, which the revoke tests in this
+     * very block change. A flaky test guarding a one-way door is worse than no
+     * test: it teaches everyone to re-run until green. This one builds its own
+     * world: a supplier, a product, a REAL paid order through the intake, then
+     * the refusal.
+     */
+    const AVEC = 'supplier-avec-commandes-9300';
+    const PV = 'pv-avec-commandes-9300';
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: AVEC })).status).toBe(200);
+    const created = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...seedFor(PV, AVEC, '93'), commandId: 'seed-avec-9300', offerId: 'offer-avec-9300' }),
+    });
+    expect(created.status, await created.clone().text()).toBe(200);
+    // A REAL paid order against his product, through the real intake — so the
+    // guard reads a ledger entry, not a flag a test set.
+    // `intake` THROWS on a non-200, so reaching the next line is the assertion.
+    await intake('ord-avec-9300', PV);
+    // Cut him off, so the erase reaches the LEDGER guard rather than stopping
+    // at « coupe-le d'abord » — the two refusals must not be confused.
+    expect((await opsPost('/fulfillment/supplier-code/revoke', { supplierId: AVEC })).status).toBe(200);
+
+    const res = await opsPost('/fulfillment/supplier/effacer', { supplierId: AVEC });
+    expect(res.status).toBe(409);
+    expect((res.json as { reason?: string }).reason).toBe('a_des_commandes');
+    // …AND NOTHING WAS DESTROYED: a refused erase must leave the catalogue and
+    // the supplier exactly as they were.
+    const codes = await opsGet('/fulfillment/supplier-codes');
+    expect(JSON.stringify(codes.json), 'the supplier survives a refused erase').toContain(AVEC);
+  });
+
+  it('ERASES a cut-off supplier with no orders: his products go, his row goes, and the refs come back', async () => {
+    const PARTI = 'supplier-parti-9200';
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: PARTI })).status).toBe(200);
+    const created = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...seedFor('pv-parti-9200', PARTI, '92'),
+        commandId: 'seed-parti-9200',
+        offerId: 'offer-parti-9200',
+        assets: {
+          masterRef: { ref: 'private/device/' + 'a'.repeat(64), sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+          heroSquare: { ref: 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+          heroVertical: { ref: 'media/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', sha256: 'c'.repeat(64), mimeType: 'image/jpeg' },
+          proof: { ref: 'media/cccccccc-cccc-4ccc-8ccc-cccccccccccc', sha256: 'd'.repeat(64), mimeType: 'image/jpeg' },
+          detail: [],
+          hashes: ['a'.repeat(64)],
+          processingVersion: 'premium-frame.v1',
+        },
+      }),
+    });
+    expect(created.status, await created.clone().text()).toBe(200);
+    await opsPost('/fulfillment/supplier-code/revoke', { supplierId: PARTI });
+
+    const res = await opsPost('/fulfillment/supplier/effacer', { supplierId: PARTI });
+    expect(res.status, JSON.stringify(res.json)).toBe(200);
+    const out = res.json as { supprimes?: number; refs?: string[] };
+    expect(out.supprimes, 'his one product was really removed').toBe(1);
+    // THE REFS TRAVEL, because this Worker cannot destroy the bytes itself —
+    // the master is EXCLUDED (it never left the device, there is no url).
+    expect(out.refs?.length).toBe(3);
+    expect(out.refs?.every((r) => r.startsWith('media/'))).toBe(true);
+    expect(JSON.stringify(out.refs)).not.toContain('private/device/');
+
+    // ── THE LEDGERS AGREE: gone from Shop+, gone from his screens, gone from
+    //    the registry — and asked of each, never inferred from the answer above.
+    const vitrine = await mf.dispatchFetch('http://o/supply-projections', {
+      headers: { Authorization: `Bearer ${SUPPLY_SECRET}` },
+    });
+    expect(await vitrine.text()).not.toContain('pv-parti-9200');
+    const inv = await opsGet('/offers/inventaire');
+    expect(JSON.stringify(inv.json)).not.toContain('pv-parti-9200');
+    const codes = await opsGet('/fulfillment/supplier-codes');
+    expect(JSON.stringify(codes.json), 'the supplier himself is gone').not.toContain(PARTI);
+  });
+
+  it('erasing again is the honest « inconnu », never a phantom success', async () => {
+    const res = await opsPost('/fulfillment/supplier/effacer', { supplierId: 'supplier-parti-9200' });
+    expect(res.status).toBe(404);
+    expect((res.json as { reason?: string }).reason).toBe('inconnu');
+  });
+
 
   it('the inventory is the FOUNDER’s read — the write key and no key alike are refused', async () => {
     const bare = await mf.dispatchFetch('http://o/offers/inventaire');

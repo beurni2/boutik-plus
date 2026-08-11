@@ -867,6 +867,55 @@ export class FulfillmentDO {
       return Response.json({ ok: true, status: 'revoked' });
     }
 
+    /**
+     * PURGE-FOURNISSEUR — ERASE THE SUPPLIER ROW ITSELF, tombstone included.
+     * Idempotent: erasing someone already gone is an honest `absent`.
+     *
+     * ⚠ THIS IS THE LAST STEP OF A LARGER ACT and must never be called alone —
+     * the composition root (`effacerFournisseur`) checks his credential, that
+     * the supplier is ALREADY cut off, and that he has NO paid orders, then
+     * purges the catalogue, and only then erases this row. Erasing the row
+     * first would leave a catalogue nobody could attribute.
+     *
+     * A HASH ROW SHOULD NOT EXIST HERE (a cut-off supplier's was destroyed at
+     * revoke) — but it is deleted defensively anyway: the one thing this act
+     * may never leave behind is a code that still opens a door.
+     */
+    if (request.method === 'POST' && pathname === '/code/effacer') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const existing = await this.state.storage.get<{ hash?: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      if (existing === undefined) return Response.json({ ok: true, status: 'absent' });
+      if (existing.hash !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${existing.hash}`);
+      await this.state.storage.delete(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      return Response.json({ ok: true, status: 'efface' });
+    }
+
+    /** PURGE-FOURNISSEUR — the two facts the erase guard turns on, answered
+     *  together so the composition root asks once: is he CUT OFF already, and
+     *  does he have any PAID ORDER. Money history is what makes a supplier
+     *  un-erasable — an order book naming a product nobody can describe is a
+     *  ledger with a hole in it. */
+    if (request.method === 'POST' && pathname === '/supplier/effacable') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const row = await this.state.storage.get<{ revokedAt?: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      const orders = await this.state.storage.list<{ supplierId?: string }>({ prefix: ORDER_PREFIX });
+      const aDesCommandes = [...orders.values()].some((o) => o?.supplierId === supplierId);
+      return Response.json({
+        ok: true,
+        connu: row !== undefined,
+        coupe: row?.revokedAt !== undefined,
+        aDesCommandes,
+      });
+    }
+
     /** LISTER-POUR-1a' — IS THIS A SUPPLIER THE FOUNDER KNOWS? Internal, like
      *  `/resolve`; the composition root asks before an offer CREATE may name a
      *  supplierId. « Known » means CURRENTLY HOLDS AN ACTIVE CODE — the same
