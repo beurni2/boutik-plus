@@ -4846,5 +4846,17 @@
     "fr": "Couper l'accès retire aussi ses produits de la vente. Ils reviennent si vous lui redonnez un code.",
     "register": "neutral",
     "screenClass": "general"
+  },
+  {
+    "key": "operations.code_coupe_le",
+    "fr": "Accès coupé le {d}. Ses produits ne sont plus en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_redonner",
+    "fr": "Redonner un code",
+    "register": "neutral",
+    "screenClass": "general"
   }
 ]

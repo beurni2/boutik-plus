@@ -436,7 +436,14 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
       [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')],
     };
     // The roster the service answers, MUTABLE — this is the revoke.
-    let porteurs = [MOI, AUTRE];
+    //
+    // ⚠ A REVOKE LEAVES A TOMBSTONE, IT DOES NOT ERASE THE ROW (founder
+    // 2026-08-11: erasing it left « no way to remint code under the same
+    // supplier again »). So the fake must answer what the real service
+    // answers — the row STILL THERE, carrying `revokedAt` — or this walk
+    // would prove nothing about the filter that has to drop it. Proven by
+    // mutation: with the row simply removed, deleting the filter stayed green.
+    let coupe: string | null = null;
     const svc = livre(book);
     wire([
       (path) =>
@@ -445,7 +452,12 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
               status: 200,
               json: {
                 ok: true,
-                codes: porteurs.map((supplierId) => ({ supplierId, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true })),
+                codes: [MOI, AUTRE].map((supplierId) => ({
+                  supplierId,
+                  mintedAt: '2026-08-01T08:00:00.000Z',
+                  revelable: true,
+                  ...(supplierId === coupe ? { revokedAt: '2026-08-11T15:00:00.000Z' } : {}),
+                })),
               },
             }
           : null,
@@ -458,8 +470,8 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
     await screen.settle();
     expect(screen.shows(AUTRE), 'he is on screen to begin with').toBe(true);
 
-    // ── THE REVOKE, in another tab: her code is gone ──
-    porteurs = [MOI];
+    // ── THE REVOKE, in another tab: her row is MARKED, not removed ──
+    coupe = AUTRE;
 
     // A read the founder himself triggers — tapping « Tous ». No remount.
     await screen.press('Tous');

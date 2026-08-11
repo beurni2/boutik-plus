@@ -681,8 +681,12 @@ export class FulfillmentDO {
       const code = mintSupplierCode();
       const hash = await sha256Hex(code);
       const mintedAt = new Date().toISOString();
-      const previous = await this.state.storage.get<{ hash: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
-      if (previous !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${previous.hash}`);
+      const previous = await this.state.storage.get<{ hash?: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      // `hash` is absent on a TOMBSTONE (a revoked supplier) — deleting by an
+      // undefined key would throw, and there is nothing to delete anyway.
+      if (previous?.hash !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${previous.hash}`);
+      // The new row carries NO `revokedAt`: minting is what lifts a tombstone,
+      // which is exactly what makes « redonner un code » put him back.
       await this.state.storage.put({
         [`${CODEHASH_PREFIX}${hash}`]: { supplierId, mintedAt } satisfies SupplierCodeRecord,
         [`${SUPPLIERCODE_PREFIX}${supplierId}`]: { hash, mintedAt, code },
@@ -700,14 +704,19 @@ export class FulfillmentDO {
       if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
-      const pointer = await this.state.storage.get<{ mintedAt: string; code?: string }>(
+      const pointer = await this.state.storage.get<{ mintedAt?: string; code?: string; revokedAt?: string }>(
         `${SUPPLIERCODE_PREFIX}${supplierId}`,
       );
-      if (pointer === undefined) return Response.json({ ok: false, reason: 'no_code' }, { status: 404 });
+      // A TOMBSTONE HAS NO CODE TO REREAD, and it must say so with the honest
+      // absence — not `code_anterieur`, which would claim « a code exists, it
+      // simply cannot be shown » about a supplier whose code was destroyed.
+      if (pointer === undefined || pointer.revokedAt !== undefined) {
+        return Response.json({ ok: false, reason: 'no_code' }, { status: 404 });
+      }
       if (pointer.code === undefined) {
         return Response.json({ ok: false, reason: 'code_anterieur' }, { status: 409 });
       }
-      return Response.json({ ok: true, code: pointer.code, supplierId, mintedAt: pointer.mintedAt });
+      return Response.json({ ok: true, code: pointer.code, supplierId, mintedAt: pointer.mintedAt ?? '' });
     }
 
     /** CONSOLE-3 — THE CODE INVENTORY (ops read; the router gates it behind
@@ -718,11 +727,20 @@ export class FulfillmentDO {
      *  before this list existed, a typo'd supplierId minted a working code
      *  for a phantom and nothing could ever show it. */
     if (request.method === 'GET' && pathname === '/codes') {
-      const entries = await this.state.storage.list<{ mintedAt: string; code?: string }>({ prefix: SUPPLIERCODE_PREFIX });
+      const entries = await this.state.storage.list<{ mintedAt?: string; code?: string; revokedAt?: string }>({
+        prefix: SUPPLIERCODE_PREFIX,
+      });
       const codes = [...entries.entries()]
         .map(([key, v]) => ({
           supplierId: key.slice(SUPPLIERCODE_PREFIX.length),
-          mintedAt: v.mintedAt,
+          // A TOMBSTONE keeps the mint time it had, so « depuis quand » stays
+          // true; a row with none answers its own revocation time rather than a
+          // fabricated date (loi: never a number nobody measured).
+          mintedAt: v.mintedAt ?? v.revokedAt ?? '',
+          // RETRAIT-ACCÈS — the row survives a revoke, MARKED. Every consumer
+          // must decide what to do with it: the console shows him with a way
+          // back, the Produits chip row drops him.
+          ...(v.revokedAt === undefined ? {} : { revokedAt: v.revokedAt }),
           // The allowlist HOLDS — never the code, never the hash. `revelable`
           // only says whether « Voir le code » can answer (2026-08-09 ruling):
           // false for codes minted before the plaintext was kept.
@@ -815,9 +833,37 @@ export class FulfillmentDO {
       if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
-      const existing = await this.state.storage.get<{ hash: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
-      if (existing === undefined) return Response.json({ ok: true, status: 'no_code' });
-      await this.state.storage.delete([`${CODEHASH_PREFIX}${existing.hash}`, `${SUPPLIERCODE_PREFIX}${supplierId}`]);
+      const existing = await this.state.storage.get<{ hash?: string; mintedAt?: string; revokedAt?: string }>(
+        `${SUPPLIERCODE_PREFIX}${supplierId}`,
+      );
+      if (existing === undefined || existing.revokedAt !== undefined) {
+        return Response.json({ ok: true, status: 'no_code' });
+      }
+      /**
+       * ⚠ THE CODE DIES; THE SUPPLIER DOES NOT (founder, 2026-08-11: « on
+       * fournisseurs the supplier's name and everything is gone, there is no
+       * way to remint code under the same supplier again »).
+       *
+       * The hash row is DESTROYED — that is the whole security act, and it is
+       * unchanged: `resolveCode` reads only `codehash:`, so the code he was
+       * given stops opening anything the moment this returns. What is kept is a
+       * TOMBSTONE at the supplier row: no hash, no plaintext, just « this
+       * supplier existed and his access was cut, then ». It exists so the
+       * console can still show him — marked — with a way back. Erasing the row
+       * made the reversal true on the wire and impossible on the screen: he
+       * would have had to remember and retype an id like
+       * `supplier-aicha-002` with nothing on screen to read it from.
+       *
+       * EVERY GATE MUST READ THE TOMBSTONE AS « NOT KNOWN »: `/known` below
+       * (which decides whether an offer may be listed FOR him) and the
+       * `/codes` roster both check `revokedAt`. A tombstone that read as an
+       * active code would silently reopen the door this act just shut.
+       */
+      if (existing.hash !== undefined) await this.state.storage.delete(`${CODEHASH_PREFIX}${existing.hash}`);
+      await this.state.storage.put(`${SUPPLIERCODE_PREFIX}${supplierId}`, {
+        ...(existing.mintedAt === undefined ? {} : { mintedAt: existing.mintedAt }),
+        revokedAt: new Date().toISOString(),
+      });
       return Response.json({ ok: true, status: 'revoked' });
     }
 
@@ -834,8 +880,11 @@ export class FulfillmentDO {
       if (typeof supplierId !== 'string' || supplierId === '') {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
-      const row = await this.state.storage.get(`${SUPPLIERCODE_PREFIX}${supplierId}`);
-      return Response.json({ ok: true, known: row !== undefined });
+      // A TOMBSTONE IS NOT A DOOR (RETRAIT-ACCÈS): the row survives a revoke so
+      // the console can offer a way back, but « known » gates whether an offer
+      // may be listed FOR this supplier — and a cut-off supplier may not be.
+      const row = await this.state.storage.get<{ revokedAt?: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
+      return Response.json({ ok: true, known: row !== undefined && row.revokedAt === undefined });
     }
 
     /** LISTER-POUR-1a — WHO IS BEHIND THIS CODE, and nothing else. An

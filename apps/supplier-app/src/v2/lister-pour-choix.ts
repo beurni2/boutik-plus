@@ -65,7 +65,16 @@ export async function lireFournisseurs(
   });
   const lecture = ops
     .listCodes(opsKey)
-    .then((res): FournisseursRead => (res.ok ? { kind: 'liste', ids: res.codes.map((c) => c.supplierId) } : echec))
+    // ⚠ ACTIVE DOORS ONLY (RETRAIT-ACCÈS, founder 2026-08-11). Since a revoke
+    // leaves a TOMBSTONE rather than erasing the row — so the console can offer
+    // a way back — every reader of this roster must drop the marked ones. Both
+    // callers here are about who may be CHOSEN: the publish picker (« lister
+    // pour ») and the Produits chip row. A cut-off supplier may be neither.
+    .then((res): FournisseursRead =>
+      res.ok
+        ? { kind: 'liste', ids: res.codes.filter((c) => c.revokedAt === undefined).map((c) => c.supplierId) }
+        : echec,
+    )
     .catch((): FournisseursRead => echec);
   try {
     return await Promise.race([lecture, borne]);

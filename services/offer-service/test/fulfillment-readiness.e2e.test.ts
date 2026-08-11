@@ -598,20 +598,33 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
     expect(ok.json['ok']).toBe(true);
   });
 
-  it('every row is EXACTLY {supplierId, mintedAt, revelable} — the hash and the code never leave the book, on ANY row', async () => {
+  it('a row carries NOTHING SECRET — never the hash, never the code, on ANY row', async () => {
     // CODE-REVU (2026-08-09) widened the allowlist by ONE boolean flag —
     // `revelable` says « Voir le code » can answer, never what it would say.
+    // RETRAIT-ACCÈS (2026-08-11) widened it by ONE timestamp — `revokedAt`,
+    // present only on a tombstone, so the console can show a cut-off supplier
+    // with a way back instead of erasing him.
+    //
+    // ⚠ THE PIN IS AN ALLOWLIST, not a fixed key set, because what it protects
+    // is SECRECY: `hash` and `code` must never leave this object. Freezing the
+    // exact keys made every honest addition look like a breach.
+    const PERMIS = new Set(['supplierId', 'mintedAt', 'revelable', 'revokedAt']);
     await opsPost('/fulfillment/supplier-code', { supplierId: INV_A });
     const res = await inventory();
     const codes = res.json['codes'] as Record<string, unknown>[];
     expect(codes.length).toBeGreaterThan(0);
     for (const row of codes) {
-      expect(Object.keys(row).sort(), JSON.stringify(row)).toEqual(['mintedAt', 'revelable', 'supplierId']);
+      for (const k of Object.keys(row)) {
+        expect(PERMIS.has(k), `unexpected key on a code row: ${k} — ${JSON.stringify(row)}`).toBe(true);
+      }
+      expect(row['hash'], 'the hash never leaves the book').toBeUndefined();
+      expect(row['code'], 'the plaintext never leaves the book').toBeUndefined();
+      expect(typeof row['supplierId']).toBe('string');
       expect(typeof row['revelable']).toBe('boolean');
     }
   });
 
-  it('lifecycle: mint appears (sorted by supplierId) → re-mint keeps ONE row with a NEW mintedAt → revoke removes it', async () => {
+  it('lifecycle: mint appears → re-mint keeps ONE row with a NEW mintedAt → revoke MARKS it → re-mint lifts the mark', async () => {
     const mintB = await opsPost('/fulfillment/supplier-code', { supplierId: INV_B });
     expect(mintB.json['ok']).toBe(true);
     const first = await inventory();
@@ -633,10 +646,40 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
 
     const revoke = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: INV_B });
     expect(revoke.json['status']).toBe('revoked');
+    /**
+     * ⚠ REVOKE USED TO ERASE THE ROW, and the founder found what that cost
+     * (2026-08-11): « on fournisseurs the supplier's name and everything is
+     * gone, there is no way to remint code under the same supplier again ».
+     * The row now SURVIVES, marked — that is what makes the reversal reachable
+     * on the screen and not only on the wire.
+     */
     const third = await inventory();
-    const after = (third.json['codes'] as { supplierId: string }[]).map((r) => r.supplierId);
-    expect(after.includes(INV_B)).toBe(false);
-    expect(after.includes(INV_A)).toBe(true); // the neighbour's door untouched
+    const apres = (third.json['codes'] as { supplierId: string; revokedAt?: string }[]);
+    const tombe = apres.find((r) => r.supplierId === INV_B);
+    expect(tombe, 'a cut-off supplier must stay listed, or he cannot be found again').toBeDefined();
+    expect(typeof tombe?.revokedAt, 'and he must be MARKED, never shown as a live door').toBe('string');
+    expect(apres.find((r) => r.supplierId === INV_A)?.revokedAt, "the neighbour's door untouched").toBeUndefined();
+
+    // …AND THE CODE IS REALLY DEAD, which is the half that must never regress:
+    // he cannot be listed FOR any more, and rereading answers the honest absence.
+    const listing = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...seedFor('pv-tombe-1', INV_B, '77'), commandId: 'seed-tombe-77', offerId: 'offer-tombe-77' }),
+    });
+    expect(listing.status, 'a cut-off supplier may not be listed FOR').toBe(400);
+    expect(await listing.clone().text()).toContain('unknown_supplier');
+    const relire = await opsPost('/fulfillment/supplier-code/reveal', { supplierId: INV_B });
+    expect(relire.json['reason'], 'no code to reread — never « anterieur », which would claim one exists').toBe('no_code');
+
+    // ── AND THE WAY BACK: one mint lifts the mark. ──────────────────────────
+    const rendu = await opsPost('/fulfillment/supplier-code', { supplierId: INV_B });
+    expect(rendu.json['ok']).toBe(true);
+    const quatrieme = await inventory();
+    const revenu = (quatrieme.json['codes'] as { supplierId: string; revokedAt?: string }[]).find(
+      (r) => r.supplierId === INV_B,
+    );
+    expect(revenu?.revokedAt, 'minting is what lifts a tombstone').toBeUndefined();
   });
 
   it('the inventory never interferes with the doors it lists: a code minted before the read still opens /mine', async () => {
@@ -867,10 +910,17 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     // The answer says how many products moved — a measured number, not a hope.
     expect((revoked.json as { produits?: number }).produits, 'the act must report what it retired').toBe(1);
 
-    // 4. THE ROSTER NO LONGER NAMES HIM, so nothing his screen could ask for
-    //    would ever reach this product — that is the bug, asserted.
+    // 4. THE ROSTER STILL NAMES HIM — but MARKED, never as a live door
+    //    (founder 2026-08-11: erasing the row left « no way to remint code
+    //    under the same supplier again »). The mark is what every consumer
+    //    reads: the console offers him a way back, the Produits chip row drops
+    //    him, and `/known` refuses to let anything be listed FOR him.
     const codes = await opsGet('/fulfillment/supplier-codes');
-    expect(JSON.stringify(codes.json)).not.toContain(ORPHELIN);
+    const ligne = (codes.json as { codes?: { supplierId: string; revokedAt?: string }[] }).codes?.find(
+      (c) => c.supplierId === ORPHELIN,
+    );
+    expect(ligne, 'a cut-off supplier stays findable on Fournisseurs').toBeDefined();
+    expect(typeof ligne?.revokedAt, 'marked, never shown as active').toBe('string');
 
     // 5. …and the SCOPED list — the only read his screen had — cannot reach it
     //    through any id the roster now names. Asserted directly: his own scope

@@ -120,6 +120,17 @@ export interface CodeRow {
    *  answer — false for codes minted before the plaintext was kept. Absent
    *  on the wire reads FALSE, never « probably yes ». */
   readonly revelable: boolean;
+  /**
+   * RETRAIT-ACCÈS (founder 2026-08-11) — WHEN his access was cut, if it was.
+   * Absent means an ACTIVE door.
+   *
+   * The row survives a revoke on purpose: erasing it left him with « the
+   * supplier's name and everything is gone, there is no way to remint code
+   * under the same supplier again ». Every reader must decide what to do with a
+   * marked row — the console shows him with a way back, the Produits chip row
+   * drops him — and none may treat it as a live door.
+   */
+  readonly revokedAt?: string;
 }
 
 /**
@@ -541,7 +552,14 @@ function readCodeRow(value: unknown): CodeRow | null {
   const r = value as Record<string, unknown>;
   if (typeof r['supplierId'] !== 'string' || r['supplierId'] === '') return null;
   if (typeof r['mintedAt'] !== 'string' || r['mintedAt'] === '' || Number.isNaN(Date.parse(r['mintedAt']))) return null;
-  return { supplierId: r['supplierId'], mintedAt: r['mintedAt'], revelable: r['revelable'] === true };
+  return {
+    supplierId: r['supplierId'],
+    mintedAt: r['mintedAt'],
+    revelable: r['revelable'] === true,
+    // A non-string reads ABSENT — « active » — because inventing a revocation
+    // from a malformed field would hide a real supplier from his own console.
+    ...(typeof r['revokedAt'] === 'string' && r['revokedAt'] !== '' ? { revokedAt: r['revokedAt'] } : {}),
+  };
 }
 
 function readPaidOrderRow(value: unknown): PaidOrderRow | null {

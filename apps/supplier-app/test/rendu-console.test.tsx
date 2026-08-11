@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { SAccueilReel } from '../src/accueil/screen';
 import { SCommandesReel } from '../src/commandes/screen';
+import { SOperations } from '../src/operations/screen';
 import { VignetteProduit } from '../src/v2/components';
 
 /**
@@ -249,5 +250,85 @@ describe('LA VIGNETTE — a blip must not hide a photograph for the rest of the 
       expect(screen.tree.toJSON()).toBeNull();
       screen.unmount();
     }
+  });
+});
+
+/**
+ * ═══ RETRAIT-ACCÈS · FOURNISSEURS — A CUT-OFF SUPPLIER MUST STILL BE FINDABLE ═══
+ *
+ * Founder, 2026-08-11: « if re-minting a supplier's code restores exactly the
+ * offers this act retired, on fournisseurs the supplier's name and everything is
+ * gone, there is no way to remint code under the same supplier again. »
+ *
+ * He was right, and the reversal was true on the wire and impossible on the
+ * screen: the row was erased, so putting him back meant remembering and
+ * retyping an id like `supplier-aicha-002` with nothing on screen to read it
+ * from. A revoke now leaves a TOMBSTONE and this walk is the proof it reaches
+ * him — « the row is in the file » cannot say whether the button is pressable.
+ */
+describe('OPÉRATIONS — the supplier whose access was cut', () => {
+  const OPS = 'cle-ops';
+  const ACTIF = 'supplier-actif-001';
+  const COUPE = 'supplier-coupe-002';
+
+  function console_(codes: Record<string, unknown>[]): Route[] {
+    return [
+      (path) =>
+        path === '/fulfillment/supplier-codes' ? { status: 200, json: { ok: true, codes } } : null,
+      // Everything else the board reads, answered emptily so the codes section
+      // renders rather than the board's failure state.
+      (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [] } } : null),
+      (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
+    ];
+  }
+
+  beforeEach(() => {
+    wiredEnv();
+    process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
+    storage({ 'boutik.operateur.cle': OPS });
+  });
+
+  it('stays on screen, MARKED, and its one control is the way back', async () => {
+    const w = wire(
+      console_([
+        { supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true },
+        { supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' },
+      ]),
+    );
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+
+    // HIS SENTENCE: the supplier is still there to be found.
+    expect(screen.shows(COUPE), 'a cut-off supplier must not vanish from Fournisseurs').toBe(true);
+    // …and he is MARKED, with the consequence stated where the cause is read.
+    expect(screen.shows('Accès coupé le 2026-08-11. Ses produits ne sont plus en vente.')).toBe(true);
+
+    // THE WAY BACK IS PRESENT AND PRESSABLE — not merely rendered.
+    expect(screen.canPress('Redonner un code'), 'and there must be one tap back').toBe(true);
+    await screen.press('Redonner un code');
+    await screen.settle();
+    // AND IT IS WIRED TO A MINT FOR THAT SUPPLIER — the bytes on the wire, because
+    // a button that posts the wrong id would look identical on screen.
+    const mint = w.calls.find((c) => c.path === '/fulfillment/supplier-code' && c.method === 'POST');
+    expect(mint, 'the tap must actually mint').toBeDefined();
+    expect(mint?.body?.['supplierId'], 'for HIM, not for whatever is in the draft field').toBe(COUPE);
+
+    screen.unmount();
+  });
+
+  it('the ACTIVE supplier keeps his own controls, and the cut-off one is not offered a cut', async () => {
+    // The narrowness: « marked » must not mean « the screen changed for
+    // everyone ». The live door still cuts and still rereads.
+    wire(
+      console_([
+        { supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true },
+        { supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' },
+      ]),
+    );
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    expect(screen.canPress('Couper l’accès') || screen.canPress("Couper l'accès"), 'the live door still cuts').toBe(true);
+    expect(screen.shows('Créé le 2026-08-01'), 'and still reads as a live door').toBe(true);
+    screen.unmount();
   });
 });

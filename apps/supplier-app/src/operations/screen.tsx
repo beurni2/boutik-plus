@@ -486,6 +486,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             }
             onDraft={setCodeDraft}
             onCreer={() => { void creerCode(codeDraft.trim()); }}
+            onRedonner={(supplierId) => { void creerCode(supplierId); }}
             onCouper={(supplierId) => { void couperCode(supplierId); }}
             onVoir={(supplierId) => { void revoirCode(supplierId); }}
             onVu={() => setCodesUi(CODES_IDLE)}
@@ -1245,13 +1246,18 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, onCouper, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
   avis: ReturnType<typeof mintAvis> | null;
   onDraft: (v: string) => void;
   onCreer: () => void;
+  /** RETRAIT-ACCÈS — mint for a supplier ALREADY on the list (a tombstone),
+   *  which is what lifts it. Distinct from `onCreer` on purpose: that one mints
+   *  whatever is typed in the field, this one names a supplier already known,
+   *  and conflating them would let a stray draft value ride a row's button. */
+  onRedonner: (supplierId: string) => void;
   onCouper: (supplierId: string) => void;
   onVoir: (supplierId: string) => void;
   onVu: () => void;
@@ -1297,12 +1303,23 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onV
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{c.supplierId}</Text>
+                {/* RETRAIT-ACCÈS — A CUT-OFF SUPPLIER STAYS ON THIS SCREEN,
+                    MARKED (founder 2026-08-11: « the supplier's name and
+                    everything is gone, there is no way to remint code under the
+                    same supplier again »). His line says WHAT HAPPENED and WHEN,
+                    not when a dead code was made — and « ses produits ne sont
+                    plus en vente » is the consequence stated where he reads the
+                    cause. */}
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
-                  {t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
+                  {c.revokedAt === undefined
+                    ? t('operations.code_cree_le').replace('{d}', c.mintedAt.slice(0, 10))
+                    : t('operations.code_coupe_le').replace('{d}', c.revokedAt.slice(0, 10))}
                 </Text>
                 {/* CODE-REVU: a pre-ruling code SAYS why there is no « Voir
-                    le code » — never a silently missing button. */}
-                {!c.revelable && (
+                    le code » — never a silently missing button. A cut-off
+                    supplier has no code to reread at all, so the sentence would
+                    be answering a question nobody asked. */}
+                {!c.revelable && c.revokedAt === undefined && (
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('operations.code_anterieur')}</Text>
                 )}
               </View>
@@ -1318,13 +1335,22 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onCouper, onVoir, onV
                 <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('operations.code_noter_dabord')}</Text>
               ) : (
                 <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                  {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN the
-                      code already given — only for codes the book can show
-                      back (minted after the ruling). */}
-                  {c.revelable ? (
-                    <BtnSoft label={t('operations.code_voir')} onPress={() => onVoir(c.supplierId)} />
-                  ) : null}
-                  <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+                  {c.revokedAt !== undefined ? (
+                    /* THE WAY BACK, one tap. Minting is what lifts the
+                       tombstone server-side, so this is the ordinary mint —
+                       and it restores exactly the products this act retired. */
+                    <BtnSoft label={t('operations.code_redonner')} onPress={() => onRedonner(c.supplierId)} />
+                  ) : (
+                    <>
+                      {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN the
+                          code already given — only for codes the book can show
+                          back (minted after the ruling). */}
+                      {c.revelable ? (
+                        <BtnSoft label={t('operations.code_voir')} onPress={() => onVoir(c.supplierId)} />
+                      ) : null}
+                      <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(c.supplierId)} />
+                    </>
+                  )}
                 </View>
               )}
             </View>
