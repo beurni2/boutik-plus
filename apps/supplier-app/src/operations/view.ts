@@ -424,6 +424,39 @@ export function codesReadOf(result: CodesResult): CodesRead {
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }
 
+/**
+ * ═══ FOURNISSEURS SANS CODE — the suppliers this screen could not reach ═══
+ *
+ * Founder, 2026-08-11: « On boutik+ the other suppliers and their listings are
+ * still showing. »
+ *
+ * WHY THEY WERE UNREACHABLE, and it is worth writing down because it is not
+ * obvious: until this morning, cutting a supplier off DELETED his registry row
+ * outright. So the suppliers he cut before then own products and have no row at
+ * all — and this screen lists rows. They vanished from Fournisseurs entirely
+ * while their products stayed on Produits and stayed on sale in Shop+, and no
+ * act on any screen could reach them: not « Couper l'accès » (no row), not
+ * « Redonner un code » (no row), not « Supprimer définitivement » (no row).
+ *
+ * This is the join that puts them back on the screen: anyone who OWNS a product
+ * but holds no registry row. The act that then fixes them is the ordinary
+ * revoke — it answers `no_code` for an absent row and still walks the catalogue,
+ * so one tap retires everything they have listed.
+ *
+ * IT IS DERIVED, NEVER STORED. Cut one off and his row appears in the codes list
+ * on the next read with a tombstone, so he leaves this list in the same breath —
+ * no second source of truth to drift.
+ */
+export function fournisseursSansCode(
+  codes: readonly CodeRow[],
+  proprietaires: readonly string[],
+): string[] {
+  const connus = new Set(codes.map((c) => c.supplierId));
+  return [...new Set(proprietaires.filter((id) => id !== '' && !connus.has(id)))].sort((a, b) =>
+    a.localeCompare(b, 'fr'),
+  );
+}
+
 /* ─────── BC-1c — the dispatch view (Shop+ read, key C), PURE decisions ─────── */
 
 /**

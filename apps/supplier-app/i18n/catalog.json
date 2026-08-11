@@ -4900,5 +4900,23 @@
     "fr": "Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "operations.sans_code_titre",
+    "fr": "Sans code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.sans_code_sens",
+    "fr": "Ces fournisseurs n'ont plus de code, mais leurs produits sont encore en vente. Coupez l'acc\u00e8s pour les retirer.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.sans_code_ligne",
+    "fr": "Aucun code. Ses produits sont encore en vente.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

@@ -3,6 +3,8 @@ import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, hand
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
+import { STATUT_RETIRE } from '../src/retrait-acces.js';
+import type { OfferEntry } from '../src/offer-core.js';
 import {
   keyAuthorized,
   rejectUnauthorizedBearer,
@@ -166,6 +168,27 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
       env,
     );
     if (walk.ok) produits = ((await walk.json()) as { changed?: number }).changed ?? null;
+    /**
+     * ACCÈS-COUPÉ-AVANT — GIVE HIM A ROW BACK when this act found none.
+     *
+     * A supplier cut off before the tombstone existed has no registry row: the
+     * revoke answers `no_code`, the walk still retires his catalogue, and then
+     * he would disappear from Fournisseurs a second time — his products were
+     * the only thing putting him on screen. So when a code-less revoke actually
+     * RETIRED something, the registry records that he existed and was cut, and
+     * he comes back as an ordinary tombstoned row with « Redonner un code » and
+     * « Supprimer définitivement ».
+     *
+     * ⚠ GUARDED ON `changed > 0`, and that guard is the whole safety of it: a
+     * mistyped id retires nothing and therefore leaves no row behind. Without
+     * it, this founder-only route would mint a phantom supplier from any typo.
+     */
+    if (acte === 'revoke' && produits !== null && produits > 0) {
+      const book = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+      await book.fetch(
+        new Request('https://do/code/tombstone', { method: 'POST', body: JSON.stringify({ supplierId }) }),
+      );
+    }
   } catch {
     produits = null; // best-effort; the code act already stands, and a replay finishes it
   }
@@ -200,13 +223,34 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
 async function sansAccesCoupe(store: OfferStore, env: Env): Promise<OfferStore> {
   const coupes = await revokedSupplierIds(env);
   if (coupes.size === 0) return store;
+  /**
+   * ⚠ IT MARKS, IT NEVER HIDES — and the difference is a Shop+ WRITE.
+   *
+   * The first version answered `undefined` for a cut-off supplier's product, so
+   * the single read became `404 unknown_product_version`. Shop+ reads that exact
+   * body as EVIDENCE THE PRODUCT IS GONE (`supply-source.ts`: 404
+   * `unknown_product_version` ⇒ verdict `gone`), and a `gone` verdict flips a
+   * reseller's published listing to `auto_hidden` and emits
+   * `listing.auto_hidden.v1`. There is no inverse: re-minting the code restores
+   * the offer here, but nothing republishes her listing — only a fresh publish
+   * command from the reseller does. One mis-click would have cost resellers
+   * their listings permanently, in another service, from a read.
+   *
+   * So the entry travels with the SAME status the write-time act gives it, and
+   * the ONE refusal ladder answers as it always has: `409 offer_not_active`,
+   * which Shop+ treats as an extant offer refusing service — no evidence, no
+   * hide. Read path and write path now produce byte-identical outcomes, which
+   * is the only way « it cannot half-finish » is true.
+   */
+  const marque = (e: OfferEntry): OfferEntry =>
+    coupes.has(e.product.supplierId) ? { ...e, offer: { ...e.offer, status: STATUT_RETIRE } } : e;
   return {
     create: (cmd) => store.create(cmd),
     getEntryByProductVersion: async (pv) => {
       const entry = await store.getEntryByProductVersion(pv);
-      return entry !== undefined && coupes.has(entry.product.supplierId) ? undefined : entry;
+      return entry === undefined ? undefined : marque(entry);
     },
-    listEntries: async () => (await store.listEntries()).filter((e) => !coupes.has(e.product.supplierId)),
+    listEntries: async () => (await store.listEntries()).map(marque),
   };
 }
 
@@ -558,6 +602,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // dispatch, then hand to the offer DO router (which enriches with live fields).
     if (request.method === 'GET' && pathname === '/offers') {
       if (!(await keyAuthorized(request, env))) return unauthorized();
+      // THE SAME JOIN, because this is the OTHER read his Produits screen makes.
+      // When the inventory read fails, the screen falls back to fanning out
+      // `?supplierId=` per roster id — so without this, the fallback would
+      // re-expose exactly the products the inventory just hid, on the one path
+      // taken when something is already going wrong.
+      // The SHAPE is the route's own (`SupplierOfferList`: `{asOf, items}`), not
+      // an invented empty. A different envelope here would read as `unreachable`
+      // to the client and raise a failure banner over a correct, empty answer.
+      const vise = new URL(request.url).searchParams.get('supplierId') ?? '';
+      if (vise !== '' && (await revokedSupplierIds(env)).has(vise)) {
+        return Response.json({ asOf: new Date().toISOString(), items: [] });
+      }
       return offerRouter.fetch(request, env);
     }
 

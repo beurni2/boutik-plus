@@ -323,6 +323,108 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
     screen.unmount();
   });
 
+  /**
+   * ACCÈS-COUPÉ-AVANT — the founder's report of 2026-08-11, driven on the screen
+   * that failed him: « On boutik+ the other suppliers and their listings are
+   * still showing. »
+   *
+   * THE STATE THIS REPRODUCES, and it is the one no seam test can build through
+   * a public route: a supplier who OWNS products and has NO registry row. It is
+   * historical residue — the revoke that ran until this morning DELETED the row
+   * — so it can be constructed here, where the two reads are answered directly,
+   * and nowhere else. That is why this walk carries the proof.
+   *
+   * Before this slice the codes section rendered rows from `/fulfillment/supplier-codes`
+   * and nothing else, so such a supplier was on NO screen at all: not cuttable,
+   * not re-mintable, not erasable, while his products stayed on sale.
+   */
+  const SANS = 'supplier-sans-row-003';
+
+  function avecInventaire(codes: Record<string, unknown>[], proprietaires: string[]): Route[] {
+    return [
+      ...console_(codes),
+      (path) =>
+        path === '/offers/inventaire'
+          ? {
+              status: 200,
+              json: {
+                asOf: '2026-08-11T20:00:00.000Z',
+                items: proprietaires.map((id, i) => ({
+                  offerId: `offer-${id}-${String(i)}`,
+                  productVersionId: `pv-${id}-${String(i)}`,
+                  supplierId: id,
+                  name: 'PAGNE',
+                  category: 'fashion_bags_fabrics',
+                  basePrice: 6000,
+                  available: 3,
+                })),
+              },
+            }
+          : null,
+    ];
+  }
+
+  it('a supplier with PRODUCTS but NO row is on the screen, and one tap cuts him off', async () => {
+    const w = wire(
+      avecInventaire(
+        [{ supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }],
+        [ACTIF, SANS],
+      ),
+    );
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+
+    // 1. HE IS ON THE SCREEN AT ALL — the half that was missing.
+    expect(screen.shows(SANS), 'a supplier who owns products must be reachable').toBe(true);
+    // 2. …and the line says the pairing that makes it worth acting on.
+    expect(screen.shows('Aucun code. Ses produits sont encore en vente.')).toBe(true);
+
+    // 3. THE ACT IS PRESENT AND PRESSABLE — not merely rendered. There are two
+    //    « Couper l'accès » controls now (the active supplier's and his), so the
+    //    index is named rather than guessed: his row is the sans-code section,
+    //    which renders BEFORE the codes list.
+    const label = screen.canPress('Couper l’accès') ? 'Couper l’accès' : "Couper l'accès";
+    await screen.press(label, 0);
+    await screen.settle();
+
+    // 4. …AND WIRED TO A REVOKE FOR HIM. The bytes on the wire, because a button
+    //    posting the wrong id would look identical on screen.
+    const cut = w.calls.find((c) => c.path === '/fulfillment/supplier-code/revoke' && c.method === 'POST');
+    expect(cut, 'the tap must actually reach the revoke').toBeDefined();
+    expect(cut?.body?.['supplierId'], 'for HIM, never for the active supplier above').toBe(SANS);
+
+    screen.unmount();
+  });
+
+  it('a supplier who HOLDS a code is never listed as sans code — no duplicate row', async () => {
+    // The narrowness. « Sans code » is a claim about absence; making it about
+    // « owns products » would print every live supplier twice.
+    wire(
+      avecInventaire(
+        [{ supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }],
+        [ACTIF],
+      ),
+    );
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    expect(screen.shows('Aucun code. Ses produits sont encore en vente.'), 'nobody is sans code here').toBe(false);
+    expect(screen.shows(ACTIF), 'and the live supplier is still listed, once').toBe(true);
+    screen.unmount();
+  });
+
+  it('a FAILED inventory read lists NOBODY as sans code — never an accusation from a failure', async () => {
+    // « He has no code » is a claim, and a read that failed cannot support it.
+    wire([
+      ...console_([{ supplierId: ACTIF, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }]),
+      (path) => (path === '/offers/inventaire' ? { status: 503, json: { error: 'down' } } : null),
+    ]);
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    expect(screen.shows('Aucun code. Ses produits sont encore en vente.')).toBe(false);
+    expect(screen.shows(ACTIF), 'and the codes section is unharmed').toBe(true);
+    screen.unmount();
+  });
+
   it('the ACTIVE supplier keeps his own controls, and the cut-off one is not offered a cut', async () => {
     // The narrowness: « marked » must not mean « the screen changed for
     // everyone ». The live door still cuts and still rereads.

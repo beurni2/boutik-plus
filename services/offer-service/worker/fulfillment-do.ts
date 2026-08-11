@@ -868,6 +868,44 @@ export class FulfillmentDO {
     }
 
     /**
+     * ACCÈS-COUPÉ-AVANT — A TOMBSTONE FOR A SUPPLIER WHOSE ROW IS ALREADY GONE.
+     *
+     * The revoke that ran until this morning DELETED both rows, so every
+     * supplier cut before then owns products and has no registry row at all: off
+     * Fournisseurs entirely, with no « Redonner un code » and no
+     * « Supprimer définitivement » — and, once the founder cuts him properly, he
+     * would vanish a second time as his products left the inventory that was
+     * putting him on screen. This route ends that: it gives him a row again.
+     *
+     * ⚠ IT REFUSES TO OVERWRITE ANYTHING. A supplier who already has a row —
+     * live code or tombstone — is left exactly as he is (`deja`), because this
+     * is a repair for absence, never a way to blank a live door.
+     *
+     * `mintedAt` IS THE REPAIR'S OWN CLOCK, and that is stated rather than
+     * hidden: nobody knows when the destroyed code was minted. It is written
+     * only because a row without it is DROPPED by the console's strict reader,
+     * and it is never displayed — a tombstoned row shows « Accès coupé le … »,
+     * which reads `revokedAt`.
+     */
+    if (request.method === 'POST' && pathname === '/code/tombstone') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const supplierId = body?.['supplierId'];
+      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const existing = await this.state.storage.get<Record<string, unknown>>(
+        `${SUPPLIERCODE_PREFIX}${supplierId}`,
+      );
+      if (existing !== undefined) return Response.json({ ok: true, status: 'deja' });
+      const maintenant = new Date().toISOString();
+      await this.state.storage.put(`${SUPPLIERCODE_PREFIX}${supplierId}`, {
+        mintedAt: maintenant,
+        revokedAt: maintenant,
+      });
+      return Response.json({ ok: true, status: 'pose' });
+    }
+
+    /**
      * PURGE-FOURNISSEUR — ERASE THE SUPPLIER ROW ITSELF, tombstone included.
      * Idempotent: erasing someone already gone is an honest `absent`.
      *
@@ -1666,7 +1704,18 @@ export async function handleSupplierCodesList(env: FulfillmentEnv): Promise<Resp
  * and stay deletable. Only an access explicitly CUT hides anything.
  */
 export async function revokedSupplierIds(env: FulfillmentEnv): Promise<ReadonlySet<string>> {
-  const res = await handleSupplierCodesList(env);
+  // ⚠ THE THROW IS CAUGHT HERE, or « fails open » is a sentence rather than a
+  // behaviour. `env.FULFILLMENT.get` throws synchronously on a missing binding
+  // and the stub's `fetch` REJECTS when the object is overloaded or throwing —
+  // neither is an `!ok` response. Uncaught, those turned the Shop+ browse path
+  // and every signed-link resolution into a 500: a floor falling in, which is
+  // precisely what the comment at the call site promises this cannot do.
+  let res: Response;
+  try {
+    res = await handleSupplierCodesList(env);
+  } catch {
+    return new Set();
+  }
   if (!res.ok) return new Set();
   const body = (await res.json().catch(() => null)) as { codes?: unknown } | null;
   const rows = Array.isArray(body?.codes) ? body.codes : [];
