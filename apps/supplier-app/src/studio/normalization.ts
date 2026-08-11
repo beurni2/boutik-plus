@@ -49,6 +49,36 @@ export function metricsActions(): ResizeAction[] {
 }
 
 /**
+ * THUMB-PRODUIT-1 (founder order 2026-08-11 — « fix the full size photograph »).
+ * The VIGNETTE's long edge, and it lives here beside the derivative spec because
+ * it is the same kind of thing: one deterministic resize, no enhancement, no
+ * inference. 320 px because his « À traiter » rows paint 54 px squares — 162 px
+ * at 3× — and the headroom costs about 25 KB instead of about 300 KB.
+ *
+ * MUST STAY ≤ the service's own `THUMB_MAX_DIM` (media-service `src/media.ts`),
+ * which refuses anything larger. Two constants, one bound: the service is the
+ * wall, this is what the device aims at.
+ */
+export const THUMB_EDGE_PX = 320;
+
+/**
+ * The vignette action list — bounded by the LONG edge, exactly as
+ * `derivativeActions` is. Aiming `width` at a portrait image would leave its
+ * height at 400 px and the service would refuse it; getting that backwards is
+ * the one way this function can be wrong, so it is written the same way its
+ * neighbour is rather than in a shorter way that looks equivalent.
+ *
+ * An image ALREADY within the box yields `[]` — no RESIZE. It is still decoded
+ * and re-encoded by the renderer, so the result is NOT byte-identical to its
+ * source; saying otherwise would be a claim about bytes that nothing produces.
+ */
+export function thumbActions(sourceWidth: number, sourceHeight: number): ResizeAction[] {
+  const longest = Math.max(sourceWidth, sourceHeight);
+  if (longest <= THUMB_EDGE_PX) return [];
+  return sourceWidth >= sourceHeight ? [{ resize: { width: THUMB_EDGE_PX } }] : [{ resize: { height: THUMB_EDGE_PX } }];
+}
+
+/**
  * B1.2 SEAMS — declared, identity, tested as such. Later slices implement
  * them; nothing here may change bytes today.
  */

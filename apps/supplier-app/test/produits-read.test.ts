@@ -293,13 +293,27 @@ describe('PHOTO-À-TRAITER — the thumbnail url, two-state on purpose', () => {
   });
 
   it('a real ref with a real base builds the url, with exactly one separator', () => {
-    expect(photoUri('media/hero-bazin', 'https://media.example')).toBe('https://media.example/media/hero-bazin');
+    expect(photoUri('media/hero-bazin', 'https://media.example')).toBe('https://media.example/media/hero-bazin?v=thumb');
   });
 
   it('a ref with stray whitespace is TRIMMED into the url, not interpolated raw', () => {
     // Deciding on the trimmed string and interpolating the untrimmed one is
     // how a url ships with a space in it and 404s for reasons nobody can see.
-    expect(photoUri('  media/hero-bazin  ', 'https://media.example')).toBe('https://media.example/media/hero-bazin');
+    expect(photoUri('  media/hero-bazin  ', 'https://media.example')).toBe('https://media.example/media/hero-bazin?v=thumb');
+  });
+
+  /**
+   * THUMB-PRODUIT-1 (founder 2026-08-11 — « fix the full size photograph »).
+   * THE ROW ASKS FOR THE VIGNETTE, and the FICHE DOES NOT. Both halves are the
+   * assertion: a `?v=thumb` missing from the row is the founder's bug back, and
+   * a `?v=thumb` on the fiche would put a 320 px file behind a full-bleed
+   * photograph — the cheap-software failure §5 forbids from the other side.
+   */
+  it('the 54px row asks for the VIGNETTE; the product tile still asks for the photograph', () => {
+    expect(photoUri('media/hero-bazin', 'https://media.example')).toContain('?v=thumb');
+    const slot = photoSlot(['media/hero-bazin'], 'https://media.example');
+    expect(slot.kind).toBe('photo');
+    expect(slot.kind === 'photo' && slot.uri).toBe('https://media.example/media/hero-bazin');
   });
 });
 

@@ -8,6 +8,7 @@ import {
   derivativeActions,
   metricsActions,
   stripJpegMetadata,
+  thumbActions,
 } from './normalization';
 import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance';
 
@@ -126,6 +127,43 @@ export async function renderCropDerivative(
   const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
   const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
   assertExifFree(stripped); // fail-closed — a crop that cannot be proven clean does not exist
+  return {
+    bytes: stripped,
+    uri: `data:image/jpeg;base64,${bytesToBase64(stripped)}`,
+    width: saved.width,
+    height: saved.height,
+  };
+}
+
+/**
+ * THUMB-PRODUIT-1 — the VIGNETTE of a derivative that is already upload-ready.
+ *
+ * WHY IT TAKES THE DERIVATIVE AND NOT THE MASTER: the vignette must be a picture
+ * of the thing that was actually uploaded. Re-deriving from the master would
+ * re-apply the crop geometry and could disagree with the shipped bytes on any
+ * rounding — a 54 px square showing a slightly different framing than the photo
+ * behind it is a small lie, and this project does not ship small lies.
+ *
+ * SAME FUNNEL, NO LAXER PATH: resize → STRIP → `assertExifFree` on the exact
+ * bytes that ship, exactly like `renderCropDerivative` above. A vignette is a
+ * derivative like any other and there is no branch in which unstripped bytes
+ * exist.
+ *
+ * `width`/`height` are the DERIVATIVE'S OWN dimensions, which every caller
+ * already holds — the same discipline as everywhere else in the Studio: geometry
+ * comes from what was decoded, never from a claim.
+ */
+export async function renderThumbDerivative(
+  derivativeUri: string,
+  width: number,
+  height: number,
+): Promise<StrippedDerivative> {
+  const ctx = ImageManipulator.manipulate(derivativeUri);
+  for (const action of thumbActions(width, height)) ctx.resize(action.resize);
+  const image = await ctx.renderAsync();
+  const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
+  const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
+  assertExifFree(stripped); // fail-closed, same post-condition as every derivative
   return {
     bytes: stripped,
     uri: `data:image/jpeg;base64,${bytesToBase64(stripped)}`,

@@ -29,7 +29,15 @@
  * offer pair. Same key limitation, founder-accepted: it ships inside the bundle.
  */
 import * as Crypto from 'expo-crypto';
-import { hexOfDigest, MEDIA_WRITE_KEY_HEADER, readRevokeResult, readUploadResult, type RevokedImage } from './media-wire';
+import {
+  hexOfDigest,
+  MEDIA_WRITE_KEY_HEADER,
+  readRevokeResult,
+  readThumbResult,
+  readUploadResult,
+  type RevokedImage,
+  type StoredThumb,
+} from './media-wire';
 import type { FailureCause, ServiceResult } from './service';
 import type { MediaRefInput } from './assets';
 
@@ -50,6 +58,18 @@ export interface MediaServicePort {
    * turns into canon's integer `durationSec` (ceil) — never its own clock.
    */
   uploadVideo(bytes: Uint8Array): Promise<ServiceResult<VideoRefInput>>;
+  /**
+   * THUMB-PRODUIT-1 (founder 2026-08-11: *« fix the full size photograph »*).
+   * Store the 320 px vignette OF an already-uploaded photograph, so a 54 px row
+   * on his « À traiter » board stops pulling the whole 1280 px file.
+   *
+   * IT CAN NEVER BLOCK A PUBLISH, and the port's shape says so rather than
+   * relying on a caller to remember: it answers a `ServiceResult` like every
+   * other call, and the ONE call site treats every failure — including the
+   * service's honest 409 « already there » — as « the photograph still ships,
+   * the row is just heavier ». A vignette is an optimisation; a product is not.
+   */
+  uploadThumb(parentRef: string, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>>;
 }
 
 /** What the video door answers: the MediaRef fields + the MEASURED duration. */
@@ -67,6 +87,11 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 
 /** How long a fire-and-forget revoke may hold the delete flow's pending state. */
 const REVOKE_TIMEOUT_MS = 10_000;
+
+/** THUMB-PRODUIT-1 — how long the vignette may hold the PUBLISH. Shorter than
+ *  the revoke's, because this one sits in the middle of his primary action and
+ *  a vignette is worth no part of a publish. */
+const THUMB_TIMEOUT_MS = 8_000;
 
 export class HttpMediaService implements MediaServicePort {
   /**
@@ -164,6 +189,62 @@ export class HttpMediaService implements MediaServicePort {
       return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     }
     return { ok: true, value: { ref: r['ref'], sha256, mimeType: r['contentType'], durationSeconds: r['durationSeconds'] } };
+  }
+
+  async uploadThumb(parentRef: string, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>> {
+    // NO HASH HERE, and that is deliberate: a vignette is not a canon `MediaRef`
+    // and never enters `ProductAssets` — it is addressed FROM its parent
+    // (`?v=thumb`), so there is nothing for a sha256 to be recorded on. Hashing
+    // it would produce a number no record could carry.
+    // ⚠ BOUNDED, exactly like `revokeImage` below and for the same reason a
+    // verifier found there in 2026-07-27 — sharpened here by a second one: a
+    // socket that stalls is NOT a throw, so the caller's try/catch cannot save
+    // it. This call sits INSIDE the publish, so an unbounded await would leave
+    // `inFlight` true forever and « Publier » dead on the screen, with the
+    // photographs already in R2 and the product never published. An
+    // optimisation that can cost him the publish is the worse bug.
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), THUMB_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(
+        `${this.base.replace(/\/+$/, '')}/media/thumb?for=${encodeURIComponent(parentRef)}`,
+        {
+          method: 'POST',
+          headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
+          body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
+          signal: ctl.signal,
+        },
+      );
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    } finally {
+      clearTimeout(timer);
+    }
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    }
+    if (!res.ok) {
+      // 409 already_set · 404 no_parent · 400 typed validator reason · 401 — all
+      // travel verbatim. The call site does not branch on them; they are here so
+      // a failure is READABLE rather than invisible.
+      return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+    }
+    const stored = readThumbResult(parsed);
+    // AN ANSWER ABOUT ANOTHER PHOTOGRAPH IS NOT AN ANSWER TO THIS REQUEST.
+    if (stored === null || stored.for !== parentRef) {
+      return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+    }
+    return { ok: true, value: stored };
   }
 
   async revokeImage(ref: string): Promise<ServiceResult<RevokedImage>> {

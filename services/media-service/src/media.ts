@@ -41,6 +41,92 @@ export const IMAGE_STANDARD_MAX_DIM = 2048;
 export const IMAGE_MIN_DIM = 200;
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
+/* -------------------------------------------------------------- vignette -- */
+
+/**
+ * ═══ THUMB-PRODUIT-1 — THE VIGNETTE (founder order 2026-08-11) ═══
+ *
+ * « fix the full size photograph. » His « À traiter » board paints 54 px squares
+ * and, until this, each one pulled the WHOLE `heroSquare` — up to 1280 px on its
+ * long edge, hundreds of kilobytes — because the read route serves the stored
+ * object and no smaller object existed. Twenty rows on a 1 GB Android over a
+ * patchy connection is the §5 failure that doctrine names by hand: *a beautiful
+ * screen that stutters is a failed screen*.
+ *
+ * WHERE THE RESIZE HAPPENS, AND WHY IT IS NOT HERE: this Worker has no image
+ * decoder, and it is not getting one. Cloudflare's own resizing needs a zone and
+ * a paid plan (this service runs on workers.dev) — a commercial commitment that
+ * is the founder's to make, not mine. A WASM codec in a Worker would be a large
+ * dependency for one 54 px square. THE DEVICE ALREADY RESIZES — `derivativeActions`
+ * has bounded every photograph since B1.2 — so the phone that made the derivative
+ * makes the vignette too, through the SAME strip → `assertExifFree` funnel, and
+ * this service does what it does for every other byte: validates and stores.
+ *
+ * THE KEY IS DERIVED, AND THAT IS THE WHOLE DESIGN. A vignette has nowhere to
+ * live in canon `ProductAssets` (§5.6 is strict and is not mine to widen — §7),
+ * so it cannot travel as its own ref. Instead it is addressable FROM the parent:
+ * the object sits at `{parentKey}~t`, and `GET /media/{token}?v=thumb` answers
+ * it. Three properties survive intact:
+ *   · IDENTITY-FREE — the suffix is a constant; the entropy is still the parent's
+ *     122 CSPRNG bits and nothing public contributes.
+ *   · NOT INDEPENDENTLY ADDRESSABLE — `media/{uuid}~t` fails `isOpaqueMediaKey`,
+ *     so the read and revoke routes refuse it as a target on its own.
+ *   · NO REGISTRY — derivation is arithmetic. This service still holds no index,
+ *     exactly as its header has always claimed.
+ *
+ * ⚠ WHAT MAKES A DERIVED-KEY WRITE SAFE — TWO GATES, AND THE FIRST ONE IS THE
+ * LOAD-BEARING ONE. This is the only route in the service that writes at a key
+ * it did not mint, and the write key SHIPS INSIDE APP BUNDLES while a published
+ * product's refs are PUBLIC. So the pair « bundled key + a ref off a vitrine
+ * page » must not be able to put an image on the founder's board:
+ *
+ *   1. FRESHNESS — the parent photograph must have been uploaded within
+ *      {@link THUMB_WRITE_WINDOW_MS}. The app posts its vignette seconds after
+ *      the photograph, while the ref exists only in its own memory; a ref
+ *      harvested from a page is minutes-to-months past that window and is
+ *      refused. This is what closes the defacement primitive, including for
+ *      every photograph that predates this slice — their window shut long ago.
+ *   2. WRITE-ONCE — a filled slot is refused, so nothing can be replaced even
+ *      inside the window (two racing writers, the second loses).
+ *
+ * The cost is stated plainly and it is the right cost: a vignette that does not
+ * land within the window NEVER lands. That row stays heavy, forever, until the
+ * product is relisted. A heavy row is a performance regression; a stranger's
+ * picture on his board is a trust one, and this project trades the first for the
+ * second every time.
+ */
+
+/** Long edge of the vignette. 54 px at 3× is 162; 320 leaves headroom for a
+ *  mid-size card without ever approaching a photograph's weight. */
+export const THUMB_MAX_DIM = 320;
+/** A floor, so a truncated or junk file cannot pass as a vignette. */
+export const THUMB_MIN_DIM = 32;
+/** ~320×320 at the derivative's own quality is 20–35 KB; 96 KB is the ceiling,
+ *  and it is what makes the founder's board cheap rather than merely smaller. */
+export const THUMB_MAX_BYTES = 96 * 1024;
+
+/**
+ * HOW LONG A PHOTOGRAPH'S VIGNETTE SLOT STAYS OPEN. Fifteen minutes: the app
+ * writes within seconds, and the slack covers a slow upload on a bad connection
+ * plus a retried publish. It is deliberately far shorter than the time it takes
+ * a ref to become public — a product must be published before anyone outside
+ * the phone can see its refs at all.
+ */
+export const THUMB_WRITE_WINDOW_MS = 15 * 60 * 1000;
+
+/** The vignette's storage key, derived from its parent's. A CONSTANT suffix —
+ *  no caller input reaches it, and the result is deliberately outside the
+ *  opaque shape so no route can address it directly. */
+export function thumbKeyFor(parentKey: string): string {
+  return `${assertOpaqueMediaKey(parentKey)}~t`;
+}
+
+export type ThumbRejectReason = RejectReason | 'no_parent' | 'already_set' | 'window_closed';
+
+export type ThumbOutcome =
+  | { readonly ok: true; readonly key: string; readonly byteLength: number }
+  | { readonly ok: false; readonly reason: ThumbRejectReason };
+
 /* ----------------------------------------------------------- validation -- */
 
 export type ImageFormat = 'jpeg' | 'png';
@@ -326,6 +412,52 @@ export class ProductMediaService {
   }
 
   /**
+   * THUMB-PRODUIT-1 — store the vignette of an existing photograph. See the
+   * bounds block above for the whole design; the order of the checks here is
+   * the part that carries weight:
+   *
+   *   1. the parent key must be the OPAQUE shape — a `MediaKeyError`, which the
+   *      route turns into a 400 — so `for=` can never address anything outside
+   *      the minted namespace;
+   *   2. the bytes must be a real, small image — same magic sniff and pure-JS
+   *      dimension read as every other door, with the vignette's own bounds;
+   *   3. the PARENT must exist — a vignette for nothing is a write to nowhere;
+   *   4. the parent must be FRESH — the gate that closes the defacement
+   *      primitive (see the bounds block above);
+   *   5. the slot must be EMPTY — write-once.
+   *
+   * Validation runs BEFORE the three storage questions on purpose: a malformed
+   * body is refused without the route ever revealing whether a ref exists.
+   *
+   * `at` IS THE CALLER'S CLOCK — the Worker's, on the request being served, not
+   * the device's. It is compared against R2's own `uploaded` time, so both sides
+   * of the window come from the server.
+   */
+  async putThumb(parentKey: string, bytes: Uint8Array, at: string): Promise<ThumbOutcome> {
+    const key = thumbKeyFor(parentKey); // throws MediaKeyError on a non-opaque parent
+    if (bytes.length === 0) return { ok: false, reason: 'empty' };
+    if (bytes.length > THUMB_MAX_BYTES) return { ok: false, reason: 'too_large' };
+    const fmt = sniffImage(bytes);
+    if (fmt === null) return { ok: false, reason: 'unsupported_type' };
+    const dims = imageDimensions(bytes, fmt);
+    if (dims === null) return { ok: false, reason: 'bad_dimensions' };
+    if (dims.width > THUMB_MAX_DIM || dims.height > THUMB_MAX_DIM) return { ok: false, reason: 'bad_dimensions' };
+    if (dims.width < THUMB_MIN_DIM || dims.height < THUMB_MIN_DIM) return { ok: false, reason: 'bad_dimensions' };
+
+    const parent = await this.store.stat(parentKey);
+    if (parent === null) return { ok: false, reason: 'no_parent' };
+    // An unparseable clock is treated as CLOSED, never open — the safe direction.
+    const now = Date.parse(at);
+    const age = Number.isFinite(now) ? now - parent.uploadedAt.getTime() : Number.POSITIVE_INFINITY;
+    if (!(age >= 0 && age <= THUMB_WRITE_WINDOW_MS)) return { ok: false, reason: 'window_closed' };
+    if ((await this.store.stat(key)) !== null) return { ok: false, reason: 'already_set' };
+
+    const contentType = fmt === 'png' ? 'image/png' : 'image/jpeg';
+    await this.store.put(key, bytes, contentType);
+    return { ok: true, key, byteLength: bytes.length };
+  }
+
+  /**
    * VIDEO-PRODUIT-1b — validate + store ONE short MP4. The founder's 6-second
    * bound is measured from the container's own `mvhd`, never from a claim; an
    * unreadable duration is a refusal, because accepting it would turn the
@@ -404,7 +536,12 @@ export class ProductMediaService {
    */
   async revoke(key: string): Promise<void> {
     await this.store.remove(assertOpaqueMediaKey(key));
+    // THUMB-PRODUIT-1 — the vignette dies WITH its photograph. A revoke that
+    // left it behind would keep serving a recognisable 320 px copy of the image
+    // the founder just took down, which is the takedown failing quietly.
+    await this.store.remove(thumbKeyFor(key));
     await this.purge?.(key); // best-effort, colo-local; the TTL is the real bound
+    await this.purge?.(`${key}?v=thumb`); // the vignette's own cache entry
   }
 
   /**
@@ -419,7 +556,9 @@ export class ProductMediaService {
     const outcome = await this.upload(bytes, at);
     if (!outcome.ok) return outcome; // refused → old image survives
     await this.store.remove(oldKey);
+    await this.store.remove(thumbKeyFor(oldKey)); // THUMB-PRODUIT-1, same reason as revoke
     await this.purge?.(oldKey); // same bounded-latency property as revoke
+    await this.purge?.(`${oldKey}?v=thumb`);
     return outcome;
   }
 }

@@ -9,7 +9,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pretest": "pnpm --filter @boutik/media-service bundle:worker"
   },
   "dependencies": {
     "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#199bc2ab172dbbf93b446af35445e17f5a0f3f35&path:packages/i18n",

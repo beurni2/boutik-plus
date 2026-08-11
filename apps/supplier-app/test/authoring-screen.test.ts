@@ -216,8 +216,19 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
   });
 
   it('what uploads is what he SAW — proof/detail bytes decode from the previewed data URIs, by ASSIGNED role', () => {
-    expect(lister).toMatch(/derivativeBytesFromUri\(set\.photos\[order\.preuve\]!\.derivative\.uri\)/);
-    expect(lister).toMatch(/order\.details\.map\(\(i\) => derivativeBytesFromUri\(set\.photos\[i\]!\.derivative\.uri\)\)/);
+    // THUMB-PRODUIT-1 moved the decode ONE HOP: a role now carries its bytes AND
+    // the uri/dimensions the vignette is bounded by, so the property is pinned in
+    // its two halves rather than dropped — the bytes still come from the PREVIEWED
+    // data URI, and the roles still come from the ASSIGNED indices.
+    expect(lister).toMatch(/bytes: derivativeBytesFromUri\(p\.uri\)/);
+    expect(lister).toMatch(/proof: kept\(set\.photos\[order\.preuve\]!\.derivative\)/);
+    expect(lister).toMatch(/order\.details\.map\(\(i\) => kept\(set\.photos\[i\]!\.derivative\)\)/);
+    // …and the ROLE'S upload runs through the extracted, DRIVEN function — the
+    // vignette's guarantees are proven in `upload-role.test.ts` by calling it,
+    // not by matching the text of a comment (a verifier found the first version
+    // of this assertion doing exactly that, §9.7). What is pinned HERE is only
+    // the binding a unit cannot see: the REAL device renderer reaches it.
+    expect(lister).toMatch(/roleUpload\(media, source, renderThumbDerivative\)/);
   });
 
   it('partial uploads publish WITHOUT assets and the outcome pane offers completion — never a truncated set', () => {
@@ -227,7 +238,7 @@ describe('PHOTOGRAPHS — honest all the way through', () => {
   });
 
   it('completion retries ONLY the failed roles and attaches with a STABLE command id (idempotent)', () => {
-    expect(lister).toMatch(/u\.ok \? u : uploadRole\(mediaService, bytes\)/);
+    expect(lister).toMatch(/u\.ok \? u : uploadRole\(mediaService, sourceOf\(kept\)\)/);
     expect(lister).toMatch(/commandId: `\$\{identity\.current\.commandId\}-assets`/);
   });
 

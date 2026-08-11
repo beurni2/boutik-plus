@@ -58,7 +58,8 @@ import {
 } from '../supply/authoring';
 import { randomSuffixBytes, suggestProductCode } from '../supply/product-code';
 import { previewSellerNet, type SellerNetLine } from '../supply/preview';
-import { derivativeBytesFromUri, renderCropDerivative } from '../studio/capture';
+import { derivativeBytesFromUri, renderCropDerivative, renderThumbDerivative } from '../studio/capture';
+import { uploadRole as roleUpload, type RoleSource } from '../supply/upload-role';
 import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
 import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } from '../studio/roles';
 import type { CaptureSet } from './studio-real';
@@ -99,13 +100,38 @@ interface PendingPhotos {
   readonly bytes: UploadBytes;
 }
 
-/** The raw bytes per role — kept so a retry re-uploads ONLY what failed.
+/**
+ * WHAT A ROLE IS REMEMBERED BY between a failed publish and its retry: the
+ * stripped data URI and its dimensions — NOT the decoded bytes.
+ *
+ * ⚠ THE BYTES ARE DERIVED AT UPLOAD TIME, ON PURPOSE (verifier MINOR): holding
+ * both would keep each photograph twice in JS memory for the whole pending
+ * lifetime — the base64 string AND the Uint8Array — on the 1 GB Android §5 is
+ * written for. `derivativeBytesFromUri` decodes the same bytes the founder
+ * previewed, which is what proof and detail have always done; the two hero
+ * crops now do it too instead of retaining a second copy.
+ */
+interface PendingSource {
+  readonly uri: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Materialise a role's upload source from what was remembered. */
+const sourceOf = (p: PendingSource): RoleSource => ({
+  bytes: derivativeBytesFromUri(p.uri),
+  uri: p.uri,
+  width: p.width,
+  height: p.height,
+});
+
+/** The upload source per role — kept so a retry re-uploads ONLY what failed.
  * `detail` is 1..2 entries since STUDIO-BATCH-1 (the founder's 4th photo). */
 interface UploadBytes {
-  readonly heroSquare: Uint8Array;
-  readonly heroVertical: Uint8Array;
-  readonly proof: Uint8Array;
-  readonly detail: readonly Uint8Array[];
+  readonly heroSquare: PendingSource;
+  readonly heroVertical: PendingSource;
+  readonly proof: PendingSource;
+  readonly detail: readonly PendingSource[];
   readonly masterSha256: string;
 }
 
@@ -290,11 +316,22 @@ export function SListerReal({ st, d, captures, session }: {
     d(a);
   };
 
-  /** Upload one role's bytes; a failure is an honest {ok:false}, never a throw. */
-  const uploadRole = async (media: MediaServicePort, bytes: Uint8Array): Promise<RoleUpload> => {
-    const res = await media.uploadImage(bytes);
-    return res.ok ? { ok: true, ref: res.value } : { ok: false };
-  };
+  /**
+   * Upload one role's bytes and its vignette. THE SUBSTANCE LIVES IN
+   * `supply/upload-role.ts` — extracted so a test can DRIVE it (a verifier
+   * found that as a closure here, the « a vignette can never cost him a
+   * publish » guarantee was backed only by a regex over a comment). This
+   * wrapper binds the real device renderer and nothing else.
+   *
+   * ⚠ THE VIGNETTE'S OUTCOME IS DELIBERATELY NOT SHOWN TO HIM, and that is a
+   * decision rather than an omission (verifier finding, half-accepted — see
+   * JOURNAL). « La vignette n'a pas été enregistrée » on a publish-success
+   * screen is a sentence a market seller cannot act on, about something that
+   * does not affect her sale: it fails the 5-second test and the trust test at
+   * once. The photograph shipped; the row is heavier; nobody is misled.
+   */
+  const uploadRole = async (media: MediaServicePort, source: RoleSource): Promise<RoleUpload> =>
+    (await roleUpload(media, source, renderThumbDerivative)).upload;
 
   const onPublish = async (): Promise<void> => {
     if (inFlight.current) return;
@@ -338,11 +375,16 @@ export function SListerReal({ st, d, captures, session }: {
         const hero = set.photos[order.hero]!;
         const heroSquare = await renderCropDerivative(hero.masterUri, heroSquareCrop(hero.master.width, hero.master.height));
         const heroVertical = await renderCropDerivative(hero.masterUri, heroVerticalCrop(hero.master.width, hero.master.height));
+        // A shot's derivative → what the role is remembered by: the very data
+        // URI the founder previewed (no re-encode, no divergence) and the
+        // dimensions the vignette bounds itself by.
+        const kept = (d: { uri: string; width: number; height: number }): PendingSource =>
+          ({ uri: d.uri, width: d.width, height: d.height });
         const bytes: UploadBytes = {
-          heroSquare: heroSquare.bytes,
-          heroVertical: heroVertical.bytes,
-          proof: derivativeBytesFromUri(set.photos[order.preuve]!.derivative.uri),
-          detail: order.details.map((i) => derivativeBytesFromUri(set.photos[i]!.derivative.uri)),
+          heroSquare: kept(heroSquare),
+          heroVertical: kept(heroVertical),
+          proof: kept(set.photos[order.preuve]!.derivative),
+          detail: order.details.map((i) => kept(set.photos[i]!.derivative)),
           // the master never uploads (open read route vs « master private ») —
           // so the record is the REAL hash of the MASTER'S OWN BYTES, read from
           // the retained file. Hashing the derivative here and calling it the
@@ -352,15 +394,15 @@ export function SListerReal({ st, d, captures, session }: {
           masterSha256: await sha256Hex(await bytesFromUri(hero.masterUri)),
         };
         const detailUploads: RoleUpload[] = [];
-        for (const detailBytes of bytes.detail) detailUploads.push(await uploadRole(mediaService, detailBytes));
+        for (const detailBytes of bytes.detail) detailUploads.push(await uploadRole(mediaService, sourceOf(detailBytes)));
         const uploads: AssemblyInput = {
           master: {
             ok: true,
             ref: { ref: `private/device/${bytes.masterSha256}`, sha256: bytes.masterSha256, mimeType: 'image/jpeg' },
           },
-          heroSquare: await uploadRole(mediaService, bytes.heroSquare),
-          heroVertical: await uploadRole(mediaService, bytes.heroVertical),
-          proof: await uploadRole(mediaService, bytes.proof),
+          heroSquare: await uploadRole(mediaService, sourceOf(bytes.heroSquare)),
+          heroVertical: await uploadRole(mediaService, sourceOf(bytes.heroVertical)),
+          proof: await uploadRole(mediaService, sourceOf(bytes.proof)),
           detail: detailUploads,
           processingVersion: PROCESSING_VERSION,
         };
@@ -410,8 +452,8 @@ export function SListerReal({ st, d, captures, session }: {
     setAttachNote('sending');
     try {
       const prev = pending.uploads;
-      const retry = async (u: RoleUpload, bytes: Uint8Array): Promise<RoleUpload> =>
-        u.ok ? u : uploadRole(mediaService, bytes);
+      const retry = async (u: RoleUpload, kept: PendingSource): Promise<RoleUpload> =>
+        u.ok ? u : uploadRole(mediaService, sourceOf(kept));
       const retriedDetails: RoleUpload[] = [];
       for (let i = 0; i < pending.bytes.detail.length; i += 1) {
         retriedDetails.push(await retry(prev.detail[i] ?? { ok: false }, pending.bytes.detail[i]!));

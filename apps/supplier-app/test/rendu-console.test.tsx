@@ -101,8 +101,10 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
     const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
 
     // The ONE thing a source scan could never say: the app COMPUTED this url
-    // and handed it to an <Image>. Base + ref, joined by `photoUri`.
-    expect(screen.images()).toContain('http://media.test/media/hero-bazin.jpg');
+    // and handed it to an <Image>. Base + ref, joined by `photoUri` — and since
+    // THUMB-PRODUIT-1 the row asks for the VIGNETTE (`?v=thumb`), which is the
+    // whole point of that slice: a 54 px square must not pull a 1280 px file.
+    expect(screen.images()).toContain('http://media.test/media/hero-bazin.jpg?v=thumb');
     // …and exactly one, because only one of the two rows has a ref. A vignette
     // that rendered for the photo-less row would be a stand-in image, which
     // this project does not do.
@@ -179,7 +181,8 @@ describe('COMMANDES — the board itself', () => {
     // of the shared slot (`readStoredOpsKey`).
     expect(screen.shows('Commandes')).toBe(true);
     expect(screen.shows('Bazin riche')).toBe(true);
-    expect(screen.images()).toContain('http://media.test/media/hero-bazin.jpg');
+    // THUMB-PRODUIT-1 — the board's card asks for the vignette, not the photograph.
+    expect(screen.images()).toContain('http://media.test/media/hero-bazin.jpg?v=thumb');
 
     // The row's primary act: open it. The tree must survive, and the detail
     // must actually appear — a card that toggles nothing is a dead control.

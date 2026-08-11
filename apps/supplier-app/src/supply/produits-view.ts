@@ -122,7 +122,15 @@ export function photoUri(ref: string, mediaBase: string | null): string | null {
   // a space in it.
   const clean = ref.trim();
   if (mediaBase === null || clean === '') return null;
-  return `${mediaBase}/${clean}`;
+  // THUMB-PRODUIT-1 (founder 2026-08-11 — « fix the full size photograph »):
+  // ASK FOR THE VIGNETTE. `?v=thumb` answers the 320 px derivative when one was
+  // stored, and FALLS BACK to the photograph itself when none was — so this is
+  // safe on every ref that predates the vignette door, which is all of them
+  // until his next listing. It is appended HERE, at the one place a 54 px row
+  // builds its url, and deliberately NOT in `photoSlot`: the product tile and
+  // the fiche gallery show the photograph large, where a 320 px file would look
+  // exactly like the cheap software this project is not.
+  return `${mediaBase}/${clean}?v=thumb`;
 }
 
 export function photoSlot(assetRefs: readonly string[], mediaBase: string | null): PhotoSlot {

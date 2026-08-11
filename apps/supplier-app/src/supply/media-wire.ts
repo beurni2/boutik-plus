@@ -38,6 +38,29 @@ export function readUploadResult(body: unknown): UploadedImage | null {
   };
 }
 
+/**
+ * THUMB-PRODUIT-1 — what the vignette door answers on 201 (media worker
+ * `handleThumbUpload`), mirrored: `{status:'stored', for, byteLength}`.
+ *
+ * `for` IS CHECKED AGAINST THE PARENT THE CALLER ASKED FOR, at the call site —
+ * an answer about a different photograph is not an answer to this request.
+ */
+export interface StoredThumb {
+  readonly status: 'stored';
+  readonly for: string;
+  readonly byteLength: number;
+}
+
+/** Boundary-validate the vignette 201 — same law as its neighbours: refused, never cast. */
+export function readThumbResult(body: unknown): StoredThumb | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as Record<string, unknown>;
+  if (b['status'] !== 'stored') return null;
+  if (typeof b['for'] !== 'string' || !b['for'].startsWith('media/')) return null;
+  if (!Number.isFinite(b['byteLength'])) return null;
+  return { status: 'stored', for: b['for'], byteLength: b['byteLength'] as number };
+}
+
 /** Lowercase-hex a digest buffer — canon's sha256 shape. Pure; the OS digest itself lives in media.ts. */
 export function hexOfDigest(digest: ArrayBuffer): string {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');

@@ -1,7 +1,7 @@
 import { makeHealthFetch } from '@boutik/observability';
 import { isOpaqueMediaKey, MEDIA_KEY_PREFIX } from '../src/media-key.js';
 import { resolveMediaStore, type R2BucketLike } from '../src/media-store.js';
-import { ProductMediaService } from '../src/media.js';
+import { ProductMediaService, THUMB_WRITE_WINDOW_MS, thumbKeyFor } from '../src/media.js';
 import { rejectUnauthorizedRevoke, rejectUnauthorizedWrite, type MediaWriteAuthEnv } from './auth.js';
 
 /**
@@ -66,6 +66,30 @@ export const BROWSER_MAX_AGE_S = 300;
 export const EDGE_MAX_AGE_S = 3600;
 export const CACHE_CONTROL = `public, max-age=${BROWSER_MAX_AGE_S}, s-maxage=${EDGE_MAX_AGE_S}`;
 
+/**
+ * THUMB-PRODUIT-1 — THE SHORT TTL, AND THE NARROW CASE IT IS FOR.
+ *
+ * A `?v=thumb` read that arrives BEFORE the vignette is stored is answered with
+ * the photograph — correct — but caching that answer for an hour would pin the
+ * full photograph under the vignette's URL long after the small object existed.
+ * The app uploads the photograph and then its vignette, so that window is real.
+ *
+ * ⚠ IT APPLIES ONLY WHILE A VIGNETTE COULD STILL ARRIVE — i.e. while the parent
+ * is inside `THUMB_WRITE_WINDOW_MS`. A verifier caught the first version of this
+ * shortening the TTL for EVERY fallback, which would have made the founder's
+ * board FIVE TIMES more expensive than before the slice: every photograph he
+ * already owns falls back, and each would have been re-fetched every 60 s
+ * instead of every 300 s. An old photograph can never gain a vignette (the
+ * window is shut), so it gets the full TTL and behaves exactly as it did.
+ *
+ * Together with `handleThumbUpload`'s colo-local purge, the poisoning window is
+ * bounded at five minutes on every other colo and closed immediately on the one
+ * that will serve the row.
+ */
+export const FALLBACK_BROWSER_MAX_AGE_S = 60;
+export const FALLBACK_EDGE_MAX_AGE_S = 300;
+export const FALLBACK_CACHE_CONTROL = `public, max-age=${FALLBACK_BROWSER_MAX_AGE_S}, s-maxage=${FALLBACK_EDGE_MAX_AGE_S}`;
+
 /** The edge cache, read defensively — absent in plain Node, present in workerd. */
 const edgeCache = (): Cache | undefined =>
   (globalThis as { caches?: { default?: Cache } }).caches?.default;
@@ -94,6 +118,23 @@ export const makeEdgeCachePurge = (origin: string) => async (key: string): Promi
   await cache.delete(new Request(`${origin}/${key}`));
 };
 
+/**
+ * Could this photograph still gain a vignette? True only inside
+ * `THUMB_WRITE_WINDOW_MS` of its own upload — the same fact `putThumb` gates
+ * the write on, so the cache policy and the write policy can never disagree.
+ * Any doubt (no metadata, no store) answers FALSE, which is the safe direction:
+ * the full TTL, never a shortened one.
+ */
+async function stillOpen(env: MediaWorkerEnv, key: string): Promise<boolean> {
+  try {
+    const parent = await resolveMediaStore(env).stat(key);
+    if (parent === null) return false;
+    return Date.now() - parent.uploadedAt.getTime() <= THUMB_WRITE_WINDOW_MS;
+  } catch {
+    return false;
+  }
+}
+
 const notFound = (): Response =>
   Response.json({ service: 'media-service', status: 'not_found', reason: 'unknown_media_key' }, { status: 404 });
 
@@ -114,15 +155,34 @@ export async function handleMediaRead(
   // 3 — the private bucket. No binding (CI/local) is an honest 404, never a crash.
   const bucket = env.BUCKET;
   if (bucket === undefined || typeof bucket.get !== 'function') return notFound();
-  const object = await bucket.get(key);
+
+  // THUMB-PRODUIT-1 — `?v=thumb` asks for the 320 px vignette of this same
+  // photograph. THE MISS IS A FALLBACK, NEVER A 404: every photograph uploaded
+  // before this slice has an empty vignette slot and nothing server-side can
+  // fill it, so those rows must keep rendering — heavier, but rendering. A 404
+  // here would blank the founder's board for exactly the products he already has.
+  //
+  // The edge entry above is per-URL, so the vignette and the full photograph
+  // cache separately by construction — no vary header, no key juggling.
+  const wantsThumb = new URL(request.url).searchParams.get('v') === 'thumb';
+  const thumb = wantsThumb ? await bucket.get(thumbKeyFor(key)) : null;
+  const served = thumb !== null && thumb.body !== null ? thumb : null;
+  const object = served ?? (await bucket.get(key));
   if (object === null || object.body === null) return notFound();
+  /**
+   * Asked for the vignette, answered with the photograph, AND a vignette could
+   * still arrive — the only case that earns the short TTL. An OLD photograph
+   * can never gain one (`THUMB_WRITE_WINDOW_MS` has shut), so it keeps the full
+   * TTL and costs exactly what it cost before this slice.
+   */
+  const fellBack = wantsThumb && served === null && (await stillOpen(env, key));
 
   const res = new Response(object.body, {
     status: 200,
     headers: {
       'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
       // BOUNDED on both layers so neither can outlive a takedown. No `immutable`.
-      'Cache-Control': CACHE_CONTROL,
+      'Cache-Control': fellBack ? FALLBACK_CACHE_CONTROL : CACHE_CONTROL,
     },
   });
   // 4 — populate the edge for the next reader. `clone()` because the body streams once.
@@ -248,6 +308,68 @@ export async function handleAudioUpload(request: Request, env: MediaWorkerEnv, n
   return Response.json({ ref: key, contentType, durationSeconds, byteLength }, { status: 201 });
 }
 
+/** THUMB-PRODUIT-1 — the vignette door. `thumb` can never match the opaque key
+ *  shape (`media/{uuid}`), and the method differs anyway. */
+export const THUMB_UPLOAD_PATH = '/media/thumb';
+
+/**
+ * `POST /media/thumb?for=media/{token}` — the 320 px vignette of an existing
+ * photograph. Same laws as every other door: the body IS the image (raw bytes,
+ * no multipart, no filename), the declared Content-Type is IGNORED (the magic
+ * sniff decides), and it sits behind the same write gate as the photo upload.
+ *
+ * ONE THING IS DIFFERENT, AND IT IS THE POINT: this is the only route in the
+ * service that writes at a key it did not mint. What makes that safe is stated
+ * at `putThumb` — the parent must be the opaque shape, the parent must EXIST,
+ * and the slot must be EMPTY (write-once), so the door can neither address
+ * anything outside the minted namespace nor overwrite a vignette that is
+ * already there.
+ *
+ * `already_set` IS A 409, NOT AN ERROR THE APP SHOULD SHOUT ABOUT: a retried
+ * publish re-uploading a vignette that already landed is the normal case, and
+ * the outcome it wanted is already true.
+ */
+export async function handleThumbUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
+  const parent = new URL(request.url).searchParams.get('for') ?? '';
+  if (!isOpaqueMediaKey(parent)) {
+    // Shape gate BEFORE any storage touch, same law as the read and revoke
+    // routes — and it is not an existence oracle, because existence never
+    // enters this answer at all.
+    return Response.json({ error: 'malformed', param: 'for' }, { status: 400 });
+  }
+  const service = new ProductMediaService(resolveMediaStore(env));
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  // THE ROUTE MAKES ITS OWN DOC TRUE (verifier MINOR): `putThumb` derives the
+  // key and THROWS a MediaKeyError on a non-opaque parent. That is unreachable
+  // behind the guard above — but a claim that a throw is "caught by the route"
+  // must be backed by a catch, not by an argument about reachability.
+  let outcome: Awaited<ReturnType<typeof service.putThumb>>;
+  try {
+    outcome = await service.putThumb(parent, bytes, now);
+  } catch {
+    return Response.json({ error: 'malformed', param: 'for' }, { status: 400 });
+  }
+  if (!outcome.ok) {
+    const status =
+      outcome.reason === 'already_set' || outcome.reason === 'window_closed'
+        ? 409
+        : outcome.reason === 'no_parent'
+          ? 404
+          : 400;
+    // The validator's TYPED reason, verbatim — empty · too_large ·
+    // unsupported_type · bad_dimensions · no_parent · window_closed · already_set.
+    return Response.json({ error: 'rejected', reason: outcome.reason }, { status });
+  }
+  // THE FALLBACK'S CACHE ENTRY DIES HERE. A read that arrived between the
+  // photograph's upload and this call was answered with the photograph and
+  // cached under the vignette's URL; without this, the row it was meant to
+  // make cheap would keep paying full price until that entry expired. Same
+  // property as revoke's purge — colo-local and best-effort, which is why
+  // `FALLBACK_CACHE_CONTROL` bounds the rest.
+  await makeEdgeCachePurge(new URL(request.url).origin)(`${parent}?v=thumb`);
+  return Response.json({ status: 'stored', for: parent, byteLength: outcome.byteLength }, { status: 201 });
+}
+
 /** The revoke route's path. Not a key read: `revoke` can never match the opaque
  * key shape, and the method differs anyway. */
 export const REVOKE_PATH = '/media/revoke';
@@ -352,6 +474,10 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
     // REPERE-AUDIO-REEL — behind the same write gate above; dispatch only.
     if (request.method === 'POST' && pathname === AUDIO_UPLOAD_PATH) {
       return handleAudioUpload(request, env);
+    }
+    // THUMB-PRODUIT-1 — behind the same write gate above; dispatch only.
+    if (request.method === 'POST' && pathname === THUMB_UPLOAD_PATH) {
+      return handleThumbUpload(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
       // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
