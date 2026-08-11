@@ -3,7 +3,7 @@ import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, ChipSegment, Input, PageTitle } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, ChipSegment, Input, PageTitle, VignetteProduit } from '../v2/components';
 import {
   clearStoredOpsKey,
   readStoredOpsKey,
@@ -27,6 +27,7 @@ import { readStoredCleCoursiers } from '../coursiers/service';
 import { resolveSeraDispatch, type BoardSera } from './sera-service';
 import { nomCoursierPour } from '../gains/view';
 import { resolveMediaBase } from '../supply/media';
+import { photoUri } from '../supply/produits-view';
 import { ConfierCoursier } from './confier';
 import { telEnPaires } from './telephone';
 import {
@@ -466,17 +467,25 @@ function RangCommande({
   return (
     <Card variant="Llg">
       <Pressable onPress={onToggle} accessibilityRole="button">
-        {/* THE SUPPLIER'S NAME IS THE LOUDEST LINE — his explicit ask. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={[NOM_FORT, { flexShrink: 1 }]} numberOfLines={1}>{qui.nom}</Text>
-          <View style={{ backgroundColor: pillBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }}>
-            <Text style={[role({ f: 'BG', w: 800, s: 11 }, pillFg)]}>{t(pill.label)}</Text>
+        {/* PHOTO-À-TRAITER — the photograph on the LEFT of the whole header, so
+            the supplier's name stays the loudest LINE (his explicit ask) while
+            the card can be recognised by the product at a glance. A row with
+            no photograph keeps the exact layout it has today. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <VignetteProduit uri={photoUri(row.productPhotoRef, mediaBase)} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[NOM_FORT, { flexShrink: 1 }]} numberOfLines={1}>{qui.nom}</Text>
+              <View style={{ backgroundColor: pillBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }}>
+                <Text style={[role({ f: 'BG', w: 800, s: 11 }, pillFg)]}>{t(pill.label)}</Text>
+              </View>
+            </View>
+            <Text style={[CORPS, { marginTop: 4 }]} numberOfLines={1}>
+              {row.productName !== '' ? row.productName : row.productVersionId} · {row.zoneTo}
+            </Text>
+            <Text style={[PETIT, { marginTop: 2 }]} numberOfLines={1}>{row.orderId}</Text>
           </View>
         </View>
-        <Text style={[CORPS, { marginTop: 4 }]} numberOfLines={1}>
-          {row.productName !== '' ? row.productName : row.productVersionId} · {row.zoneTo}
-        </Text>
-        <Text style={[PETIT, { marginTop: 2 }]} numberOfLines={1}>{row.orderId}</Text>
       </Pressable>
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (

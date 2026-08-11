@@ -511,3 +511,25 @@ export const C48 = {
   commission: { ...role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), marginTop: 3 },
   OVERLINE: 'APERÇU — CE QUE VERRONT LES REVENDEUSES',
 } as const;
+
+/**
+ * ── C49 VignetteProduit ──────────────────────────────────────────────────────
+ * PHOTO-À-TRAITER (founder, 2026-08-10) — the small square photograph that now
+ * rides the LEFT of an order row, on his console's « À traiter » and on every
+ * Commandes card. Built from the same tokens as C26's tile: the warm-paper
+ * ground under a picture that has not painted yet, the card border, the row
+ * radius. No one-off values, and no size other than this one.
+ */
+export const C49 = {
+  side: 54,
+  box: {
+    width: 54,
+    height: 54,
+    borderRadius: GEO.r.iconTileOrder,
+    overflow: 'hidden' as const,
+    borderWidth: 1,
+    borderColor: P.borderCard,
+    backgroundColor: P.bg,
+  },
+  img: { width: '100%' as const, height: '100%' as const },
+} as const;

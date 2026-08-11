@@ -26,6 +26,7 @@ const vente = (orderId: string, paidAt: string): PaidOrderRow => ({
   orderId,
   productVersionId: 'pv-1',
   productName: 'Bazin riche',
+  productPhotoRef: '',
   offerVersion: 'ov-1',
   paymentMode: 'FULL_PREPAY',
   paidAt,

@@ -1331,10 +1331,75 @@ export async function handleOrderConfirmedIntake(
   return Response.json({ ok: true, status: body.status });
 }
 
-/** The ops list, through the same singleton. Auth is the composition root's. */
-export async function handlePaidOrdersList(env: FulfillmentEnv): Promise<Response> {
+/**
+ * The ops list, through the same singleton. Auth is the composition root's.
+ *
+ * ═══ PHOTO-À-TRAITER (founder, 2026-08-10: « on my ops console when a bought
+ * product comes on à traiter show the product photo to it as well ») ═══
+ *
+ * The photograph is joined HERE, at READ time, and deliberately NOT stored on
+ * `PaidOrderRecord` beside `productName`. Two reasons, and the first is the
+ * founder's own board: every order already in the book was registered before
+ * this existed, so an intake-time join would leave his current backlog — the
+ * rows he is looking at right now — photo-less forever, while only new orders
+ * gained one. The second is that a stored ref would freeze the FIRST asset a
+ * product ever had; the entry is the live truth about that product's photos.
+ *
+ * ONE LOOKUP PER DISTINCT productVersionId, never one per row: two orders of
+ * the same product must not cost two reads. They run CONCURRENTLY, and they are
+ * CAPPED — see `PHOTO_LOOKUP_MAX` below, which is a real Workers ceiling, not a
+ * tidiness preference.
+ *
+ * A MISS IS ''. An unknown pv, a product with no assets, an entry the store
+ * cannot answer for, and a pv past the cap ALL render the row exactly as it
+ * renders today — with no picture. No placeholder ref is ever substituted (the
+ * demo-fallback class), and no failure of this join may ever cost him the BOARD.
+ */
+
+/**
+ * ⚠ THE CAP EXISTS BECAUSE THE BOARD OUTLIVES THIS FEATURE. Every paid order
+ * ever registered (minus retired ones) is on this read, so the distinct-product
+ * count only grows — and each lookup walks the pv→offerId pointer and then the
+ * per-offer DO, which is up to TWO subrequests. Workers bounds subrequests per
+ * request (50 on the free plan), so an uncapped join turns « some rows have no
+ * photograph » into « the board does not load at all » on the day he passes the
+ * ceiling. That trade is unacceptable: the photograph is a nicety, the board is
+ * his work.
+ *
+ * 20 distinct products × 2 subrequests = 40, leaving headroom for the book read
+ * itself. Rows arrive NEWEST-FIRST from the DO, so the cap always spends itself
+ * on the recent orders — which is exactly « a bought product comes on À traiter ».
+ */
+const PHOTO_LOOKUP_MAX = 20;
+
+export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEnv): Promise<Response> {
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
-  return stub.fetch(new Request('https://do/orders'));
+  const res = await stub.fetch(new Request('https://do/orders'));
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
+  if (body?.ok !== true || !Array.isArray(body.orders)) return Response.json(body ?? { ok: false }, { status: res.status });
+
+  const rows = body.orders as Record<string, unknown>[];
+  const pvOf = (r: Record<string, unknown>): string =>
+    typeof r['productVersionId'] === 'string' ? r['productVersionId'] : '';
+  // Insertion order is the DO's newest-first order, so `slice` keeps the recent
+  // products and drops the oldest — never an arbitrary subset.
+  const distinct = [...new Set(rows.map(pvOf))].filter((pv) => pv !== '').slice(0, PHOTO_LOOKUP_MAX);
+
+  const found = await Promise.all(
+    distinct.map(async (pv): Promise<readonly [string, string]> => {
+      // `heroSquare` is the SQUARE crop of his hero shot — the one asset shaped
+      // for a thumbnail. Wire order is [heroSquare, heroVertical, proof, …] and
+      // `masterRef` never travels; naming the field beats an index here because
+      // this read does not go through `wireAssetRefs`.
+      const entry = await store.getEntryByProductVersion(pv).catch(() => undefined);
+      const ref = entry?.assets?.heroSquare.ref;
+      return [pv, typeof ref === 'string' ? ref : ''] as const;
+    }),
+  );
+  const photoByPv = new Map(found.filter(([, ref]) => ref !== ''));
+
+  const orders = rows.map((r) => ({ ...r, productPhotoRef: photoByPv.get(pvOf(r)) ?? '' }));
+  return Response.json({ ok: true, orders });
 }
 
 /** RB-1 — the founder's per-order evidence read (ops-gated at the router). */

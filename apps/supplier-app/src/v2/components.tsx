@@ -14,7 +14,7 @@ import { GEO, GLYPH_SHADOW, PRESSED, TEXTURE } from '../ui/v2/tokens';
 import {
   C03, C04, C05, C06, C08, C09, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C20, C21,
   C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C34, C36, C37, C38, C41, C43, C44,
-  C45, C46, C47, C48, STATUS_PILL, PRODUCT_PILL, TNUM, role,
+  C45, C46, C47, C48, C49, STATUS_PILL, PRODUCT_PILL, TNUM, role,
 } from '../ui/v2/styles';
 import { t as tr } from '../i18n';
 import type { PhotoSlot } from '../supply/produits-view';
@@ -415,6 +415,39 @@ export function PhotoViewer({ photo, onClose }: { photo: { uri: string; label: s
 }
 
 /**
+ * PHOTO-À-TRAITER (founder, 2026-08-10: « on my ops console when a bought
+ * product comes on à traiter show the product photo to it as well »).
+ *
+ * THE SMALL SQUARE PHOTOGRAPH ON AN ORDER ROW — built once here and themed by
+ * C49, because it now rides two screens (the Accueil « À traiter » head of
+ * queue and every Commandes card) and a second copy would be a snowflake.
+ *
+ * IT RENDERS NOTHING WHEN THERE IS NOTHING TO RENDER. No ref, no configured
+ * media base, or a ref that 404s ⇒ `null`, and the row is exactly the row he
+ * has today: a name and a waiting time. That is deliberate and it is the
+ * honest choice at this size — 54px cannot carry the sentence « Photo
+ * indisponible », and an empty grey square that explains nothing is worse
+ * than no square at all. The full explanation of a missing photograph already
+ * has its designed home on the product tile (`OfferTile`), where there is room
+ * to say it.
+ */
+export function VignetteProduit({ uri }: { uri: string | null }) {
+  const [broken, setBroken] = useState(false);
+  if (uri === null || uri === '' || broken) return null;
+  return (
+    <View style={s.vignette}>
+      <Image
+        source={{ uri }}
+        style={s.vignetteImg}
+        // A thumbnail is a glance, not an inspection — the frame is filled.
+        resizeMode="cover"
+        onError={() => setBroken(true)}
+      />
+    </View>
+  );
+}
+
+/**
  * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT `ProductTile`: that one
  * takes `bg` / `glyph` / `paused`, three fields with no real source.
  *
@@ -696,6 +729,7 @@ const s = StyleSheet.create({
   releveRow: C25.row, releveWeek: C25.week, releveSub: C25.sub, releveTotal: C25.total,
   tile: C26.tile, tileBody: C26.body, tileName: C26.name, tilePriceRow: C26.priceRow, tilePrice: C26.price, tileStock: C26.stock, tileStockLow: C26.stockLow,
   tileNoPhoto: C26.noPhoto, tileNoPhotoTxt: C26.noPhotoTxt, tileVariants: C26.variants, tileHidden: C26.hidden,
+  vignette: C49.box, vignetteImg: C49.img,
   // PhotoViewer — an inspection overlay; near-black so the photograph is the
   // only light on screen. rgba, not a palette tone: this is a scrim, not a surface.
   viewerFill: { flex: 1, backgroundColor: 'rgba(10,8,6,0.96)', alignItems: 'center' as const, justifyContent: 'center' as const },

@@ -53,6 +53,18 @@ export interface PaidOrderRow {
   readonly productVersionId: string;
   /** Enriched at intake from the offer store's own entry; '' when unknown. */
   readonly productName: string;
+  /**
+   * PHOTO-À-TRAITER — the product's square hero, joined by the Worker at READ
+   * time from the same offer entry the name comes from. A media REF, not a
+   * url: the screen builds `${mediaBase}/${ref}` exactly as the produits
+   * screens do, and reads are unauthenticated.
+   *
+   * '' IS THE HONEST ABSENCE and covers three different truths — the pv is
+   * unknown to the store, the product carries no assets, or this app is
+   * talking to a Worker built before the join existed. All three render the
+   * row with no picture; none of them ever substitutes a stand-in image.
+   */
+  readonly productPhotoRef: string;
   readonly offerVersion: string;
   readonly paymentMode: string;
   readonly paidAt: string;
@@ -469,6 +481,7 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     typeof r['supplierResolved'] === 'boolean' &&
     typeof r['registeredAt'] === 'string' &&
     (r['productName'] === undefined || typeof r['productName'] === 'string') &&
+    (r['productPhotoRef'] === undefined || typeof r['productPhotoRef'] === 'string') &&
     (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string');
   if (!ok) return null;
   const relance = readRelance(r['relance']);
@@ -479,6 +492,9 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     orderId: r['orderId'] as string,
     productVersionId: r['productVersionId'] as string,
     productName: typeof r['productName'] === 'string' ? r['productName'] : '',
+    // A Worker that has not shipped the join yet omits the field entirely; ''
+    // is what the screen reads as « no picture », never a broken <Image>.
+    productPhotoRef: typeof r['productPhotoRef'] === 'string' ? r['productPhotoRef'] : '',
     offerVersion: typeof r['offerVersion'] === 'string' ? r['offerVersion'] : '',
     paymentMode: r['paymentMode'] as string,
     paidAt: r['paidAt'] as string,

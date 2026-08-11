@@ -20,6 +20,7 @@ const order = (orderId: string, over: Partial<PaidOrderRow> = {}): PaidOrderRow 
   orderId,
   productVersionId: 'pv-1',
   productName: 'Bazin riche',
+  productPhotoRef: '',
   offerVersion: 'ov-1',
   paymentMode: 'FULL_PREPAY',
   paidAt: '2026-08-08T10:00:00.000Z',

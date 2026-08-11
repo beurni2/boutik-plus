@@ -107,6 +107,20 @@ export type PhotoSlot =
   | { readonly kind: 'none'; readonly message: 'produits.sans_photo' }
   | { readonly kind: 'unavailable'; readonly message: 'produits.photo_non_configure' };
 
+/**
+ * PHOTO-À-TRAITER — ONE media ref to a renderable url, or null.
+ *
+ * The thumbnail's counterpart to `photoSlot`, and deliberately two-state where
+ * that one is three: an order row at 54px has no room for the sentence that
+ * distinguishes « he uploaded none » from « we cannot fetch it », so both
+ * collapse to « no picture here » and the row renders as it always has. The
+ * three-state explanation stays where it can be read — the product tile.
+ */
+export function photoUri(ref: string, mediaBase: string | null): string | null {
+  if (mediaBase === null || ref.trim() === '') return null;
+  return `${mediaBase}/${ref}`;
+}
+
 export function photoSlot(assetRefs: readonly string[], mediaBase: string | null): PhotoSlot {
   const ref = assetRefs[0];
   // No refs is an honest absence WHATEVER the config: he uploaded none.

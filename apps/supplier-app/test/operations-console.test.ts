@@ -114,6 +114,7 @@ function rowAt(orderId: string, paidAt: string, over: Partial<PaidOrderRow> = {}
     orderId,
     productVersionId: 'pv-1',
     productName: 'Pagne tissé',
+    productPhotoRef: '',
     offerVersion: 'ov-1',
     paymentMode: 'FULL_PREPAY',
     paidAt,

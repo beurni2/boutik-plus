@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, TNUM, role } from '../ui/v2/styles';
 import { GEO } from '../ui/v2/tokens';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Overline, PageTitle } from '../v2/components';
+import { Banner, BtnSoft, C07BtnPrimary, Card, Overline, PageTitle, VignetteProduit } from '../v2/components';
 import type { A } from '../v2/machine';
+import { resolveMediaBase } from '../supply/media';
+import { photoUri } from '../supply/produits-view';
 import { SUPPLIER_ID, resolveSupplyService, type SupplierOfferRow } from '../supply/service';
 import { resolveOperationsService, type PaidOrderRow } from '../operations/service';
 import { attenteDepuis, segmenter } from '../commandes/view';
@@ -58,6 +60,10 @@ type Ventes =
   | { kind: 'ok'; aTraiter: readonly PaidOrderRow[]; enAttente: number; pretes: number; total: number };
 
 export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string | null }) {
+  // PHOTO-À-TRAITER — read once per mount, exactly as `produits-real.tsx` does.
+  // Null (unset `EXPO_PUBLIC_MEDIA_BASE`) means no thumbnail anywhere, never a
+  // broken image.
+  const mediaBase = useMemo(() => resolveMediaBase(), []);
   const [offres, setOffres] = useState<Offres>({ kind: 'chargement' });
   const [ventes, setVentes] = useState<Ventes>({ kind: opsKey === null ? 'sans_cle' : 'chargement' });
   const [recharge, setRecharge] = useState(0);
@@ -153,12 +159,20 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
                   return (
                     <Pressable key={row.orderId} onPress={() => d({ t: 'TAB', tab: 'commandes' })} accessibilityRole="button">
                       <Card style={{ paddingVertical: 13, paddingHorizontal: 15 }}>
-                        <Text style={NOM_ROW} numberOfLines={1}>
-                          {row.productName !== '' ? row.productName : row.orderId}
-                        </Text>
-                        <Text style={[PETIT, { marginTop: 3 }]} numberOfLines={1}>
-                          {`${attente}${row.zoneTo !== '' ? ` · ${row.zoneTo}` : ''}`}
-                        </Text>
+                        {/* PHOTO-À-TRAITER — the photograph leads the row, and
+                            the text keeps its own column so a row WITHOUT one
+                            reads identically to the row he has today. */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <VignetteProduit uri={photoUri(row.productPhotoRef, mediaBase)} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={NOM_ROW} numberOfLines={1}>
+                              {row.productName !== '' ? row.productName : row.orderId}
+                            </Text>
+                            <Text style={[PETIT, { marginTop: 3 }]} numberOfLines={1}>
+                              {`${attente}${row.zoneTo !== '' ? ` · ${row.zoneTo}` : ''}`}
+                            </Text>
+                          </View>
+                        </View>
                       </Card>
                     </Pressable>
                   );

@@ -148,7 +148,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'GET' && fp === '/fulfillment/orders') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      return handlePaidOrdersList(env);
+      // PHOTO-À-TRAITER — the board read now joins each row's product
+      // photograph from the offer entry, so the store is composed here exactly
+      // as the intake composes it (same binding, same router, one road).
+      const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
+      return handlePaidOrdersList(store, env);
     }
     // RB-1 — three founder-only additions on the SAME credential as the board
     // read (the Commandes tab is that board's new home): the per-order
