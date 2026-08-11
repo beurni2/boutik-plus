@@ -31,9 +31,19 @@ import { expect } from 'vitest';
  */
 
 /** One scripted answer. `handler` sees the path and the parsed body. */
-export type Route = (path: string, body: Record<string, unknown> | null) =>
-  | { status: number; json: Record<string, unknown> }
-  | null;
+/**
+ * One scripted answer. `search` is the QUERY STRING, and it is not decoration:
+ * this app's admin list is `GET /offers?supplierId=…`, so a fake that ignored
+ * the scope would answer the same rows for every supplier — and a walk written
+ * on it would go green over a screen that reads the wrong scope, or no scope at
+ * all. That happened here: an INVENTAIRE-COMPLET mutation stayed green until
+ * the fake started honouring it.
+ */
+export type Route = (
+  path: string,
+  body: Record<string, unknown> | null,
+  search: URLSearchParams,
+) => { status: number; json: Record<string, unknown> } | null;
 
 export interface Wire {
   /** Every request the app made, in order — the record a test asks « was this
@@ -48,12 +58,13 @@ export interface Wire {
 export function wire(routes: readonly Route[]): Wire {
   const calls: Wire['calls'] = [];
   const fake = async (input: string, init?: RequestInit): Promise<Response> => {
-    const path = new URL(input, 'http://boutik.test').pathname;
+    const url = new URL(input, 'http://boutik.test');
+    const path = url.pathname;
     const raw = init?.body;
     const body = typeof raw === 'string' ? (JSON.parse(raw) as Record<string, unknown>) : null;
     calls.push({ path, method: init?.method ?? 'GET', body });
     for (const r of routes) {
-      const answer = r(path, body);
+      const answer = r(path, body, url.searchParams);
       if (answer !== null) {
         return new Response(JSON.stringify(answer.json), {
           status: answer.status,

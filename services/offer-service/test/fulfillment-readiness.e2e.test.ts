@@ -794,3 +794,84 @@ describe('RB-1 — the Commandes TAB’s own port, driven against the real Worke
     }
   });
 });
+
+describe('INVENTAIRE-COMPLET — every offer, including one whose supplier holds no code', () => {
+  /**
+   * FOUNDER REPORT 2026-08-11, with a screenshot of three products still on
+   * Opportunités: « these 3 products was deleted from boutik+ and does not
+   * exist anymore there, but they are still present in opportunites on shop+. »
+   *
+   * They had never been deletable. His Produits tab can only ask
+   * `?supplierId=…` and it sourced those ids from the ACTIVE-CODE roster, so a
+   * supplier whose code was REVOKED took his products out of every read that
+   * screen could make — while `/supply-projections` kept serving them, because
+   * that collection walks the INDEX and the index does not care about codes.
+   *
+   * This drives the real Worker through exactly that state: mint, list, REVOKE,
+   * then ask the inventory.
+   */
+  const ORPHELIN = 'supplier-orphelin-9001';
+  const FOUNDER_001_SUPPLIER = 'supplier-founder-001';
+
+  it('lists an offer whose supplier no longer holds a code — and the scoped list still cannot', async () => {
+    // 1. Mint the code, so the create is allowed at all.
+    expect((await opsPost('/fulfillment/supplier-code', { supplierId: ORPHELIN })).status).toBe(200);
+
+    // 2. His product exists, through the real command path.
+    const created = await mf.dispatchFetch('http://o/offers', {
+      method: 'POST',
+      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commandId: 'seed-orphelin-9001',
+        offerId: 'offer-orphelin-9001',
+        product: {
+          id: 'pv-orphelin-9001', supplierId: ORPHELIN, version: 1, name: 'CHOIN',
+          productCode: 'ORPH-9001', facts: {}, category: 'fashion_bags_fabrics',
+          zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
+        },
+        draft: {
+          productVersionId: 'pv-orphelin-9001', basePrice: 7_500, resellerCommission: 1_000,
+          eligibleVariants: [], zones: [],
+          effective: '2026-07-10T00:00:00.000Z', expiry: '2026-12-31T00:00:00.000Z',
+        },
+        available: 5,
+        asOf: '2026-08-11T08:00:00.000Z',
+      }),
+    });
+    expect(created.status, await created.clone().text()).toBe(200);
+
+    // 3. HIS CODE IS REVOKED — the exact state that orphaned the product.
+    const revoked = await opsPost('/fulfillment/supplier-code/revoke', { supplierId: ORPHELIN });
+    expect(revoked.status, JSON.stringify(revoked.json)).toBe(200);
+
+    // 4. THE ROSTER NO LONGER NAMES HIM, so nothing his screen could ask for
+    //    would ever reach this product — that is the bug, asserted.
+    const codes = await opsGet('/fulfillment/supplier-codes');
+    expect(JSON.stringify(codes.json)).not.toContain(ORPHELIN);
+
+    // 5. …and the SCOPED list — the only read his screen had — cannot reach it
+    //    through any id the roster now names. Asserted directly: his own scope
+    //    does not contain it, and the orphan's scope is an id no chip offers.
+    const sien = await mf.dispatchFetch(`http://o/offers?supplierId=${FOUNDER_001_SUPPLIER}`, {
+      headers: { 'X-Write-Key': WRITE_SECRET },
+    });
+    expect(await sien.text()).not.toContain('pv-orphelin-9001');
+
+    // 6. THE FIX: the inventory reaches it, tagged with whose it is.
+    const inv = await opsGet('/offers/inventaire');
+    expect(inv.status).toBe(200);
+    const items = (inv.json as { items?: { offerId: string; supplierId: string }[] }).items ?? [];
+    const orphelin = items.find((i) => i.offerId === 'offer-orphelin-9001');
+    expect(orphelin, 'the inventory must reach a product no scoped list can').toBeDefined();
+    expect(orphelin?.supplierId).toBe(ORPHELIN);
+  });
+
+  it('the inventory is the FOUNDER’s read — the write key and no key alike are refused', async () => {
+    const bare = await mf.dispatchFetch('http://o/offers/inventaire');
+    expect(bare.status).toBe(401);
+    const writeKey = await mf.dispatchFetch('http://o/offers/inventaire', {
+      headers: { 'X-Write-Key': WRITE_SECRET },
+    });
+    expect(writeKey.status, 'the bundled write key must not open supplier identity').toBe(401);
+  });
+});

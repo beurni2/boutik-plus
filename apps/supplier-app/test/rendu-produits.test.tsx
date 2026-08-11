@@ -55,19 +55,37 @@ function livre(bySupplier: Record<string, ReturnType<typeof row>[]>): {
       }
       return { status: 200, json: { status: 'deleted', offerId } };
     },
-    (path) => {
+    (path, _body, search) => {
       if (path !== '/offers') return null;
-      // The scope rides the QUERY, which `wire` drops from `path` — so the
-      // handler answers the union and the walk asserts on the DELETE bytes,
-      // which is where the defect would be.
+      // THE SCOPE IS HONOURED. The real route is `?supplierId=…` and refuses
+      // without one; a fake that answered the union for every scope would let a
+      // screen reading the WRONG scope pass — and it did, until this was fixed
+      // (an INVENTAIRE-COMPLET mutation stayed green over it).
+      const scope = search.get('supplierId');
+      if (scope === null || scope === '') return { status: 400, json: { error: 'missing_supplier_id' } };
       return {
         status: 200,
         json: {
           asOf: '2026-08-11T08:00:00.000Z',
-          items: Object.values(bySupplier).flat() as never,
+          items: (bySupplier[scope] ?? []) as never,
         },
       };
     },
+    // THE INVENTORY — the read his device really makes, because his ops key is
+    // on it. Every offer, tagged with whose it is; this is what makes « Tous »
+    // true and what makes an orphan reachable.
+    (path) =>
+      path === '/offers/inventaire'
+        ? {
+            status: 200,
+            json: {
+              asOf: '2026-08-11T08:00:00.000Z',
+              items: Object.entries(bySupplier).flatMap(([sup, rows]) =>
+                rows.map((r) => ({ ...r, supplierId: sup })),
+              ) as never,
+            },
+          }
+        : null,
     // The roster read (his ops key) — the chips come from it.
     (path) =>
       path === '/fulfillment/supplier-codes'
@@ -170,6 +188,106 @@ describe('PRODUITS — supprimer, his own and another supplier’s alike', () =>
     expect(screen.shows('La suppression n’a pas abouti. Vérifiez le réseau et réessayez.')).toBe(true);
     expect(screen.shows('Bazin du fondateur'), 'the product must still be on screen').toBe(true);
     expect(screen.canPress('Supprimer ce produit'), 'he must be able to try again').toBe(true);
+    screen.unmount();
+  });
+});
+
+describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable', () => {
+  /**
+   * FOUNDER REPORT 2026-08-11, with a screenshot of three products still on
+   * Opportunités: « these 3 products was deleted from boutik+ and does not
+   * exist anymore there, but they are still present in opportunites on shop+. »
+   *
+   * THEY WERE NEVER DELETED. His Produits tab can only ask `?supplierId=…`, and
+   * it took those ids from the ACTIVE-CODE roster — so the moment a supplier's
+   * code is revoked, that supplier's products fall out of every read the screen
+   * can make: invisible here, undeletable here, and still served to Shop+'s
+   * Opportunités forever, because that collection walks the INDEX and the index
+   * does not care who holds a code.
+   *
+   * THIS WALK IS THE BUG, REPRODUCED: the roster names ONLY him, and a product
+   * belongs to a supplier who holds no code. Before the fix the screen rendered
+   * nothing for it and there was no way to reach the delete.
+   */
+  const ORPHELIN = 'supplier-code-revoque-003';
+
+  function livreAvecOrphelin(): ReturnType<typeof livre> & { book: Record<string, ReturnType<typeof row>[]> } {
+    const book = {
+      [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')],
+      [ORPHELIN]: [row('offer-orphelin', 'pv-orphelin', 'CHOIN')],
+    };
+    const base = livre(book);
+    const routes: Route[] = [
+      // The INVENTORY — every offer, tagged with whose it is. This is the read
+      // that makes an orphan reachable.
+      (path) =>
+        path === '/offers/inventaire'
+          ? {
+              status: 200,
+              json: {
+                asOf: '2026-08-11T08:00:00.000Z',
+                items: Object.entries(book).flatMap(([sup, rows]) =>
+                  rows.map((r) => ({ ...r, supplierId: sup })),
+                ) as never,
+              },
+            }
+          : null,
+      // The ROSTER names only HIM — the orphan's code was revoked. This is
+      // exactly the state that made the product unreachable.
+      (path) =>
+        path === '/fulfillment/supplier-codes'
+          ? { status: 200, json: { ok: true, codes: [{ supplierId: MOI, mintedAt: 'x', revelable: true }] } }
+          : null,
+      ...base.routes,
+    ];
+    return { ...base, routes, book };
+  }
+
+  it('a product whose supplier holds NO CODE is still on his screen', async () => {
+    const svc = livreAvecOrphelin();
+    wire(svc.routes);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    expect(
+      screen.shows('CHOIN'),
+      'a product nobody can see is a product nobody can delete — and Shop+ keeps selling it',
+    ).toBe(true);
+    expect(screen.shows('Bazin du fondateur')).toBe(true);
+    screen.unmount();
+  });
+
+  it('and he can DELETE it — the ids on the wire are the orphan’s own', async () => {
+    const svc = livreAvecOrphelin();
+    wire(svc.routes);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    await screen.press('CHOIN');
+    expect(screen.canPress('Supprimer ce produit')).toBe(true);
+    await screen.press('Supprimer ce produit');
+    await screen.press('Oui, supprimer');
+
+    expect(svc.state.deleted).toEqual([{ offerId: 'offer-orphelin', productVersionId: 'pv-orphelin' }]);
+    screen.unmount();
+  });
+
+  it('with NO ops key on the device the screen is exactly what it was — his own products', async () => {
+    // Anyone but him: no inventory read, no orphan, no change in behaviour.
+    storage({});
+    const svc = livreAvecOrphelin();
+    const w = wire(svc.routes);
+    const cache = { current: { rows: null, asOf: null } };
+    const screen = await mountEcran(
+      <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
+    );
+
+    expect(w.calls.map((c) => c.path)).not.toContain('/offers/inventaire');
+    expect(screen.shows('Bazin du fondateur')).toBe(true);
     screen.unmount();
   });
 });

@@ -91,6 +91,46 @@ export interface SupplierOfferList {
  * scope-less list would be every supplier's offers — correct today only because
  * there is one supplier, which is exactly the kind of fact that changes.
  */
+/**
+ * ═══ INVENTAIRE-COMPLET (founder report, 2026-08-11, with a screenshot) ═══
+ *
+ * « these 3 products was deleted from boutik+ and does not exist anymore there,
+ * but they are still present in opportunites on shop+. »
+ *
+ * THEY WERE NEVER DELETED — they became UNREACHABLE, which looked the same from
+ * his side and is worse. His Produits tab can only ask for `?supplierId=…`, and
+ * the ids it asks for come from the ACTIVE-CODE ROSTER
+ * (`GET /fulfillment/supplier-codes`). So the moment a supplier's code is
+ * revoked — or a product was listed for an id that never held one — that
+ * product falls out of every read his screen can make: invisible in Boutik+,
+ * undeletable from Boutik+, and still served to Shop+'s Opportunités forever,
+ * because `/supply-projections` walks the INDEX and the index does not care who
+ * holds a code.
+ *
+ * THE ROSTER WAS THE WRONG SOURCE OF TRUTH for « what exists ». A code is a
+ * DOOR (it lets a supplier in); the index is the INVENTORY. This builder answers
+ * the inventory question — every offer, each tagged with whose it is — so his
+ * screen can show and delete a product whose supplier is long gone.
+ *
+ * IT IS THE FOUNDER'S READ AND NOBODY ELSE'S: the route that calls it is gated
+ * on `FULFILLMENT_OPS_SECRET`, the credential that already opens his paid-order
+ * book, never the bundled write key. Unscoped supply is his to see because he
+ * is the platform; it is not a capability any app carries.
+ */
+export function buildFullInventory(entries: readonly OfferEntry[], nowIso: string): {
+  readonly asOf: string;
+  readonly items: readonly (SupplierOfferRow & { readonly supplierId: string })[];
+} {
+  const items: (SupplierOfferRow & { supplierId: string })[] = [];
+  for (const entry of entries) {
+    const one = buildSupplierList(entry.product.supplierId, [entry], nowIso).items[0];
+    // ONE BUILDER, not two: the row shape comes from the same function the
+    // scoped list uses, so the two reads can never disagree about a product.
+    if (one !== undefined) items.push({ ...one, supplierId: entry.product.supplierId });
+  }
+  return { asOf: nowIso, items };
+}
+
 export function buildSupplierList(
   supplierId: string,
   entries: readonly OfferEntry[],

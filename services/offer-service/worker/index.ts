@@ -208,6 +208,25 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // since when. The founder's credential, same as every code-admin act;
     // the response carries supplierId + mintedAt only (the DO's allowlist —
     // never a hash, never a code).
+    // INVENTAIRE-COMPLET (founder report 2026-08-11) — EVERY offer on the
+    // platform, each tagged with its supplier, behind HIS ops credential.
+    //
+    // WHY IT HAD TO EXIST: his Produits tab could only ask `?supplierId=…` and
+    // it sourced those ids from the ACTIVE-CODE roster, so a product whose
+    // supplier no longer holds a code was invisible AND undeletable from
+    // Boutik+ while `/supply-projections` went on serving it to Shop+ forever.
+    // He reported it as « deleted and still on Opportunités »; it had never
+    // been deletable at all.
+    //
+    // GATED ON `FULFILLMENT_OPS_SECRET`, never the bundled write key: this is
+    // the whole platform's supply with supplier identity attached, and that is
+    // the founder's read alone — the same credential and the same reasoning as
+    // the paid-order book two routes above.
+    if (request.method === 'GET' && fp === '/offers/inventaire') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
+    }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;

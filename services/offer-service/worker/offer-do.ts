@@ -1,5 +1,5 @@
 import { decideAttachAssets, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
-import { buildSupplierList } from '../src/supplier-list.js';
+import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -335,6 +335,21 @@ export default {
       // Filtering, the wire-order refs and the ladder-derived `hiddenReason` all
       // live in the PURE builder, so they are testable without a DO.
       return Response.json(buildSupplierList(supplierId, entries, new Date().toISOString()));
+    }
+
+    // INVENTAIRE-COMPLET — EVERY offer, each tagged with its supplier. Auth is
+    // the composition root's (his ops credential), exactly as the paid-order
+    // book's is; this router is never reachable from outside it.
+    if (request.method === 'GET' && pathname === '/offers/inventaire') {
+      const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
+      const rows = (await idxRes.json()) as IndexRow[];
+      const entries: OfferEntry[] = [];
+      for (const r of rows) {
+        const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
+        if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
+        entries.push((await eRes.json()) as OfferEntry);
+      }
+      return Response.json(buildFullInventory(entries, new Date().toISOString()));
     }
 
     // DISCOVERY (SLICE B) — every supply entry, RAW. The collection analogue of

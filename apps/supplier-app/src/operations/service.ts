@@ -122,6 +122,39 @@ export interface CodeRow {
   readonly revelable: boolean;
 }
 
+/**
+ * INVENTAIRE-COMPLET (founder report 2026-08-11) — EVERY offer on the platform,
+ * each tagged with whose it is.
+ *
+ * The scoped list (`supply/service.ts`) can only ask for one supplier at a
+ * time, and his screen sourced those ids from the ACTIVE-CODE roster — so a
+ * product whose supplier no longer holds a code was invisible AND undeletable
+ * from Boutik+, while `/supply-projections` went on serving it to Shop+. He saw
+ * that as « deleted and still on Opportunités »; it had never been deletable.
+ *
+ * The row is the SAME shape the scoped list returns, plus `supplierId`, because
+ * the Worker builds both through one builder — the two reads cannot disagree
+ * about a product.
+ */
+export interface InventaireRow {
+  readonly offerId: string;
+  readonly productVersionId: string;
+  readonly name: string;
+  readonly category: string;
+  readonly basePrice: number;
+  readonly resellerCommission: number;
+  readonly available: number;
+  readonly assetRefs: readonly string[];
+  readonly supplierId: string;
+  readonly videoRef?: string;
+  readonly variantsNote?: string;
+  readonly hiddenReason?: string;
+}
+
+export type InventaireResult =
+  | { readonly ok: true; readonly rows: readonly InventaireRow[] }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
 export type CodesResult =
   | { readonly ok: true; readonly codes: readonly CodeRow[] }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
@@ -171,6 +204,8 @@ export interface OperationsServicePort {
   /** RB-1 — read his contact cards, save one (last write wins), and read one
    *  order's readiness proof. Same key as the board: one door, one identity. */
   listSupplierContacts(opsKey: string): Promise<ContactsResult>;
+  /** INVENTAIRE-COMPLET — every offer, whoever it belongs to. His key only. */
+  listInventaire(opsKey: string): Promise<InventaireResult>;
   saveSupplierContact(opsKey: string, card: SupplierContact): Promise<SaveContactResult>;
   orderEvidence(opsKey: string, orderId: string): Promise<EvidenceResult>;
   /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
@@ -231,7 +266,47 @@ export function resolveOperationsService(): OperationsServicePort | null {
       return { ok: true, orders };
     },
 
-    async listSupplierContacts(opsKey: string): Promise<ContactsResult> {
+    async listInventaire(opsKey: string): Promise<InventaireResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/offers/inventaire`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
+      if (!Array.isArray(body?.items)) return { ok: false, reason: 'unreachable' };
+      // A malformed row is DROPPED, never rendered half-formed — the standing
+      // law of every read on this console.
+      const rows: InventaireRow[] = [];
+      for (const raw of body.items) {
+        if (raw === null || typeof raw !== 'object') continue;
+        const r = raw as Record<string, unknown>;
+        if (typeof r['offerId'] !== 'string' || r['offerId'] === '') continue;
+        if (typeof r['productVersionId'] !== 'string' || typeof r['supplierId'] !== 'string') continue;
+        if (typeof r['name'] !== 'string' || typeof r['available'] !== 'number') continue;
+        rows.push({
+          offerId: r['offerId'],
+          productVersionId: r['productVersionId'],
+          name: r['name'],
+          category: typeof r['category'] === 'string' ? r['category'] : '',
+          basePrice: typeof r['basePrice'] === 'number' ? r['basePrice'] : 0,
+          resellerCommission: typeof r['resellerCommission'] === 'number' ? r['resellerCommission'] : 0,
+          available: r['available'],
+          assetRefs: Array.isArray(r['assetRefs']) ? (r['assetRefs'] as string[]).filter((a) => typeof a === 'string') : [],
+          supplierId: r['supplierId'],
+          ...(typeof r['videoRef'] === 'string' ? { videoRef: r['videoRef'] } : {}),
+          ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
+          ...(typeof r['hiddenReason'] === 'string' ? { hiddenReason: r['hiddenReason'] } : {}),
+        });
+      }
+      return { ok: true, rows };
+    },
+
+  async listSupplierContacts(opsKey: string): Promise<ContactsResult> {
       let res: Response;
       try {
         res = await fetch(`${trimmed}/fulfillment/supplier-contacts`, {

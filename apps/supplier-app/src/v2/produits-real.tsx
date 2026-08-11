@@ -10,7 +10,7 @@ import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } f
 import { mintCommandId } from '../offline/commandId';
 import { resolveMediaBase, resolveMediaService } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
-import { chipsProduits, fournisseursALire, fusionner, montreAttribution, type RangeeAttribuee } from './produits-filtre';
+import { chipsProduits, fournisseursALire, fusionner, memeEnsemble, montreAttribution, TOUS, type RangeeAttribuee } from './produits-filtre';
 import { lireFournisseurs } from './lister-pour-choix';
 import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
 import type { A, S } from './machine';
@@ -64,6 +64,8 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
    * offer has no entry in `st.products`, and the id-miss guard is not a fiche. */
   const [openOffer, setOpenOffer] = useState<SupplierOfferRow | null>(null);
   const inFlight = useRef(false);
+  /** The scope a read asked for while another was running — replayed after it. */
+  const enAttente = useRef<string | null>(null);
   // PRODUITS-PAR-FOURNISSEUR (founder order 2026-08-03) — he lists FOR every
   // supplier and monitors all of them, so his own Produits screen filters by
   // whose product it is. The roster is the SAME code inventory the publish
@@ -71,7 +73,19 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // screen is exactly what it was before (his own products), never an empty
   // filter row implying suppliers he cannot see.
   const [roster, setRoster] = useState<readonly string[]>([]);
-  const [choix, setChoix] = useState<string>('');
+  /**
+   * HIS DEFAULT IS « TOUS » WHEN HIS OPS KEY IS ON THE DEVICE.
+   *
+   * The chip row has always listed « Tous » first and called it « the founder's
+   * monitoring default », while the selection started on « Vous » — so the
+   * default view was his own products only. That is what let ORPHANS hide: a
+   * product whose supplier's code was revoked is in nobody's scoped list, and
+   * he would have had to tap a chip he had no reason to suspect. He monitors
+   * every supplier; the screen now opens on every supplier.
+   *
+   * Without the key (anyone but him) it stays '' — himself — exactly as before.
+   */
+  const [choix, setChoix] = useState<string>(() => (readStoredOpsKey() !== null ? TOUS : ''));
   /** Whose product each row is — only ever the id the READ was scoped to. */
   const [attribue, setAttribue] = useState<readonly RangeeAttribuee[]>([]);
 
@@ -89,10 +103,69 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   }, []);
 
   const load = async (cible: string = choix): Promise<void> => {
-    if (service === null || inFlight.current) return;
+    if (service === null) return;
+    /**
+     * A READ ASKED FOR WHILE ANOTHER IS IN FLIGHT IS REMEMBERED, NOT DROPPED.
+     *
+     * It used to `return` — and that silently lost the re-read the supplier
+     * roster triggers when it lands, because the mount read is still running at
+     * that moment. On « Tous » the screen then kept the fan-out's first answer,
+     * which had only HIS id to ask for: every other supplier's products missing,
+     * with no error and nothing to retry. A walk caught it; reading could not.
+     */
+    if (inFlight.current) {
+      enAttente.current = cible;
+      return;
+    }
     inFlight.current = true;
     setRead({ kind: 'loading' });
     try {
+      /**
+       * ═══ INVENTAIRE-COMPLET (founder report 2026-08-11, with a screenshot of
+       * three products still on Opportunités) ═══
+       *
+       * WHEN HIS OPS KEY IS ON THIS DEVICE, THE INVENTORY IS THE SOURCE OF
+       * TRUTH — not the fan-out below.
+       *
+       * The fan-out can only ask `?supplierId=…`, and it took those ids from
+       * the ACTIVE-CODE roster. So a product whose supplier's code was revoked
+       * — or who never held one — fell out of every read this screen could
+       * make: invisible here, undeletable here, and still served to Shop+'s
+       * Opportunités forever, because that collection walks the INDEX and the
+       * index does not care who holds a code. He reported it as « deleted and
+       * still there »; it had never been deletable at all.
+       *
+       * A code is a DOOR. The index is the INVENTORY. Asking the inventory is
+       * the fix, and it also makes « Tous » true for the first time.
+       *
+       * THE FAN-OUT STAYS as the fallback: no ops key on this device (anyone
+       * but him) means no inventory read, and the screen is exactly what it
+       * was — his own products, by the write key alone.
+       */
+      const opsKey = readStoredOpsKey();
+      const ops = resolveOperationsService();
+      if (opsKey !== null && ops !== null) {
+        const inv = await ops.listInventaire(opsKey);
+        if (inv.ok) {
+          const tous = cible === TOUS;
+          const vise = cible === '' ? supplierId : cible;
+          const gardees = inv.rows.filter((r) => tous || r.supplierId === vise);
+          const attribuees = gardees.map((r) => {
+            const { supplierId: proprietaire, ...row } = r;
+            return { row: row as SupplierOfferRow, supplierId: proprietaire };
+          });
+          setAttribue(attribuees);
+          const rows = attribuees.map((m) => m.row);
+          cache.current = { rows, asOf: new Date().toISOString() };
+          // Whoever OWNS a product is a supplier this screen must be able to
+          // name — that is what makes the orphans reachable.
+          setRoster([...new Set(inv.rows.map((r) => r.supplierId))]);
+          setRead({ kind: 'ok', rows });
+          return;
+        }
+        // A refused or unreachable inventory falls through to the fan-out
+        // rather than blanking his screen — the read he always had still works.
+      }
       // « Tous » is COMPOSED from reads he is entitled to make — the service
       // requires a scope and answers 400 without one (see produits-filtre.ts).
       const cibles = fournisseursALire(cible, roster, supplierId);
@@ -118,6 +191,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       setRead({ kind: 'ok', rows });
     } finally {
       inFlight.current = false;
+      const differe = enAttente.current;
+      enAttente.current = null;
+      if (differe !== null) void load(differe);
     }
   };
 
@@ -127,6 +203,25 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     // published product appear without a relaunch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * THE ROSTER ARRIVES AFTER THE FIRST READ, and « Tous » depends on it.
+   *
+   * Caught by a walk, not by reading: the mount read fires with an EMPTY roster,
+   * so on « Tous » the fan-out asked for HIS id alone and every other supplier's
+   * products were missing until he tapped a chip. (The fake that hid it answered
+   * the same rows for every scope; making it honour the scope made it visible.)
+   *
+   * `memeEnsemble` keeps the reference stable when the set has not really
+   * changed, so this fires ONCE per genuine roster change and cannot loop with
+   * the inventory read that also sets it.
+   */
+  const clefRoster = [...roster].sort().join('|');
+  useEffect(() => {
+    if (clefRoster === '' || choix !== TOUS) return;
+    void load(TOUS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clefRoster]);
 
   // THE ONE DECISION IS PURE (`supply/produits-view.ts`) — this component only
   // renders it. That is what lets a test put a state IN and read the sentence
