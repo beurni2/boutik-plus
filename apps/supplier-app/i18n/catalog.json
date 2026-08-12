@@ -3798,6 +3798,48 @@
     "screenClass": "status"
   },
   {
+    "key": "coursiers.retrait_bouton",
+    "fr": "Retirer ce coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.retrait_question",
+    "fr": "Retirer ce coursier de la liste ? Son code ne marchera plus.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "coursiers.retrait_oui",
+    "fr": "Oui, le retirer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.retrait_annuler",
+    "fr": "Annuler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "coursiers.retrait_en_course",
+    "fr": "Ce coursier a un colis. Terminez la course avant de le retirer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.retrait_inconnu",
+    "fr": "Ce coursier n'est plus dans la liste.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.retrait_echec",
+    "fr": "Le retrait n'a pas marché. Réessayez dans un moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "coursiers.pas_de_code",
     "fr": "Pas de code",
     "register": "neutral",

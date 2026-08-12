@@ -40,6 +40,10 @@ import {
   type CoursesRead,
   type CoursiersRead,
   type CoursiersUi,
+  retraitCoursierDemande,
+  retraitCoursierAnnule,
+  retraitCoursierStart,
+  motifRefusRetrait,
 } from './view';
 
 /**
@@ -154,9 +158,11 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
   /** One act at a time — and nothing runs while a one-time code is on screen. */
   const lancer = useCallback(
     async (
-      acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`,
+      acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}`,
       riderId: string,
-      appel: (s: CoursiersServicePort) => Promise<{ ok: boolean; code?: string | undefined; revele?: boolean; badKey?: boolean }>,
+      appel: (
+        s: CoursiersServicePort,
+      ) => Promise<{ ok: boolean; code?: string | undefined; revele?: boolean; badKey?: boolean; motif?: string | undefined }>,
     ): Promise<void> => {
       const refus = refuserActe(ui);
       if (refus !== null) {
@@ -187,7 +193,7 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                 ...(r.code !== undefined ? { code: r.code } : {}),
                 ...(r.revele === true ? { revele: true } : {}),
               }
-            : { ok: false },
+            : { ok: false, ...(r.motif !== undefined ? { motif: r.motif } : {}) },
         ),
       );
       // The roster reflects the server only AFTER the server answered.
@@ -200,7 +206,7 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
   const roster = read.kind === 'ok' ? read.coursiers : [];
 
   /**
-   * ⚠ THE ONE-TIME CODE IS THE WHOLE SCREEN — not a card on top of a busy one.
+   * THE ONE-TIME CODE IS THE WHOLE SCREEN — not a card on top of a busy one.
    *
    * FOUNDER REPORT (2026-08-08): « after i generate the code the screen becomes
    * confusing. » He was right, and the cause was mine. The code card used to
@@ -286,7 +292,7 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
             const pill = codePillule(c);
             const etat = etatPillule(c);
             /**
-             * ⚠ ONE PRIMARY PER CARD, IN PROCESS ORDER (founder reports
+             * ONE PRIMARY PER CARD, IN PROCESS ORDER (founder reports
              * 2026-08-08): « when I tap donner un code and got the code it
              * comes back again donner un code » — a full-green « Donner un
              * code » over a rider whose code is already ACTIVE reads as « it
@@ -393,6 +399,59 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                       }}
                     />
                   </View>
+                ) : null}
+
+                {/* ⚠ RETIRER LE COURSIER — off the roster, not just locked out
+                    Founder, 2026-08-12. The SECOND destructive act on this row and
+                    the heavier one: « Retirer le code » above keeps the rider and
+                    kills their key; this erases the row and the key with it. Same
+                    two-tap grammar as the Commandes retire, deliberately — a
+                    destructive control is the last place to grow a second dialect.
+                    The refusal is NAMED on screen: a rider carrying a parcel is
+                    told to end the course, never just « ça n'a pas marché ». */}
+                {ui.demandeRetrait === c.riderId ? (
+                  <View style={{ marginTop: 8, gap: 8 }}>
+                    <Text style={CORPS}>{t('coursiers.retrait_question')}</Text>
+                    <BtnGhost
+                      label={t('coursiers.retrait_oui')}
+                      onPress={() => {
+                        const started = retraitCoursierStart(ui, c.riderId);
+                        if (started === null) return void 0;
+                        void lancer(`retire:${c.riderId}`, c.riderId, async (s) => {
+                          const a = await s.retirerCoursier(c.riderId);
+                          return {
+                            ok: a.kind === 'ok',
+                            badKey: a.kind === 'bad_key',
+                            ...(a.kind === 'refused' ? { motif: a.reason } : {}),
+                          };
+                        });
+                      }}
+                    />
+                    <BtnGhost
+                      label={t('coursiers.retrait_annuler')}
+                      onPress={() => setUi(retraitCoursierAnnule(ui))}
+                    />
+                  </View>
+                ) : (
+                  <View style={{ marginTop: 8 }}>
+                    <BtnGhost
+                      label={t('coursiers.retrait_bouton')}
+                      onPress={() => {
+                        const asked = retraitCoursierDemande(ui, c.riderId);
+                        if (asked === null) {
+                          const refus = refuserActe(ui);
+                          if (refus !== null) setAvis(t(refus));
+                          return void 0;
+                        }
+                        setUi(asked);
+                      }}
+                    />
+                  </View>
+                )}
+                {ui.echec === `retire:${c.riderId}` ? (
+                  <Text style={[PETIT, { marginTop: 6 }]}>
+                    {t(motifRefusRetrait(ui.motifRetrait ?? ''))}
+                  </Text>
                 ) : null}
               </Card>
             );

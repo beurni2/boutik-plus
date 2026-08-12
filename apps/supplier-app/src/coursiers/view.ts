@@ -96,20 +96,64 @@ export function etatPillule(row: CoursierRow): { readonly label: string; readonl
 }
 
 /**
- * ⚠ A LIVE ONE-TIME CODE BLOCKS EVERY OTHER ACT. The plaintext exists nowhere
+ * A LIVE ONE-TIME CODE BLOCKS EVERY OTHER ACT. The plaintext exists nowhere
  * but that card — the server mints it once and never returns it. A tap that
  * silently destroyed it mid-handover is the finding the supplier-code desk
  * already paid for (verifier MAJOR-1 there). He taps « C'est noté » first.
  */
 export interface CoursiersUi {
-  readonly busy: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | null;
+  readonly busy: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}` | null;
   readonly nouveau: { readonly riderId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Namespaced like `busy`, so a rider literally named « mint » cannot light
    *  the wrong sentence. */
-  readonly echec: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | null;
+  readonly echec: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}` | null;
+  /** The rider whose removal question is on screen — the two-tap guard. */
+  readonly demandeRetrait: string | null;
+  /** The server's NAMED refusal for the last removal, or null. */
+  readonly motifRetrait: string | null;
 }
 
-export const COURSIERS_IDLE: CoursiersUi = { busy: null, nouveau: null, echec: null };
+/**
+ * RETIRER-COURSIER (founder, 2026-08-12) — the roster removal's own two fields.
+ *
+ * `demandeRetrait` is the SAME two-tap the Commandes retire already uses, in
+ * the same grammar, because « a destructive control is the last place to grow a
+ * second dialect » (this file's own rule, kept).
+ *
+ ⚠ * `motifRetrait` exists because this act can be refused FOR A REASON HE CAN ACT
+ * ON. A rider carrying a parcel answers `rider_carrying`, and « ça n'a pas
+ * marché » would send him back to tap again forever. The named sentence tells
+ * him to end the course first.
+ */
+export const COURSIERS_IDLE: CoursiersUi = {
+  busy: null,
+  nouveau: null,
+  echec: null,
+  demandeRetrait: null,
+  motifRetrait: null,
+};
+
+/** Arm the question for ONE rider. Refused while another act is in flight or a
+ *  code card is unread — the same guard every act on this desk answers to. */
+export function retraitCoursierDemande(ui: CoursiersUi, riderId: string): CoursiersUi | null {
+  if (refuserActe(ui) !== null) return null;
+  return { ...ui, demandeRetrait: riderId, motifRetrait: null };
+}
+
+export function retraitCoursierAnnule(ui: CoursiersUi): CoursiersUi {
+  return { ...ui, demandeRetrait: null, motifRetrait: null };
+}
+
+/**
+ * The refusal, as a sentence he can act on. `rider_carrying` is the one that
+ * matters: the parcel keeps its custodian and the fix is HIS — end the course,
+ * or hand the custody over, then remove.
+ */
+export function motifRefusRetrait(motif: string): string {
+  if (motif === 'rider_carrying') return 'coursiers.retrait_en_course';
+  if (motif === 'unknown_rider') return 'coursiers.retrait_inconnu';
+  return 'coursiers.retrait_echec';
+}
 
 export function refuserActe(ui: CoursiersUi): string | null {
   if (ui.nouveau !== null) return 'coursiers.notez_dabord';
@@ -117,24 +161,34 @@ export function refuserActe(ui: CoursiersUi): string | null {
   return null;
 }
 
-export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`): CoursiersUi | null {
+export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}`): CoursiersUi | null {
   if (refuserActe(ui) !== null) return null;
-  return { busy: acte, nouveau: null, echec: null };
+  return { busy: acte, nouveau: null, echec: null, demandeRetrait: ui.demandeRetrait, motifRetrait: null };
 }
 
 export type ActeResultat =
   | { readonly ok: true; readonly code?: string | undefined; readonly riderId: string; readonly revele?: boolean }
-  | { readonly ok: false };
+  /** `motif` is the server's own word (`rider_carrying`, `unknown_rider`) when
+   *  it said no BY NAME — a refusal is a fact, not a failure. */
+  | { readonly ok: false; readonly motif?: string | undefined };
 
 export function acteRegle(
   ui: CoursiersUi,
-  acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}`,
+  acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}`,
   r: ActeResultat,
 ): CoursiersUi {
   // A late answer for an act no longer in flight changes nothing — it must not
   // resurrect a card he already dismissed.
   if (ui.busy !== acte) return ui;
-  if (!r.ok) return { busy: null, nouveau: null, echec: acte };
+  if (!r.ok) {
+    return {
+      busy: null,
+      nouveau: null,
+      echec: acte,
+      demandeRetrait: null,
+      motifRetrait: acte.startsWith('retire:') ? (r.motif ?? null) : null,
+    };
+  }
   const code = r.code;
   return {
     busy: null,
@@ -143,9 +197,18 @@ export function acteRegle(
         ? { riderId: r.riderId, code, ...(r.revele === true ? { revele: true } : {}) }
         : null,
     echec: null,
+    demandeRetrait: null,
+    motifRetrait: null,
   };
 }
 
 export function oublierCode(ui: CoursiersUi): CoursiersUi {
   return { ...ui, nouveau: null };
+}
+
+/** `acteDemarre` for the removal, which also clears the armed question so the
+ *  two-tap cannot fire twice from one screen. */
+export function retraitCoursierStart(ui: CoursiersUi, riderId: string): CoursiersUi | null {
+  const started = acteDemarre(ui, `retire:${riderId}`);
+  return started === null ? null : { ...started, demandeRetrait: null, motifRetrait: null };
 }

@@ -46,7 +46,7 @@ export interface CoursierRow {
    * True iff a live code exists. The plaintext is NEVER here — the server hands
    * it over exactly once, at the mint.
    *
-   * ⚠ THIS IS A JOIN OF TWO ROUTES, NOT A FIELD. `GET /ops/riders` carries the
+   * THIS IS A JOIN OF TWO ROUTES, NOT A FIELD. `GET /ops/riders` carries the
    * registry; `GET /ops/rider-codes` carries who holds a live code and since
    * when. I assumed a `hasCode` field on the first, read the Worker, and found
    * it absent — caught by the seam test in the Séra repo before any UI existed.
@@ -79,7 +79,7 @@ export type CoursierAnswer<T> =
  * this console needs to name it. Deliberately thin: what he must see to
  * decide is WHICH order, and whether a rider is already carrying it.
  *
- * ⚠ WHY THIS DESK AND NOT SÉRA'S OWN. The retire was built into the Séra
+ * WHY THIS DESK AND NOT SÉRA'S OWN. The retire was built into the Séra
  * dispatch console first — and that console has NO deploy workflow: it is
  * built and browser-tested in CI and published nowhere, so the button had no
  * screen to appear on. He chose this desk, which already holds
@@ -115,6 +115,20 @@ export interface CoursiersServicePort {
   /** CODE-REVU — reread a code already given. `refused` carries the book's
    *  name: `code_anterieur` for a pre-ruling code. */
   voirCode(riderId: string): Promise<CoursierAnswer<string>>;
+  /**
+   * RETIRER-COURSIER (founder, 2026-08-12) — take the rider OFF THE ROSTER.
+   *
+   * The second destructive act on this desk, and the harder one: `retirerCode`
+   * locks a rider out and keeps the row, this erases the row. The rider's code
+   * dies with it server-side — a one-time code authenticates by hash, so one
+   * that outlived its owner would keep working for nobody.
+   *
+   ⚠ * IT CAN BE REFUSED, and the refusal is the point. A rider CARRYING a
+   * parcel answers `rider_carrying` (Law 3, « one current custodian ») — the
+   * desk must say so rather than retry, because the fix is his: end the course
+   * or hand the custody over first.
+   */
+  retirerCoursier(riderId: string): Promise<CoursierAnswer<null>>;
 }
 
 const CLE_COURSIERS_STORAGE = 'boutik.coursiers.cle';
@@ -328,6 +342,8 @@ export function httpCoursiersService(
         const code = b !== null && typeof b === 'object' ? (b as Record<string, unknown>)['code'] : null;
         return typeof code === 'string' ? code : '';
       }),
+    retirerCoursier: (riderId) =>
+      call('/ops/riders/remove', { method: 'POST', body: JSON.stringify({ riderId }) }, () => null),
   };
 }
 
