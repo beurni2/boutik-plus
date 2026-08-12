@@ -342,8 +342,19 @@ export function httpCoursiersService(
         const code = b !== null && typeof b === 'object' ? (b as Record<string, unknown>)['code'] : null;
         return typeof code === 'string' ? code : '';
       }),
+    /** ⚠ `custodyNotBegun` IS THE ANSWER TO A QUESTION HE WAS ASKED. Séra's
+     *  roster book is not custody truth (SE-I04) — clearing the board erases
+     *  the assignment row while the parcel stays in someone's hands — so the
+     *  door refuses 428 unless the bound is asserted. The desk shows the
+     *  sentence above « Oui, le retirer »; this field carries his answer. It is
+     *  set here, at the ONE call site that is preceded by that question, and
+     *  never defaulted deeper down where nobody would have been asked. */
     retirerCoursier: (riderId) =>
-      call('/ops/riders/remove', { method: 'POST', body: JSON.stringify({ riderId }) }, () => null),
+      call(
+        '/ops/riders/remove',
+        { method: 'POST', body: JSON.stringify({ riderId, custodyNotBegun: true }) },
+        () => null,
+      ),
   };
 }
 

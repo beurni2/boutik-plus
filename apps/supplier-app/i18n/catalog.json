@@ -3810,10 +3810,22 @@
     "screenClass": "general"
   },
   {
+    "key": "coursiers.retrait_question_colis",
+    "fr": "Il ne doit plus avoir de colis en main. S'il est encore sur la route, attendez la fin de la course.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "coursiers.retrait_oui",
     "fr": "Oui, le retirer",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "coursiers.retrait_encours",
+    "fr": "Retrait en cours…",
+    "register": "neutral",
+    "screenClass": "status"
   },
   {
     "key": "coursiers.retrait_annuler",

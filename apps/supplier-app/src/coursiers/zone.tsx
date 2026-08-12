@@ -42,7 +42,6 @@ import {
   type CoursiersUi,
   retraitCoursierDemande,
   retraitCoursierAnnule,
-  retraitCoursierStart,
   motifRefusRetrait,
 } from './view';
 
@@ -262,11 +261,19 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
           <Banner tone="warn">{avis}</Banner>
         </View>
       ) : null}
-      {ui.echec !== null ? (
+      {ui.echec !== null && !ui.echec.startsWith('retire:') ? (
         <View style={{ marginTop: 12 }}>
           {/* A failed REREAD names itself (« pas de réponse, réessayez ») —
               the generic sentence would leave the founder guessing whether
-              the code itself is gone (CODE-REVU verifier MINOR-5). */}
+              the code itself is gone (CODE-REVU verifier MINOR-5).
+
+              ⚠ AND A FAILED REMOVAL IS NOT HERE AT ALL (verifier MAJOR). It
+              speaks on its own card, next to the rider it concerns, in its own
+              words. This banner used to fire alongside it: « Ça n'a pas
+              marché. Réessayez. » at the top of the screen, over « Ce coursier
+              a un colis. Terminez la course avant de le retirer. » at the
+              bottom — the loud one telling him to do the exact thing that
+              cannot work. One failure, one sentence, where the tap was. */}
           <Banner tone="warn">
             {t(ui.echec.startsWith('reveal:') ? 'coursiers.voir_echec' : 'coursiers.acte_echoue')}
           </Banner>
@@ -409,14 +416,25 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
                     destructive control is the last place to grow a second dialect.
                     The refusal is NAMED on screen: a rider carrying a parcel is
                     told to end the course, never just « ça n'a pas marché ». */}
-                {ui.demandeRetrait === c.riderId ? (
+                {ui.busy === `retire:${c.riderId}` ? (
+                  /* IN FLIGHT, SAID OUT LOUD — same as the course retire below.
+                     The armed question is gone by now (`acteDemarre`), so there
+                     is no « Oui, le retirer » left to tap into silence. */
+                  <Text style={[PETIT, { marginTop: 8 }]}>{t('coursiers.retrait_encours')}</Text>
+                ) : ui.demandeRetrait === c.riderId ? (
                   <View style={{ marginTop: 8, gap: 8 }}>
                     <Text style={CORPS}>{t('coursiers.retrait_question')}</Text>
+                    {/* ⚠ THE CUSTODY BOUND, ASKED BEFORE THE TAP — not assumed
+                        by the server, which cannot see it. Séra's board is not
+                        custody truth (SE-I04): clear the board and a rider on
+                        the road with a sealed parcel becomes invisible to the
+                        « il a un colis » refusal. So the question is put to the
+                        one person who knows, in words, at the moment of the
+                        decision — and « Oui, le retirer » IS the answer. */}
+                    <Banner tone="warn">{t('coursiers.retrait_question_colis')}</Banner>
                     <BtnGhost
                       label={t('coursiers.retrait_oui')}
                       onPress={() => {
-                        const started = retraitCoursierStart(ui, c.riderId);
-                        if (started === null) return void 0;
                         void lancer(`retire:${c.riderId}`, c.riderId, async (s) => {
                           const a = await s.retirerCoursier(c.riderId);
                           return {

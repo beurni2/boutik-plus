@@ -163,7 +163,21 @@ export function refuserActe(ui: CoursiersUi): string | null {
 
 export function acteDemarre(ui: CoursiersUi, acte: 'mint' | `revoke:${string}` | `certify:${string}` | `reveal:${string}` | `retire:${string}`): CoursiersUi | null {
   if (refuserActe(ui) !== null) return null;
-  return { busy: acte, nouveau: null, echec: null, demandeRetrait: ui.demandeRetrait, motifRetrait: null };
+  return {
+    busy: acte,
+    nouveau: null,
+    echec: null,
+    /**
+     * ⚠ THE REMOVAL'S OWN QUESTION CLOSES THE MOMENT ITS ACT STARTS (verifier
+     * MAJOR). Leaving it armed kept « Oui, le retirer » on screen, pressable,
+     * and SILENTLY DEAD in flight — a second tap returned nothing and said
+     * nothing. That is the ghost button this desk already paid for once
+     * (2026-08-08). ANOTHER rider's armed question is not this act's business
+     * and survives untouched.
+     */
+    demandeRetrait: ui.demandeRetrait !== null && acte === `retire:${ui.demandeRetrait}` ? null : ui.demandeRetrait,
+    motifRetrait: null,
+  };
 }
 
 export type ActeResultat =
@@ -206,9 +220,11 @@ export function oublierCode(ui: CoursiersUi): CoursiersUi {
   return { ...ui, nouveau: null };
 }
 
-/** `acteDemarre` for the removal, which also clears the armed question so the
- *  two-tap cannot fire twice from one screen. */
-export function retraitCoursierStart(ui: CoursiersUi, riderId: string): CoursiersUi | null {
-  const started = acteDemarre(ui, `retire:${riderId}`);
-  return started === null ? null : { ...started, demandeRetrait: null, motifRetrait: null };
-}
+/**
+ * ⚠ `retraitCoursierStart` WAS HERE AND IS GONE (verifier MAJOR). It claimed to
+ * clear the armed question, the screen threw its return value away, and
+ * `lancer` then re-armed the question from its own render closure — so the
+ * claim was false as wired. The rule now lives in `acteDemarre`, which is the
+ * ONE place every act on this desk actually starts from, and cannot be
+ * bypassed by a caller that forgets to use it.
+ */

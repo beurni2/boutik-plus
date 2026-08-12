@@ -10,8 +10,12 @@ import {
   codePillule,
   coursiersVue,
   etatPillule,
+  motifRefusRetrait,
   oublierCode,
   refuserActe,
+  retraitCoursierAnnule,
+  retraitCoursierDemande,
+  type CoursiersUi,
 } from '../src/coursiers/view';
 import { coursierRows } from '../src/coursiers/service';
 import type { CoursierRow } from '../src/coursiers/service';
@@ -164,6 +168,59 @@ describe('a live one-time code blocks every other act', () => {
   it('a failure names its own act, so the wrong card cannot light up', () => {
     const busy = acteDemarre(COURSIERS_IDLE, 'revoke:mint') as never;
     expect(acteRegle(busy, 'revoke:mint', { ok: false }).echec).toBe('revoke:mint');
+  });
+});
+
+describe('RETIRER-COURSIER — the armed question, in the pure logic', () => {
+  /**
+   * The screen hides the armed question behind « Retrait en cours… » while the
+   * act is in flight, so these rules are not visible to a walk. They are the
+   * DEFENCE IN DEPTH this file already keeps for the code card: the same rule
+   * held in the pure state, so a future branch that reads `demandeRetrait`
+   * cannot resurrect a button that does nothing.
+   */
+  it('the removal closes ITS OWN question when the act starts — but not another rider’s', () => {
+    const arme = retraitCoursierDemande(COURSIERS_IDLE, 'rider-boss') as CoursiersUi;
+    expect(arme.demandeRetrait).toBe('rider-boss');
+
+    const enVol = acteDemarre(arme, 'retire:rider-boss') as CoursiersUi;
+    expect(enVol.busy).toBe('retire:rider-boss');
+    expect(enVol.demandeRetrait, 'the armed « Oui, le retirer » survived its own act').toBeNull();
+
+    // Another rider's question is not this act's business.
+    const autre = acteDemarre(arme, 'retire:rider-issa') as CoursiersUi;
+    expect(autre.demandeRetrait).toBe('rider-boss');
+    const mint = acteDemarre(arme, 'mint') as CoursiersUi;
+    expect(mint.demandeRetrait).toBe('rider-boss');
+  });
+
+  it('a refusal keeps the server’s own word, so the screen can name it', () => {
+    const enVol = acteDemarre(retraitCoursierDemande(COURSIERS_IDLE, 'rider-boss') as CoursiersUi, 'retire:rider-boss') as CoursiersUi;
+    const refuse = acteRegle(enVol, 'retire:rider-boss', { ok: false, motif: 'rider_carrying' });
+    expect(refuse.motifRetrait).toBe('rider_carrying');
+    expect(refuse.demandeRetrait, 'a refused removal must not leave the question armed').toBeNull();
+    expect(motifRefusRetrait(refuse.motifRetrait ?? '')).toBe('coursiers.retrait_en_course');
+    expect(motifRefusRetrait('unknown_rider')).toBe('coursiers.retrait_inconnu');
+    // Anything the desk does not know a sentence for is still a removal
+    // failure, never the carrying one — a wrong instruction is worse than a
+    // plain one.
+    expect(motifRefusRetrait('quelque_chose_de_neuf')).toBe('coursiers.retrait_echec');
+  });
+
+  it('the question cannot be armed while another act is in flight', () => {
+    const busy = acteDemarre(COURSIERS_IDLE, 'mint') as CoursiersUi;
+    expect(retraitCoursierDemande(busy, 'rider-boss')).toBeNull();
+    expect(retraitCoursierAnnule(retraitCoursierDemande(COURSIERS_IDLE, 'rider-boss') as CoursiersUi).demandeRetrait).toBeNull();
+  });
+
+  it('the removal ASSERTS the custody bound — Séra refuses 428 without it', () => {
+    // SE-I04: « task status alone MUST NOT be custody truth ». Clearing the
+    // board erases the assignment row while the parcel stays in someone's
+    // hands, so the door will not act on the book alone. The screen asks the
+    // question; this is the call site that must carry his answer.
+    const service = readFileSync(join(__dirname, '../src/coursiers/service.ts'), 'utf8');
+    const appel = service.slice(service.indexOf("'/ops/riders/remove'"));
+    expect(appel.slice(0, 200), 'the removal call dropped the custody assertion').toContain('custodyNotBegun: true');
   });
 });
 
