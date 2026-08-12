@@ -867,43 +867,6 @@ export class FulfillmentDO {
       return Response.json({ ok: true, status: 'revoked' });
     }
 
-    /**
-     * ACCÈS-COUPÉ-AVANT — A TOMBSTONE FOR A SUPPLIER WHOSE ROW IS ALREADY GONE.
-     *
-     * The revoke that ran until this morning DELETED both rows, so every
-     * supplier cut before then owns products and has no registry row at all: off
-     * Fournisseurs entirely, with no « Redonner un code » and no
-     * « Supprimer définitivement » — and, once the founder cuts him properly, he
-     * would vanish a second time as his products left the inventory that was
-     * putting him on screen. This route ends that: it gives him a row again.
-     *
-     * ⚠ IT REFUSES TO OVERWRITE ANYTHING. A supplier who already has a row —
-     * live code or tombstone — is left exactly as he is (`deja`), because this
-     * is a repair for absence, never a way to blank a live door.
-     *
-     * `mintedAt` IS THE REPAIR'S OWN CLOCK, and that is stated rather than
-     * hidden: nobody knows when the destroyed code was minted. It is written
-     * only because a row without it is DROPPED by the console's strict reader,
-     * and it is never displayed — a tombstoned row shows « Accès coupé le … »,
-     * which reads `revokedAt`.
-     */
-    if (request.method === 'POST' && pathname === '/code/tombstone') {
-      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-      const supplierId = body?.['supplierId'];
-      if (typeof supplierId !== 'string' || supplierId === '' || Object.keys(body ?? {}).length !== 1) {
-        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
-      }
-      const existing = await this.state.storage.get<Record<string, unknown>>(
-        `${SUPPLIERCODE_PREFIX}${supplierId}`,
-      );
-      if (existing !== undefined) return Response.json({ ok: true, status: 'deja' });
-      const maintenant = new Date().toISOString();
-      await this.state.storage.put(`${SUPPLIERCODE_PREFIX}${supplierId}`, {
-        mintedAt: maintenant,
-        revokedAt: maintenant,
-      });
-      return Response.json({ ok: true, status: 'pose' });
-    }
 
     /**
      * PURGE-FOURNISSEUR — ERASE THE SUPPLIER ROW ITSELF, tombstone included.
@@ -1681,55 +1644,56 @@ export async function handleSupplierCodesList(env: FulfillmentEnv): Promise<Resp
 }
 
 /**
- * WHICH SUPPLIERS HAVE HAD THEIR ACCESS CUT — the registry's tombstones, as a
- * set the read paths can join against.
+ * WHO MAY STILL SELL — the suppliers holding a LIVE code, as an allowlist the
+ * read paths join against. `null` means « could not be read », never « nobody ».
  *
- * WHY THIS EXISTS (founder, 2026-08-11, after the retirement shipped: « on
- * boutik+ the other suppliers and their listings are still showing »). Cutting
- * access retires a supplier's offers by WRITING to each of them, and that write
- * happens once, at the moment of the revoke. It therefore could not reach the
- * suppliers he had already cut off before it existed: their codes are dead, his
- * screens still list them, and Shop+ still sells their products. Nothing on the
- * Fournisseurs row could run it either — a cut-off supplier is offered « Redonner
- * un code » and « Supprimer définitivement », never « Couper l'accès » again.
+ * WHY THIS SHAPE (founder, 2026-08-11: « on boutik+ the other suppliers and
+ * their listings are still showing »). Cutting access retires a supplier's
+ * offers by WRITING to each of them, once, at the moment of the revoke. It
+ * could not reach the suppliers cut off BEFORE it existed — and those are the
+ * hardest case, because the revoke in force until that morning DELETED the
+ * registry row outright. They have no tombstone to key on. They have nothing.
  *
- * So the reads join too. The mark stays the live mechanism; this is the SAFETY
- * NET that makes the outcome true however the state was reached — history, or a
- * walk that failed halfway.
+ * SO THE RULE IS ABSENCE OF A LIVE CODE, NOT PRESENCE OF A TOMBSTONE, and that
+ * is sound rather than convenient: a product cannot be listed without an active
+ * code (`POST /offers` refuses an unknown supplier), and the only ways to lose
+ * the row afterwards are the old revoke or the purge — and the purge deletes the
+ * products too. So a supplier who owns a product and holds no live code IS a
+ * supplier whose access was cut. There is no third case.
  *
- * IT KEYS ON THE TOMBSTONE, NEVER ON « HOLDS NO CODE », and that distinction is
- * load-bearing: INVENTAIRE-COMPLET exists because a product whose supplier held
- * no code was invisible AND undeletable on his own screen. A supplier the
- * registry has never heard of is NOT in this set, so his products stay visible
- * and stay deletable. Only an access explicitly CUT hides anything.
+ * ⚠ `null` IS THE WHOLE SAFETY OF IT. An empty allowlist would mean « nobody may
+ * sell » — one unreadable registry and the entire catalogue vanishes from Shop+.
+ * Every failure answers `null` instead, and every caller reads `null` as « do not
+ * filter », so a registry hiccup serves exactly what this service served before.
+ * The write-time mark is unaffected either way: a properly cut supplier's offers
+ * carry `retiré_accès` and the refusal ladder drops them with no registry read
+ * at all. This join is the net for the ones the write could never reach.
  */
-export async function revokedSupplierIds(env: FulfillmentEnv): Promise<ReadonlySet<string>> {
-  // ⚠ THE THROW IS CAUGHT HERE, or « fails open » is a sentence rather than a
-  // behaviour. `env.FULFILLMENT.get` throws synchronously on a missing binding
-  // and the stub's `fetch` REJECTS when the object is overloaded or throwing —
-  // neither is an `!ok` response. Uncaught, those turned the Shop+ browse path
-  // and every signed-link resolution into a 500: a floor falling in, which is
-  // precisely what the comment at the call site promises this cannot do.
+export async function suppliersAvecCodeActif(env: FulfillmentEnv): Promise<ReadonlySet<string> | null> {
+  // The throw is caught, or « fails safe » is a sentence rather than a
+  // behaviour: `env.FULFILLMENT.get` throws on a missing binding and the stub's
+  // `fetch` REJECTS when the object is unwell — neither is an `!ok` response.
   let res: Response;
   try {
     res = await handleSupplierCodesList(env);
   } catch {
-    return new Set();
+    return null;
   }
-  if (!res.ok) return new Set();
+  if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as { codes?: unknown } | null;
-  const rows = Array.isArray(body?.codes) ? body.codes : [];
-  const out = new Set<string>();
-  for (const row of rows) {
+  if (body === null || !Array.isArray(body.codes)) return null;
+  const actifs = new Set<string>();
+  for (const row of body.codes) {
     if (row === null || typeof row !== 'object') continue;
     const r = row as Record<string, unknown>;
-    // A row must be WHOLE to mean anything — the same law the console's reader
-    // follows. A malformed `revokedAt` reads as « not revoked », because
-    // inventing a revocation would hide a live supplier's catalogue.
     if (typeof r['supplierId'] !== 'string' || r['supplierId'] === '') continue;
-    if (typeof r['revokedAt'] === 'string' && r['revokedAt'] !== '') out.add(r['supplierId']);
+    // A row must be WHOLE to grant anything. A malformed `revokedAt` reads as
+    // REVOKED here — the opposite of the console's reader, and deliberately so:
+    // this set decides who may keep selling, and the safe reading of a field we
+    // cannot parse is « do not grant », never « grant ».
+    if (r['revokedAt'] === undefined) actifs.add(r['supplierId']);
   }
-  return out;
+  return actifs;
 }
 
 /** The founder's code administration (mint/revoke) — his ops key ran at the

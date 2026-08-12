@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, revokedSupplierIds, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, suppliersAvecCodeActif, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
@@ -168,27 +168,6 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
       env,
     );
     if (walk.ok) produits = ((await walk.json()) as { changed?: number }).changed ?? null;
-    /**
-     * ACCÈS-COUPÉ-AVANT — GIVE HIM A ROW BACK when this act found none.
-     *
-     * A supplier cut off before the tombstone existed has no registry row: the
-     * revoke answers `no_code`, the walk still retires his catalogue, and then
-     * he would disappear from Fournisseurs a second time — his products were
-     * the only thing putting him on screen. So when a code-less revoke actually
-     * RETIRED something, the registry records that he existed and was cut, and
-     * he comes back as an ordinary tombstoned row with « Redonner un code » and
-     * « Supprimer définitivement ».
-     *
-     * ⚠ GUARDED ON `changed > 0`, and that guard is the whole safety of it: a
-     * mistyped id retires nothing and therefore leaves no row behind. Without
-     * it, this founder-only route would mint a phantom supplier from any typo.
-     */
-    if (acte === 'revoke' && produits !== null && produits > 0) {
-      const book = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
-      await book.fetch(
-        new Request('https://do/code/tombstone', { method: 'POST', body: JSON.stringify({ supplierId }) }),
-      );
-    }
   } catch {
     produits = null; // best-effort; the code act already stands, and a replay finishes it
   }
@@ -221,8 +200,10 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
  * desynced, and a net that tears in a blip is better than a floor that falls in.
  */
 async function sansAccesCoupe(store: OfferStore, env: Env): Promise<OfferStore> {
-  const coupes = await revokedSupplierIds(env);
-  if (coupes.size === 0) return store;
+  const actifs = await suppliersAvecCodeActif(env);
+  // `null` = the registry could not be read. Filter NOTHING: an unreadable
+  // registry must never empty every reseller's Opportunités.
+  if (actifs === null) return store;
   /**
    * ⚠ IT MARKS, IT NEVER HIDES — and the difference is a Shop+ WRITE.
    *
@@ -243,7 +224,7 @@ async function sansAccesCoupe(store: OfferStore, env: Env): Promise<OfferStore> 
    * is the only way « it cannot half-finish » is true.
    */
   const marque = (e: OfferEntry): OfferEntry =>
-    coupes.has(e.product.supplierId) ? { ...e, offer: { ...e.offer, status: STATUT_RETIRE } } : e;
+    actifs.has(e.product.supplierId) ? e : { ...e, offer: { ...e.offer, status: STATUT_RETIRE } };
   return {
     create: (cmd) => store.create(cmd),
     getEntryByProductVersion: async (pv) => {
@@ -463,13 +444,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
       // product here is not a product still being sold. And « Supprimer
       // définitivement » on his Fournisseurs row still erases them for good.
       if (!inv.ok) return inv;
-      const coupes = await revokedSupplierIds(env);
-      if (coupes.size === 0) return inv;
-      const body = (await inv.json().catch(() => null)) as { items?: unknown } | null;
-      if (body === null || !Array.isArray(body.items)) return Response.json(body ?? {});
+      const actifs = await suppliersAvecCodeActif(env);
+      if (actifs === null) return inv; // unreadable registry ⇒ filter nothing
+      // CLONED before reading, so an unreadable body can be handed back
+      // UNTOUCHED rather than answered with an invented empty envelope.
+      const body = (await inv.clone().json().catch(() => null)) as { items?: unknown } | null;
+      if (body === null || !Array.isArray(body.items)) return inv;
       const items = body.items.filter((i) => {
         const s = (i as { supplierId?: unknown })?.supplierId;
-        return !(typeof s === 'string' && coupes.has(s));
+        return typeof s === 'string' ? actifs.has(s) : true;
       });
       return Response.json({ ...body, items });
     }
@@ -611,7 +594,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       // an invented empty. A different envelope here would read as `unreachable`
       // to the client and raise a failure banner over a correct, empty answer.
       const vise = new URL(request.url).searchParams.get('supplierId') ?? '';
-      if (vise !== '' && (await revokedSupplierIds(env)).has(vise)) {
+      const actifs = await suppliersAvecCodeActif(env);
+      if (vise !== '' && actifs !== null && !actifs.has(vise)) {
         return Response.json({ asOf: new Date().toISOString(), items: [] });
       }
       return offerRouter.fetch(request, env);

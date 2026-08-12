@@ -38,7 +38,6 @@ import {
   RELANCE_IDLE,
   ageMinutes,
   codesReadOf,
-  fournisseursSansCode,
   codesView,
   livraisonsVue,
   mintAvis,
@@ -270,10 +269,6 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   // CONSOLE-3 — the code inventory: its own read (codes change on the
   // founder's acts, not by the minute) and its own one-at-a-time write state.
   const [codesRead, setCodesRead] = useState<CodesRead>({ kind: 'loading' });
-  /** ACCÈS-COUPÉ-AVANT — product owners with no registry row, derived on every
-   *  codes read. REPLACED, never merged: cutting one off gives him a tombstone,
-   *  so he must be able to LEAVE this list on the next read. */
-  const [sansCode, setSansCode] = useState<readonly string[]>([]);
   const [codesUi, setCodesUi] = useState<CodesUi>(CODES_IDLE);
   const [codeDraft, setCodeDraft] = useState('');
   // CONSOLE-GT-1 — which zone the founder is looking at. Pure navigation: no
@@ -310,22 +305,8 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     if (service === null) return;
     codesSeq.current += 1;
     const seq = codesSeq.current;
-    // BOTH HALVES IN ONE READ, under the SAME sequence token: the registry says
-    // who holds a door, the inventory says who owns a product, and « sans code »
-    // is exactly the difference. Reading them apart would let a stale inventory
-    // paint a supplier as code-less seconds after he was given one.
-    const [read, inv] = await Promise.all([
-      service.listCodes(opsKey).then(codesReadOf).catch(() => ({ kind: 'failed' }) as CodesRead),
-      service.listInventaire(opsKey).catch(() => ({ ok: false, reason: 'unreachable' }) as const),
-    ]);
+    const read = codesReadOf(await service.listCodes(opsKey).catch(() => ({ ok: false, reason: 'unreachable' } as const)));
     if (seq !== codesSeq.current) return; // a newer read owns the section
-    // A FAILED INVENTORY EMPTIES THIS LIST rather than keeping the last one:
-    // « sans code » is a claim about who has no door, and repeating yesterday's
-    // answer over a read that failed is how a supplier stays accused after the
-    // fact changed. The codes list keeps its own honest failure banner.
-    setSansCode(
-      read.kind === 'ok' && inv.ok ? fournisseursSansCode(read.codes, inv.rows.map((r) => r.supplierId)) : [],
-    );
     // ONE door, one sentence: a refused key on the codes read escalates the
     // whole board, exactly as the orders read does.
     if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
@@ -549,7 +530,6 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
         {zone === 'fournisseurs' && (
           <SCodes
             read={codesRead}
-            sansCode={sansCode}
             ui={codesUi}
             draft={codeDraft}
             avis={
@@ -1326,17 +1306,8 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-function SCodes({ read, sansCode, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
   read: CodesRead;
-  /**
-   * ACCÈS-COUPÉ-AVANT — the suppliers who OWN products but hold no registry row.
-   * Until this morning a revoke DELETED the row, so everyone cut before then
-   * fell off this screen entirely while their products stayed on sale. They are
-   * listed here so the ordinary « Couper l'accès » can reach them: it answers
-   * `no_code` for an absent row and still walks the catalogue, so one tap
-   * retires everything they have listed.
-   */
-  sansCode: readonly string[];
   ui: CodesUi;
   draft: string;
   avis: ReturnType<typeof mintAvis> | null;
@@ -1391,33 +1362,6 @@ function SCodes({ read, sansCode, ui, draft, avis, onDraft, onCreer, onRedonner,
       {vue.kind === 'empty' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="info">{t(vue.message)}</Banner>
-        </View>
-      )}
-      {/* ACCÈS-COUPÉ-AVANT — the suppliers this screen could not reach.
-          Shown only when there ARE any: an empty heading would invent a
-          category the founder does not have. Their line states the fact and
-          the consequence in his own terms — no code, and yet still on sale —
-          because that pairing is the whole reason the row exists. */}
-      {sansCode.length > 0 && (
-        <View>
-          <TeteSection titre={t('operations.sans_code_titre')} sens={t('operations.sans_code_sens')} marge={20} />
-          {sansCode.map((id) => (
-            <Card key={`sans-${id}`} variant="Llist" style={{ marginTop: 10 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{id}</Text>
-                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
-                    {t('operations.sans_code_ligne')}
-                  </Text>
-                </View>
-                {ui.busy === `revoke:${id}` ? (
-                  <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.code_coupure_encours')}</Text>
-                ) : (
-                  <BtnSoft label={t('operations.code_couper')} onPress={() => onCouper(id)} />
-                )}
-              </View>
-            </Card>
-          ))}
         </View>
       )}
       {vue.kind === 'liste' &&
