@@ -1,10 +1,8 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, suppliersAvecCodeActif, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
-import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
-import { STATUT_RETIRE } from '../src/retrait-acces.js';
-import type { OfferEntry } from '../src/offer-core.js';
+import { resolveOfferStore } from '../src/offer-store.js';
 import {
   keyAuthorized,
   rejectUnauthorizedBearer,
@@ -173,66 +171,6 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
   }
   const body = (await codeRes.json()) as Record<string, unknown>;
   return Response.json({ ...body, produits }, { status: codeRes.status });
-}
-
-/**
- * THE SAME JOIN, ON THE READ SIDE — an OfferStore that cannot hand out the
- * entries of a supplier whose access was cut.
- *
- * Founder, 2026-08-11, after the retirement shipped: « on boutik+ the other
- * suppliers and their listings are still showing. » The retirement is a WRITE
- * that runs once, at the revoke, so it never reached the suppliers he had cut
- * off before it existed — and their row offers no way to run it now. The mark
- * remains the live mechanism; this makes the outcome true regardless of when
- * the cut happened, and it cannot half-finish, because it writes nothing.
- *
- * BOTH READS ARE COVERED OR NEITHER IS: the collection Shop+ browses AND the
- * single `/supply-projection/:pv` a signed link resolves. Filtering only the
- * collection would take the product off Opportunités and leave every link that
- * had already been shared still selling it — the quieter half of the same harm.
- *
- * IT FAILS OPEN, deliberately and narrowly. `revokedSupplierIds` answers an
- * empty set when the registry cannot be read, so a hiccup there serves exactly
- * what this service served yesterday rather than emptying every reseller's
- * Opportunités. That is safe BECAUSE the write-time mark is the primary
- * defence: a properly cut supplier's offers carry `retiré_accès` and the
- * refusal ladder drops them with no registry read at all. This net is for the
- * desynced, and a net that tears in a blip is better than a floor that falls in.
- */
-async function sansAccesCoupe(store: OfferStore, env: Env): Promise<OfferStore> {
-  const actifs = await suppliersAvecCodeActif(env);
-  // `null` = the registry could not be read. Filter NOTHING: an unreadable
-  // registry must never empty every reseller's Opportunités.
-  if (actifs === null) return store;
-  /**
-   * ⚠ IT MARKS, IT NEVER HIDES — and the difference is a Shop+ WRITE.
-   *
-   * The first version answered `undefined` for a cut-off supplier's product, so
-   * the single read became `404 unknown_product_version`. Shop+ reads that exact
-   * body as EVIDENCE THE PRODUCT IS GONE (`supply-source.ts`: 404
-   * `unknown_product_version` ⇒ verdict `gone`), and a `gone` verdict flips a
-   * reseller's published listing to `auto_hidden` and emits
-   * `listing.auto_hidden.v1`. There is no inverse: re-minting the code restores
-   * the offer here, but nothing republishes her listing — only a fresh publish
-   * command from the reseller does. One mis-click would have cost resellers
-   * their listings permanently, in another service, from a read.
-   *
-   * So the entry travels with the SAME status the write-time act gives it, and
-   * the ONE refusal ladder answers as it always has: `409 offer_not_active`,
-   * which Shop+ treats as an extant offer refusing service — no evidence, no
-   * hide. Read path and write path now produce byte-identical outcomes, which
-   * is the only way « it cannot half-finish » is true.
-   */
-  const marque = (e: OfferEntry): OfferEntry =>
-    actifs.has(e.product.supplierId) ? e : { ...e, offer: { ...e.offer, status: STATUT_RETIRE } };
-  return {
-    create: (cmd) => store.create(cmd),
-    getEntryByProductVersion: async (pv) => {
-      const entry = await store.getEntryByProductVersion(pv);
-      return entry === undefined ? undefined : marque(entry);
-    },
-    listEntries: async () => (await store.listEntries()).map(marque),
-  };
 }
 
 interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
@@ -435,26 +373,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'GET' && fp === '/offers/inventaire') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      const inv = await offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
-      // THE SAME JOIN HIS SCREEN NEEDS. « their products and their chip on
-      // boutik+ gets removed as well when they have been cut access » — the
-      // chip row is derived from who owns visible products, so dropping the
-      // items here empties his chip in the same read. Nothing is lost by
-      // hiding them: the supply reads above drop them too, so an invisible
-      // product here is not a product still being sold. And « Supprimer
-      // définitivement » on his Fournisseurs row still erases them for good.
-      if (!inv.ok) return inv;
-      const actifs = await suppliersAvecCodeActif(env);
-      if (actifs === null) return inv; // unreadable registry ⇒ filter nothing
-      // CLONED before reading, so an unreadable body can be handed back
-      // UNTOUCHED rather than answered with an invented empty envelope.
-      const body = (await inv.clone().json().catch(() => null)) as { items?: unknown } | null;
-      if (body === null || !Array.isArray(body.items)) return inv;
-      const items = body.items.filter((i) => {
-        const s = (i as { supplierId?: unknown })?.supplierId;
-        return typeof s === 'string' ? actifs.has(s) : true;
-      });
-      return Response.json({ ...body, items });
+      return offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
     }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
@@ -585,19 +504,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // dispatch, then hand to the offer DO router (which enriches with live fields).
     if (request.method === 'GET' && pathname === '/offers') {
       if (!(await keyAuthorized(request, env))) return unauthorized();
-      // THE SAME JOIN, because this is the OTHER read his Produits screen makes.
-      // When the inventory read fails, the screen falls back to fanning out
-      // `?supplierId=` per roster id — so without this, the fallback would
-      // re-expose exactly the products the inventory just hid, on the one path
-      // taken when something is already going wrong.
-      // The SHAPE is the route's own (`SupplierOfferList`: `{asOf, items}`), not
-      // an invented empty. A different envelope here would read as `unreachable`
-      // to the client and raise a failure banner over a correct, empty answer.
-      const vise = new URL(request.url).searchParams.get('supplierId') ?? '';
-      const actifs = await suppliersAvecCodeActif(env);
-      if (vise !== '' && actifs !== null && !actifs.has(vise)) {
-        return Response.json({ asOf: new Date().toISOString(), items: [] });
-      }
       return offerRouter.fetch(request, env);
     }
 
@@ -624,12 +530,5 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // over the DURABLE store, resolved here against the DO namespace via the
     // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
-    // THE JOIN IS FOR SUPPLY READS ONLY, and the guard is not a micro-optimisation.
-    // `/health` and every unknown route fall through to this same composition, so
-    // wrapping unconditionally would make the health door — the thing that tells
-    // us a deploy landed — read the FULFILLMENT durable object on every ping, and
-    // fail slower whenever that object is unwell. The health answer carries no
-    // supply data and must not acquire a dependency on the code registry.
-    const lisible = isSupplyRoute(p) ? await sansAccesCoupe(store, env) : store;
-    return makeSupplyFetch(lisible, undefined, undefined, undefined, env)(request);
+    return makeSupplyFetch(store, undefined, undefined, undefined, env)(request);
 }
