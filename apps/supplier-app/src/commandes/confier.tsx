@@ -3,8 +3,14 @@ import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, Input, Overline } from '../v2/components';
-import { readStoredCleCoursiers, storeCleCoursiers, clearStoredCleCoursiers } from '../coursiers/service';
+import { Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, Input, Overline } from '../v2/components';
+import {
+  readStoredCleCoursiers,
+  storeCleCoursiers,
+  clearStoredCleCoursiers,
+  resolveCoursiersService,
+} from '../coursiers/service';
+import { mintCommandId } from '../offline/commandId';
 import {
   lirePin,
   resolveSeraDispatch,
@@ -51,6 +57,26 @@ type Etape =
   | { kind: 'choisir'; taskId: string; board: BoardSera }
   | { kind: 'deja' }
   | { kind: 'confiee'; nom: string };
+
+/**
+ * REFUS-NOMMÉ (verifier BLOCKER, 2026-08-13) — the way out lives WITH the
+ * refusal. The first fix pointed « order_already_has_task » at « Retirer cette
+ * course » on the Coursiers tab; for a DELIVERED course that control does not
+ * exist — the tab's list is built from board.queued (queued-only) +
+ * board.assignments (live only), and a delivered course appears in neither.
+ * So this card carries its own two-tap retire — the same destructive-act
+ * grammar as the Coursiers zone (question → custody caveat → « Oui, retirer »
+ * / « Annuler »), calling the same `/ops/order/retirer` door, which sweeps the
+ * order's tasks whatever their state. On `retire` OR `inconnu` (idempotency is
+ * by state — a re-run that finds nothing converges) he is told plainly and
+ * « Créer la course » stays HIS to press — never an auto-retry.
+ */
+type Retrait =
+  | { kind: 'aucun' }
+  | { kind: 'propose' }
+  | { kind: 'question' }
+  | { kind: 'encours' }
+  | { kind: 'retiree' };
 
 export function ConfierCoursier({
   row,
@@ -149,6 +175,8 @@ function ConfierAvecService({
    */
   const [zoneSaisie, setZoneSaisie] = useState(row.zoneTo);
   const [repereSaisi, setRepereSaisi] = useState('');
+  /** REFUS-NOMMÉ — the retire road, offered ONLY on `order_already_has_task`. */
+  const [retrait, setRetrait] = useState<Retrait>({ kind: 'aucun' });
   /** VILLE (founder ruling 2026-08-09, « for the quartier section add the
    *  ouagadougou »): single-city operation — the quartier she gave carries
    *  the city into the section AND onto the rider's task line, unless she
@@ -202,6 +230,9 @@ function ConfierAvecService({
     }
     setBusy(true);
     setAvis(null);
+    // A compose that is actually SENT resets the retire road: its answer —
+    // not this screen's memory — decides whether the act is offered again.
+    setRetrait({ kind: 'aucun' });
     const start = new Date();
     const end = new Date(start.getTime() + FENETRE_HEURES * 3_600_000);
     const answer = await service.composerTache(
@@ -248,8 +279,10 @@ function ConfierAvecService({
       // at-least-once outbox usually repairs within a minute.
       // REFUS-NOMMÉ (founder bug 2026-08-13): `order_already_has_task` is
       // PERMANENT by design — a delivered course's row deliberately stays on
-      // Séra's book (COURSE-LIVRÉE), and only « Retirer cette course » clears
-      // it. « Réessayez » was a lie for it; the sentence now names the act.
+      // Séra's book (COURSE-LIVRÉE), and only the retire door clears it. The
+      // sentence names the act, and the act renders BELOW it (see `Retrait`):
+      // pointing at the Coursiers tab was a dead end, because that tab's list
+      // can never show a delivered course.
       setAvis(
         t(
           answer.reason === 'funding_projection_stale'
@@ -261,6 +294,7 @@ function ConfierAvecService({
                 : 'confier.refus_generique',
         ),
       );
+      if (answer.reason === 'order_already_has_task') setRetrait({ kind: 'propose' });
       return;
     }
     await charger();
@@ -295,6 +329,54 @@ function ConfierAvecService({
     onConfiee?.();
   };
 
+  /**
+   * REFUS-NOMMÉ — the confirmed retire. SAME PORT AS THE COURSIERS ZONE
+   * (`CoursiersServicePort.retirerCourse`, already contract-certified against
+   * `/ops/order/retirer`), same door, same key slot — no second wire client.
+   * The command id is MINTED per this app's law (`mintCommandId`, OS CSPRNG,
+   * never Math.random); the door requires it for shape only — its idempotency
+   * is by state, so `retire` and `inconnu` are the SAME good outcome: nothing
+   * remains on the board for this order. Both clear the refusal and leave
+   * « Créer la course » pressable — the re-tap is HIS, never an auto-retry
+   * (cause and effect stay visible).
+   */
+  const retirerCourse = async (): Promise<void> => {
+    if (busy || cle === null) return;
+    const desk = resolveCoursiersService(cle);
+    if (desk === null) {
+      setAvis(t('confier.injoignable'));
+      return;
+    }
+    setBusy(true);
+    setAvis(null);
+    setRetrait({ kind: 'encours' });
+    const answer = await desk.retirerCourse(row.orderId, mintCommandId());
+    setBusy(false);
+    if (answer.kind === 'bad_key') {
+      clearStoredCleCoursiers();
+      setCle(null);
+      setRetrait({ kind: 'aucun' });
+      setEtape({ kind: 'porte' });
+      return;
+    }
+    if (answer.kind === 'unreachable') {
+      // The act stays offered: nothing came back, so nothing changed.
+      setAvis(t('confier.injoignable'));
+      setRetrait({ kind: 'propose' });
+      return;
+    }
+    if (answer.kind === 'refused') {
+      // The door's only named refusal here is `malformed` (a client bug) —
+      // the zone's own failure sentence says it without inventing a cause.
+      setAvis(t('coursiers.course_echec'));
+      setRetrait({ kind: 'propose' });
+      return;
+    }
+    // `retire` or `inconnu` — the board holds nothing for this order now.
+    setAvis(null);
+    setRetrait({ kind: 'retiree' });
+  };
+
   return (
     <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
       <Text style={TITRE}>{t('confier.titre')}</Text>
@@ -302,6 +384,33 @@ function ConfierAvecService({
       {avis !== null ? (
         <View style={{ marginTop: 10 }}>
           <Banner tone="warn">{avis}</Banner>
+        </View>
+      ) : null}
+
+      {/* ═══ REFUS-NOMMÉ — the way out, rendered WITH the refusal ═══
+          The Coursiers zone's two-tap destructive-act grammar, verbatim in
+          shape: whisper control → question + custody caveat (« board yes,
+          custody no », said BEFORE the tap — the server cannot see custody) →
+          « Oui, retirer » / « Annuler »; in flight the armed question is GONE,
+          so nothing can be tapped into silence. */}
+      {retrait.kind === 'propose' ? (
+        <View style={{ marginTop: 8 }}>
+          <BtnGhost label={t('confier.retirer')} onPress={() => setRetrait({ kind: 'question' })} />
+        </View>
+      ) : retrait.kind === 'question' ? (
+        <View style={{ marginTop: 8, gap: 8 }}>
+          <Text style={CORPS}>{t('confier.retirer_question')}</Text>
+          <Banner tone="warn">{t('confier.retirer_question_colis')}</Banner>
+          <BtnGhost label={t('coursiers.course_oui')} onPress={() => void retirerCourse()} />
+          <BtnGhost label={t('coursiers.course_annuler')} onPress={() => setRetrait({ kind: 'propose' })} />
+        </View>
+      ) : retrait.kind === 'encours' ? (
+        <Text style={[PETIT, { marginTop: 8 }]}>{t('coursiers.course_encours')}</Text>
+      ) : retrait.kind === 'retiree' ? (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="success" check>
+            {t('confier.retiree')}
+          </Banner>
         </View>
       ) : null}
 

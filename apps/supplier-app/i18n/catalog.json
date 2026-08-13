@@ -4477,7 +4477,31 @@
   },
   {
     "key": "confier.course_deja",
-    "fr": "Cette commande a déjà sa course côté Séra, livrée ou en route. Pour refaire l’essai, retirez d’abord la course : onglet Coursiers, « Retirer cette course ».",
+    "fr": "Cette commande a déjà sa course côté Séra. Retirez-la ci-dessous, puis créez la course à nouveau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.retirer",
+    "fr": "Retirer la course",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.retirer_question",
+    "fr": "Retirer la course de cette commande du tableau Séra ?",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.retirer_question_colis",
+    "fr": "La course quitte le tableau Séra. Si un coursier tient déjà le colis, il le garde : la livraison en cours va jusqu'au bout.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.retiree",
+    "fr": "La course est retirée du tableau Séra. Pour livrer à nouveau, créez une nouvelle commande.",
     "register": "neutral",
     "screenClass": "status"
   },
