@@ -246,13 +246,19 @@ function ConfierAvecService({
       // Séra's gate refusing THE FOUNDER is a fact with a name — the two
       // projection reasons mean « the facts have not arrived yet », which an
       // at-least-once outbox usually repairs within a minute.
+      // REFUS-NOMMÉ (founder bug 2026-08-13): `order_already_has_task` is
+      // PERMANENT by design — a delivered course's row deliberately stays on
+      // Séra's book (COURSE-LIVRÉE), and only « Retirer cette course » clears
+      // it. « Réessayez » was a lie for it; the sentence now names the act.
       setAvis(
         t(
           answer.reason === 'funding_projection_stale'
             ? 'confier.pas_finance'
             : answer.reason === 'readiness_projection_stale'
               ? 'confier.pas_prete'
-              : 'confier.refus_generique',
+              : answer.reason === 'order_already_has_task'
+                ? 'confier.course_deja'
+                : 'confier.refus_generique',
         ),
       );
       return;

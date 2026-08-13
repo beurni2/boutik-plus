@@ -4476,6 +4476,12 @@
     "screenClass": "status"
   },
   {
+    "key": "confier.course_deja",
+    "fr": "Cette commande a déjà sa course côté Séra, livrée ou en route. Pour refaire l’essai, retirez d’abord la course : onglet Coursiers, « Retirer cette course ».",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "confier.confier_refuse",
     "fr": "Ce coursier n’est plus libre. Choisissez-en un autre.",
     "register": "neutral",
