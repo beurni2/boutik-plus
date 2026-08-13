@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-13 · REFUS-NOMMÉ — « Créer la course » names the permanent refusal and carries its way out · IN-REVIEW (branch, awaiting founder)
+## 2026-08-13 · REFUS-NOMMÉ — « Créer la course » names the permanent refusal and carries its way out · DONE
+
+**MERGED AND DEPLOYED (founder's word, 2026-08-13):** main fast-forwarded to `bacbd27`; `expo-preview` run 31743284606 **green** and `web-deploy` run 31743286568 **green**, both on `bacbd27`. The web console carries the fix on next load; the phone app after two restarts of Expo Go.
 **Founder (screenshot):** « on boutik+ when i tap creer la course to relay a product to a sera rider it is not working » — banner « Séra a refusé. Réessayez, ou regardez la commande côté Séra. »
 
 **ROOT CAUSE, certified on the real Workers (sera e2e, test-only):** Séra's `/ops/task` refuses 409 `order_already_has_task` when the order's open course was admitted under a DIFFERENT command than the console's current one — permanent by design (a delivered course's queue row deliberately stays; COURSE-LIVRÉE). The console named only the two projection refusals; everything else fell to the generic « Réessayez » — a lie for a permanent state. The exact door bytes (same command → 200 duplicate silently; different command → the 409 with taskId+status) are pinned in sera's course-livree e2e and the walk's double is certified to them, never kinder.
