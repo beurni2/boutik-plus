@@ -1,6 +1,6 @@
 import { makeHealthFetch } from '@boutik/observability';
 import { isOpaqueMediaKey, MEDIA_KEY_PREFIX } from '../src/media-key.js';
-import { resolveMediaStore, type R2BucketLike } from '../src/media-store.js';
+import { resolveMediaStore, type R2BucketLike, type R2RangeLike } from '../src/media-store.js';
 import { ProductMediaService, THUMB_WRITE_WINDOW_MS, thumbKeyFor } from '../src/media.js';
 import { rejectUnauthorizedRevoke, rejectUnauthorizedWrite, type MediaWriteAuthEnv } from './auth.js';
 
@@ -138,6 +138,104 @@ async function stillOpen(env: MediaWorkerEnv, key: string): Promise<boolean> {
 const notFound = (): Response =>
   Response.json({ service: 'media-service', status: 'not_found', reason: 'unknown_media_key' }, { status: 404 });
 
+/**
+ * ═══ PORTÉE-MEDIA — THE iPHONE'S PLAYER ASKS IN RANGES ═══
+ *
+ * The Séra rider plays the buyer's « repère » voice note from THIS route, and
+ * iOS AVPlayer probes any media URL with `Range: bytes=0-1`, REFUSING the whole
+ * resource when the answer is 200-full-body with no `Accept-Ranges` — exactly
+ * what this route did. The founder heard silence on his iPhone. Same bug, same
+ * fix as shop-plus's media read Worker (PORTÉE-MEDIA, 2026-08-13, proven on a
+ * real device): parse a SINGLE range to R2's own range shape and let R2 serve
+ * the slice NATIVELY — never read the whole body and cut it in the Worker.
+ *
+ * Semantics MATCH the reference, not innovate: single ranges only (`bytes=a-b`,
+ * `bytes=a-`, `bytes=-n`); a multi-range or unparseable header returns null and
+ * the caller serves the full 200, which RFC 7233 permits (« MAY ignore the
+ * Range header field »). Only `bytes=` with neither bound is genuinely
+ * malformed, and it too just falls back to the full body.
+ */
+function parseRange(header: string | null): R2RangeLike | null {
+  if (header === null) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (m === null) return null;
+  const [, a, b] = m;
+  if (a === '' && b === '') return null;
+  if (a === '') return { suffix: Number(b) };
+  if (b === '') return { offset: Number(a) };
+  const offset = Number(a);
+  const end = Number(b);
+  if (end < offset) return null;
+  return { offset, length: end - offset + 1 };
+}
+
+/** PORTÉE-MEDIA — the headers every ranged answer shares with the full road. */
+const rangedBaseHeaders = (contentType: string | undefined, cacheControl: string): Record<string, string> => ({
+  'Content-Type': contentType ?? 'application/octet-stream',
+  'Cache-Control': cacheControl,
+  'Accept-Ranges': 'bytes',
+});
+
+/**
+ * PORTÉE-MEDIA — serve ONE object's slice: 206 for a satisfiable range, 416
+ * with `bytes *​/total` for an unsatisfiable one, `null` when NO object lives at
+ * this key at all (the caller decides — 404 for the photograph, fall-through to
+ * the parent for an absent vignette). Same roads as the shop-plus reference.
+ */
+async function serveRangedObject(
+  bucket: R2BucketLike,
+  key: string,
+  range: R2RangeLike,
+  cacheControl: string,
+): Promise<Response | null> {
+  let object: Awaited<ReturnType<R2BucketLike['get']>> = null;
+  let unsatisfiable = false;
+  try {
+    object = await bucket.get(key, { range });
+  } catch {
+    // R2 throws on an out-of-bounds range rather than answering — the 416
+    // still owes the caller the TOTAL, so the plain object is read for it.
+    unsatisfiable = true;
+  }
+  if (unsatisfiable || object === null) {
+    const whole = await bucket.get(key);
+    if (whole === null) return null; // no object here at all — the caller's road
+    // (A ranged get answering null while the object exists lands here too —
+    // treated as unsatisfiable rather than inventing a slice.)
+    const total = whole.size;
+    return new Response(null, {
+      status: 416,
+      headers: { ...rangedBaseHeaders(whole.httpMetadata?.contentType, cacheControl), 'Content-Range': `bytes */${total ?? 0}` },
+    });
+  }
+  const total = object.size ?? 0;
+  // R2 reports the range it actually served; recompute from the ask only
+  // when the binding (or an older shim) omits it — and CLAMP that fallback
+  // to the object: a shim echoing an unclamped `bytes=0-999999` ask must not
+  // mint a Content-Range wider than the body. Real workerd always reports the
+  // clamped range, so this arm is armor for a nonconforming double, never the
+  // live road. (Verbatim the reference's armor.)
+  const served = object.range ?? range;
+  const start = served.offset ?? (served.suffix !== undefined ? Math.max(0, total - served.suffix) : 0);
+  const rawLength = served.length ?? (served.suffix !== undefined ? Math.min(served.suffix, total) : total - start);
+  const length = total > 0 ? Math.min(rawLength, total - start) : rawLength;
+  const end = start + length - 1;
+  if (total > 0 && start >= total) {
+    return new Response(null, {
+      status: 416,
+      headers: { ...rangedBaseHeaders(object.httpMetadata?.contentType, cacheControl), 'Content-Range': `bytes */${total}` },
+    });
+  }
+  return new Response(object.body, {
+    status: 206,
+    headers: {
+      ...rangedBaseHeaders(object.httpMetadata?.contentType, cacheControl),
+      'Content-Range': `bytes ${start}-${end}/${total}`,
+      'Content-Length': String(length),
+    },
+  });
+}
+
 export async function handleMediaRead(
   request: Request,
   key: string,
@@ -147,10 +245,22 @@ export async function handleMediaRead(
   // 1 — shape gate before any storage lookup (never an oracle, never a traversal).
   if (!isOpaqueMediaKey(key)) return notFound();
 
-  // 2 — EDGE CACHE: the repeat-view path never reaches R2.
+  // PORTÉE-MEDIA — the ranged ask, parsed BEFORE the edge cache. Unparseable or
+  // multi-range ⇒ null ⇒ the full road (RFC 7233 lets a server ignore Range).
+  const range = parseRange(request.headers.get('Range'));
+
+  // 2 — EDGE CACHE: the repeat-view path never reaches R2. RANGED ASKS BYPASS
+  // BOTH SIDES of it (the reference route has no edge layer, so this is the one
+  // adaptation the port needs): the cache key is the bare URL, so a stored 206
+  // would answer the NEXT full read with a partial body, and a stored full 200
+  // answering a ranged ask 200-full is exactly the AVPlayer refusal returning
+  // on the repeat view. R2's native ranged read only pulls the slice, so the
+  // bypass costs the slice's egress, never the photograph's.
   const cache = edgeCache();
-  const hit = await cache?.match(request);
-  if (hit) return hit;
+  if (range === null) {
+    const hit = await cache?.match(request);
+    if (hit) return hit;
+  }
 
   // 3 — the private bucket. No binding (CI/local) is an honest 404, never a crash.
   const bucket = env.BUCKET;
@@ -165,6 +275,23 @@ export async function handleMediaRead(
   // The edge entry above is per-URL, so the vignette and the full photograph
   // cache separately by construction — no vary header, no key juggling.
   const wantsThumb = new URL(request.url).searchParams.get('v') === 'thumb';
+
+  // PORTÉE-MEDIA — THE RANGE ROAD. Same object precedence as the full road
+  // below (the vignette when it exists, else the photograph — the fallback,
+  // never a 404), same Cache-Control decision, and R2 serves the slice
+  // NATIVELY. `null` from a key means nothing lives there: for the vignette
+  // that is the fall-through to the parent; for the parent it is the honest 404.
+  if (range !== null) {
+    if (wantsThumb) {
+      const fromThumb = await serveRangedObject(bucket, thumbKeyFor(key), range, CACHE_CONTROL);
+      if (fromThumb !== null) return fromThumb;
+    }
+    // Serving the parent under `?v=thumb` is the same fallback as below, so it
+    // earns the same short TTL while a vignette could still arrive.
+    const cacheControl = wantsThumb && (await stillOpen(env, key)) ? FALLBACK_CACHE_CONTROL : CACHE_CONTROL;
+    return (await serveRangedObject(bucket, key, range, cacheControl)) ?? notFound();
+  }
+
   const thumb = wantsThumb ? await bucket.get(thumbKeyFor(key)) : null;
   const served = thumb !== null && thumb.body !== null ? thumb : null;
   const object = served ?? (await bucket.get(key));
@@ -183,6 +310,9 @@ export async function handleMediaRead(
       'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
       // BOUNDED on both layers so neither can outlive a takedown. No `immutable`.
       'Cache-Control': fellBack ? FALLBACK_CACHE_CONTROL : CACHE_CONTROL,
+      // PORTÉE-MEDIA — the full answer SAYS ranges are welcome, which is what
+      // lets a player ask for them at all (iOS refuses the media otherwise).
+      'Accept-Ranges': 'bytes',
     },
   });
   // 4 — populate the edge for the next reader. `clone()` because the body streams once.

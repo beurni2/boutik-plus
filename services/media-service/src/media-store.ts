@@ -91,10 +91,25 @@ export interface R2ObjectBodyLike {
   /** The object bytes as a stream — handed straight to a `Response` on read (never buffered). */
   readonly body: ReadableStream | null;
   readonly httpMetadata?: { readonly contentType?: string };
+  /** PORTÉE-MEDIA — the FULL object size in bytes (R2 reports the total even on
+   *  a ranged get). It is what `Content-Range`'s denominator needs. */
+  readonly size?: number;
+  /** The range R2 actually served, when one was asked. Real workerd reports it
+   *  CLAMPED to the object. */
+  readonly range?: R2RangeLike;
+}
+/** PORTÉE-MEDIA — the slice a ranged read asks R2 for (native R2GetOptions). */
+export interface R2RangeLike {
+  readonly offset?: number;
+  readonly length?: number;
+  readonly suffix?: number;
 }
 export interface R2BucketLike {
   put(key: string, value: Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
-  get(key: string): Promise<R2ObjectBodyLike | null>;
+  /** PORTÉE-MEDIA — R2 serves ranges NATIVELY (only the slice leaves the
+   *  bucket). An out-of-bounds range makes real R2 THROW rather than answer;
+   *  an absent key is `null` with or without a range. */
+  get(key: string, options?: { range?: R2RangeLike }): Promise<R2ObjectBodyLike | null>;
   delete(key: string): Promise<void>;
   /** R2's metadata-only probe, carrying the object's `uploaded` time. OPTIONAL
    *  in this structural type on purpose: it is what `stat` prefers (no body, no

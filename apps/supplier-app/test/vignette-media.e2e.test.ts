@@ -163,6 +163,20 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
         expect(grandBytes.byteLength).toBe(PHOTO.byteLength);
         expect(grandBytes[64]).toBe(0xa1);
 
+        // ── PORTÉE-MEDIA — the AVPlayer probe, ON REAL workerd R2. The read
+        //    route's unit suite certifies its fake bucket to R2's ranged
+        //    bounds; THIS is where those bounds are proven for this worker:
+        //    R2 natively slices, reports the total, and refuses past-the-end.
+        expect(grand.headers.get('Accept-Ranges'), 'the full read must SAY ranges are welcome').toBe('bytes');
+        const probe = await mf.dispatchFetch(`http://media/${ref}`, { headers: { Range: 'bytes=0-1' } });
+        expect(probe.status, 'a ranged ask must be 206, never 200-full — iOS refuses the media otherwise').toBe(206);
+        expect(probe.headers.get('Content-Range')).toBe(`bytes 0-1/${PHOTO.byteLength}`);
+        const probeBytes = new Uint8Array(await probe.arrayBuffer());
+        expect([...probeBytes], 'the PNG signature’s first two bytes — a REAL slice, not a re-labelled body').toEqual([0x89, 0x50]);
+        const beyond = await mf.dispatchFetch(`http://media/${ref}`, { headers: { Range: 'bytes=999999999-' } });
+        expect(beyond.status).toBe(416);
+        expect(beyond.headers.get('Content-Range')).toBe(`bytes */${PHOTO.byteLength}`);
+
         // ── WRITE-ONCE, the whole anti-defacement story ──────────────────────
         const encore = await port.uploadThumb(ref, AUTRE_VIGNETTE);
         expect(encore.ok, 'a filled slot must be refused').toBe(false);
