@@ -2,6 +2,11 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-14 · PORTÉE-MEDIA (media worker) — the rider's audio learns to answer a Range · IN-REVIEW (branch, awaiting founder)
+**Founder (via the Séra rider app):** the buyer's repère note plays nothing on his iPhone. THIS worker serves those bytes, and its read route answered every GET 200-full-body with no `Accept-Ranges` — the exact shape iOS AVPlayer probes with `Range: bytes=0-1` and refuses outright. Same bug, same fix as shop-plus's storefront (PORTÉE-MEDIA, proven on his phone a day earlier): single-range parsing, R2-NATIVE ranged reads, 206 + Content-Range + the served bytes, 416 + total on an unsatisfiable ask, `Accept-Ranges: bytes` everywhere. One adaptation this worker needed: **ranged asks bypass the edge cache in both directions** (a stored 206 would poison full reads; a cached 200 answering a ranged probe is the refusal returning). The `?v=thumb` road keeps its precedence and fallback-TTL rule under Range.
+
+**EVIDENCE (supervisor's own runs):** media-service **119/119** (read-route 10→18) · typecheck clean · supplier-app seam e2e 3/3 on REAL workerd + REAL R2 through this worker's actual bundle (byte-accurate 206 `bytes 0-1/300000`, 416 past the end) · gate board **ALL GATES GREEN exit 0**. **Verifier (fresh context, cross-repo diff): no blockers**; one minor journalled here — the ranged thumb road serves any existing thumb object while the full road additionally requires a non-null body before preferring it: unreachable divergence on real R2 (a `get()` hit always carries a body), left as-is rather than restructuring a serving road for an impossible case.
+
 ## 2026-08-13 · REFUS-NOMMÉ — « Créer la course » names the permanent refusal and carries its way out · DONE
 
 **MERGED AND DEPLOYED (founder's word, 2026-08-13):** main fast-forwarded to `bacbd27`; `expo-preview` run 31743284606 **green** and `web-deploy` run 31743286568 **green**, both on `bacbd27`. The web console carries the fix on next load; the phone app after two restarts of Expo Go.
