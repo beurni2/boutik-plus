@@ -3654,3 +3654,23 @@ The ONE fresh-context verifier pass covered both repos. Séra's JOURNAL carries 
 5. *(fixed)* no JOURNAL entry — this one.
 
 **Status: pushed to `claude/buyer-pwa-standing-laws-nerljz-ue7lpy`, waiting on the founder's word to merge and deploy** (2026-08-10 order).
+
+### 2026-08-15 · ONGLETS-FOURNISSEUR-2 — the console opens on « Mes produits »
+
+**FOUNDER, verbatim: « i want the console to be opening on Mes produits ».** He is overruling the judgement I made an hour earlier in ONGLETS-FOURNISSEUR: I reordered the row as he asked but deliberately LEFT the landing on « Commandes », reasoning that a supplier should open on the work waiting for him rather than on a shelf. I raised it in the report rather than deciding it silently; he decided it. **The landing is now `produits`.**
+
+**BOTH PINS INVERTED, NEVER DELETED.** The walk (`test/rendu-onglets.test.tsx`) and the source scan (`test/suivi-fournisseur.test.ts`) each asserted the old landing; each now asserts the new one, with the reversal and its reason written where the next reader will meet it. Which tab a console opens on is a real product choice, so it stays pinned — in either direction.
+
+**AND THE ROW NOW AGREES WITH THE PANE.** The walk asserts that exactly ONE chip is `active` on open and that it is « Mes produits ». `active` is a prop the app computed and hands to `ChipCategory` — which feeds it to `accessibilityState.selected` and a style branch — so this is a tree fact, not an appearance claim. Before his ruling the first chip was not the highlighted one; that mismatch is what he was looking at.
+
+**THE COST OF THE RULING, NAMED because he should hear it from me:** `SMesCommandes` only mounts when its tab is open, so **the commandes read and its 60-second poll no longer run on open.** A commande that arrives while he is sitting on the console is now invisible until he taps « Commandes » — the landing pane polls `listProduits`, the near-static list the Boutik+ team maintains. There is no count on the chip to hint that work is waiting. This is the direct consequence of what he asked for, not a defect; the small version of « both » would be a count on the « Commandes » chip, and it is **not built** because he did not ask for it. Flagged to him in the report.
+
+**Evidence:** supplier-app **966/966** (72 files) · `tsc --noEmit` exit 0 · `run-gates.sh` **ALL GATES GREEN** exit 0. **Mutations, anchor-verified:** (1) landing back to `'commandes'` → both inverted pins redden · (2) `active={onglet === o.cle}` broken → the chip-agreement assertion reddens · (3) the « Mes produits » chip's `onPress` made a no-op → the walk reddens (see below) · (4) a pure row reorder → only the ORDER test reddens, never the landing one.
+
+**The ONE fresh-context verifier pass** returned **no blocker**, 2 concerns and 2 nits. All closed:
+1. *(fixed — and it was a coverage regression I introduced)* moving the landing made the walk press the ALREADY-OPEN tab first, so « it reached its own screen » was satisfied by the screen that was already there. The verifier proved it: with a dead « Mes produits » `onPress`, **all 966 tests passed**. The landing tab is now pressed LAST, so every press in the loop is a real transition — and that same mutation now reddens.
+2. *(carried to the founder, not fixed)* the lost commandes poll, above.
+3. *(fixed)* the landing test also pinned the row's ORDER, so a pure reorder reddened a test named for the landing — the exact coupling its sibling had deliberately dropped. Narrowed to the active-chip filter.
+4. *(fixed)* the docblock claimed to quote him but had normalised his words. It now quotes both rulings verbatim.
+
+**Status: pushed to `claude/buyer-pwa-standing-laws-nerljz-ue7lpy`, waiting on the founder's word to merge and deploy** (2026-08-10 order).

@@ -94,14 +94,21 @@ describe('ONGLETS-FOURNISSEUR — the four tabs, in the founder’s order', () =
      * assertion above green. So each tab is PRESSED and asked for the sentence
      * only its own screen says — the standing order's four questions, on the
      * one screen this app had never mounted.
+     *
+     * ⚠ THE LANDING TAB IS PRESSED LAST, AND THAT ORDER IS THE WHOLE POINT.
+     * The console opens on « Mes produits », so pressing it FIRST would prove
+     * nothing — « it reached its own screen » is satisfied by the screen that
+     * was already there, and a chip whose `onPress` did nothing at all would
+     * sail through. Starting on a different tab makes every press below a real
+     * TRANSITION, including the one back onto the landing tab.
      */
     const screen = await mountEcran(<FournisseurApp />);
 
     const attendu: readonly (readonly [string, string])[] = [
-      ['Mes produits', 'C’est l’équipe Boutik+ qui ajoute vos produits'],
       ['Commandes', "Aucune commande pour l'instant"],
       ['En route', 'Aucun colis en route'],
       ['Livré', "Aucune livraison terminée pour l'instant"],
+      ['Mes produits', 'C’est l’équipe Boutik+ qui ajoute vos produits'],
     ];
 
     for (const [label, sien] of attendu) {
@@ -121,21 +128,46 @@ describe('ONGLETS-FOURNISSEUR — the four tabs, in the founder’s order', () =
     screen.unmount();
   });
 
-  it('the console still OPENS on « Commandes » — the reorder did not move his work', async () => {
+  it('the console OPENS on « Mes produits » — the first chip is the one he lands on', async () => {
     /**
-     * He asked for an ORDER, not a new landing screen, and the two are
-     * separable. « Mes produits » leads the row while the console still opens
-     * on the tab with work waiting in it: a supplier who opens the app to a
-     * shelf of products instead of the commande needing a call would be a
-     * behaviour change he did not ask for. Driven rather than read, because
-     * the landing is what the FIRST RENDER shows, not what a `useState` line
-     * says.
+     * ⚠ INVERTED ON THE FOUNDER'S WORD (2026-08-15): « i want the console to be
+     * opening on Mes produits ». This test previously pinned the opposite.
+     *
+     * I had kept the landing on « Commandes » deliberately — he had asked for
+     * an order, not a landing screen, and moving his work off the opening
+     * screen was not mine to decide. He has now decided it, so the pin flips
+     * rather than being deleted: which tab the console opens on is a real
+     * product choice, and the next reorder must not be able to move it by
+     * accident either way.
+     *
+     * Driven rather than read, because the landing is what the FIRST RENDER
+     * shows — not what a `useState` line says.
      */
     const screen = await mountEcran(<FournisseurApp />);
     expect(
-      screen.shows("Aucune commande pour l'instant"),
-      `the console did not open on Commandes — on screen: ${JSON.stringify(screen.texts())}`,
+      screen.shows('C’est l’équipe Boutik+ qui ajoute vos produits'),
+      `the console did not open on Mes produits — on screen: ${JSON.stringify(screen.texts())}`,
     ).toBe(true);
+    // …and it must NOT be showing the commandes pane underneath.
+    expect(screen.shows("Aucune commande pour l'instant"), 'both panes rendered at once').toBe(false);
+
+    /**
+     * AND THE ROW AGREES WITH THE PANE. A console that opens on his products
+     * while the row highlights « Commandes » would tell him two different
+     * things at once — the exact mismatch the old landing left behind, and the
+     * reason he asked for this. `active` is a PROP the app computed, not a
+     * rendered pixel: no appearance is claimed.
+     */
+    const { ChipCategory } = await import('../src/v2/components');
+    const chips = screen.tree.root.findAllByType(ChipCategory);
+    // The ACTIVE chip only — the row's ORDER is the first test's job, and
+    // asserting it again here would make a test named for the landing go red
+    // on a pure reorder.
+    expect(
+      chips.filter((c) => c.props['active'] === true).map((c) => c.props['label']),
+      'exactly one chip is active on open, and it is the one he lands on',
+    ).toEqual(['Mes produits']);
+
     screen.unmount();
   });
 });

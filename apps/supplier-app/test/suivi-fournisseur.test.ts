@@ -188,20 +188,22 @@ describe('the screens exist, and the photos ride each commande (call sites)', ()
       .toEqual(['produits', 'commandes', 'en_route', 'livrees']);
   });
 
-  it('…and « Commandes » is still the tab the console OPENS on — the reorder did not move his work', () => {
+  it('…and « Mes produits » is the tab the console OPENS on (founder, 2026-08-15)', () => {
     /**
-     * He asked for an ORDER, not a new landing screen, and the two are
-     * separable: « Mes produits » leads the row while the console still opens
-     * on the tab with work waiting in it. A supplier who opens the app to a
-     * shelf of products instead of the commande needing a call would be a
-     * behaviour change he did not ask for, so it is pinned apart from the
-     * order above rather than left to ride along with it.
+     * ⚠ INVERTED ON HIS WORD: « i want the console to be opening on Mes
+     * produits ». I had kept the landing on « Commandes » when the row was
+     * reordered — he had asked for an order, not a landing screen, and moving
+     * his work off the opening screen was not mine to decide. He decided it.
+     *
+     * Still pinned APART from the row's order above, because the two remain
+     * separable: a future reorder must not be able to move the landing by
+     * accident, in either direction.
      */
     // The VALUE only. Asserting the whole `useState<…union…>('commandes')`
     // string made this red on a pure type-member reorder with no runtime
     // effect — a test named for the landing tab failing on a type edit is a
     // confusing red someone else pays for. The walk drives the real thing.
-    expect(app).toContain(">('commandes')");
+    expect(app).toContain(">('produits')");
   });
 
   it('the zone reaches the pure view — the filter is not re-derived in the screen', () => {

@@ -68,16 +68,21 @@ export function FournisseurApp() {
    * needs his hands, what a coursier is carrying, what is finished. « Mes
    * produits » is his eyes-only shelf. One door, four views.
    *
-   * ⚠ THE ROW'S ORDER IS THE FOUNDER'S, and it is not the same thing as the
-   * landing tab (2026-08-15: « make the tabs order be (Mes produits,
-   * Commandes, En route and Livré) »). « Mes produits » leads the row — it is
-   * what his shop IS, before what it owes — while the console still OPENS on
-   * « Commandes », because that is the tab with work waiting in it. Both are
-   * walked in `test/rendu-onglets.test.tsx` — which MOUNTS this console, the
-   * first test in this app to do so — separately, so a future reorder cannot
-   * drag his landing screen along behind it.
+   * ⚠ THE ROW'S ORDER AND THE LANDING TAB ARE THE FOUNDER'S, and they were
+   * two separate rulings. « make the tabs orders be (Mes produits, Commandes ,
+   * En route and Livre) » set the row; « i want the console to be opening on
+   * Mes produits » then moved the landing to match it (both 2026-08-15).
+   *
+   * I had kept the landing on « Commandes » between the two, on the reasoning
+   * that a supplier should open on the work waiting for him rather than on a
+   * shelf. That was mine to raise and his to settle, and he settled it: the
+   * console opens on what his shop IS, before what it owes.
+   *
+   * Both are walked in `test/rendu-onglets.test.tsx` — which MOUNTS this
+   * console, the first test in this app to do so — and pinned SEPARATELY, so a
+   * future reorder cannot move the landing by accident in either direction.
    */
-  const [onglet, setOnglet] = useState<'commandes' | 'en_route' | 'livrees' | 'produits'>('commandes');
+  const [onglet, setOnglet] = useState<'commandes' | 'en_route' | 'livrees' | 'produits'>('produits');
   const onglets: readonly { readonly cle: typeof onglet; readonly label: string }[] = [
     { cle: 'produits', label: t('fournisseur.onglet_produits') },
     { cle: 'commandes', label: t('fournisseur.onglet_commandes') },
