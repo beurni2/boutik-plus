@@ -37,6 +37,14 @@ export default defineConfig({
       'react-native-svg': at('./test/doubles/react-native-svg.tsx'),
       'react-native': at('./test/doubles/react-native.tsx'),
       'expo-crypto': at('./test/doubles/expo-crypto.ts'),
+      // ONGLETS-FOURNISSEUR (2026-08-15) — THE GROWTH RULE ABOVE, EXECUTED.
+      // The first walk to mount the supplier console reaches both of these
+      // eagerly (the capture seam and the publish/queue seam), and through them
+      // the Metro-only Expo runtime. Each double states its own bounds and
+      // THROWS rather than faking, so a walk that wanders into capture or into
+      // a real byte read fails loudly instead of passing over a fiction.
+      'expo-image-manipulator': at('./test/doubles/expo-image-manipulator.ts'),
+      'expo-file-system': at('./test/doubles/expo-file-system.ts'),
     },
   },
 });

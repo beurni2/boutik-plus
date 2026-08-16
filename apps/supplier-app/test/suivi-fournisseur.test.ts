@@ -171,6 +171,39 @@ describe('the screens exist, and the photos ride each commande (call sites)', ()
     expect(app).toContain('<SMesCommandes key={onglet} zone={onglet}');
   });
 
+  it('ONGLETS-FOURNISSEUR — the row reads « Mes produits · Commandes · En route · Livré », in THAT order', () => {
+    /**
+     * FOUNDER, 2026-08-15: « on the suppliers console make the tabs order be
+     * (Mes produits, Commandes, En route and Livré) ».
+     *
+     * ⚠ NOTHING PINNED THE ORDER BEFORE THIS. The test above asserts only that
+     * the four keys are all PRESENT in the block, which is true of any of the
+     * twenty-four permutations — so his order could be undone tomorrow with
+     * every test in this repo still green. It is the ORDER he asked for, so it
+     * is the order that gets asserted.
+     */
+    const barre = bloc(app, 'const onglets:', 'return (');
+    const ordre = [...barre.matchAll(/cle: '([a-z_]+)'/g)].map((m) => m[1]);
+    expect(ordre, `the row reads ${JSON.stringify(ordre)}`)
+      .toEqual(['produits', 'commandes', 'en_route', 'livrees']);
+  });
+
+  it('…and « Commandes » is still the tab the console OPENS on — the reorder did not move his work', () => {
+    /**
+     * He asked for an ORDER, not a new landing screen, and the two are
+     * separable: « Mes produits » leads the row while the console still opens
+     * on the tab with work waiting in it. A supplier who opens the app to a
+     * shelf of products instead of the commande needing a call would be a
+     * behaviour change he did not ask for, so it is pinned apart from the
+     * order above rather than left to ride along with it.
+     */
+    // The VALUE only. Asserting the whole `useState<…union…>('commandes')`
+    // string made this red on a pure type-member reorder with no runtime
+    // effect — a test named for the landing tab failing on a type edit is a
+    // confusing red someone else pays for. The walk drives the real thing.
+    expect(app).toContain(">('commandes')");
+  });
+
   it('the zone reaches the pure view — the filter is not re-derived in the screen', () => {
     expect(app).toContain('const vue = fournisseurVue(read, zone);');
   });

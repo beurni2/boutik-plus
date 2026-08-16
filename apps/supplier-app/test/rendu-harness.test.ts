@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import * as double from './doubles/react-native';
 import * as svgDouble from './doubles/react-native-svg';
 import * as cryptoDouble from './doubles/expo-crypto';
+import * as imgDouble from './doubles/expo-image-manipulator';
+import * as fsDouble from './doubles/expo-file-system';
 
 /**
  * ═══ RENDU-RÉEL — the harness holds ITSELF to the mock-certification law ═══
@@ -56,6 +58,8 @@ const DOUBLED: readonly { readonly spec: string; readonly mod: Record<string, un
   { spec: 'react-native', mod: double as unknown as Record<string, unknown> },
   { spec: 'react-native-svg', mod: svgDouble as unknown as Record<string, unknown> },
   { spec: 'expo-crypto', mod: cryptoDouble as unknown as Record<string, unknown> },
+  { spec: 'expo-image-manipulator', mod: imgDouble as unknown as Record<string, unknown> },
+  { spec: 'expo-file-system', mod: fsDouble as unknown as Record<string, unknown> },
 ];
 
 describe('every double is CERTIFIED to what the app imports', () => {
