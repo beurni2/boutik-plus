@@ -3653,7 +3653,7 @@ The ONE fresh-context verifier pass covered both repos. Séra's JOURNAL carries 
 4. *(fixed)* the landing pin asserted the whole `useState<…union…>('commandes')` string and went red on a pure type-member reorder with no runtime effect. Narrowed to the value.
 5. *(fixed)* no JOURNAL entry — this one.
 
-**Status: pushed to `claude/buyer-pwa-standing-laws-nerljz-ue7lpy`, waiting on the founder's word to merge and deploy** (2026-08-10 order).
+**MERGED AND DEPLOYED with ONGLETS-FOURNISSEUR-2 below (founder: « merge and deploy », 2026-08-15).** Both slices went to `main` in one fast-forward; the run numbers are recorded on that entry.
 
 ### 2026-08-15 · ONGLETS-FOURNISSEUR-2 — the console opens on « Mes produits »
 
@@ -3673,4 +3673,4 @@ The ONE fresh-context verifier pass covered both repos. Séra's JOURNAL carries 
 3. *(fixed)* the landing test also pinned the row's ORDER, so a pure reorder reddened a test named for the landing — the exact coupling its sibling had deliberately dropped. Narrowed to the active-chip filter.
 4. *(fixed)* the docblock claimed to quote him but had normalised his words. It now quotes both rulings verbatim.
 
-**Status: pushed to `claude/buyer-pwa-standing-laws-nerljz-ue7lpy`, waiting on the founder's word to merge and deploy** (2026-08-10 order).
+**MERGED AND DEPLOYED (founder: « merge and deploy », 2026-08-15).** `main` fast-forwarded `f50f46b..6a1c3c8`, carrying both ONGLETS-FOURNISSEUR slices and the 2026-08-14 working law that had stayed on the branch. **`ci` run 310 → success · `expo-preview` run 188 → success**, then **`fournisseur-web-deploy` run 11 → success on 6a1c3c8** — the supplier console is a Cloudflare Pages surface whose deploy is `workflow_dispatch` ONLY by standing ruling (« a deploy is a deliberate act »), so it does not ride a push and was triggered by hand AFTER ci went green. *(Not claimed: I did not open the live console. The deploy's own green is the evidence, not a live visit.)*
