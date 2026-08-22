@@ -29,8 +29,12 @@ describe('the official list — complete, deduped, ordered', () => {
     expect(QUARTIERS_OUAGADOUGOU).toEqual(sorted);
   });
 
-  it('the count matches the sourced répartition — dozens of quartiers, never a handful', () => {
-    expect(QUARTIERS_OUAGADOUGOU.length).toBeGreaterThanOrEqual(70);
+  it('the count is EXACTLY the sourced répartition: 78 rows, 77 after the Dassasgho dedupe', () => {
+    // Pinned exact (verifier note): the module header claims cross-repo drift
+    // is caught by these pins, and a ≥70 floor lets a dropped or misspelled
+    // non-canary name through. 77 is the claim.
+    expect(QUARTIERS_PAR_ARRONDISSEMENT.flatMap((a) => a.quartiers)).toHaveLength(78);
+    expect(QUARTIERS_OUAGADOUGOU).toHaveLength(77);
   });
 
   it('the landmark names a supplier expects are all here', () => {

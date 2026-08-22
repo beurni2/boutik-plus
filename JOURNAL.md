@@ -2,6 +2,24 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-22 · QUARTIERS-OUAGA-1 — the official quartier list on the onboarding « Votre boutique » step · IN REVIEW (awaiting merge word)
+
+**Founder, 2026-08-22: « On boutik+, on the buyer's payment pwa screen, and in sera not all quartier from Ouagadougou are displayed… source all quartiers in Ouagadougou… Make sure the displaying are nice and professional and doesn't break anything. »**
+
+**BUILT (`5f4b85c` + verifier fixes).** `src/v2/quartiers-ouagadougou.ts` — a content copy of the shop-plus module (each repo deploys alone; no shared package ships app data): **Loi n°066-2009/AN, 12 arrondissements, 77 distinct quartiers**, sourcing cited in the header, cross-repo drift caught by EXACT-count pins (78 rows / 77 flat, a verifier note). The wizard's « Quartier » field (S34Onboard step « Votre boutique ») stops guessing at spelling: it filters the official list as he types (plain accent-folded substring — Law 5), suggestions render as tappable chips in a bounded 148px scroll, **a TAP fills the field and settles the cloud; typing reopens it** (verifier note: an equality collapse would hide « Larlé Wéogo » the instant « Larlé » is fully typed). Free text stays lawful — the wizard is demo-grade and stores none of its fields; the list is comfort, never a gate. Chips carry the **F18 44px layout floor** (`minHeight: 44` + centred text — hitSlop is inert on the web root; my first cut was ~34px and was corrected against the tap-targets law before commit). `Input` (C16) gains an optional `placeholder` pass-through — additive, same shape as `keyboardType` — so the field hints « Chercher votre quartier… » and the rendu harness can address it; the string joins the wizard's documented inline-prop residue (AUDIT-B+1 F17 wave 2), which the Law-6 scan does not cover.
+
+**THE WALK — the first mount S34Onboard has ever had** (`test/rendu-onboarding-quartier.test.tsx`): a host of the REAL `reduce` + the REAL screen (no app code stubbed; the shell's effect runner not replicated because these transitions emit no effects) walks « Continuer » ×2 to the step, asserts EVERY one of the 77 names rendered and canaries pressable, types accent-blind and narrows, taps to fill, proves typing never settles the cloud, and exits to « Compte de versement » on free text (« Zone du Bois ») — the four questions, answered. **Mutation, anchor-verified:** `onPress={() => setQuartier(q)}` severed (grep 1 before, applied, confirmed) → the walk reds on the fill-the-field assertion; restored.
+
+**Evidence.** supplier-app **976/976** (74 files; the 7 module pins + 3 walk tests re-run green after the verifier fixes) · typecheck clean · repo `run-gates.sh` **ALL GATES GREEN** (positives passed, every negative fixture failed as required). The quartier names are proper-noun DATA — the Law-6 inline-French scan (`{'…'}` literals) is untouched and green.
+
+**VERIFIER** (fresh context: the founder's order verbatim, Law 5/6 + §5 quotes, both repos' diffs, the DoD): **no BLOCKER**, 6 NOTEs across both repos, handled once — this repo's three: the exact-count pin (fixed), the tap-settles collapse (fixed, above), and confirming this board genuinely ran green (it had). The shop-plus journal carries the other three, including **séra: no diff, by decision** — séra displays the zone the order carries; nothing there lists quartiers.
+
+**Process, on the record:** one mutation-revert used `git checkout --` on the uncommitted `screens2.tsx` and destroyed the picker edits — rebuilt from the verified content, re-proven (10/10 + tsc) before proceeding. And the slice commit initially landed on local `main` — moved to the designated branch (`main` never pushed, reset to origin).
+
+**Pending:** the founder's merge word for the branch.
+
+---
+
 ## 2026-08-21 · BOOKS-CORRECTION — five stale entry headers flipped to what main already holds · DONE
 
 **Founder, 2026-08-21: « Fix the headers » (cross-repo sweep).** FONDS-CONSOLE-B+ still read « do NOT merge yet » while `85e3932` and its verifier round `8335983` sit on `origin/main`; the four 2026-08-06 (branch)-qualified entries are likewise merged — `origin/claude/buyer-pwa-standing-laws-nerljz` and `-ue7lpy` are both full ancestors of `origin/main` (`git merge-base --is-ancestor` true), and the AUDIT-B+1 content (M-GATE-03 / NON_PRODUCT_DIRS) is live in `scripts/gates/scan.mjs` on main's tree. Headers only — no entry body rewritten.

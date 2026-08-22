@@ -75,7 +75,7 @@ describe('S34 « Votre boutique » — the official quartier list, offered and u
     screen.unmount();
   });
 
-  it('typing narrows, a tap fills the field, and the cloud steps aside once it matches', async () => {
+  it('typing narrows, a TAP fills the field and settles the cloud — typing never does', async () => {
     const screen = await ouvrirVotreBoutique();
 
     // Accent-blind typing, as thumbs actually type it.
@@ -86,9 +86,16 @@ describe('S34 « Votre boutique » — the official quartier list, offered and u
     // The tap is the promise: it FILLS the field (state, not decoration)…
     await screen.press('Rimkièta');
     expect(champQuartier(screen).props['value']).toBe('Rimkièta');
-    // …and an exact match collapses the cloud instead of nagging under a
-    // settled answer.
+    // …and the TAP settles the cloud instead of nagging under a settled answer.
     expect(screen.canPress('Rimkièta'), 'the suggestion chip outlived the choice').toBe(false);
+
+    // Typing must NOT settle it (verifier note): « Larlé » typed in full still
+    // shows BOTH Larlé chips — an equality collapse would hide « Larlé
+    // Wéogo » the instant its prefix is a complete name.
+    await screen.type('Larlé', 'Chercher votre quartier');
+    expect(screen.shows('Larlé Wéogo'), 'a fully-typed prefix name hid its longer sibling').toBe(true);
+    await screen.press('Larlé Wéogo');
+    expect(champQuartier(screen).props['value']).toBe('Larlé Wéogo');
 
     screen.unmount();
   });

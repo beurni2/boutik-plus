@@ -683,8 +683,11 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
      rattachés exist); the list is comfort, never a gate. Local state:
      the onboarding wizard is demo-grade and stores none of its fields. */
   const [quartier, setQuartier] = useState('');
+  /* A TAP settles the cloud; typing reopens it (verifier note). An
+     exact-equality collapse would hide « Larlé Wéogo » the instant he
+     finishes typing « Larlé » — the tap is the only honest settle signal. */
+  const [choisi, setChoisi] = useState(false);
   const suggestions = filtrerQuartiers(quartier);
-  const exact = suggestions.length === 1 && suggestions[0] === quartier;
   if (step === 5) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
@@ -734,15 +737,15 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
           <>
             <View style={{ marginTop: 18 }}><Input label="Nom de la boutique" defaultValue="Ma nouvelle boutique" /></View>
             <View style={{ marginTop: 16 }}>
-              <Input label="Quartier" value={quartier} onChangeText={setQuartier} placeholder="Chercher votre quartier…" />
-              {!exact && (
+              <Input label="Quartier" value={quartier} onChangeText={(t) => { setQuartier(t); setChoisi(false); }} placeholder="Chercher votre quartier…" />
+              {!choisi && (
                 <ScrollView style={{ maxHeight: 148, marginTop: 8 }} keyboardShouldPersistTaps="handled">
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {suggestions.map((q) => (
                       <Pressable
                         key={q}
                         accessibilityRole="button"
-                        onPress={() => setQuartier(q)}
+                        onPress={() => { setQuartier(q); setChoisi(true); }}
                         /* F18 idiom: the console ships as WEB where hitSlop is
                            inert on Pressable — the 44 px doctrine floor must be
                            LAYOUT (minHeight + centred text), never a prop. */
