@@ -18,6 +18,7 @@ import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
 import { varianteChamp } from './categorie-details';
+import { filtrerQuartiers } from './quartiers-ouagadougou';
 import { chipChoisi, pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
 import { disabled, SEG_OF, type A, type S } from './machine';
@@ -675,6 +676,15 @@ export function S33Trust({ d }: { d: D }) {
 // ── S34–S39 Inscription ───────────────────────────────────────────────────────
 export function S34Onboard({ st, d }: { st: S; d: D }) {
   const step = st.ob.step;
+  /* QUARTIERS-OUAGA-1 (founder order 2026-08-22) — « Quartier » is no longer
+     a bare field guessing at spelling: the OFFICIAL répertoire (Loi
+     n°066-2009/AN — sourced in quartiers-ouagadougou.ts) filters as he
+     types and a tap fills the field. Free text stays lawful (villages
+     rattachés exist); the list is comfort, never a gate. Local state:
+     the onboarding wizard is demo-grade and stores none of its fields. */
+  const [quartier, setQuartier] = useState('');
+  const suggestions = filtrerQuartiers(quartier);
+  const exact = suggestions.length === 1 && suggestions[0] === quartier;
   if (step === 5) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
@@ -723,7 +733,28 @@ export function S34Onboard({ st, d }: { st: S; d: D }) {
         {step === 2 && (
           <>
             <View style={{ marginTop: 18 }}><Input label="Nom de la boutique" defaultValue="Ma nouvelle boutique" /></View>
-            <View style={{ marginTop: 16 }}><Input label="Quartier" defaultValue="Rood Woko" /></View>
+            <View style={{ marginTop: 16 }}>
+              <Input label="Quartier" value={quartier} onChangeText={setQuartier} placeholder="Chercher votre quartier…" />
+              {!exact && (
+                <ScrollView style={{ maxHeight: 148, marginTop: 8 }} keyboardShouldPersistTaps="handled">
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {suggestions.map((q) => (
+                      <Pressable
+                        key={q}
+                        accessibilityRole="button"
+                        onPress={() => setQuartier(q)}
+                        /* F18 idiom: the console ships as WEB where hitSlop is
+                           inert on Pressable — the 44 px doctrine floor must be
+                           LAYOUT (minHeight + centred text), never a prop. */
+                        style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: GEO.r.pill, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}
+                      >
+                        <Text style={role({ f: 'IS', w: 500, s: 13.5, lh: 1.2 }, P.ink)}>{q}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+            </View>
             <View style={{ marginTop: 16 }}><Input label="Repère — pas d'adresse exigée" defaultValue="Allée 4, face au grand portail est" /></View>
           </>
         )}
