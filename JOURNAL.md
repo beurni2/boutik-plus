@@ -2,6 +2,12 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-21 · BOOKS-CORRECTION — five stale entry headers flipped to what main already holds · DONE
+
+**Founder, 2026-08-21: « Fix the headers » (cross-repo sweep).** FONDS-CONSOLE-B+ still read « do NOT merge yet » while `85e3932` and its verifier round `8335983` sit on `origin/main`; the four 2026-08-06 (branch)-qualified entries are likewise merged — `origin/claude/buyer-pwa-standing-laws-nerljz` and `-ue7lpy` are both full ancestors of `origin/main` (`git merge-base --is-ancestor` true), and the AUDIT-B+1 content (M-GATE-03 / NON_PRODUCT_DIRS) is live in `scripts/gates/scan.mjs` on main's tree. Headers only — no entry body rewritten.
+
+---
+
 ## 2026-08-14 · PORTÉE-MEDIA (media worker) — the rider's audio learns to answer a Range · DONE
 
 **MERGED AND DEPLOYED (founder's word, 2026-08-14):** main fast-forwarded to `f50f46b`; `media-deploy` run 31772273732 **green** on `f50f46b`. Server-side — the rider's repère audio answers iPhone probes immediately.
@@ -20,7 +26,7 @@ Format per entry:
 
 **EVIDENCE (my own runs):** supplier-app **961/961** · tsc clean · copy-lint 831 entries 0 violations · gate board **ALL GATES GREEN exit 0** · walk red-first on his banner verbatim (the control's absence was the red) · mutations: mapping reverted → red · confirm dead-wired → red · `retire` answered but refusal kept → red. Journalled, not fixed: the silent-duplicate road (a course composed and re-relayed by the CURRENT build answers 200 duplicate with no message — flagged for a future slice).
 
-## 2026-08-06 · FONDS-CONSOLE-B+ — the Protection Fund zone in the founder's console · IN REVIEW (do NOT merge yet)
+## 2026-08-06 · FONDS-CONSOLE-B+ — the Protection Fund zone in the founder's console · DONE (merged; `85e3932` + verifier round `8335983` on origin/main)
 
 **FOUNDER ORDER (2026-08-06, verbatim):** « the whole ui is mess and really confusing, i want you to redesign it and make it really simple understandable and very well structured, make it look like a multibillion dollar company console ui. and i do not want a separate url for that, put in boutik+'s ops console » — said of the platform ops-console's Desk 1. **What moved and what did not:** the fund BOOK stays the platform repo's `protection-service` (canon D22 — claims adjudication is cross-domain); THIS console becomes a second client of the same key-gated door. A UI-location decision, not a canon change — logged as such.
 
@@ -51,7 +57,7 @@ Written into `§6bis` of `CLAUDE.md` and `AGENTS.md` in **all four repos**, byte
 
 ---
 
-## 2026-08-06 · The three open items, closed — and one of them was MY error, not a defect · DONE (branch)
+## 2026-08-06 · The three open items, closed — and one of them was MY error, not a defect · DONE (merged)
 - **Founder order: « Fix these 3 »** — the three things I flagged after the merge.
 - **① F1 — TWO REFUND TRIGGERS AGAINST ONE PAID AMOUNT. Fixed.** Both aging clocks mint a `refund_required`; each deduped only against ITSELF (decision clock via `decisionAlerted`, correction clock via a `reason === 'refused_never_corrected'` filter), so neither could see the other. Reproduced by mutation at the audit\'s exact numbers: **22 000 FCFA claimed against one paid 11 000**, reasons `["paid_order_no_supplier_decision","refused_never_corrected"]`. The path is ordinary — no decision for 120 min → clock 1 → the supplier accepts LATE (lateness is not refused) → readiness → pickup refusal → 360 min uncorrected → clock 2.
   - **NOT a founder ruling after all, and I said earlier that it was.** The correction clock\'s own comment already recorded the safest default — « ONE money trigger per order … two triggers against one paid amount cannot reconcile to the franc at E3 » — then scoped it « from this clock ». Extending the same rule to the ORDER is applying the documented default, not closing an open ⏳. Law 1 and B+I-13 both point the same way.
@@ -70,7 +76,7 @@ Written into `§6bis` of `CLAUDE.md` and `AGENTS.md` in **all four repos**, byte
 3. **A surviving mutation proves the PIN is wrong, not that the code is fine.** Read the assertion before believing the verdict.
 4. **Plant the probe where the bound actually is.** A negative fixture placed inside the region it is meant to sit outside proves nothing — this cost a wasted round on F25, caught only because both the bounded and unbounded slices reported `true`.
 
-## 2026-08-06 · AUDIT-B+1 — the no-decision findings, fixed with the F2 lesson applied · IN REVIEW (branch)
+## 2026-08-06 · AUDIT-B+1 — the no-decision findings, fixed with the F2 lesson applied · DONE (merged; M-GATE-03/NON_PRODUCT_DIRS live in scripts/gates/scan.mjs on main)
 - **Founder order:** « fix the ones that do not need decision and make sure they are not worthless fixing like the one you did with the F2 ». Commits `75d13cd` · `08a981c` · `5b5d5ca` · `d2ae115` · `5fa1d89` (+ the F7 header). Gate board green, 741/741 app, 84/84 media-service, 40/40 fulfillment, tsc clean.
 - **F20 (HIGH, live custody defect) — a door inspection was consumed as a pickup refusal.** Séra emits `protection.claim_opened.v1` from two phases; the consumer read only `faultClass`. A buyer's valid refusal AT THE DOOR opened a pickup claim against the seller, called `reopenForCorrection` on a package already out of his hands, and armed the correction clock — a second refund trigger against one paid amount. Refused now by name (`not_a_pickup_source`, Law 3 — no generic terminal). **⚠ THE AUDIT'S SUGGESTED FIX WOULD HAVE BROKEN THE REAL PATH:** it said « reject any claim whose payload carries `source !== 'pickup_verification'` », but the genuine pickup refusal (`custody-spine.ts:166`) sends **no `source` key at all** — only the door inspection (`:470`) carries one. Both emitters read before writing; the discriminator runs in the direction the producers actually use. Mutation-proven: deleting the guard kills exactly the F20 test.
 - **NOT decided here, and it is the founder's:** where a door-inspection claim SHOULD route in Boutik+. Séra's own comment at `custody-spine.ts:468` flags that arm's canonical reasonCode as a canon v0.5.0 gap. Refusing to mis-consume it is not the same as deciding its destination.
@@ -110,7 +116,7 @@ Written into `§6bis` of `CLAUDE.md` and `AGENTS.md` in **all four repos**, byte
 - **NEW OPEN ITEM — AUDIT-B+1 F17 wave 2:** migrate the 52 residual inline strings (props + JSX children) across the 13 v2/ui-v2 files. Each needs a key, a register tag and a reading-level pass; the money-register ones first (« Commission revendeuse (vous la financez) », « Lister un produit — gratuit »).
 - **STILL OPEN (no decision needed):** none of the original batch. **F16 now NEEDS A RULING** (see below), and F1/F3/F4/F13/F14 remain founder decisions.
 
-## 2026-08-06 · LAW-2-STRUCTURAL REVERTED — the founder called the proportion, and he was right · DONE (branch)
+## 2026-08-06 · LAW-2-STRUCTURAL REVERTED — the founder called the proportion, and he was right · DONE (merged)
 - **Commits:** boutik-plus `c016734` · shop-plus `4878773` · sera `aa9324e`. All three gate boards green after the revert (`ALL GATES GREEN`, exit 0 each). Pushed to `claude/buyer-pwa-standing-laws-nerljz`; CI dispatched on all three.
 - **WHAT THE FOUNDER SAW.** « what about the F2 that you spend the whole time fixing which wasn't really a big problem, didn't you break thing with that persistent fixing? cause i see a lot of codes was committed in that fixing alone. cause to merge some worthless things to main » — his read of the proportion was correct. Nothing had reached main (`4e722ae`/`b46a9d8`/`a4d8f57` unchanged, verified) so nothing worthless was merged — but a 27-finding audit had spent nearly a whole session on one finding's second-order consequences, and that is my failure of sequencing, not his misreading.
 - **THE PROPORTION, MEASURED PROPERLY (⚠ this entry first carried a wrong figure — see the correction line).** `git diff --shortstat origin/main..HEAD` across the three repos, after the revert:
@@ -140,7 +146,7 @@ Written into `§6bis` of `CLAUDE.md` and `AGENTS.md` in **all four repos**, byte
 - **`fr-pattern-coverage` rebuilt after being defeated three ways:** the roster now records each pattern's REGEX SOURCE (a regex gutted in place while keeping its name passed coverage, roster and fixture while the law was gone); every existing gate must have a roster entry (emptying the roster silently disabled deletion detection while still printing full coverage); gates are imported in a CHILD process (the old textual `isMainModule` check passed a gate that merely MENTIONED the word, which then ran on import and killed the coverage process with exit 0 — green CI, zero checks run). It also gained the negative board entry it never had.
 - **NEXT:** verifier round 3 is attacking the structural gate specifically — the syntactic hook (`storage.put(` can be aliased, destructured, wrapped, or bypassed via `storage.sql`/KV/D1), the manifest's failure modes, and whether my own `balance: false` declarations are honest. If the coverage claim does not survive, the gate header's wording must narrow with it.
 
-## 2026-08-06 · AUDIT-B+1 F2/F23/M-GATE-03 round 2 — the verifier broke my fix, and it was right · IN REVIEW (branch)
+## 2026-08-06 · AUDIT-B+1 F2/F23/M-GATE-03 round 2 — the verifier broke my fix, and it was right · DONE (merged)
 - **Commits:** boutik-plus `6869c4a` · shop-plus `3d20d9c` · sera `7b2cd46`. CI green on all three heads (runs 31060388424 / 31060392091 / 31060395989). All three gate boards green, 0 GATE FAILED.
 - **THE FIX I SHIPPED FIRST DID NOT WORK.** A fresh-context verifier renamed one identifier — `soldeVendeur` → `solde` — and a working seller wallet passed the entire board again, which is the exact defect the commit claimed to close. Eight further shapes passed: PascalCase `SoldeVendeur`, plural `soldes`, synonyms (`avoir`, `caisse`, `encours`, `reliquat`), French withdraw/top-up (`retraitVendeur`, `rechargerLeCompteVendeur`), a JSON key, and the ordinary call form `crediter(compte, m)`. I reproduced all of it before changing anything.
 - **AND IT BROKE HONEST CODE.** In French commerce « solde » ALSO means a clearance sale and « garantie » means warranty. `{ prixSolde, enSolde }`, `{ garantieMois, dureeGarantie }` and a `niveau1/2/3` category taxonomy all wrongly FAILED. Reproduced: exit 1 on each.
