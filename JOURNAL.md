@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-22 · QUARTIERS-OUAGA-1 — the official quartier list on the onboarding « Votre boutique » step · IN REVIEW (awaiting merge word)
+## 2026-08-22 · QUARTIERS-OUAGA-1 — the official quartier list on the onboarding « Votre boutique » step · DONE
+
+**MERGED AND DEPLOYED (founder's word, 2026-08-22: « merge and deploy »):** main fast-forwarded `4ec4044..adcbc6a` (`5f4b85c` the build + `adcbc6a` verifier fixes + journal). **Both push workflows green on adcbc6a, attempt 1 — ci run 313 · expo-preview run 191** (the registered v2 preview root, which carries the onboarding wizard). No service touched, no other dispatch needed. Shop-plus's half merged the same hour (`c890fce`, its journal).
 
 **Founder, 2026-08-22: « On boutik+, on the buyer's payment pwa screen, and in sera not all quartier from Ouagadougou are displayed… source all quartiers in Ouagadougou… Make sure the displaying are nice and professional and doesn't break anything. »**
 
@@ -16,7 +18,7 @@ Format per entry:
 
 **Process, on the record:** one mutation-revert used `git checkout --` on the uncommitted `screens2.tsx` and destroyed the picker edits — rebuilt from the verified content, re-proven (10/10 + tsc) before proceeding. And the slice commit initially landed on local `main` — moved to the designated branch (`main` never pushed, reset to origin).
 
-**Pending:** the founder's merge word for the branch.
+**Remaining check:** his phone — chip size, spacing, and the cloud in sunlight are appearance, which no walk may claim.
 
 ---
 
