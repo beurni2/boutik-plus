@@ -1,4 +1,4 @@
-import { decideCreateOffer, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from './offer-core.js';
+import { decideConsumeAvailable, decideCreateOffer, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from './offer-core.js';
 
 /**
  * OFFER STORE — the one persistence port for the offer aggregate
@@ -37,7 +37,19 @@ export interface OfferStore {
    * flexibility today and a real obligation forever.
    */
   listEntries(): Promise<OfferEntry[]>;
+  /**
+   * STOCK-VENDU-1 — a provider-confirmed order consumed one unit of this
+   * product. Idempotent per `orderId` (the wire is at-least-once); floors at
+   * zero with the oversell flagged; `no_offer` when the product is unknown
+   * here — nothing to move, and the caller must not wedge the wire on it.
+   */
+  consumeAvailable(productVersionId: string, orderId: string): Promise<ConsumeAvailableResult>;
 }
+
+export type ConsumeAvailableResult =
+  | { readonly status: 'consumed'; readonly available: number; readonly alreadyEmpty: boolean }
+  | { readonly status: 'idempotent'; readonly available: number }
+  | { readonly status: 'no_offer' };
 
 /** The in-memory substrate: the offer registry + the productVersionId→offerId pointer. */
 export class InMemoryOfferStore implements OfferStore {
@@ -63,6 +75,21 @@ export class InMemoryOfferStore implements OfferStore {
   /** Insertion order — the Map preserves it, which keeps CI output deterministic. */
   async listEntries(): Promise<OfferEntry[]> {
     return [...this.offers.values()];
+  }
+
+  /** Mirrors the DO exactly: a per-(offer, order) marker makes redelivery free. */
+  private readonly vendus = new Set<string>();
+
+  async consumeAvailable(productVersionId: string, orderId: string): Promise<ConsumeAvailableResult> {
+    const offerId = this.pvToOffer.get(productVersionId);
+    const entry = offerId === undefined ? undefined : this.offers.get(offerId);
+    if (entry === undefined) return { status: 'no_offer' };
+    const marker = `${entry.offerId}:${orderId}`;
+    if (this.vendus.has(marker)) return { status: 'idempotent', available: entry.available };
+    const d = decideConsumeAvailable(entry);
+    this.offers.set(entry.offerId, d.entry);
+    this.vendus.add(marker);
+    return { status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty };
   }
 }
 
@@ -115,6 +142,23 @@ export class DurableOfferStore implements OfferStore {
     const res = await this.worker.fetch(new Request('https://offer-do/supply-entries'));
     if (!res.ok) return [];
     return (await res.json()) as OfferEntry[];
+  }
+
+  /** The router resolves the pointer and the per-offer DO holds the marker —
+   *  this stays a thin client. A 404 is the honest `no_offer`; any other
+   *  non-OK THROWS so the intake can answer 5xx and the at-least-once wire
+   *  repairs the decrement on its next delivery. */
+  async consumeAvailable(productVersionId: string, orderId: string): Promise<ConsumeAvailableResult> {
+    const res = await this.worker.fetch(
+      new Request(`https://offer-do/supply-consume/${encodeURIComponent(productVersionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      }),
+    );
+    if (res.status === 404) return { status: 'no_offer' };
+    if (!res.ok) throw new Error(`consume_unavailable:${res.status}`);
+    return (await res.json()) as ConsumeAvailableResult;
   }
 }
 

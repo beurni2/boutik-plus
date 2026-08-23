@@ -1,4 +1,4 @@
-import { decideAttachAssets, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
+import { decideAttachAssets, decideConsumeAvailable, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 
@@ -92,6 +92,32 @@ export class OfferDO {
       const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
       return Response.json(entry);
+    }
+    /**
+     * STOCK-VENDU-1 — a provider-confirmed order consumed ONE unit of this
+     * offer. Idempotent per `orderId` under a per-order marker key, because
+     * the confirmed wire is at-least-once and a redelivery must never
+     * decrement twice. The marker and the moved entry land in ONE batch put —
+     * the DO's transactional storage makes « counted » and « remembered »
+     * inseparable, so no crash window can double-count. The counter floors at
+     * zero with the oversell flagged (`alreadyEmpty`) — the sale is a fact
+     * that already happened; this route records it, never judges it.
+     */
+    if (request.method === 'POST' && pathname === '/entry/consume') {
+      const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+      const orderId = body?.orderId;
+      if (typeof orderId !== 'string' || orderId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'orderId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const marker = `vendu-${orderId}`;
+      if ((await this.state.storage.get(marker)) !== undefined) {
+        return Response.json({ status: 'idempotent', available: entry.available });
+      }
+      const d = decideConsumeAvailable(entry);
+      await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: true });
+      return Response.json({ status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty });
     }
 
     /**
@@ -519,6 +545,27 @@ export default {
       // an orphaned pointer (offer gone) reads as the SAME honest not-found
       if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
       return forward(res, 200);
+    }
+
+    /**
+     * STOCK-VENDU-1 — the write resolution: pointer → the per-offer DO's own
+     * `/entry/consume`, deliberately symmetric with `/supply-entry/:pv` so the
+     * store adapter stays a thin client. INTERNAL ONLY: this router is fetched
+     * by the composition root behind the Bearer-gated fulfillment intake — the
+     * public worker never routes this path, so nothing outside the confirmed-
+     * order wire can move a counter (the e2e pins that 404).
+     */
+    const mc = /^\/supply-consume\/([^/]+)$/.exec(pathname);
+    if (mc && request.method === 'POST') {
+      const productVersionId = decodeURIComponent(mc[1]!);
+      const ptrRes = await pvStub(env, productVersionId).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      const ptr = (await ptrRes.json()) as PvPointer;
+      const res = await offerStub(env, ptr.offerId).fetch(
+        new Request('https://do/entry/consume', { method: 'POST', body: await request.text(), headers: { 'Content-Type': 'application/json' } }),
+      );
+      if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      return forward(res); // status preserved — a malformed body must stay a 400
     }
 
     return Response.json({ error: 'not_found' }, { status: 404 });

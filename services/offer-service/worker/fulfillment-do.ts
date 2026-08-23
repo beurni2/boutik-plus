@@ -1425,6 +1425,25 @@ export async function handleOrderConfirmedIntake(
   if (body?.ok !== true) {
     return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
   }
+
+  /**
+   * STOCK-VENDU-1 (founder order 2026-08-23) — the confirmed sale consumes one
+   * unit of the offer's `available`, HERE, because this intake is where the
+   * paid fact arrives and Shop+ may never alter stock (SP invariant). The
+   * order of failure is deliberate: the book registered first (first-wins),
+   * so a consume failure answers 503 and the emitter's at-least-once outbox
+   * redelivers — the book replay is a free duplicate and the consume is
+   * idempotent per orderId, so the retry REPAIRS the counter, never doubles
+   * it. `no_offer` (a pv this store cannot resolve — the same case the record
+   * already marks `supplierResolved: false`) proceeds: there is no counter to
+   * move, and wedging the wire on it would park the order forever.
+   */
+  try {
+    await store.consumeAvailable(event.payload.productVersionId, event.payload.orderId);
+  } catch {
+    return Response.json({ ok: false, reason: 'stock_unavailable' }, { status: 503 });
+  }
+
   // The response Shop+ sees carries NO supplier id — the join's result stays home.
   return Response.json({ ok: true, status: body.status });
 }

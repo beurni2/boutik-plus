@@ -116,6 +116,31 @@ export interface CreateOfferCommand {
   readonly variantsNote?: string;
 }
 
+/**
+ * STOCK-VENDU-1 — one provider-confirmed order consumes ONE unit of the
+ * declared `available` (the confirmed wire is a unit of one version — the
+ * acceptance lock the fulfillment book states). PURE: the caller owns the
+ * per-order idempotence marker (the DO's storage), this decides only the
+ * arithmetic. The counter FLOORS AT ZERO and the sale is never refused here —
+ * the order is real and money moved; an empty counter is recorded as
+ * `alreadyEmpty`, the oversell signal for the books, not a judgement.
+ */
+export interface ConsumeAvailableDecision {
+  readonly status: 'consumed';
+  readonly entry: OfferEntry;
+  /** The counter was already 0 when this sale arrived — oversold, floored, recorded. */
+  readonly alreadyEmpty: boolean;
+}
+
+export function decideConsumeAvailable(entry: OfferEntry): ConsumeAvailableDecision {
+  const alreadyEmpty = entry.available === 0;
+  return {
+    status: 'consumed',
+    entry: alreadyEmpty ? entry : { ...entry, available: entry.available - 1 },
+    alreadyEmpty,
+  };
+}
+
 export type CreateOfferDecision =
   | { readonly status: 'created'; readonly entry: OfferEntry; readonly preview: NetPreview }
   | { readonly status: 'idempotent'; readonly entry: OfferEntry }
