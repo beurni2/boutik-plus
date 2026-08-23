@@ -1,4 +1,4 @@
-import { decideAttachAssets, decideConsumeAvailable, decideCreateOffer, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
+import { decideAttachAssets, decideConsumeAvailable, decideCreateOffer, decideRestockAvailable, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 
@@ -112,12 +112,47 @@ export class OfferDO {
       const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
       const marker = `vendu-${orderId}`;
+      // The marker REMEMBERS its oversell flag: the intake's register can fail
+      // AFTER a consume, and the redelivery that repairs it must learn the
+      // same truth the first consume saw — or an oversold sale would lose its
+      // mark to a crash. (A `true` from a pre-flag deploy reads as not-empty.)
+      const seen = await this.state.storage.get<{ alreadyEmpty?: boolean } | true>(marker);
+      if (seen !== undefined) {
+        return Response.json({
+          status: 'idempotent',
+          available: entry.available,
+          alreadyEmpty: typeof seen === 'object' && seen.alreadyEmpty === true,
+        });
+      }
+      const d = decideConsumeAvailable(entry);
+      await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: { alreadyEmpty: d.alreadyEmpty } });
+      return Response.json({ status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty });
+    }
+    /**
+     * STOCK-VENDU-1b — the refused unit comes home (founder order 2026-08-23:
+     * « fix all 3 »). Plus one, ONLY for an order that consumed HERE (the
+     * `vendu-` marker — a refusal for an order that never decremented must
+     * not inflate), idempotent under its own `rendu-` marker, both writes in
+     * one atomic batch beside the moved entry.
+     */
+    if (request.method === 'POST' && pathname === '/entry/restock') {
+      const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+      const orderId = body?.orderId;
+      if (typeof orderId !== 'string' || orderId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'orderId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      if ((await this.state.storage.get(`vendu-${orderId}`)) === undefined) {
+        return Response.json({ status: 'not_consumed' });
+      }
+      const marker = `rendu-${orderId}`;
       if ((await this.state.storage.get(marker)) !== undefined) {
         return Response.json({ status: 'idempotent', available: entry.available });
       }
-      const d = decideConsumeAvailable(entry);
-      await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: true });
-      return Response.json({ status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty });
+      const next = decideRestockAvailable(entry);
+      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: true });
+      return Response.json({ status: 'restocked', available: next.available });
     }
 
     /**
@@ -566,6 +601,21 @@ export default {
       );
       if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
       return forward(res); // status preserved — a malformed body must stay a 400
+    }
+
+    // STOCK-VENDU-1b — the restock resolution, same shape and same internal-only
+    // reach as consume: the public worker routes neither.
+    const mr = /^\/supply-restock\/([^/]+)$/.exec(pathname);
+    if (mr && request.method === 'POST') {
+      const productVersionId = decodeURIComponent(mr[1]!);
+      const ptrRes = await pvStub(env, productVersionId).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      const ptr = (await ptrRes.json()) as PvPointer;
+      const res = await offerStub(env, ptr.offerId).fetch(
+        new Request('https://do/entry/restock', { method: 'POST', body: await request.text(), headers: { 'Content-Type': 'application/json' } }),
+      );
+      if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      return forward(res);
     }
 
     return Response.json({ error: 'not_found' }, { status: 404 });

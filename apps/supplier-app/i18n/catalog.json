@@ -4218,6 +4218,12 @@
     "screenClass": "status"
   },
   {
+    "key": "commandes.vendu_stock_zero",
+    "fr": "Vendu avec un stock à zéro — vérifiez le produit.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "commandes.vide_terminees",
     "fr": "Aucune commande livrée pour l'instant.",
     "register": "neutral",

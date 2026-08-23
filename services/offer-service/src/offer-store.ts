@@ -1,4 +1,4 @@
-import { decideConsumeAvailable, decideCreateOffer, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from './offer-core.js';
+import { decideConsumeAvailable, decideCreateOffer, decideRestockAvailable, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from './offer-core.js';
 
 /**
  * OFFER STORE — the one persistence port for the offer aggregate
@@ -44,11 +44,25 @@ export interface OfferStore {
    * here — nothing to move, and the caller must not wedge the wire on it.
    */
   consumeAvailable(productVersionId: string, orderId: string): Promise<ConsumeAvailableResult>;
+  /**
+   * STOCK-VENDU-1b — a refused course sent the unit home: plus one, ONLY for
+   * an order that consumed here (`not_consumed` guards inflation), idempotent
+   * per orderId (the refusal wire is at-least-once end to end).
+   */
+  restockAvailable(productVersionId: string, orderId: string): Promise<RestockAvailableResult>;
 }
 
 export type ConsumeAvailableResult =
   | { readonly status: 'consumed'; readonly available: number; readonly alreadyEmpty: boolean }
+  /** `alreadyEmpty` echoes the FIRST consume's flag — the register retry that
+   *  follows a crash must learn the same oversell truth the original saw. */
+  | { readonly status: 'idempotent'; readonly available: number; readonly alreadyEmpty: boolean }
+  | { readonly status: 'no_offer' };
+
+export type RestockAvailableResult =
+  | { readonly status: 'restocked'; readonly available: number }
   | { readonly status: 'idempotent'; readonly available: number }
+  | { readonly status: 'not_consumed' }
   | { readonly status: 'no_offer' };
 
 /** The in-memory substrate: the offer registry + the productVersionId→offerId pointer. */
@@ -77,19 +91,35 @@ export class InMemoryOfferStore implements OfferStore {
     return [...this.offers.values()];
   }
 
-  /** Mirrors the DO exactly: a per-(offer, order) marker makes redelivery free. */
-  private readonly vendus = new Set<string>();
+  /** Mirrors the DO exactly: per-(offer, order) markers make redelivery free —
+   *  the consume marker REMEMBERS its oversell flag so replays echo it. */
+  private readonly vendus = new Map<string, { alreadyEmpty: boolean }>();
+  private readonly rendus = new Set<string>();
 
   async consumeAvailable(productVersionId: string, orderId: string): Promise<ConsumeAvailableResult> {
     const offerId = this.pvToOffer.get(productVersionId);
     const entry = offerId === undefined ? undefined : this.offers.get(offerId);
     if (entry === undefined) return { status: 'no_offer' };
     const marker = `${entry.offerId}:${orderId}`;
-    if (this.vendus.has(marker)) return { status: 'idempotent', available: entry.available };
+    const seen = this.vendus.get(marker);
+    if (seen !== undefined) return { status: 'idempotent', available: entry.available, alreadyEmpty: seen.alreadyEmpty };
     const d = decideConsumeAvailable(entry);
     this.offers.set(entry.offerId, d.entry);
-    this.vendus.add(marker);
+    this.vendus.set(marker, { alreadyEmpty: d.alreadyEmpty });
     return { status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty };
+  }
+
+  async restockAvailable(productVersionId: string, orderId: string): Promise<RestockAvailableResult> {
+    const offerId = this.pvToOffer.get(productVersionId);
+    const entry = offerId === undefined ? undefined : this.offers.get(offerId);
+    if (entry === undefined) return { status: 'no_offer' };
+    const marker = `${entry.offerId}:${orderId}`;
+    if (!this.vendus.has(marker)) return { status: 'not_consumed' };
+    if (this.rendus.has(marker)) return { status: 'idempotent', available: entry.available };
+    const next = decideRestockAvailable(entry);
+    this.offers.set(entry.offerId, next);
+    this.rendus.add(marker);
+    return { status: 'restocked', available: next.available };
   }
 }
 
@@ -159,6 +189,22 @@ export class DurableOfferStore implements OfferStore {
     if (res.status === 404) return { status: 'no_offer' };
     if (!res.ok) throw new Error(`consume_unavailable:${res.status}`);
     return (await res.json()) as ConsumeAvailableResult;
+  }
+
+  /** Same thin-client discipline as consume: 404 → honest `no_offer`, any
+   *  other non-OK THROWS so the intake answers 5xx and the at-least-once
+   *  refusal wire repairs the restock on its next delivery. */
+  async restockAvailable(productVersionId: string, orderId: string): Promise<RestockAvailableResult> {
+    const res = await this.worker.fetch(
+      new Request(`https://offer-do/supply-restock/${encodeURIComponent(productVersionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      }),
+    );
+    if (res.status === 404) return { status: 'no_offer' };
+    if (!res.ok) throw new Error(`restock_unavailable:${res.status}`);
+    return (await res.json()) as RestockAvailableResult;
   }
 }
 

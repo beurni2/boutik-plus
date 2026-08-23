@@ -171,6 +171,15 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
                             <Text style={[PETIT, { marginTop: 3 }]} numberOfLines={1}>
                               {`${attente}${row.zoneTo !== '' ? ` · ${row.zoneTo}` : ''}`}
                             </Text>
+                            {/* STOCK-VENDU-1b — the OVERSOLD mark: this sale
+                                arrived while the counter said zero. Money
+                                moved; the stock may not exist — he must know
+                                before he prepares it. */}
+                            {row.oversold === true && (
+                              <Text style={[role({ f: 'IS', w: 700, s: 11.5 }, P.dangerFg), { marginTop: 3 }]} numberOfLines={1}>
+                                {t('commandes.vendu_stock_zero')}
+                              </Text>
+                            )}
                           </View>
                         </View>
                       </Card>

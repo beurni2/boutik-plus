@@ -254,3 +254,84 @@ describe('STOCK-VENDU — a sale moves the ONE counter every surface reads', () 
     expect(await stockSurConsole()).toBe(0);
   });
 });
+
+describe('STOCK-VENDU-1b — the refused unit comes home, on the real worker', () => {
+  function refusedEvent(orderId: string, faultClass?: string) {
+    return {
+      name: 'delivery.refused.v1',
+      envelope: {
+        command_id: `door-refusal-${orderId}`,
+        correlation_id: `corr-${orderId}`,
+        aggregateVersion: 9,
+        actor: 'sera:custody',
+        serverTime: T0,
+        version: 'v1',
+      },
+      payload: {
+        order_id: orderId,
+        task_id: `task-${orderId}`,
+        family: 'return',
+        reason_code: 'change_of_mind',
+        ...(faultClass !== undefined ? { fault_class: faultClass } : {}),
+        fee_retained: true,
+      },
+    };
+  }
+  async function postRefused(event: unknown, auth: string | null = `Bearer ${FULFILL_SECRET}`) {
+    const res = await mf.dispatchFetch('http://o/fulfillment/delivery-refused', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(auth !== null ? { Authorization: auth } : {}) },
+      body: JSON.stringify(event),
+    });
+    return { status: res.status, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
+  }
+
+  it('the intake door is Bearer-gated like its siblings', async () => {
+    expect((await postRefused(refusedEvent('ord-sv-3', 'buyer'), null)).status).toBe(401);
+    expect((await postRefused(refusedEvent('ord-sv-3', 'buyer'), 'Bearer wrong')).status).toBe(401);
+  });
+
+  it('a BUYER-fault refusal restocks the unit — 0 back to 1, on the road his console reads; the redelivery moves nothing', async () => {
+    const first = await postRefused(refusedEvent('ord-sv-3', 'buyer'));
+    expect(first.status).toBe(200);
+    expect(first.json['status']).toBe('restocked');
+    expect(await stockSurConsole()).toBe(1);
+    expect(await stockSurProjection()).toBe(1);
+    const again = await postRefused(refusedEvent('ord-sv-3', 'buyer'));
+    expect(again.status).toBe(200);
+    expect(again.json['status']).toBe('idempotent');
+    expect(await stockSurConsole()).toBe(1);
+  });
+
+  it('a SELLER-fault refusal restores nothing automatically (the safest default, founder-tunable)', async () => {
+    const res = await postRefused(refusedEvent('ord-sv-1', 'seller'));
+    expect(res.status).toBe(200);
+    expect(res.json['status']).toBe('no_restock');
+    expect(await stockSurConsole()).toBe(1);
+  });
+
+  it('a refusal with NO fault class (the evidence-rejected emit) restocks nothing', async () => {
+    const res = await postRefused(refusedEvent('ord-sv-2'));
+    expect(res.status).toBe(200);
+    expect(res.json['status']).toBe('no_restock');
+    expect(await stockSurConsole()).toBe(1);
+  });
+
+  it('an UNKNOWN order answers 200 — the at-least-once emitter must stop, never wedge', async () => {
+    const res = await postRefused(refusedEvent('ord-jamais-vu', 'buyer'));
+    expect(res.status).toBe(200);
+    expect(res.json['status']).toBe('unknown_order');
+    expect(await stockSurConsole()).toBe(1);
+  });
+
+  it("the OVERSOLD sale wears its mark on his board's own read; a clean sale does not", async () => {
+    const list = await mf.dispatchFetch('http://o/fulfillment/orders', {
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
+    });
+    const body = (await list.json()) as { orders: { orderId: string; oversold?: boolean }[] };
+    const sv4 = body.orders.find((o) => o.orderId === 'ord-sv-4');
+    const sv1 = body.orders.find((o) => o.orderId === 'ord-sv-1');
+    expect(sv4?.oversold, 'the oversold sale lost its mark').toBe(true);
+    expect(sv1?.oversold).toBeUndefined();
+  });
+});

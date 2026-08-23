@@ -7,6 +7,7 @@ import {
   type OrderConfirmedEvent,
   type PackageReadinessConfirmation,
 } from '@platform/contracts';
+import { restockOnRefusal } from '../src/offer-core.js';
 import type { OfferStore } from '../src/offer-store.js';
 
 /**
@@ -296,6 +297,10 @@ export interface PaidOrderRecord {
   readonly correlationId: string;
   /** This platform's own receipt time — when the book first saw the order. */
   readonly registeredAt: string;
+  /** STOCK-VENDU-1b — the sale arrived on an EMPTY counter: money moved,
+   *  stock did not exist. Optional — rows registered before the mark existed
+   *  simply never carry it. */
+  readonly oversold?: boolean;
 }
 
 export class FulfillmentDO {
@@ -621,6 +626,21 @@ export class FulfillmentDO {
       }
       await this.state.storage.put(key, record);
       return Response.json({ ok: true, status: 'registered' });
+    }
+
+    /** STOCK-VENDU-1b — the refusal intake's INTERNAL join: which product a
+     *  registered order sold. The row this book's own register wrote; 404 is
+     *  the honest « never saw that order », which the intake answers 200 on
+     *  (nothing to move — a wedge would park the wire forever). */
+    if (request.method === 'POST' && pathname === '/order-of') {
+      const body = (await request.json().catch(() => null)) as { orderId?: unknown } | null;
+      const orderId = body?.orderId;
+      if (typeof orderId !== 'string' || orderId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined) return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      return Response.json({ ok: true, productVersionId: order.productVersionId });
     }
 
     /** THE OPS READ — every paid order, supplier ids included. The ROUTER
@@ -1403,6 +1423,29 @@ export async function handleOrderConfirmedIntake(
   const entry = await store.getEntryByProductVersion(event.payload.productVersionId);
   const supplierId = entry?.product.supplierId ?? '';
 
+  /**
+   * STOCK-VENDU-1 (founder order 2026-08-23) — the confirmed sale consumes one
+   * unit of the offer's `available`, HERE, because this intake is where the
+   * paid fact arrives and Shop+ may never alter stock (SP invariant).
+   *
+   * CONSUME BEFORE REGISTER (1b: the oversell flag now rides INTO the book
+   * row, so the register must already know it). Every interleaving stays
+   * repaired by the emitter's at-least-once outbox: a consume failure answers
+   * 503 before anything registered; a register failure after a consume
+   * answers 503 and the redelivery's consume is a marker-idempotent replay
+   * that ECHOES the same `alreadyEmpty`, so the retried register carries the
+   * same flag. `no_offer` (a pv this store cannot resolve — the same case the
+   * record marks `supplierResolved: false`) proceeds flagless: there is no
+   * counter to move, and wedging the wire would park a real paid order.
+   */
+  let oversold = false;
+  try {
+    const stock = await store.consumeAvailable(event.payload.productVersionId, event.payload.orderId);
+    oversold = stock.status !== 'no_offer' && stock.alreadyEmpty === true;
+  } catch {
+    return Response.json({ ok: false, reason: 'stock_unavailable' }, { status: 503 });
+  }
+
   const record = {
     productName: entry?.product.name ?? '',
     orderId: event.payload.orderId,
@@ -1416,6 +1459,9 @@ export async function handleOrderConfirmedIntake(
     supplierResolved: supplierId !== '',
     correlationId: event.envelope.correlation_id,
     registeredAt: new Date().toISOString(),
+    // 1b — the oversell mark, persisted where his board reads (a sale that
+    // arrived on an empty counter: the money moved, the stock did not exist).
+    ...(oversold ? { oversold: true } : {}),
   };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   const res = await stub.fetch(
@@ -1426,26 +1472,59 @@ export async function handleOrderConfirmedIntake(
     return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
   }
 
-  /**
-   * STOCK-VENDU-1 (founder order 2026-08-23) — the confirmed sale consumes one
-   * unit of the offer's `available`, HERE, because this intake is where the
-   * paid fact arrives and Shop+ may never alter stock (SP invariant). The
-   * order of failure is deliberate: the book registered first (first-wins),
-   * so a consume failure answers 503 and the emitter's at-least-once outbox
-   * redelivers — the book replay is a free duplicate and the consume is
-   * idempotent per orderId, so the retry REPAIRS the counter, never doubles
-   * it. `no_offer` (a pv this store cannot resolve — the same case the record
-   * already marks `supplierResolved: false`) proceeds: there is no counter to
-   * move, and wedging the wire on it would park the order forever.
-   */
+  // The response Shop+ sees carries NO supplier id — the join's result stays home.
+  return Response.json({ ok: true, status: body.status });
+}
+
+/**
+ * STOCK-VENDU-1b — THE REFUSAL INTAKE (founder order 2026-08-23: « fix all
+ * 3 »). Séra proves a refused course and emits the canon
+ * `delivery.refused.v1` (its three emit sites); Shop+ relays it VERBATIM on
+ * the same road the delivered fact already rides — no new event is minted
+ * anywhere. This side re-parses with the same canon schema, resolves the
+ * order's product from ITS OWN book (the wire never needs to carry a pv), and
+ * restocks per the fault-class policy (`restockOnRefusal` — buyer fault and
+ * provider failure send the sealed product home; a seller fault restores
+ * nothing automatically; an event with no fault class restocks nothing).
+ *
+ * NEVER A WEDGE: an unknown order or a not-consumed order answers 200 — there
+ * is nothing to move and the at-least-once emitter must stop. Only a store
+ * failure answers 503, and the redelivery's restock is marker-idempotent.
+ */
+export async function handleRefusedIntake(
+  request: Request,
+  store: OfferStore,
+  env: FulfillmentEnv,
+): Promise<Response> {
+  const raw: unknown = await request.json().catch(() => null);
+  const parsed = PlatformEventSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.name !== 'delivery.refused.v1') {
+    return Response.json({ ok: false, reason: 'event_not_canonical' }, { status: 400 });
+  }
+  const p = parsed.data.payload as Record<string, unknown>;
+  const orderId = p['order_id'];
+  if (typeof orderId !== 'string' || orderId === '' || orderId.length > 256) {
+    return Response.json({ ok: false, reason: 'event_not_canonical' }, { status: 400 });
+  }
+
+  // The order's product, from OUR book — the row the confirmed wire wrote.
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  const res = await stub.fetch(new Request('https://do/order-of', { method: 'POST', body: JSON.stringify({ orderId }) }));
+  if (res.status === 404) return Response.json({ ok: true, status: 'unknown_order' });
+  if (res.status !== 200) return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
+  const row = (await res.json().catch(() => null)) as { productVersionId?: unknown } | null;
+  const pv = typeof row?.productVersionId === 'string' ? row.productVersionId : '';
+  if (pv === '') return Response.json({ ok: true, status: 'unknown_order' });
+
+  if (!restockOnRefusal(p['fault_class'])) {
+    return Response.json({ ok: true, status: 'no_restock', faultClass: typeof p['fault_class'] === 'string' ? p['fault_class'] : null });
+  }
   try {
-    await store.consumeAvailable(event.payload.productVersionId, event.payload.orderId);
+    const out = await store.restockAvailable(pv, orderId);
+    return Response.json({ ok: true, status: out.status });
   } catch {
     return Response.json({ ok: false, reason: 'stock_unavailable' }, { status: 503 });
   }
-
-  // The response Shop+ sees carries NO supplier id — the join's result stays home.
-  return Response.json({ ok: true, status: body.status });
 }
 
 /**

@@ -130,6 +130,21 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
     screen.unmount();
   });
 
+  it('STOCK-VENDU-1b — an OVERSOLD sale wears its warning on the row; a clean sale stays quiet', async () => {
+    // The mark is DATA the book computed (money moved on an empty counter) —
+    // the walk proves the sentence REACHES his eyes on the real screen, and
+    // that a clean row never grows one by accident.
+    const SURVENDU = { ...AVEC_PHOTO, orderId: 'ord-survendu', productVersionId: 'pv-couffin', productName: 'Couffin osier', productPhotoRef: '', oversold: true };
+    wire([livre([SURVENDU, SANS_PHOTO]), offresVides]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
+
+    expect(screen.shows('Couffin osier')).toBe(true);
+    expect(screen.shows('Vendu avec un stock à zéro')).toBe(true);
+    // Exactly ONE warning — the clean row beside it carries none.
+    expect(screen.texts().filter((t2) => t2.includes('Vendu avec un stock à zéro'))).toHaveLength(1);
+    screen.unmount();
+  });
+
   it('a row is PRESSABLE and lands him on Commandes — the next screen, reached', async () => {
     wire([livre([AVEC_PHOTO]), offresVides]);
     const vus: string[] = [];

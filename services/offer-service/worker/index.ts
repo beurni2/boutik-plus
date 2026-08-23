@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -289,6 +289,19 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
       if (refused) return refused;
       return handleDeliveredIntake(request, env);
+    }
+    /**
+     * STOCK-VENDU-1b — the REFUSED-course fact, on the same terms as the
+     * delivered one: Séra proved it, Shop+ relays the canon
+     * `delivery.refused.v1` verbatim, the same intake secret gates the door.
+     * The refused unit comes home to the offer's counter per the fault-class
+     * policy; no new event name, no new secret, no third road.
+     */
+    if (request.method === 'POST' && fp === '/fulfillment/delivery-refused') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      if (refused) return refused;
+      const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
+      return handleRefusedIntake(request, store, env);
     }
     // The OPS READ of the book — gated by the FOUNDER'S OWN credential, never
     // the intake secret: the list carries `supplierId`, and the intake secret

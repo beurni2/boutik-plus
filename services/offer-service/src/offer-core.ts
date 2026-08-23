@@ -141,6 +141,28 @@ export function decideConsumeAvailable(entry: OfferEntry): ConsumeAvailableDecis
   };
 }
 
+/**
+ * STOCK-VENDU-1b — the refused unit comes home. PURE: plus one, unbounded
+ * above (a restock can never exceed what was consumed — the caller's
+ * only-if-consumed marker guards that, not arithmetic here).
+ */
+export function decideRestockAvailable(entry: OfferEntry): OfferEntry {
+  return { ...entry, available: entry.available + 1 };
+}
+
+/**
+ * STOCK-VENDU-1b — WHICH refusals restore stock (the safest default, named to
+ * the founder as his tunable): a `buyer` fault or a `payment_provider` failure
+ * sends the SEALED product home unsold — restock. A `seller` fault
+ * (conformity mismatch: the listed item was wrong or defective) restores
+ * nothing automatically. An event with NO fault class (the evidence-rejected
+ * emit) restocks nothing — an unattributed refusal is not evidence the unit
+ * is sellable again.
+ */
+export function restockOnRefusal(faultClass: unknown): boolean {
+  return faultClass === 'buyer' || faultClass === 'payment_provider';
+}
+
 export type CreateOfferDecision =
   | { readonly status: 'created'; readonly entry: OfferEntry; readonly preview: NetPreview }
   | { readonly status: 'idempotent'; readonly entry: OfferEntry }

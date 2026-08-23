@@ -112,3 +112,82 @@ describe('InMemoryOfferStore.consumeAvailable — idempotent per order, honest a
     expect(await store.consumeAvailable('pv-inconnu', 'ord-9')).toMatchObject({ status: 'no_offer' });
   });
 });
+
+describe('restockOnRefusal — the fault-class policy (safest default, founder-tunable)', () => {
+  it('a buyer-fault refusal and a provider failure return a SEALED product — restock', async () => {
+    const { restockOnRefusal } = await import('../src/offer-core.js');
+    expect(restockOnRefusal('buyer')).toBe(true);
+    expect(restockOnRefusal('payment_provider')).toBe(true);
+  });
+  it('a seller fault (conformity mismatch) does NOT restore the listed item; an absent fault restocks nothing', async () => {
+    const { restockOnRefusal } = await import('../src/offer-core.js');
+    expect(restockOnRefusal('seller')).toBe(false);
+    expect(restockOnRefusal(undefined)).toBe(false);
+    expect(restockOnRefusal(42)).toBe(false);
+    expect(restockOnRefusal('')).toBe(false);
+  });
+});
+
+describe('restockAvailable — the refused unit comes home, once, and only if it ever left', () => {
+  const seed: CreateOfferCommand = {
+    commandId: 'seed-sv-2',
+    offerId: 'offer-sv-2',
+    product: {
+      id: 'pv-sv-2',
+      supplierId: 'supplier-founder-001',
+      version: 1,
+      name: 'Poussette (test)',
+      productCode: 'SV-002',
+      facts: {},
+      category: 'fashion_bags_fabrics',
+      zone: 'Gounghin',
+      moderationState: 'approved',
+      status: 'active',
+      supplyMode: 'SELLER_HELD',
+    } as CreateOfferCommand['product'],
+    draft: {
+      productVersionId: 'pv-sv-2',
+      basePrice: 10_000,
+      resellerCommission: 1_000,
+      eligibleVariants: [],
+      zones: [],
+      effective: '2026-07-10T00:00:00.000Z',
+      expiry: '2026-12-31T00:00:00.000Z',
+    } as unknown as CreateOfferCommand['draft'],
+    available: 1,
+    asOf: '2026-08-01T08:00:00.000Z',
+  };
+
+  it('consume then restock round-trips the counter; the redelivered restock moves nothing', async () => {
+    const store = new InMemoryOfferStore();
+    await store.create(seed);
+    await store.consumeAvailable('pv-sv-2', 'ord-r1');
+    expect((await store.getEntryByProductVersion('pv-sv-2'))?.available).toBe(0);
+    const back = await store.restockAvailable('pv-sv-2', 'ord-r1');
+    expect(back).toMatchObject({ status: 'restocked', available: 1 });
+    // the refusal wire is at-least-once too — a redelivery must not inflate
+    expect(await store.restockAvailable('pv-sv-2', 'ord-r1')).toMatchObject({ status: 'idempotent', available: 1 });
+    expect((await store.getEntryByProductVersion('pv-sv-2'))?.available).toBe(1);
+  });
+
+  it('a restock for an order that never CONSUMED here moves nothing — stock cannot inflate', async () => {
+    const store = new InMemoryOfferStore();
+    await store.create(seed);
+    expect(await store.restockAvailable('pv-sv-2', 'ord-jamais-vendu')).toMatchObject({ status: 'not_consumed' });
+    expect((await store.getEntryByProductVersion('pv-sv-2'))?.available).toBe(1);
+    expect(await store.restockAvailable('pv-inconnu', 'ord-x')).toMatchObject({ status: 'no_offer' });
+  });
+
+  it('the OVERSELL FLAG survives redelivery: an idempotent consume replay still says alreadyEmpty', async () => {
+    const store = new InMemoryOfferStore();
+    await store.create(seed);
+    await store.consumeAvailable('pv-sv-2', 'ord-r1'); // 1 → 0
+    const over = await store.consumeAvailable('pv-sv-2', 'ord-r2'); // oversold
+    expect(over).toMatchObject({ status: 'consumed', alreadyEmpty: true });
+    // the register can fail AFTER the consume; the retry must learn the same flag
+    const replay = await store.consumeAvailable('pv-sv-2', 'ord-r2');
+    expect(replay).toMatchObject({ status: 'idempotent', alreadyEmpty: true });
+    const clean = await store.consumeAvailable('pv-sv-2', 'ord-r1');
+    expect(clean).toMatchObject({ status: 'idempotent', alreadyEmpty: false });
+  });
+});

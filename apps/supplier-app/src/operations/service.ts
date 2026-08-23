@@ -81,6 +81,9 @@ export interface PaidOrderRow {
   readonly relance?: RelanceMark;
   /** Absent until the supplier has accepted or confirmed ready. */
   readonly fulfillment?: FulfillmentMark;
+  /** STOCK-VENDU-1b — the sale arrived on an EMPTY counter (money moved,
+   *  stock did not exist); rows from before the mark never carry it. */
+  readonly oversold?: boolean;
 }
 
 export type PaidOrdersResult =
@@ -658,7 +661,8 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     typeof r['registeredAt'] === 'string' &&
     (r['productName'] === undefined || typeof r['productName'] === 'string') &&
     (r['productPhotoRef'] === undefined || typeof r['productPhotoRef'] === 'string') &&
-    (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string');
+    (r['offerVersion'] === undefined || typeof r['offerVersion'] === 'string') &&
+    (r['oversold'] === undefined || typeof r['oversold'] === 'boolean');
   if (!ok) return null;
   const relance = readRelance(r['relance']);
   const fulfillment = readFulfillment(r['fulfillment']);
@@ -666,6 +670,7 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     ...(relance !== null ? { relance } : {}),
     ...(fulfillment !== null ? { fulfillment } : {}),
     orderId: r['orderId'] as string,
+    ...(r['oversold'] === true ? { oversold: true } : {}),
     productVersionId: r['productVersionId'] as string,
     productName: typeof r['productName'] === 'string' ? r['productName'] : '',
     // A Worker that has not shipped the join yet omits the field entirely; ''
