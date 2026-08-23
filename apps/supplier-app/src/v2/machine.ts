@@ -11,7 +11,7 @@
  * render-only ([DEMO] T16 walks the happy path only).
  */
 import { fee, net, formatF } from './money';
-import { composeVariantes, detailsParDefaut } from './categorie-details';
+import { composeVariantes, detailsParDefaut, memesQuestions } from './categorie-details';
 import { SEED_ORDERS, SEED_PRODUCTS, type Order, type OrderStatus, type Product } from './seed';
 import { TILE_GRADIENT } from '../ui/v2/palette';
 
@@ -271,16 +271,17 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
     case 'WIZ_SET': {
       // RAYONS-1 (extends CAPTURE-PAR-CATEGORIE-1): a category change swaps
       // UNTOUCHED defaults for the new category's own fields; text he typed
-      // outranks every default WHILE the field set keeps the same shape (the
-      // legacy eight are all one field, so his text survives those moves
-      // exactly as before). A different shape means different QUESTIONS —
-      // keeping old answers under new labels would publish false records, so
-      // those swap to the new defaults.
+      // outranks every default WHILE the categories ask the SAME QUESTIONS
+      // (the legacy eight are all one free-variants field, so his text
+      // survives those moves exactly as before; Poussette → Chaise haute
+      // both ask Marque puis Couleurs, so answers ride). Different questions
+      // — even at the same count (verifier BLOCKER: Poussette → Couffin) —
+      // swap to the new defaults: old answers under new labels would publish
+      // false records.
       if (typeof a.patch.cat === 'string' && a.patch.cat !== s.wiz.cat && a.patch.details === undefined) {
         const anciens = detailsParDefaut(s.wiz.cat);
-        const nouveaux = detailsParDefaut(a.patch.cat);
         const intacts = s.wiz.details.length === anciens.length && s.wiz.details.every((v, i) => v === anciens[i]);
-        const details = intacts || s.wiz.details.length !== nouveaux.length ? nouveaux : s.wiz.details;
+        const details = intacts || !memesQuestions(s.wiz.cat, a.patch.cat) ? detailsParDefaut(a.patch.cat) : s.wiz.details;
         return { s: { ...s, wiz: { ...s.wiz, ...a.patch, details } }, fx };
       }
       return { s: { ...s, wiz: { ...s.wiz, ...a.patch } }, fx };

@@ -118,6 +118,24 @@ export function detailChamps(cat: string): readonly VarianteChamp[] {
 }
 
 /**
+ * The SAME QUESTIONS in the same order — the only condition under which typed
+ * answers may survive a category change (verifier BLOCKER, fixed in-build:
+ * a length-only comparison let « Chicco » typed under Poussette's « Marque »
+ * ride into Couffin's « Matière » — same length, different question, a false
+ * record on the wire).
+ */
+export function memesQuestions(catA: string, catB: string): boolean {
+  const a = detailChamps(catA);
+  const b = detailChamps(catB);
+  // Two single-field categories ask the SAME question — the one free-variants
+  // field, wearing the category's clothes (CAPTURE-PAR-CATEGORIE-1's own
+  // framing, and the shipped law: « 37, 38, 39 » survives a Chaussures →
+  // Mode femme correction). Multi-field sets must match question for question.
+  if (a.length === 1 && b.length === 1) return true;
+  return a.length === b.length && a.every((c, i) => c.labelKey === b[i]!.labelKey);
+}
+
+/**
  * What the machine may write into the fields UNASKED. Only clothing earns a
  * pre-fill (the shipped law): S/M/L is a true default for garments and a
  * false one for everything else. Every other field starts EMPTY — an empty

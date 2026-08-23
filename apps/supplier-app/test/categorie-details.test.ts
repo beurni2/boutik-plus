@@ -174,6 +174,25 @@ describe('the machine — untouched defaults swap with the category; typed text 
     expect(s1.wiz.details).toEqual(detailsParDefaut('Poussette'));
   });
 
+  it('an EQUAL-LENGTH change with DIFFERENT questions swaps too — « Chicco » must never become a Matière (verifier BLOCKER)', () => {
+    // Poussette asks [Marque, Couleurs]; Couffin asks [Matière, Couleurs].
+    // Same length, different first question — a length-only shape test kept
+    // his brand name and published « Matière : Chicco », the exact false
+    // record this slice exists to prevent.
+    const s0 = withCat(initialState(), 'Poussette');
+    const typed = reduce(s0, { t: 'WIZ_SET', patch: { details: ['Chicco', ''] } }).s;
+    expect(withCat(typed, 'Couffin').wiz.details).toEqual(detailsParDefaut('Couffin'));
+  });
+
+  it('an IDENTICAL-questions change keeps his answers — Poussette → Chaise haute both ask Marque puis Couleurs', () => {
+    const s0 = withCat(initialState(), 'Poussette');
+    const typed = reduce(s0, { t: 'WIZ_SET', patch: { details: ['Chicco', 'gris'] } }).s;
+    expect(withCat(typed, 'Chaise haute').wiz.details).toEqual(['Chicco', 'gris']);
+    const lit = withCat(initialState(), 'Lit petit enfant');
+    const mesure = reduce(lit, { t: 'WIZ_SET', patch: { details: ['120 x 60 cm', 'bois'] } }).s;
+    expect(withCat(mesure, 'Lit à barreaux').wiz.details).toEqual(['120 x 60 cm', 'bois']);
+  });
+
   it('a patch that names details ALONGSIDE cat is honored verbatim — no second write', () => {
     const s = reduce(initialState(), { t: 'WIZ_SET', patch: { cat: 'Tissus', details: ['coupe 3 m'] } }).s;
     expect(s.wiz.cat).toBe('Tissus');
