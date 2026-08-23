@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-23 · RAYONS-1 — the listing wizard learns to sell multi-diverse products · IN REVIEW (awaiting merge word)
+## 2026-08-23 · RAYONS-1 — the listing wizard learns to sell multi-diverse products · DONE
+
+**MERGED AND DEPLOYED (founder's word, 2026-08-23: « Merge and deploy »):** main fast-forwarded `fa60a53..a1d0f6c` (`bd1f358` the build + `a1d0f6c` verifier fix + journal). **All three workflows green on a1d0f6c, attempt 1 — ci run 315 · expo-preview run 193 · web-deploy run 64** (the Boutik+ supplier web app on Cloudflare Pages — the deployable that puts the aisled wizard in his hand; dispatched on his word, per the manual-only deploy ruling). The fournisseur root is untouched by this slice, so no fournisseur-web-deploy was needed.
 
 **Founder, 2026-08-23: « on the boutik+ the categories and the details & stocks are not really professional and well structured like a real listing screens of multi-diverse products. make it be nice, simple, very well detailed and structured and very professional like multi-billion dollar company page »** — with his product list: car seat, stroller · baby room (toddler bed, crib, bassinet) · baby bath (tub, bowls, shower rug, towels) · baby dining (plate sets, tables, bavoir, high chairs) · toys (cars, educational ABC/numbers, dolls & cooking, outdoor, bikes/ebikes) · women's room (vanity, sheets & covers, vases, decor) — « plus many other types of products ».
 
@@ -21,7 +23,7 @@ Format per entry:
 
 **Process, on the record:** the `git checkout` uncommitted-file trap bit a SECOND time (a mutation revert ate the machine edits; rebuilt from verified content, re-proven) — the countermeasure now practiced: **commit the build BEFORE running mutations.** And the slice commit initially landed on local `main` again — moved to the designated branch, `main` reset to origin, never pushed.
 
-**Pending:** the founder's merge word for the branch. His phone remains the check on how the shelves read in the sun — no walk claims appearance.
+**Remaining check:** his phone, on how the shelves read in the sun — no walk claims appearance. Open to his word: an « ebikes » chip if he wants one distinct from « Vélo enfant », and the canon category-list Decision register (platform-contracts) still formally open — the app follows his taxonomy order meanwhile.
 
 ---
 
