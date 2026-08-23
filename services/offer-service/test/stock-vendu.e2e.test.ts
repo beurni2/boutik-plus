@@ -170,6 +170,23 @@ describe('STOCK-VENDU — a sale moves the ONE counter every surface reads', () 
     expect(await stockSurProjection()).toBe(2);
   });
 
+  it('THE WRITE STAYS CLOSED — probed while stock is ABOVE zero, so « unmoved » is a real claim (verifier note)', async () => {
+    // The root refuses unknown paths behind its auth wall (401-first, never an
+    // oracle). Both halves are load-bearing HERE, at stock 2: a routed request
+    // would answer 200 {status:'consumed'} (caught by the status pin) AND
+    // would move the counter (caught by the unmoved pin) — at zero the floor
+    // would have masked the second half.
+    for (const auth of [`Bearer ${FULFILL_SECRET}`, `Bearer ${WRITE_SECRET}`, `Bearer ${OPS_SECRET}`, null]) {
+      const res = await mf.dispatchFetch(`http://o/supply-consume/${PV}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(auth !== null ? { Authorization: auth } : {}) },
+        body: JSON.stringify({ orderId: 'ord-intrus' }),
+      });
+      expect([401, 404]).toContain(res.status);
+    }
+    expect(await stockSurConsole()).toBe(2);
+  });
+
   it('the wire is at-least-once: the SAME order redelivered moves nothing', async () => {
     const again = await postIntake('ord-sv-1');
     expect(again.status).toBe(200);
@@ -177,8 +194,19 @@ describe('STOCK-VENDU — a sale moves the ONE counter every surface reads', () 
     expect(await stockSurProjection()).toBe(2);
   });
 
-  it('two more sales reach an honest zero — what the vitrine renders as épuisé', async () => {
+  it('DURABILITY at stock 1 — the counter AND the consumed marker both survive a process death (verifier note: proven above zero, where the floor cannot mask a lost marker)', async () => {
     await postIntake('ord-sv-2');
+    expect(await stockSurConsole()).toBe(1);
+    await mf.dispose();
+    mf = makeMf();
+    expect(await stockSurConsole()).toBe(1);
+    // The marker's own proof: a lost marker would consume afresh (1 → 0);
+    // a surviving one answers idempotent and the counter HOLDS at 1.
+    await postIntake('ord-sv-2');
+    expect(await stockSurConsole()).toBe(1);
+  });
+
+  it('the last sale reaches an honest zero — what the vitrine renders as épuisé', async () => {
     await postIntake('ord-sv-3');
     expect(await stockSurConsole()).toBe(0);
     expect(await stockSurProjection()).toBe(0);
@@ -195,30 +223,34 @@ describe('STOCK-VENDU — a sale moves the ONE counter every surface reads', () 
     expect(await stockSurConsole()).toBe(0);
   });
 
-  it('DURABILITY: the moved counter and the consumed markers survive a process death', async () => {
-    await mf.dispose();
-    mf = makeMf();
-    expect(await stockSurConsole()).toBe(0);
-    // …and the marker survived too: an old order redelivered after the restart still moves nothing…
-    await postIntake('ord-sv-2');
-    expect(await stockSurConsole()).toBe(0);
-    // …while the counter still floors for good measure.
-    await postIntake('ord-sv-5');
-    expect(await stockSurConsole()).toBe(0);
-  });
-
-  it('THE WRITE STAYS CLOSED: the consume path is refused on the public worker and the counter does not move', async () => {
-    // The root refuses unknown paths behind its auth wall (401-first, never an
-    // oracle) — the CLAIM that matters is that no public call, credentialed
-    // with anything this suite holds, can move a counter.
-    for (const auth of [`Bearer ${FULFILL_SECRET}`, `Bearer ${WRITE_SECRET}`, `Bearer ${OPS_SECRET}`, null]) {
-      const res = await mf.dispatchFetch(`http://o/supply-consume/${PV}`, {
+  it('an UNKNOWN product never wedges the wire (verifier BLOCKER): the order lands, the intake answers 200, twice', async () => {
+    // The eternal-wedge cell: a paid order whose pv resolves to no offer must
+    // NOT 503 — a 5xx would make the at-least-once outbox redeliver forever
+    // against a counter that does not exist. The real chain under test:
+    // router 404 for the unresolved pointer → the store adapter's honest
+    // `no_offer` (never a throw) → the intake proceeds. The order still lands
+    // on the board (the record already marks it supplier-unresolved), and a
+    // redelivery answers 200 again — no wedge, first delivery or tenth.
+    const fantome = {
+      ...confirmedEvent('ord-sv-fantome'),
+      payload: { ...confirmedEvent('ord-sv-fantome').payload, productVersionId: 'pv-fantome-001' },
+    };
+    const post = async () =>
+      mf.dispatchFetch('http://o/fulfillment/order-confirmed', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(auth !== null ? { Authorization: auth } : {}) },
-        body: JSON.stringify({ orderId: 'ord-intrus' }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FULFILL_SECRET}` },
+        body: JSON.stringify(fantome),
       });
-      expect([401, 404]).toContain(res.status);
-    }
-    expect(await stockSurConsole()).toBe(0); // unmoved — 'ord-intrus' consumed nothing
+    const first = await post();
+    expect(first.status).toBe(200);
+    const again = await post();
+    expect(again.status).toBe(200);
+    const list = await mf.dispatchFetch('http://o/fulfillment/orders', {
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
+    });
+    const body = (await list.json()) as { orders: { orderId: string }[] };
+    expect(body.orders.some((o) => o.orderId === 'ord-sv-fantome'), 'the unresolved sale vanished from the book').toBe(true);
+    // …and the SEEDED offer's counter was untouched by the phantom pv.
+    expect(await stockSurConsole()).toBe(0);
   });
 });
