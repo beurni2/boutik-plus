@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-23 · STOCK-VENDU-1b — the three named opens, closed: refusals restock · stale pages can't pay épuisé · oversold on the board · IN REVIEW (awaiting merge word, ships WITH STOCK-VENDU-1)
+## 2026-08-23 · STOCK-VENDU-1b — the three named opens, closed: refusals restock · stale pages can't pay épuisé · oversold on the board · DONE
+
+**MERGED AND DEPLOYED (founder: « merge and deploy », 2026-08-23).** `main` fast-forwarded `407100e..fa6a694` — carrying STOCK-VENDU-1 (`29cc4bc` + `7840ab4`, which shipped with 1b as reported) and 1b (`c328c6a` + the journal). **ci 317 · expo-preview 195 green on push, attempt 1; then `offer-deploy` run 32 → success (the offer worker: consume, restock, refused intake) and `web-deploy` run 65 → success (his console with the oversold row), both dispatched after ci.** Zero new secrets to arm — the refused intake rides `FULFILLMENT_WRITE_SECRET`, already set for the delivered wire.
 
 **Founder, 2026-08-23: « fix the all 3 as well »** — the three open items named in the STOCK-VENDU-1 report. This repo's half (`c328c6a`), with the sera half (`c0b097b`) and the shop half (`0945484`) on the same branch name in their repos.
 
@@ -16,7 +18,7 @@ Format per entry:
 
 ---
 
-## 2026-08-23 · STOCK-VENDU-1 — a paid order consumes one unit of the offer's stock, everywhere · IN REVIEW (awaiting merge word)
+## 2026-08-23 · STOCK-VENDU-1 — a paid order consumes one unit of the offer's stock, everywhere · DONE (merged and deployed WITH 1b, 2026-08-23 — see the 1b entry above for the runs)
 
 **Founder, 2026-08-23: « and also make sure the stock on products is updated everywhere if someone buys a product. »**
 
