@@ -1920,6 +1920,102 @@
     "screenClass": "instruction"
   },
   {
+    "key": "publier.champ_age_poids",
+    "fr": "Âge ou poids de l’enfant",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_age_poids_ex",
+    "fr": "Ex. 0-13 kg ou 0-12 mois",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_age_conseille",
+    "fr": "Âge conseillé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_age_conseille_ex",
+    "fr": "Ex. 3 ans et plus",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_marque",
+    "fr": "Marque et modèle",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_marque_ex",
+    "fr": "Ex. Chicco, modèle 2023",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_couleurs",
+    "fr": "Couleurs disponibles",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_couleurs_ex",
+    "fr": "Ex. gris, rose, bleu",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_dimensions",
+    "fr": "Dimensions",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_dimensions_ex",
+    "fr": "Ex. 120 x 60 cm",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_matiere",
+    "fr": "Matière",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_matiere_ex",
+    "fr": "Ex. bois, coton, plastique",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_pieces",
+    "fr": "Nombre de pièces",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_pieces_ex",
+    "fr": "Ex. lot de 6",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.champ_roues",
+    "fr": "Taille des roues",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_roues_ex",
+    "fr": "Ex. 12, 14 ou 16 pouces",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
     "key": "operations.titre",
     "fr": "Opérations",
     "register": "neutral",

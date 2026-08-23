@@ -111,21 +111,29 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     for (const label of ['Catégorie', 'Code produit', 'Stock disponible', 'Prix de base']) {
       expect(screens2, `verify row missing: ${label}`).toContain(`'${label}'`);
     }
-    // EVOLVED (CAPTURE-PAR-CATEGORIE-1): the variantes row no longer carries a
-    // literal label — it wears the CATEGORY'S label (Pointures, Coupe ou
-    // motif…), the same key the step-1 field uses, so recap and field can
-    // never disagree about what the free text means.
-    expect(screens2, 'verify variantes row missing').toContain(
-      "[tr(varianteChamp(w.cat).labelKey), w.sizes.trim() === '' ? '—' : w.sizes]",
+    // EVOLVED TWICE (CAPTURE-PAR-CATEGORIE-1 → RAYONS-1): the detail rows
+    // carry no literal labels — the recap maps ONE ROW PER detail question
+    // over the same `detailChamps(w.cat)` list the step-1 fields render from,
+    // so recap and fields can never disagree about what the answers mean.
+    expect(screens2, 'verify detail rows are not category-aware').toContain(
+      '...detailChamps(w.cat).map((c, i): readonly [string, string] =>',
     );
-    // AND the step-1 FIELD wears the same category label + its example
+    // AND the step-1 FIELDS wear the same category labels + their examples
     // (verifier N1: pinning only the recap left « recap agrees with the field »
     // half-tested — a state where the two disagree was green).
-    expect(screens2, 'step-1 variantes field is not category-aware').toContain(
-      'label={tr(varianteChamp(w.cat).labelKey)}',
+    expect(screens2, 'step-1 detail fields are not category-aware').toContain(
+      'label={tr(c.labelKey)}',
     );
-    expect(screens2, 'step-1 variantes example is not category-aware').toContain(
-      'tr(varianteChamp(w.cat).exempleKey)',
+    expect(screens2, 'step-1 detail examples are not category-aware').toContain(
+      'tr(c.exempleKey)',
+    );
+    // AND the REAL publish composes the same answers into the canon note —
+    // the call site in formFromWiz, since nothing mounts SListerReal (its
+    // services resolve null under test). A source pin is the guard available;
+    // the compose LAW itself is unit-tested in categorie-details.test.ts and
+    // the machine's own call site is driven there through reduce.
+    expect(lister, 'the real publish does not compose the details').toContain(
+      'variantsNote: composeVariantes(wiz.cat, wiz.details)',
     );
   });
 });

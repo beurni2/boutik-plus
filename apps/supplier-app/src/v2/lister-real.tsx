@@ -64,6 +64,7 @@ import { heroSquareCrop, heroVerticalCrop } from '../studio/crops';
 import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } from '../studio/roles';
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
+import { composeVariantes } from './categorie-details';
 import { cleEchecHttp, supplierPourPublication } from './lister-pour';
 import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './lister-pour-choix';
 import { avecVideo, decideVideoChoisie, videoEchecKey, videoRefusKey } from '../supply/video';
@@ -145,7 +146,9 @@ function formFromWiz(wiz: S['wiz']): AuthoringForm {
     basePrice: String(wiz.B),
     resellerCommission: String(wiz.C),
     available: String(wiz.stock),
-    variantsNote: wiz.sizes,
+    // RAYONS-1: the category's structured answers become the ONE canon note —
+    // single-field categories byte-identical to what always published.
+    variantsNote: composeVariantes(wiz.cat, wiz.details),
   };
 }
 

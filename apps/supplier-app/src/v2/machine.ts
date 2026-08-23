@@ -11,7 +11,7 @@
  * render-only ([DEMO] T16 walks the happy path only).
  */
 import { fee, net, formatF } from './money';
-import { variantesParDefaut } from './categorie-details';
+import { composeVariantes, detailsParDefaut } from './categorie-details';
 import { SEED_ORDERS, SEED_PRODUCTS, type Order, type OrderStatus, type Product } from './seed';
 import { TILE_GRADIENT } from '../ui/v2/palette';
 
@@ -52,7 +52,7 @@ export type View = null | { s: 'product' | 'order' | 'add' | 'studio' | 'trust' 
 // different from a field the system decided for him). Every §4 transition and
 // §9 rule is untouched by them. `zone` NEVER travels: the supply projection
 // stays seven fields; it is boutik-side data ahead of the delivery work.
-export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; code: string; zone: string; B: number; C: number; sizes: string; stock: number; photos: boolean };
+export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; code: string; zone: string; B: number; C: number; details: readonly string[]; stock: number; photos: boolean };
 export type Studio = { step: 0 | 1 | 2 | 3; low: boolean; proc: 0 | 1 | 2 | 3 | 4; orig: boolean };
 
 export type S = {
@@ -76,7 +76,7 @@ export type S = {
   tseq: number; // toast id sequence
 };
 
-export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', code: '', zone: '', B: 10_000, C: 1_000, sizes: 'S, M, L', stock: 5, photos: false };
+export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', code: '', zone: '', B: 10_000, C: 1_000, details: detailsParDefaut('Mode femme'), stock: 5, photos: false };
 
 export function initialState(): S {
   return {
@@ -269,13 +269,19 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
     case 'DISMISS_OVERLAY':
       return { s: { ...s, sheet: null, celebr: null }, fx };
     case 'WIZ_SET': {
-      // CAPTURE-PAR-CATEGORIE-1: choosing a category re-fills `sizes` ONLY
-      // while it still holds the PREVIOUS category's own default — the moment
-      // he has typed anything, his text outranks every default. (WIZ_RESET's
-      // 'S, M, L' is exactly variantesParDefaut('Mode femme'), the reset cat,
-      // so a fresh wizard swaps too.)
-      if (typeof a.patch.cat === 'string' && a.patch.sizes === undefined && s.wiz.sizes === variantesParDefaut(s.wiz.cat)) {
-        return { s: { ...s, wiz: { ...s.wiz, ...a.patch, sizes: variantesParDefaut(a.patch.cat) } }, fx };
+      // RAYONS-1 (extends CAPTURE-PAR-CATEGORIE-1): a category change swaps
+      // UNTOUCHED defaults for the new category's own fields; text he typed
+      // outranks every default WHILE the field set keeps the same shape (the
+      // legacy eight are all one field, so his text survives those moves
+      // exactly as before). A different shape means different QUESTIONS —
+      // keeping old answers under new labels would publish false records, so
+      // those swap to the new defaults.
+      if (typeof a.patch.cat === 'string' && a.patch.cat !== s.wiz.cat && a.patch.details === undefined) {
+        const anciens = detailsParDefaut(s.wiz.cat);
+        const nouveaux = detailsParDefaut(a.patch.cat);
+        const intacts = s.wiz.details.length === anciens.length && s.wiz.details.every((v, i) => v === anciens[i]);
+        const details = intacts || s.wiz.details.length !== nouveaux.length ? nouveaux : s.wiz.details;
+        return { s: { ...s, wiz: { ...s.wiz, ...a.patch, details } }, fx };
       }
       return { s: { ...s, wiz: { ...s.wiz, ...a.patch } }, fx };
     }
@@ -288,9 +294,10 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
       const id = `np${s.pseq}`;
       // §9.5 FROZEN: empty name → « Robe brodée bogolan » · §9.6: stock fallback as-is
       const name = s.wiz.name.trim() === '' ? 'Robe brodée bogolan' : s.wiz.name;
+      const note = composeVariantes(s.wiz.cat, s.wiz.details);
       const p: Product = {
         id, name, cat: s.wiz.cat, B: s.wiz.B, C: s.wiz.C, stock: s.wiz.stock,
-        sizes: s.wiz.sizes.trim() === '' ? null : s.wiz.sizes,
+        sizes: note === '' ? null : note,
         glyph: NEW_GLYPH, bg: TILE_GRADIENT.nouveau, paused: false, mod: true,
       };
       let ns: S = {

@@ -17,7 +17,7 @@ import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
 import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
-import { varianteChamp } from './categorie-details';
+import { RAYONS, detailChamps } from './categorie-details';
 import { filtrerQuartiers } from './quartiers-ouagadougou';
 import { chipChoisi, pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
@@ -101,7 +101,9 @@ export function S19StockSheet({ st, d }: { st: S; d: D }) {
 }
 
 // ── S20–S25 Wizard ────────────────────────────────────────────────────────────
-const CATS = ['Mode femme', 'Mode homme', 'Chaussures', 'Sacs', 'Tissus', 'Beauté scellée', 'Maison', 'Enfant'];
+// RAYONS-1: the flat eight-chip list became the aisled picker — the shelves
+// and their categories live in categorie-details.ts (RAYONS), beside the
+// per-category detail fields they decide.
 // `heroUri` is ADDITIVE (combined slice, verifier finding): on the REAL flow the
 // step-4 « Aperçu » card shows the REAL heroSquare instead of the demo glyph
 // tile — frozen demo chrome must not make a claim about a listing that now has
@@ -171,16 +173,29 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         {w.step === 0 && (
           <>
             <Text style={C43.titleStep}>Catégorie</Text>
-            <View style={{ marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
-              {CATS.map((c) => (
-                <ChipCategory key={c} label={c} active={w.cat === c} onPress={() => d({ t: 'WIZ_SET', patch: { cat: c } })} />
-              ))}
-            </View>
+            {/* RAYONS-1 (founder order 2026-08-23): the categories read like a
+                real store — one shelf per rayon, his products' shelves first.
+                The rayon is GROUPING only; what publishes is the category
+                string, free by canon, exactly as before. */}
+            {RAYONS.map((r) => (
+              <View key={r.titre}>
+                <Overline style={{ marginTop: 18 }}>{r.titre}</Overline>
+                <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
+                  {r.categories.map((c) => (
+                    <ChipCategory key={c} label={c} active={w.cat === c} onPress={() => d({ t: 'WIZ_SET', patch: { cat: c } })} />
+                  ))}
+                </View>
+              </View>
+            ))}
           </>
         )}
         {w.step === 1 && (
           <>
             <Text style={C43.titleStep}>Détails & stock</Text>
+            {/* The chosen category, restated — on a multi-diverse catalog the
+                fields below CHANGE with it, so the screen says which product
+                type it is asking about. Data, not a sentence. */}
+            <Text style={[role({ f: 'IS', w: 600, s: 13 }, P.sub), { marginTop: 6 }]}>{w.cat}</Text>
             <View style={{ marginTop: 18 }}>
               <Input label="Nom du produit" value={w.name} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { name: t } })} />
             </View>
@@ -198,14 +213,22 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 product he adds. Canon still requires a zone on the
                 ProductVersion, so the wrapper now supplies the seller-level
                 value — see `SUPPLIER_ZONE` in `supply/service.ts`. */}
-            {/* CAPTURE-PAR-CATEGORIE-1 — the field wears the CATEGORY'S clothes
-                (Pointures for Chaussures, Coupe ou motif for Tissus…) and the
-                machine pre-fills S/M/L only for clothing. Free text either way:
-                the canon field stays `variantsNote`, no schema invented. */}
-            <View style={{ marginTop: 16 }}>
-              <Input label={tr(varianteChamp(w.cat).labelKey)} value={w.sizes} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { sizes: t } })} />
-              <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr(varianteChamp(w.cat).exempleKey)}</Text>
-            </View>
+            {/* RAYONS-1 (extends CAPTURE-PAR-CATEGORIE-1) — the details are the
+                CATEGORY'S OWN QUESTIONS: a car seat asks age/weight, brand and
+                colours; a crib asks dimensions and material; the legacy eight
+                keep their single shipped field. Free text in every field: the
+                answers compose into the ONE canon `variantsNote`, no schema
+                invented, nothing refused. */}
+            {detailChamps(w.cat).map((c, i) => (
+              <View key={`${c.labelKey}-${i}`} style={{ marginTop: 16 }}>
+                <Input
+                  label={tr(c.labelKey)}
+                  value={w.details[i] ?? ''}
+                  onChangeText={(t) => d({ t: 'WIZ_SET', patch: { details: detailChamps(w.cat).map((_, j) => (j === i ? t : w.details[j] ?? '')) } })}
+                />
+                <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr(c.exempleKey)}</Text>
+              </View>
+            ))}
             <Overline style={{ marginTop: 16 }}>Stock disponible</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
@@ -334,10 +357,16 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               {([
                 ['Catégorie', w.cat],
                 ['Code produit', w.code.trim() === '' ? '—' : w.code],
-                [tr(varianteChamp(w.cat).labelKey), w.sizes.trim() === '' ? '—' : w.sizes],
+                // One recap row PER detail question — « everything well
+                // detailed » (founder ruling 2026-07-26) now that a category
+                // can ask several.
+                ...detailChamps(w.cat).map((c, i): readonly [string, string] => [
+                  tr(c.labelKey),
+                  (w.details[i] ?? '').trim() === '' ? '—' : (w.details[i] ?? '').trim(),
+                ]),
                 ['Stock disponible', `${w.stock}`],
                 ['Prix de base', formatF(w.B)],
-              ] as const).map(([label, value]) => (
+              ] as readonly (readonly [string, string])[]).map(([label, value]) => (
                 <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
                   <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>
                   <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.ink), TNUM, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{value}</Text>
