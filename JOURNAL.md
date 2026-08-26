@@ -18,6 +18,24 @@ Format per entry:
 
 ---
 
+## 2026-08-25 · FRAIS-ZERO-1 — the seller platform fee is 0 everywhere it lives · IN REVIEW
+
+**Founder, 2026-08-25: « For now remove all charging fees system everywhere, I haven't found the proper fees charge design yet. »** His chosen shape: **zero the rates** (canon v3.13.0, sha `0846780`) — RoundingLaw, fee fields and reconciliation identities stay standing. **Delivery stays.** Build `daa81a5`.
+
+**The repin moved the REAL pin:** pnpm-workspace.yaml overrides (contracts+kernel-types → 0846780, per this file's own warning block) together with every package.json; `EXPECTED_CANON` 3.4.0 → 3.13.0 in run-gates.sh (the canon-pin-declared gate screamed until it did — exactly its job); the /docs mirror re-synced (Shop-Plus-Build-Spec.md had drifted from the 3.13.0 manifest).
+
+**What changed beyond the repin:** `v2/money.ts` fee = round(B × **0**) — the frozen §3.4 CONSTRUCTION kept, its rate zeroed to mirror canon (seed derives: pending 19 800 · paid 13 500 · nets 9 000/13 500/4 950/10 800) · `supply/preview.ts` untouched in code (it derives from computeWaterfall), its rate-narrating comments corrected · **the fee rows removed** — C19 MoneyBreakdown loses its « Frais Boutik+ (5 %) » line (ORDER is three labels; feeV prop gone at all three call sites), the offre breakdown loses `offre.ligne_frais`, the gains screen loses both frais rows — a « −0 F » row would name a charge that does not exist · catalog keys `offre.ligne_frais` / `gains.frais_fournisseur` / `gains.frais_revendeuse` retired with their rows + the pre-existing orphan `offre.reconcile` removed · **the three « 5 % » promises rewritten in French Voice** (accueil.gratuite, fp.accueil_gratuite_note, fp.onboarding_conditions): « Et pour le moment, vendre ne coûte rien : Boutik+ ne prend aucun frais sur vos ventes » — « pour le moment » keeps the sentence honest against his future fee design; no forever-promise.
+
+**BEHAVIOUR CHANGE, his to know:** the publish refusal `commission_leaves_no_net` boundary moves from C ≥ B − fee(B) to **C ≥ B**. The 2026-07-25 verifier case (B 5 000 · C 4 800 → net −50, refused) now nets **200 and publishes**. The CLASS stays refused by both the screen predicate and the core validator (walked over the whole C grid; the crossing named at C = B). Commissions between B−5 %·B and B that used to be refused are now publishable — that is the arithmetic truth of a 0 fee, not a loosened guard.
+
+**Pins moved as real pins:** money-gate 9 000/2 500/0 + non-divisible 9 668/1 111/0 · offer-service preview 9 000/0 · demo/df1/gains-view/v2-machine literals · preview-rounding REWRITTEN RATE-GENERAL — the floor law asserted from SELLER_PLATFORM_FEE's own numerator/denominator (holds at any future rate, degenerates to fee ≡ 0 today; the old `(f+1)·100 > B·5` bound was the 5 %-specialisation and is unsatisfiable at rate 0), and the off-grid floor-vs-round case documents that rate 0 has no fraction to discriminate. quote.baseline + baseline-check at the new canon; the wrong-rate NEGATIVE fixture untouched (still refused — its 20 %-take still mismatches the pinned waterfall).
+
+**Boards:** turbo test+typecheck **32/32 --force** · supplier-app 988 · offer-service 271 · gates **ALL GREEN** (canon-pin-declared + drift-check now passing against 3.13.0). **Mutation, anchor-verified:** money.ts rate back to 0.05 → 6 tests red; restored.
+
+**Screen-walk note (RENDU-RÉEL, stated plainly):** this repo still has NO rendu harness — the standing order names it among the not-yet-built. The changed screens (offre breakdown, gains rows, V2 fiche/order/wizard) are covered by the source-text pins that moved with them and by the reducer walks in v2-machine; a real mounted walk was NOT written in this slice, because building the boutik harness is its own build, still owed. Flagged, not silently skipped.
+
+---
+
 ## 2026-08-23 · STOCK-VENDU-1 — a paid order consumes one unit of the offer's stock, everywhere · DONE (merged and deployed WITH 1b, 2026-08-23 — see the 1b entry above for the runs)
 
 **Founder, 2026-08-23: « and also make sure the stock on products is updated everywhere if someone buys a product. »**
