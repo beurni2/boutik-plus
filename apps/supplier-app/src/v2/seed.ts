@@ -129,9 +129,12 @@ export const SEED_ORDERS: readonly Order[] = [
   },
 ] as const;
 
-/** §3.3 static weekly statements. */
+/** §3.3 static weekly statements. Sem. 28's single versement IS o7's PAID
+ * net, so it moved with FRAIS-ZERO (12 750 → 13 500) — one payment must not
+ * carry two different francs across the gains board and the relevé. The two
+ * older weeks describe unseeded history and keep their authored totals. */
 export const SEED_RELEVES = [
-  { week: 'Sem. 28 — 6 au 12 juil.', sub: '1 versement Mobile Money', total: 12_750 },
+  { week: 'Sem. 28 — 6 au 12 juil.', sub: '1 versement Mobile Money', total: 13_500 },
   { week: 'Sem. 27 — 29 juin au 5 juil.', sub: '2 versements Mobile Money', total: 21_400 },
   { week: 'Sem. 26 — 22 au 28 juin', sub: '1 versement Mobile Money', total: 9_200 },
 ] as const;

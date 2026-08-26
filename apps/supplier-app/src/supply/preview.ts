@@ -20,12 +20,12 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
  *                                           independent multiplication
  *
  * WHAT THIS REPLACES ON THIS FLOW: the frozen V2 demo math (`v2/money.ts` §3.4)
- * computes `Math.round(B × 0.05)`. Round and floor agree for every B the
- * stepper can reach today (multiples of 500), so this changes no figure the
- * founder can currently see — it removes a LATENT divergence, so that the day
- * the price grid changes, his preview does not quietly start rounding a franc
- * the wrong way on a real listing. `money.ts` is untouched; the demo board
- * still uses it.
+ * computes `Math.round(B × rate)` — rate 0 since FRAIS-ZERO, so round and
+ * floor agree everywhere today (both 0). The divergence this call closed was
+ * real under the 5 % rate on off-grid B, and returns with any non-zero rate:
+ * keeping the canon call means the day the founder sets a new rate, his
+ * preview cannot quietly start rounding a franc the wrong way on a real
+ * listing. `money.ts` keeps its construction; the demo board still uses it.
  *
  * NO try/catch — and the reason stated precisely, because a loose version of
  * this sentence was wrong (verifier finding, MEDIUM). `computeWaterfall` throws

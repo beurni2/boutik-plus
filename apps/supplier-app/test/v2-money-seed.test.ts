@@ -71,9 +71,17 @@ describe('§3.5 — formatting (WO-FCFA re-pin, founder order 2026-07-18: suffix
     }
   });
 
-  it('the weekly relevés totals: grouped digits match the board strings', () => {
+  it('the weekly relevés totals: Sem. 28 IS o7’s PAID net (one payment, one franc — FRAIS-ZERO coherence); the untouched weeks still match the board', () => {
+    // Sem. 28's single versement is o7's settlement, so its total is pinned to
+    // the ORDER's frozen net, not to the 5 %-era board — the verifier caught
+    // the gains board saying 13 500 while the relevé still said 12 750.
+    const o7 = SEED_ORDERS.find((o) => o.id === 'o7')!;
+    expect(SEED_RELEVES[0]!.total).toBe(o7.net);
+    expect(SEED_RELEVES[0]!.total).toBe(13_500);
+    // The two older weeks describe unseeded history; their authored totals
+    // still match the Phase-0 board strings byte-for-byte.
     const all = TABLE.moneyStrings.map((m) => m.text).join('\n');
-    for (const r of SEED_RELEVES) {
+    for (const r of SEED_RELEVES.slice(1)) {
       const grouped = formatF(r.total).slice(0, -money.currencySuffix.length);
       expect(all).toContain(grouped + ' F');
     }
