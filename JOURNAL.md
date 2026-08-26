@@ -18,7 +18,9 @@ Format per entry:
 
 ---
 
-## 2026-08-25 · FRAIS-ZERO-1 — the seller platform fee is 0 everywhere it lives · IN REVIEW
+## 2026-08-25 · FRAIS-ZERO-1 — the seller platform fee is 0 everywhere it lives · DONE
+
+**MERGED AND DEPLOYED (founder: « Merge and deploy », 2026-08-26).** `main` fast-forwarded to `d064a15` (build `daa81a5` + verifier fixes `ea17bc9` + the canon repin to `35a21ea`). **ci 320 · expo-preview 198 green on d064a15 → offer-deploy 33 · web-deploy 66 · fournisseur-web-deploy 12 all SUCCESS** — the live seller-net preview signs at rate 0 and both web surfaces carry the fee-free screens.
 
 **Founder, 2026-08-25: « For now remove all charging fees system everywhere, I haven't found the proper fees charge design yet. »** His chosen shape: **zero the rates** (canon v3.13.0, sha `0846780`) — RoundingLaw, fee fields and reconciliation identities stay standing. **Delivery stays.** Build `daa81a5`.
 
