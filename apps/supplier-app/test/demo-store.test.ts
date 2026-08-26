@@ -31,11 +31,12 @@ describe('demo world money law', () => {
 
   it('the in-app baseline card shows the §5.4 worked baseline exactly', () => {
     const q = baselineQuote();
+    // FRAIS-ZERO (founder 2026-08-25): both rates 0 — nets keep the whole amount.
     expect(q.productSubtotal).toBe(11_500);
     expect(q.buyerTotal).toBe(12_500);
-    expect(q.sellerNet).toBe(8_500);
-    expect(q.resellerNet).toBe(2_000);
-    expect(q.platformProductFeeRevenue).toBe(1_000);
+    expect(q.sellerNet).toBe(9_000);
+    expect(q.resellerNet).toBe(2_500);
+    expect(q.platformProductFeeRevenue).toBe(0);
   });
 
   it('a tampered demo quote cannot exist (canon seam refused)', () => {

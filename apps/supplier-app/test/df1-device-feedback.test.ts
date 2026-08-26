@@ -79,8 +79,8 @@ describe('DF-1 C.1 — la part de la revendeuse is EDITABLE and the waterfall re
       return m.sellerNet;
     };
     expect(net(1_000)).not.toBe(net(2_000));
-    expect(net(1_000)).toBe(8_500); // 10 000 − 5 %·B (500) − C (1 000)
-    expect(net(2_000)).toBe(7_500); // 10 000 − 500 − 2 000
+    expect(net(1_000)).toBe(9_000); // FRAIS-ZERO: 10 000 − fee 0 − C (1 000)
+    expect(net(2_000)).toBe(8_000); // 10 000 − 0 − 2 000
   });
 });
 

@@ -416,8 +416,7 @@ export function S05Fiche({ st, d, product }: { st: S; d: D; product: Product }) 
           overline="Vos gains sur ce produit"
           B={formatF(p.B)}
           C={formatF(p.C)}
-          feeV={formatF(Math.round(p.B * 0.05))}
-          netV={formatF(p.B - p.C - Math.round(p.B * 0.05))}
+          netV={formatF(p.B - p.C)}
           note={tr('fp.montant_verrouille')}
         />
       </View>
@@ -492,7 +491,7 @@ export function S11Detail({ st, d, order }: { st: S; d: D; order: Order }) {
         </View>
       </View>
       <View style={{ marginTop: 12 }}>
-        <MoneyBreakdown overline="Votre gain — verrouillé" B={formatF(o.B)} C={formatF(o.C)} feeV={formatF(o.fee)} netV={formatF(o.net)} note={modeNote} />
+        <MoneyBreakdown overline="Votre gain — verrouillé" B={formatF(o.B)} C={formatF(o.C)} netV={formatF(o.net)} note={modeNote} />
       </View>
       {o.status === 'FUNDED' && (
         <>

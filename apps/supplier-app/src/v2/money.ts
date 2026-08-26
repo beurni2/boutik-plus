@@ -1,8 +1,11 @@
 /**
  * WO-FP-PIXEL §3.4/§3.5 — the V2 money math + formatting, EXACT.
  *
- * fee(B)   = round(B × 0.05)   (Math.round — nearest, .5 up)
- * net(B,C) = B − C − fee(B)
+ * fee(B)   = round(B × rate) — FRAIS-ZERO (founder order 2026-08-25): the
+ *            rate is 0, mirroring RoundingLaw's zeroed numerators in
+ *            @platform/contracts, so fee(B) = 0 on every B. The construction
+ *            stays for his future fee design.
+ * net(B,C) = B − C − fee(B)   (= B − C while the rate is 0)
  * prixClient = B + margeRevendeuse (set by the reseller in Shop+) — NEVER B + C.
  * pending  = Σ net(o) for o.status ∉ {PAID, BUYER_REFUSED, PICKUP_REFUSED, RETURNED}
  * paid     = Σ net(o) for o.status = PAID
@@ -21,7 +24,7 @@
 import { money } from '@platform/ui-tokens/legacy';
 import type { OrderStatus } from './seed';
 
-export const fee = (B: number): number => Math.round(B * 0.05);
+export const fee = (B: number): number => Math.round(B * 0); // FRAIS-ZERO (founder 2026-08-25): rate 0
 export const net = (B: number, C: number): number => B - C - fee(B);
 
 const NNBSP = ' ';

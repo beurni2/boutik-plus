@@ -179,11 +179,11 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
       <Text style={[LIGNE_NOM, { marginTop: 10 }]}>{t('gains.total')}</Text>
       <Text style={[GROS_MONTANT, TNUM]}>{formatF(s.buyerTotal)}</Text>
 
+      {/* FRAIS-ZERO (founder 2026-08-25): no frais rows — the rate is 0, and
+          a « 0 F » fee line would name a charge that does not exist. */}
       <View style={{ marginTop: 10, gap: 6 }}>
         <LigneGain nom={t('gains.part_fournisseur')} montant={s.sellerNet} />
         <LigneGain nom={t('gains.part_revendeuse')} montant={s.resellerNet} />
-        <LigneGain nom={t('gains.frais_fournisseur')} montant={s.sellerPlatformFee} />
-        <LigneGain nom={t('gains.frais_revendeuse')} montant={s.resellerPlatformFee} />
         <LigneGain nom={t('gains.livraison')} montant={s.deliveryFee} />
       </View>
 

@@ -72,7 +72,7 @@ describe('T16 [DEMO] — walk o1 (mode B) to PAID: celebration 2200ms + Mobile-M
     }
     expect(s.orders['o1']!.status).toBe('PAID');
     expect(s.orders['o1']!.history.at(-1)!.l).toBe('Vendeur et revendeuse payés — versement Mobile Money effectué');
-    expect(s.celebr).toBe(formatF(8_500)); // o1 frozen net
+    expect(s.celebr).toBe(formatF(9_000)); // o1 frozen net (FRAIS-ZERO: B − C)
     expect(timers(fx).some((t) => t.afterMs === MS.celebration && t.action.t === 'CELEBR_DONE')).toBe(true);
     // one more sim is a no-op (last step)
     expect(reduce(s, { t: 'SIM_NEXT' }).s.orders['o1']!.status).toBe('PAID');

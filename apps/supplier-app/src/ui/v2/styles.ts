@@ -225,7 +225,9 @@ export const C19 = {
   totalValXL: { ...role(T.NetXL, P.greenDeep) },
   note: { ...role({ f: 'IS', w: 400, s: 12, lh: 1.5 }, P.sub), marginTop: 8 },
   minus: '−',
-  ORDER: ['Prix de base', 'Commission revendeuse', 'Frais Boutik+ (5 %)', 'Vous recevez'] as const,
+  // FRAIS-ZERO (founder 2026-08-25): no fee line — there is no fee to show,
+  // and a « −0 F » row would name a charge that does not exist.
+  ORDER: ['Prix de base', 'Commission revendeuse', 'Vous recevez'] as const,
 } as const;
 
 // ── C20 MoneyHero ────────────────────────────────────────────────────────────

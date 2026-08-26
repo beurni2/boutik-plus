@@ -211,7 +211,7 @@
   },
   {
     "key": "accueil.gratuite",
-    "fr": "L'inscription est gratuite. Boutik+ gagne 5 % du prix quand votre produit se vend.",
+    "fr": "L'inscription est gratuite. Et pour le moment, vendre aussi : Boutik+ ne prend aucun frais sur vos ventes.",
     "register": "selling",
     "screenClass": "general"
   },
@@ -1114,18 +1114,6 @@
     "fr": "Une part motivante fait vendre plus vite. C'est vous qui décidez.",
     "register": "selling",
     "screenClass": "selling_surface"
-  },
-  {
-    "key": "offre.reconcile",
-    "fr": "{net} = {prix} − {part} − {frais} — chaque franc a sa place.",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "offre.ligne_frais",
-    "fr": "Frais Boutik+ (5 %)",
-    "register": "money",
-    "screenClass": "label"
   },
   {
     "key": "offre.publier",
@@ -3265,7 +3253,7 @@
   },
   {
     "key": "fp.accueil_gratuite_note",
-    "fr": "S’inscrire ne coûte rien. Publier ne coûte rien. Boutik+ gagne seulement quand votre produit est vendu : 5 % du prix de base.",
+    "fr": "S’inscrire ne coûte rien. Publier ne coûte rien. Et pour le moment, vendre ne coûte rien : Boutik+ ne prend aucun frais sur vos ventes.",
     "register": "money",
     "screenClass": "instruction"
   },
@@ -3361,7 +3349,7 @@
   },
   {
     "key": "fp.onboarding_conditions",
-    "fr": "Rien à payer pour s’inscrire · rien à avancer · rien chaque mois.\nVous payez seulement 5 % quand un produit est vendu avec succès.",
+    "fr": "Rien à payer pour s’inscrire · rien à avancer · rien chaque mois.\nEt pour le moment, rien sur vos ventes : Boutik+ ne prend aucun frais.",
     "register": "money",
     "screenClass": "selling_surface"
   },
@@ -4676,18 +4664,6 @@
   {
     "key": "gains.part_revendeuse",
     "fr": "Part de la revendeuse",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "gains.frais_fournisseur",
-    "fr": "Frais côté fournisseur",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "gains.frais_revendeuse",
-    "fr": "Frais côté revendeuse",
     "register": "money",
     "screenClass": "label"
   },

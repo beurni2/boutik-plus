@@ -8,8 +8,10 @@ import { SEED_ORDERS, SEED_PRODUCTS, SEED_RELEVES } from '../src/v2/seed';
 /**
  * WO-FP-PIXEL §3.3/§3.4/§3.5 — the V2 seed money, asserted to the FRANC and to
  * the BYTE against the Phase-0 values table (the board's own rendered strings).
- * fee = round(B×.05) · net = B−C−fee · pending/paid per status sets ·
- * separator U+202F (never U+0020).
+ * fee = round(B×rate) — 0 since FRAIS-ZERO (founder 2026-08-25) · net = B−C−fee
+ * · pending/paid per status sets · separator U+202F (never U+0020). The §3.5
+ * board checks pin FORMAT bytes on the Phase-0 (5 %-era) figures, which the
+ * static board still carries.
  */
 
 const appDir = join(import.meta.dirname, '..');
@@ -18,11 +20,12 @@ const TABLE = JSON.parse(readFileSync(join(appDir, '../../_review/WO-FP-PIXEL/va
 };
 
 describe('§3.4 — fee/net per seed product (exact)', () => {
+  // FRAIS-ZERO (founder 2026-08-25): rate 0 — fee 0 on every B, net = B − C.
   const expected: Record<string, { fee: number; net: number }> = {
-    p1: { fee: 500, net: 8_500 },
-    p3: { fee: 750, net: 12_750 },
-    p7: { fee: 275, net: 4_675 },
-    p8: { fee: 600, net: 10_200 },
+    p1: { fee: 0, net: 9_000 },
+    p3: { fee: 0, net: 13_500 },
+    p7: { fee: 0, net: 4_950 },
+    p8: { fee: 0, net: 10_800 },
   };
   for (const p of SEED_PRODUCTS) {
     it(`${p.id} ${p.name}: fee ${expected[p.id]!.fee} · net ${expected[p.id]!.net}`, () => {
@@ -40,9 +43,9 @@ describe('§3.4 — fee/net per seed product (exact)', () => {
 });
 
 describe('§3.4 — first-render aggregates', () => {
-  it('pending = 18 700 (o1 8 500 + o3 10 200) · paid = 12 750 (o7)', () => {
-    expect(pendingTotal(SEED_ORDERS)).toBe(18_700);
-    expect(paidTotal(SEED_ORDERS)).toBe(12_750);
+  it('pending = 19 800 (o1 9 000 + o3 10 800) · paid = 13 500 (o7) — FRAIS-ZERO nets', () => {
+    expect(pendingTotal(SEED_ORDERS)).toBe(19_800);
+    expect(paidTotal(SEED_ORDERS)).toBe(13_500);
   });
 });
 

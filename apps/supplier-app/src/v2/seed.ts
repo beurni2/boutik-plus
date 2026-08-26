@@ -1,7 +1,9 @@
 /**
  * WO-FP-PIXEL §3.2/§3.3 — entities + the EXACT first-open seed, transcribed
- * VERBATIM from HANDOFF V2 (values cross-checked against the Phase-0 table:
- * pending 18 700 F · paid 12 750 F · nets 8 500/12 750/4 675/10 200).
+ * VERBATIM from HANDOFF V2. FRAIS-ZERO (founder 2026-08-25): fee/net derive
+ * from ./money at rate 0, so the derived figures are now pending 19 800 F ·
+ * paid 13 500 F · nets 9 000/13 500/4 950/10 800 (the HANDOFF table's
+ * 18 700/12 750/… were the 5 %-rate values of the same B/C inputs).
  * §9.5/§9.6 frozen decisions live at their use sites (wizard fallbacks).
  */
 import { fee, net } from './money';

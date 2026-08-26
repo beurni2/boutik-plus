@@ -295,11 +295,12 @@ export const StatCard = ({ label, value, legend, verse }: { label: string; value
   </View>
 );
 
-export function MoneyBreakdown({ B, C, feeV, netV, netSize = 'L', note, overline }: { B: string; C: string; feeV: string; netV: string; netSize?: 'L' | 'XL'; note?: string; overline?: string }) {
+// FRAIS-ZERO (founder 2026-08-25): the fee line is gone — rate 0, and a
+// « −0 F » row would name a charge that does not exist. net = B − C.
+export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { B: string; C: string; netV: string; netSize?: 'L' | 'XL'; note?: string; overline?: string }) {
   const lines: [string, string, boolean][] = [
     [C19.ORDER[0], B, false],
     [C19.ORDER[1], `${C19.minus}${C}`, true],
-    [C19.ORDER[2], `${C19.minus}${feeV}`, true],
   ];
   return (
     <Card>
@@ -311,7 +312,7 @@ export function MoneyBreakdown({ B, C, feeV, netV, netSize = 'L', note, overline
         </View>
       ))}
       <View style={s.moneyTotal}>
-        <Text style={s.moneyTotalLabel}>{C19.ORDER[3]}</Text>
+        <Text style={s.moneyTotalLabel}>{C19.ORDER[2]}</Text>
         <Text style={[netSize === 'XL' ? s.moneyTotalXL : s.moneyTotalL, TNUM]}>{netV}</Text>
       </View>
       {note !== undefined && <Text style={s.moneyNote}>{note}</Text>}

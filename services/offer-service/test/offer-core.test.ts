@@ -54,9 +54,9 @@ describe('decideCreateOffer', () => {
     expect(next).toBeDefined();
     expect(decision.entry.offerId).toBe('offer-1');
     expect(decision.entry.available).toBe(5);
-    // previewSellerNet ran (10000 - 1000 - 500 fee = 8500) — RETURNED, never stored
-    expect(decision.preview.sellerNetFcfa).toBe(8_500);
-    expect(decision.preview.sellerPlatformFeeFcfa).toBe(500);
+    // previewSellerNet ran (FRAIS-ZERO: 10000 - 1000 - 0 fee = 9000) — RETURNED, never stored
+    expect(decision.preview.sellerNetFcfa).toBe(9_000);
+    expect(decision.preview.sellerPlatformFeeFcfa).toBe(0);
     // the persisted entry carries NO seller-net field — money stays a preview
     // (platformFeeVersion is a legit offer field — the fee-schedule pointer, not the net)
     expect(Object.keys(decision.entry)).toEqual(['offerId', 'product', 'offer', 'available', 'asOf', 'createCommandId']);

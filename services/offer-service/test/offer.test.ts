@@ -13,11 +13,11 @@ const draft = {
 };
 
 describe('offer + net preview — B4.1, reconciliation on EVERY preview', () => {
-  it('§5.4 baseline through the OFFER path: « Vous recevrez 8 500 F » — sellerNet from the pinned waterfall, literally', () => {
+  it('§5.4 baseline through the OFFER path: « Vous recevrez 9 000 F » — sellerNet from the pinned waterfall, literally (FRAIS-ZERO)', () => {
     const preview = previewSellerNet(10_000, 1_000);
-    expect(preview.sellerNetFcfa).toBe(8_500);
-    expect(preview.sellerPlatformFeeFcfa).toBe(500); // 5% of B
-    // 8,500 = B − 5%·B − C, asserted against the pin, not re-derived here.
+    expect(preview.sellerNetFcfa).toBe(9_000);
+    expect(preview.sellerPlatformFeeFcfa).toBe(0); // FRAIS-ZERO (founder 2026-08-25): rate 0
+    // 9,000 = B − 0 − C, asserted against the pin, not re-derived here.
     const w = computeWaterfall({ sellerBasePrice: 10_000, sellerFundedCommission: 1_000, resellerMarkup: 0, deliveryFee: 0, paymentMode: 'FULL_PREPAY' });
     expect(preview.sellerNetFcfa).toBe(w.sellerNet);
   });

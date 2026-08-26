@@ -210,19 +210,17 @@ describe('RB-3 — [source-text checks] the tab’s discipline', () => {
   });
 
   it('every franc rendered is a STORED field through the ONE formatter — nothing derived', () => {
-    // the six figures the founder reads, each the quote's own byte: the total
-    // renders through formatF directly, the five parts ride LigneGain's
-    // montant prop — whose ONLY render is formatF(montant)
+    // the four figures the founder reads, each the quote's own byte: the total
+    // renders through formatF directly, the parts ride LigneGain's montant
+    // prop — whose ONLY render is formatF(montant). FRAIS-ZERO (founder
+    // 2026-08-25): the two fee rows are GONE from the screen — the rate is 0
+    // and a « 0 F » fee line would name a charge that does not exist.
     expect(screen).toContain('formatF(s.buyerTotal)');
-    for (const champ of [
-      's.sellerNet',
-      's.resellerNet',
-      's.sellerPlatformFee',
-      's.resellerPlatformFee',
-      's.deliveryFee',
-    ]) {
+    for (const champ of ['s.sellerNet', 's.resellerNet', 's.deliveryFee']) {
       expect(screen, `${champ} must be rendered`).toContain(`montant={${champ}}`);
     }
+    expect(screen).not.toContain('montant={s.sellerPlatformFee}');
+    expect(screen).not.toContain('montant={s.resellerPlatformFee}');
     expect(screen).toContain('formatF(montant)');
     // no arithmetic on the split anywhere in the screen
     expect(screen).not.toMatch(/split\.\w+\s*[+\-*/]/);

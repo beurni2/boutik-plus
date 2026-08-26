@@ -273,7 +273,6 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 <MoneyBreakdown
                   B={formatF(w.B)}
                   C={formatF(w.C)}
-                  feeV={formatF(money.net.sellerPlatformFeeFcfa)}
                   netV={formatF(money.net.sellerNetFcfa)}
                   netSize="XL"
                 />

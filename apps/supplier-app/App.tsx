@@ -347,7 +347,6 @@ export default function App() {
   const belowMin = priceBelowFloor || partSwallowsNet;
   const belowFloor = priceB > 0 && priceBelowFloor;
   const offerNet = belowMin ? 0 : rawNet;
-  const offerFee = belowMin ? 0 : priceB - offerC - offerNet;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -664,11 +663,13 @@ export default function App() {
                   <Text style={ts('rowSub', C.sub)}>{t('offre.commission_aide')}</Text>
                   {belowFloor && <WarnNote text={t('offer.floor_block')} />}
                   {/* Rebuilt to the « Prix & commission » wiz2 frame (planche
-                      384–388): the structured breakdown — base − commission − frais
-                      — each figure from the LIVE pinned waterfall, then the net in
-                      majesty. Fields stay editable MoneyFields (DF-1 C, device
-                      override of the frame's steppers); the net stays the guarded
-                      MoneyHero (count-up). */}
+                      384–388): the structured breakdown — base − commission —
+                      each figure from the LIVE pinned waterfall, then the net in
+                      majesty. FRAIS-ZERO (founder 2026-08-25): no frais row —
+                      there is no fee to show, and a « −0 F » line would name a
+                      charge that does not exist. Fields stay editable
+                      MoneyFields (DF-1 C, device override of the frame's
+                      steppers); the net stays the guarded MoneyHero (count-up). */}
                   {!belowMin && (
                     <View style={styles.breakdown}>
                       <View style={styles.netRow}>
@@ -681,12 +682,6 @@ export default function App() {
                         <Text style={ts('body', C.sub)}>{t('offre.champ_commission')}</Text>
                         <Text style={[ts('body', C.sub), MONEY_TEXT]}>
                           {`− ${t('money.amount_f').replace('{amount}', formatFcfa(offerC))}`}
-                        </Text>
-                      </View>
-                      <View style={styles.netRow}>
-                        <Text style={ts('body', C.sub)}>{t('offre.ligne_frais')}</Text>
-                        <Text style={[ts('body', C.sub), MONEY_TEXT]}>
-                          {`− ${t('money.amount_f').replace('{amount}', formatFcfa(offerFee))}`}
                         </Text>
                       </View>
                     </View>

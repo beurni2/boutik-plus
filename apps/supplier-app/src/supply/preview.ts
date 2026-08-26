@@ -12,9 +12,10 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
  * SITE, not a second IMPLEMENTATION: the law itself has exactly one home,
  * `@platform/contracts` money/rounding-law.js, and both call it.
  *
- * THE LAW (RoundingLaw v1, pinned canon):
- *   sellerPlatformFee = floor(0.05 × B)   — the fraction of a franc stays with
- *                                           the participant, never the platform
+ * THE LAW (RoundingLaw v1, pinned canon — rate 0 since FRAIS-ZERO, founder
+ * order 2026-08-25):
+ *   sellerPlatformFee = floor(rate × B)   — 0 at today's rate; the fraction of
+ *                                           a franc stays with the participant
  *   sellerNet         = B − C − fee       — by subtraction, never an
  *                                           independent multiplication
  *
@@ -49,7 +50,7 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
 export interface SellerPreview {
   /** « Vous recevez / vente » — B − C − fee, canon. */
   readonly sellerNetFcfa: number;
-  /** floor(0.05 × B) — the 5% seller platform fee, canon. */
+  /** floor(rate × B) — the seller platform fee, canon (0 at the FRAIS-ZERO rate). */
   readonly sellerPlatformFeeFcfa: number;
 }
 
