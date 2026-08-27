@@ -2,6 +2,16 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-27 · LISTE-VOIX-1 (shop-plus slice, this repo's half) — the media door admits five-minute notes · DONE
+
+**MERGED AND DEPLOYED (founder: « Go merge and deploy », 2026-08-27).** `main` fast-forwarded `ae9bb03..1c76ab2`, then `5660853`. Shop+'s liste gained a recorded voice repère capped at five minutes (his amendment: « make 5 mn max instead of 30 seconds »), and this repo's media door held `AUDIO_MAX_SECONDS = 60` for the MP4 family — an iPhone note between one and five minutes would have been refused `too_long`, a promise the UI could never keep on iOS. **Raised to 300** (`services/media-service/src/media.ts`); the duration ceiling applies to the MP4-family clock only (WebM/Ogg rest on the byte ceiling, unchanged), and the callers' tighter wire bound keeps every arriving note under both byte ceilings.
+
+**The deploy hit this repo's own gate, and the miss was mine:** ci run 322 FAILED on `1c76ab2` — the rewritten constants comment named Shop+'s order surface with the consumer-storefront word B+I-15 bans in ALL boutik source, comments included. I had run media-service's tests and typecheck locally but skipped `run-gates.sh` in this repo (the standing lesson, relearned: every touched repo's own gate board runs locally before pushing to it). Reworded gate-safe in `5660853`, full board local ALL GREEN → **ci run 323 SUCCESS · expo-preview 200 green → media-deploy run 10 SUCCESS** (07:55:44Z → 07:56:28Z). No migration; no secret changes.
+
+**Evidence:** media-service **119/119** — its audio suite drives the constant itself (`m4aOf(AUDIO_MAX_SECONDS + 1)` → `too_long`, so the raise moved the test's own probe) · boutik typecheck **14/14** · turbo **21/21 --force** · `run-gates.sh` ALL GREEN (after the reword). The cross-repo seam (liste create → this media door under the write key → minted ref on the dispatch board) is e2e-proven in shop-plus against the certified stub of THIS door's bounds — the full story lives in shop-plus's JOURNAL under LISTE-VOIX-1.
+
+---
+
 ## 2026-08-23 · STOCK-VENDU-1b — the three named opens, closed: refusals restock · stale pages can't pay épuisé · oversold on the board · DONE
 
 **MERGED AND DEPLOYED (founder: « merge and deploy », 2026-08-23).** `main` fast-forwarded `407100e..fa6a694` — carrying STOCK-VENDU-1 (`29cc4bc` + `7840ab4`, which shipped with 1b as reported) and 1b (`c328c6a` + the journal). **ci 317 · expo-preview 195 green on push, attempt 1; then `offer-deploy` run 32 → success (the offer worker: consume, restock, refused intake) and `web-deploy` run 65 → success (his console with the oversold row), both dispatched after ci.** Zero new secrets to arm — the refused intake rides `FULFILLMENT_WRITE_SECRET`, already set for the delivered wire.
