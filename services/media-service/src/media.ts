@@ -291,14 +291,20 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
  * MAGIC BYTES, never by claim — same doctrine as images and video.
  *
  * BOUNDS ARE ENGINEERING CEILINGS, not canon numbers (no canon bound exists
- * for a voice note): 2 MiB covers minutes of Opus and ~40 s of AAC; the
- * capture UI stops itself at 30 s. Duration is measured ONLY where a pure-JS
- * walk can read it (the MP4 family, the same `mvhd`/`mdhd` walk the video
- * door trusts); WebM/Ogg carry no such cheap clock, so for them the BYTE
- * ceiling is the wall and that is stated here rather than pretended away.
+ * for a voice note): 2 MiB covers minutes of Opus; the capture UIs stop
+ * themselves (30 s on the checkout's repère, 5 minutes on the liste's — the
+ * founder's 2026-08-27 « make 5 mn max », which is why the seconds ceiling
+ * here is 300: a door below the UI's own promise would refuse honest notes).
+ * An AAC note that long may still meet the byte walls first — the callers'
+ * wire bound (~1 MiB of bytes) is TIGHTER than this door's and refuses
+ * inline, which keeps every arriving note under both ceilings. Duration is
+ * measured ONLY where a pure-JS walk can read it (the MP4 family, the same
+ * `mvhd`/`mdhd` walk the video door trusts); WebM/Ogg carry no such cheap
+ * clock, so for them the BYTE ceiling is the wall and that is stated here
+ * rather than pretended away.
  */
 export const AUDIO_MAX_BYTES = 2 * 1024 * 1024;
-export const AUDIO_MAX_SECONDS = 60;
+export const AUDIO_MAX_SECONDS = 300;
 
 export type AudioFormat = 'webm' | 'ogg' | 'mp4';
 
