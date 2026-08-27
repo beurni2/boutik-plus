@@ -292,7 +292,7 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
  *
  * BOUNDS ARE ENGINEERING CEILINGS, not canon numbers (no canon bound exists
  * for a voice note): 2 MiB covers minutes of Opus; the capture UIs stop
- * themselves (30 s on the checkout's repère, 5 minutes on the liste's — the
+ * themselves (Shop+ caps its two recorders at 30 s and 5 minutes — the
  * founder's 2026-08-27 « make 5 mn max », which is why the seconds ceiling
  * here is 300: a door below the UI's own promise would refuse honest notes).
  * An AAC note that long may still meet the byte walls first — the callers'
