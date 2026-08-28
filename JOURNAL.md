@@ -2,6 +2,16 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-28 · QUARTIERS-OUAGA-2 (this repo's half) — the founder's official 55-secteur répartition replaces the list · IN-REVIEW (awaiting the founder's merge word)
+
+**Founder, 2026-08-28: « This the up to date quartiers for Ouagadougou, update this to everywhere in the apps »** — 12 arrondissements, 55 secteurs, 101 quartiers, verbatim. Build `371972c` + verifier fix `68a06a8` on the branch (shop-plus half `50039b4` + `aea8e01`, its journal carries the full story). **No main merge, no deploy — waiting on his word.** `quartiers-ouagadougou.ts` is the content mirror of the shop-plus module (his spellings canon: Dassasgo, Rimkiéta, Zagtouli, Darsalam, plain Gounghin; secteur markers inline; « Cité All » implemented verbatim and flagged as a possible typo for « Cité An II »); the onboarding « Votre boutique » picker consumes it unchanged, free text stays lawful.
+
+**Evidence.** supplier-app **989/989** — the rendu walk mounts S34, iterates all 101 names, drives the accent-blind **Rimkiéta** pick, the **Karpala / Karpala non loti** collapse pair (replacing the retired Larlé Wéogo pair as the typing-never-settles proof), and the **Tanghin-Dassouri** free-text road to step 4 · `tsc --noEmit` clean · turbo **21/21 --force** · typecheck **14/14 --force** · `run-gates.sh` **ALL GATES GREEN** (run BEFORE pushing this time — the LISTE-VOIX-1 lesson holds; re-run green after the verifier fix). **Mutation, anchor-verified:** 'Kossyam' deleted → the count + landmark pins red, restored green.
+
+**The ONE fresh-context verifier (shared with the shop-plus half — the order + full list verbatim, both diffs, the DoD; it independently re-typed the list and compared name-by-name, re-ran this repo's suites and gate board, and ran its own mutation): NO BLOCKER, NO MAJOR; one MINOR fixed once (`68a06a8`).** Its 'Nimnim' misspelling mutation survived the canary pins 12/12 (a pre-existing OUAGA-1 gap) — closed with **one sha256 over the joined flat list, the same constant in both repos' pins**, proven red on that exact mutation. *Journalled:* `stock-vendu.e2e.test.ts:104`'s `'Gounghin Sud, Ouagadougou'` stays — lawful free-text `zoneTo` modelling a legacy order; the wire accepts any bounded string.
+
+---
+
 ## 2026-08-27 · LISTE-VOIX-1 (shop-plus slice, this repo's half) — the media door admits five-minute notes · DONE
 
 **MERGED AND DEPLOYED (founder: « Go merge and deploy », 2026-08-27).** `main` fast-forwarded `ae9bb03..1c76ab2`, then `5660853`. Shop+'s liste gained a recorded voice repère capped at five minutes (his amendment: « make 5 mn max instead of 30 seconds »), and this repo's media door held `AUDIO_MAX_SECONDS = 60` for the MP4 family — an iPhone note between one and five minutes would have been refused `too_long`, a promise the UI could never keep on iOS. **Raised to 300** (`services/media-service/src/media.ts`); the duration ceiling applies to the MP4-family clock only (WebM/Ogg rest on the byte ceiling, unchanged), and the callers' tighter wire bound keeps every arriving note under both byte ceilings.
