@@ -47,7 +47,7 @@ describe('the official list — complete, distinct, ordered', () => {
     // change, recompute from the new module and update BOTH repos in the
     // same slice.
     const hash = createHash('sha256').update(QUARTIERS_OUAGADOUGOU.join('\n'), 'utf8').digest('hex');
-    expect(hash).toBe('f15757613c93eafb7f9896f59e0557ece2929c2874988e295872fc925e068a8e');
+    expect(hash).toBe('1109c5d6658fc8ed85c968da39ef9e8fcfed181658eba35c3f7febf0e9dc96e1');
   });
 
   it('the landmark names a supplier expects are all here, under the 2026-08-28 spellings', () => {

@@ -9,7 +9,9 @@
  * reconstruction of Loi n°066-2009/AN wholesale: names are kept exactly as
  * he printed them, secteur by secteur (the inline markers), including where
  * the new répartition spells a name differently from the old module
- * (Dassasgo, Rimkiéta, Zagtouli, plain Gounghin…).
+ * (Dassasgo, Rimkiéta, Zagtouli, plain Gounghin…). One correction he
+ * ruled himself the same day: « Cité All » in the message was a typo for
+ * « Cité An II » (secteur 4).
  *
  * DETERMINISTIC DATA (Law 5): a static list, no service call, no
  * inference. The picker that consumes it never refuses a buyer whose
@@ -29,7 +31,7 @@ export const QUARTIERS_PAR_ARRONDISSEMENT: readonly {
     /* secteur 1 */ 'Bilbalogho',
     /* secteur 2 */ 'Oscar Yaar', 'Saint-Léon', 'Zone commerciale',
     /* secteur 3 */ 'Koulouba', 'Rotonde', 'Université de Ouagadougou',
-    /* secteur 4 */ 'Aéroport', 'Boince Yaar', 'Zangouettin', 'Cité All', 'Kamsonghin',
+    /* secteur 4 */ 'Aéroport', 'Boince Yaar', 'Zangouettin', 'Cité An II', 'Kamsonghin',
     /* secteur 5 */ 'Samandin',
     /* secteur 6 */ 'Petit Paris',
   ] },
