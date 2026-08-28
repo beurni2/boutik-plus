@@ -6,40 +6,46 @@ import {
 } from '../src/v2/quartiers-ouagadougou';
 
 /**
- * QUARTIERS-OUAGA-1 (founder order 2026-08-22): « not all quartiers from
- * Ouagadougou are displayed… source all quartiers from an up to date doc. »
- * The doc is the official répartition of the CURRENT structure — Loi
- * n°066-2009/AN, 12 arrondissements — cross-checked across five independent
- * reproductions (sourced in the module header). This module is a CONTENT COPY
+ * QUARTIERS-OUAGA-2 (founder order 2026-08-28): « This the up to date
+ * quartiers for Ouagadougou, update this to everywhere in the apps. » The
+ * source is his message VERBATIM — the arrondissements-et-secteurs
+ * répartition, 12 arrondissements / 55 secteurs / 101 quartiers — replacing
+ * the 2026-08-22 press-snippet reconstruction. This module is a CONTENT COPY
  * of the shop-plus buyer-pwa one (each repo deploys alone; no shared package
- * ships app data yet), and these pins are what catches drift between the two:
- * the same 12 arrondissements, the same dedupe/order law, the same canaries.
+ * ships app data yet), and these pins are what catches drift between the
+ * two: the same 12 arrondissements, the same distinct/order law, the same
+ * exact count, the same canaries.
  */
-describe('the official list — complete, deduped, ordered', () => {
+describe('the official list — complete, distinct, ordered', () => {
   it('all 12 arrondissements are present, each with its quartiers', () => {
     expect(QUARTIERS_PAR_ARRONDISSEMENT.map((a) => a.arrondissement)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     for (const a of QUARTIERS_PAR_ARRONDISSEMENT) expect(a.quartiers.length).toBeGreaterThan(0);
   });
 
-  it('the flat list is DEDUPED (Dassasgho straddles two arrondissements and appears once) and alphabetical, accent-aware', () => {
+  it('the flat list is DISTINCT (the 2026-08-28 répartition repeats no name) and alphabetical, accent-aware', () => {
     expect(new Set(QUARTIERS_OUAGADOUGOU).size).toBe(QUARTIERS_OUAGADOUGOU.length);
-    expect(QUARTIERS_OUAGADOUGOU.filter((q) => q === 'Dassasgho')).toHaveLength(1);
     const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
     const sorted = [...QUARTIERS_OUAGADOUGOU].sort((a, b) => (fold(a) < fold(b) ? -1 : fold(a) > fold(b) ? 1 : 0));
     expect(QUARTIERS_OUAGADOUGOU).toEqual(sorted);
   });
 
-  it('the count is EXACTLY the sourced répartition: 78 rows, 77 after the Dassasgho dedupe', () => {
-    // Pinned exact (verifier note): the module header claims cross-repo drift
-    // is caught by these pins, and a ≥70 floor lets a dropped or misspelled
-    // non-canary name through. 77 is the claim.
-    expect(QUARTIERS_PAR_ARRONDISSEMENT.flatMap((a) => a.quartiers)).toHaveLength(78);
-    expect(QUARTIERS_OUAGADOUGOU).toHaveLength(77);
+  it('the count is EXACTLY the founder\'s répartition: 101 rows, 101 in the flat list', () => {
+    // Pinned exact (the QUARTIERS-OUAGA-1 verifier's standing note): the
+    // module header claims cross-repo drift is caught by these pins, and a
+    // floor lets a dropped or misspelled non-canary name through.
+    expect(QUARTIERS_PAR_ARRONDISSEMENT.flatMap((a) => a.quartiers)).toHaveLength(101);
+    expect(QUARTIERS_OUAGADOUGOU).toHaveLength(101);
   });
 
-  it('the landmark names a supplier expects are all here', () => {
-    for (const q of ['Ouaga 2000', "Patte d'Oie", 'Tanghin', 'Karpala', 'Kilwin', 'Rimkièta', 'Hamdalaye', 'Larlé', 'Koulouba', 'Bissighin', 'Kossodo', 'Bendogo', 'Gounghin Sud', 'Gounghin Nord', 'Tampouy', 'Pissy', 'Dassasgho']) {
+  it('the landmark names a supplier expects are all here, under the 2026-08-28 spellings', () => {
+    for (const q of ['Ouaga 2000', 'Patte d’Oie', 'Kossyam', 'Tanghin', 'Karpala', 'Kilwin', 'Rimkiéta', 'Hamdalaye', 'Larlé', 'Koulouba', 'Bissighin', 'Bendogo', 'Gounghin', 'Tampouy', 'Pissy', 'Cissin', 'Somgandé', 'Dassasgo', 'Zagtouli', 'Zone du Bois', '1200 Logements', 'Marché du 10']) {
       expect(QUARTIERS_OUAGADOUGOU).toContain(q);
+    }
+  });
+
+  it('the retired 2026-08-22 spellings are really gone — a default or fixture still naming one is stale', () => {
+    for (const q of ['Gounghin Sud', 'Gounghin Nord', 'Dassasgho', 'Rimkièta', 'Zaghtouli', 'Dar-es-Salam', 'Nioko 1', 'Nioko 2', 'Larlé Wéogo']) {
+      expect(QUARTIERS_OUAGADOUGOU).not.toContain(q);
     }
   });
 });
@@ -51,12 +57,15 @@ describe('filtrerQuartiers — deterministic, accent- and case-insensitive (Law 
   });
 
   it('a substring narrows, accents and case folded both ways', () => {
-    expect(filtrerQuartiers('goun')).toEqual(['Gounghin Nord', 'Gounghin Sud']);
-    expect(filtrerQuartiers('LARLE')).toEqual(['Larlé', 'Larlé Wéogo']);
-    expect(filtrerQuartiers('rimkieta')).toEqual(['Rimkièta']);
+    expect(filtrerQuartiers('goun')).toEqual(['Goundrin', 'Gounghin']);
+    expect(filtrerQuartiers('LARLE')).toEqual(['Larlé']);
+    expect(filtrerQuartiers('rimkieta')).toEqual(['Rimkiéta']);
+    expect(filtrerQuartiers('karpala')).toEqual(['Karpala', 'Karpala non loti']);
   });
 
   it('no match answers the empty list — the SCREEN keeps his typed text; the list is comfort, never a gate', () => {
-    expect(filtrerQuartiers('Zone du Bois')).toEqual([]);
+    // A real place OUTSIDE the commune's répartition — exactly the
+    // villages-rattachés case the free-text road exists for.
+    expect(filtrerQuartiers('Tanghin-Dassouri')).toEqual([]);
   });
 });

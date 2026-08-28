@@ -11,8 +11,9 @@ import { QUARTIERS_OUAGADOUGOU } from '../src/v2/quartiers-ouagadougou';
  *
  * QUARTIERS-OUAGA-1 (founder order 2026-08-22): « not all quartiers from
  * Ouagadougou are displayed… put them on boutik+ ». The wizard's « Votre
- * boutique » step now offers the OFFICIAL répertoire (Loi n°066-2009/AN —
- * sourced in quartiers-ouagadougou.ts) as tappable suggestions that narrow as
+ * boutique » step now offers the OFFICIAL répertoire (the founder's
+ * 2026-08-28 arrondissements-et-secteurs répartition — sourced in
+ * quartiers-ouagadougou.ts) as tappable suggestions that narrow as
  * he types — and this walk is the first time S34Onboard has been MOUNTED at
  * all. Its previous proof was a source scan, which is exactly what the
  * 2026-08-10 standing order forbids for a screen.
@@ -68,7 +69,7 @@ describe('S34 « Votre boutique » — the official quartier list, offered and u
     for (const q of QUARTIERS_OUAGADOUGOU) {
       expect(screen.shows(q), `« ${q} » is missing from the suggestions`).toBe(true);
     }
-    for (const canari of ['Tampouy', 'Ouaga 2000', 'Rimkièta', 'Kilwin']) {
+    for (const canari of ['Tampouy', 'Ouaga 2000', 'Rimkiéta', 'Kilwin']) {
       expect(screen.canPress(canari), `« ${canari} » is rendered but not pressable`).toBe(true);
     }
 
@@ -80,22 +81,22 @@ describe('S34 « Votre boutique » — the official quartier list, offered and u
 
     // Accent-blind typing, as thumbs actually type it.
     await screen.type('rimkieta', 'Chercher votre quartier');
-    expect(screen.shows('Rimkièta'), 'the accent-folded match did not surface').toBe(true);
+    expect(screen.shows('Rimkiéta'), 'the accent-folded match did not surface').toBe(true);
     expect(screen.shows('Tampouy'), 'the cloud did not narrow — every name is still on screen').toBe(false);
 
     // The tap is the promise: it FILLS the field (state, not decoration)…
-    await screen.press('Rimkièta');
-    expect(champQuartier(screen).props['value']).toBe('Rimkièta');
+    await screen.press('Rimkiéta');
+    expect(champQuartier(screen).props['value']).toBe('Rimkiéta');
     // …and the TAP settles the cloud instead of nagging under a settled answer.
-    expect(screen.canPress('Rimkièta'), 'the suggestion chip outlived the choice').toBe(false);
+    expect(screen.canPress('Rimkiéta'), 'the suggestion chip outlived the choice').toBe(false);
 
-    // Typing must NOT settle it (verifier note): « Larlé » typed in full still
-    // shows BOTH Larlé chips — an equality collapse would hide « Larlé
-    // Wéogo » the instant its prefix is a complete name.
-    await screen.type('Larlé', 'Chercher votre quartier');
-    expect(screen.shows('Larlé Wéogo'), 'a fully-typed prefix name hid its longer sibling').toBe(true);
-    await screen.press('Larlé Wéogo');
-    expect(champQuartier(screen).props['value']).toBe('Larlé Wéogo');
+    // Typing must NOT settle it (verifier note): « Karpala » typed in full
+    // still shows BOTH Karpala chips — an equality collapse would hide
+    // « Karpala non loti » the instant its prefix is a complete name.
+    await screen.type('Karpala', 'Chercher votre quartier');
+    expect(screen.shows('Karpala non loti'), 'a fully-typed prefix name hid its longer sibling').toBe(true);
+    await screen.press('Karpala non loti');
+    expect(champQuartier(screen).props['value']).toBe('Karpala non loti');
 
     screen.unmount();
   });
@@ -105,9 +106,9 @@ describe('S34 « Votre boutique » — the official quartier list, offered and u
 
     // Villages rattachés and new lotissements exist: the list is comfort,
     // never a gate. No suggestion may swallow or replace his typed truth.
-    await screen.type('Zone du Bois', 'Chercher votre quartier');
+    await screen.type('Tanghin-Dassouri', 'Chercher votre quartier');
     expect(screen.texts().length, 'the tree died on a no-match query').toBeGreaterThan(0);
-    expect(champQuartier(screen).props['value']).toBe('Zone du Bois');
+    expect(champQuartier(screen).props['value']).toBe('Tanghin-Dassouri');
     expect(screen.shows('Tampouy'), 'a no-match query still shows unrelated suggestions').toBe(false);
 
     // The four questions end here: he REACHES THE NEXT STEP with his own words.

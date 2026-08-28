@@ -704,16 +704,17 @@ export function S33Trust({ d }: { d: D }) {
 // ── S34–S39 Inscription ───────────────────────────────────────────────────────
 export function S34Onboard({ st, d }: { st: S; d: D }) {
   const step = st.ob.step;
-  /* QUARTIERS-OUAGA-1 (founder order 2026-08-22) — « Quartier » is no longer
-     a bare field guessing at spelling: the OFFICIAL répertoire (Loi
-     n°066-2009/AN — sourced in quartiers-ouagadougou.ts) filters as he
-     types and a tap fills the field. Free text stays lawful (villages
-     rattachés exist); the list is comfort, never a gate. Local state:
-     the onboarding wizard is demo-grade and stores none of its fields. */
+  /* QUARTIERS-OUAGA-1/2 (founder orders 2026-08-22 and 2026-08-28) —
+     « Quartier » is no longer a bare field guessing at spelling: the
+     OFFICIAL répertoire (12 arrondissements, 55 secteurs — sourced in
+     quartiers-ouagadougou.ts) filters as he types and a tap fills the
+     field. Free text stays lawful (villages rattachés exist); the list is
+     comfort, never a gate. Local state: the onboarding wizard is
+     demo-grade and stores none of its fields. */
   const [quartier, setQuartier] = useState('');
   /* A TAP settles the cloud; typing reopens it (verifier note). An
-     exact-equality collapse would hide « Larlé Wéogo » the instant he
-     finishes typing « Larlé » — the tap is the only honest settle signal. */
+     exact-equality collapse would hide « Karpala non loti » the instant he
+     finishes typing « Karpala » — the tap is the only honest settle signal. */
   const [choisi, setChoisi] = useState(false);
   const suggestions = filtrerQuartiers(quartier);
   if (step === 5) {
