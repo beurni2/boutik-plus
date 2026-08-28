@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   QUARTIERS_OUAGADOUGOU,
@@ -35,6 +36,18 @@ describe('the official list — complete, distinct, ordered', () => {
     // floor lets a dropped or misspelled non-canary name through.
     expect(QUARTIERS_PAR_ARRONDISSEMENT.flatMap((a) => a.quartiers)).toHaveLength(101);
     expect(QUARTIERS_OUAGADOUGOU).toHaveLength(101);
+  });
+
+  it('the WHOLE content is pinned — one hash over every name, shared verbatim with the shop-plus copy', () => {
+    // The QUARTIERS-OUAGA-2 verifier proved the canary pins let a
+    // count-preserving misspelling of a non-canary name through. This
+    // closes it: any changed byte in any name breaks this hash — and the
+    // SAME constant lives in shop-plus's pin, so a single-repo edit
+    // breaks the cross-repo identity too. On a legitimate future list
+    // change, recompute from the new module and update BOTH repos in the
+    // same slice.
+    const hash = createHash('sha256').update(QUARTIERS_OUAGADOUGOU.join('\n'), 'utf8').digest('hex');
+    expect(hash).toBe('f15757613c93eafb7f9896f59e0557ece2929c2874988e295872fc925e068a8e');
   });
 
   it('the landmark names a supplier expects are all here, under the 2026-08-28 spellings', () => {
