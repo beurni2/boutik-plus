@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-31 · GEO-ACHAT-2 (boutik+ half) — the buyer's position on his fold, before he relays · IN-REVIEW (awaiting the founder's merge word)
+## 2026-08-31 · GEO-ACHAT-2 (boutik+ half) — the buyer's position on his fold, before he relays · DONE
+
+**MERGED AND DEPLOYED (founder: « go », 2026-08-31).** `main` fast-forwarded `026cc84..59cd842` (build `818d892` · the typecheck-gate catch `05b6642` · the verifier's wire-proof walk `0914070` + journal). **Both push workflows green on 59cd842 — ci run 327 · expo-preview 205** (the registered v2 preview root carrying the confier fold with « Sa position GPS »; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed in this repo.** No migration.
 
 **Founder, 2026-08-31: « on boutik+ dispatcher make the buyer's live position given appear so I can see it before relaying to rider »** — one order across two repos; the shop-plus journal carries the buyer-side entry (the map-confirm capture, the phone-only C3, « indication en plus » removed). Build `818d892` + the typecheck-gate catch `05b6642`, pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed in THIS repo — the supplier console is the deploy surface (expo-preview root); no migration.
 
