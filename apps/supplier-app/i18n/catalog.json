@@ -4482,6 +4482,18 @@
     "screenClass": "label"
   },
   {
+    "key": "confier.position_cliente",
+    "fr": "Sa position GPS",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.position_voir",
+    "fr": "Voir sur la carte",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "confier.fenetre",
     "fr": "Livraison prévue : aujourd’hui, dans les 6 heures.",
     "register": "neutral",

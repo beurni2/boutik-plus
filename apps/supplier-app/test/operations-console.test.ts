@@ -830,6 +830,29 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     expect(await resolveDispatchService()!.listLivraisons('k')).toEqual({ ok: false, reason: 'bad_key' });
   });
 
+  it('GEO-ACHAT-2 — the pin arrives exactly, an empty quartier is lawful beside it, and a malformed pin drops the whole row', async () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'https://shop.example/');
+    // The phone-only road: Shop+ stores quartier '' only beside a pin.
+    const telSeul = {
+      ...lrow('ord-tel-seul', 'confirmed', '2026-08-02T08:00:00.000Z'),
+      contact: { phone: '70 12 34 63', quartier: '', repere: '', pin: { lat: 12.371532, lng: -1.519931, accuracy: 12 } },
+    };
+    stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, orders: [
+        telSeul,
+        // a wrong coordinate handed to the founder is worse than a missing
+        // row: off-globe, smuggled key, and an array all drop WHOLE.
+        { ...lrow('ord-pole', 'confirmed', '2026-08-02T08:00:00.000Z'), contact: { phone: '70 00 00 01', quartier: 'G', repere: '', pin: { lat: 91, lng: 0 } } },
+        { ...lrow('ord-clef', 'confirmed', '2026-08-02T08:00:00.000Z'), contact: { phone: '70 00 00 02', quartier: 'G', repere: '', pin: { lat: 12.3, lng: -1.5, alt: 300 } } },
+        { ...lrow('ord-tableau', 'confirmed', '2026-08-02T08:00:00.000Z'), contact: { phone: '70 00 00 03', quartier: 'G', repere: '', pin: [12.3, -1.5] } },
+      ] })),
+    );
+    const res = await resolveDispatchService()!.listLivraisons('cle-c');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.rows).toEqual([telSeul]);
+    expect(res.rows[0]!.contact!.pin).toEqual({ lat: 12.371532, lng: -1.519931, accuracy: 12 });
+  });
+
   it('unset base resolves to NOTHING — never demo; and key C has its own storage slot, never the board key’s', () => {
     vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', '');
     expect(resolveDispatchService()).toBeNull();

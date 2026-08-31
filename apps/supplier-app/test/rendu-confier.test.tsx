@@ -1,4 +1,5 @@
 import React from 'react';
+import { Linking } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { ConfierCoursier } from '../src/commandes/confier';
@@ -368,6 +369,58 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     expect(screen.shows('pas encore reçu le paiement de cette commande')).toBe(false);
     expect(screen.shows('Séra a refusé. Réessayez')).toBe(false);
     expect(screen.canPress('Retirer la course')).toBe(false);
+    screen.unmount();
+  });
+});
+
+/* ═══ GEO-ACHAT-2 — HER POSITION ON HIS FOLD, DRIVEN (founder, 2026-08-31:
+ * « make the buyer's live position given appear so I can see it before
+ * relaying to rider ») ═══
+ * The phone-only order arrives with a pin and an EMPTY quartier/repère —
+ * the fold must show her position (coordinates + « Voir sur la carte »,
+ * dialling his maps app on her exact bytes) and the relay road must remain
+ * REACHABLE: the zone falls back to the order's own zoneTo and the repère
+ * input is his to type. Display-only by design — her pin never auto-rides
+ * the Séra brief (GEO-SERA-1, on his word). */
+
+describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
+  const BUYER_PIN: LivraisonRow = {
+    orderId: 'ord-refus-1',
+    state: 'paid',
+    createdAt: '2026-08-13T09:00:00.000Z',
+    contact: { phone: '70 00 00 00', quartier: '', repere: '', pin: { lat: 12.371532, lng: -1.519931, accuracy: 12 } },
+    productVersionId: 'pv-1',
+    zoneTo: 'Ouagadougou',
+  };
+
+  it('her pin renders in its own read-only section, and « Voir sur la carte » opens his maps app on the exact coordinates', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const avant = Linking.opened.length;
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    expect(screen.shows('Sa position GPS'), 'the position section must be present').toBe(true);
+    expect(screen.shows('12.371532, -1.519931 · ±12 m'), 'the coordinates must be spoken exactly').toBe(true);
+    expect(screen.canPress('Voir sur la carte'), 'the map act must be pressable').toBe(true);
+
+    await screen.press('Voir sur la carte');
+    expect(Linking.opened.slice(avant)).toEqual(['https://www.google.com/maps?q=12.371532,-1.519931']);
+
+    // The relay stays REACHABLE on a phone-only order: nothing dead-ends.
+    // The zone input is prefilled from the order's own zoneTo, the repère is
+    // his to transcribe, and the primary action stands.
+    expect(screen.canPress('Créer la course')).toBe(true);
+    screen.unmount();
+  });
+
+  it('no pin, no section — and nothing else on the fold moved', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    await screen.settle();
+    expect(screen.shows('Sa position GPS')).toBe(false);
+    expect(screen.canPress('Créer la course')).toBe(true);
     screen.unmount();
   });
 });

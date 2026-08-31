@@ -23,11 +23,18 @@ export interface LivraisonRow {
   readonly createdAt: string;
   readonly contact: {
     readonly phone: string;
+    /** GEO-ACHAT-2 — may be '' on the phone-only road: Shop+ admits an empty
+     *  quartier only when a pin rides beside it, so an empty one here always
+     *  has her position next door. */
     readonly quartier: string;
     readonly repere: string;
     /** REPERE-AUDIO-REEL — the buyer's voice note, as the opaque media ref
      *  Shop+ stored at order create. Absent when she typed instead of spoke. */
     readonly audioRef?: string;
+    /** GEO-ACHAT-1/2 — the buyer's own confirmed GPS pin, Shop+'s exact
+     *  stored bytes. Display-only on this console (the founder SEES it
+     *  before relaying); riding it into the Séra brief stays GEO-SERA-1. */
+    readonly pin?: { readonly lat: number; readonly lng: number; readonly accuracy?: number };
   } | null;
   readonly productVersionId: string;
   readonly zoneTo: string;
@@ -91,6 +98,29 @@ export function resolveDispatchService(): DispatchServicePort | null {
   };
 }
 
+/** GEO-ACHAT-2 — the pin's strict shape, mirrored from Shop+'s own stored
+ *  bounds (exactly {lat, lng, accuracy?}; lat/lng on the globe, accuracy in
+ *  [0, 100 000] m). `undefined` = absent (lawful), a valid object = the pin,
+ *  `null` = MALFORMED — the caller drops the whole row. */
+function lirePinContact(value: unknown): { lat: number; lng: number; accuracy?: number } | undefined | null {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const p = value as Record<string, unknown>;
+  for (const key of Object.keys(p)) {
+    if (key !== 'lat' && key !== 'lng' && key !== 'accuracy') return null;
+  }
+  const lat = p['lat'];
+  const lng = p['lng'];
+  if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) return null;
+  if (typeof lng !== 'number' || !Number.isFinite(lng) || lng < -180 || lng > 180) return null;
+  const accuracy = p['accuracy'];
+  if (accuracy !== undefined) {
+    if (typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 100_000) return null;
+    return { lat, lng, accuracy };
+  }
+  return { lat, lng };
+}
+
 /** Strict rows, the console's standing law: whole or nothing. A malformed
  *  CONTACT drops the row too — a half phone number dispatched to a rider is
  *  worse than a row that says to check the order. */
@@ -108,7 +138,9 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     if (typeof c !== 'object') return null;
     const cr = c as Record<string, unknown>;
     if (typeof cr['phone'] !== 'string' || cr['phone'] === '') return null;
-    if (typeof cr['quartier'] !== 'string' || cr['quartier'] === '') return null;
+    // GEO-ACHAT-2 — an EMPTY quartier is a lawful contact now (the phone-only
+    // road); Shop+ only stores one beside a pin, so nothing is lost here.
+    if (typeof cr['quartier'] !== 'string') return null;
     if (typeof cr['repere'] !== 'string') return null;
     // REPERE-AUDIO-REEL — the voice note's ref, optional; a PRESENT ref that
     // is not the media service's own opaque shape drops the row like any
@@ -118,11 +150,17 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     if (audioRef !== undefined && (typeof audioRef !== 'string' || !/^media\/[0-9a-f-]{36}$/.test(audioRef))) {
       return null;
     }
+    // GEO-ACHAT-2 — her pin, optional, held to Shop+'s exact stored bounds;
+    // a PRESENT pin that fails them drops the row (whole or nothing — a
+    // wrong coordinate handed to the founder is worse than a missing row).
+    const pin = lirePinContact(cr['pin']);
+    if (pin === null) return null;
     contact = {
       phone: cr['phone'],
       quartier: cr['quartier'],
       repere: cr['repere'],
       ...(typeof audioRef === 'string' ? { audioRef } : {}),
+      ...(pin !== undefined ? { pin } : {}),
     };
   }
   return {

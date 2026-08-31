@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
@@ -439,6 +439,30 @@ function ConfierAvecService({
         <View style={{ marginTop: 10, gap: 8 }}>
           <Text style={CORPS}>{t('confier.composer_aide')}</Text>
           <Input label={t('confier.pin')} value={pin} onChangeText={setPin} />
+          {/* GEO-ACHAT-2 (founder, 2026-08-31: « make the buyer's live
+              position given appear so I can see it before relaying ») — HER
+              confirmed pin, read-only in its own section like every fact she
+              gave (PRET-SECTIONS). « Voir sur la carte » opens his maps app
+              on her exact coordinates. DELIBERATELY display-only: the field
+              above stays HIS, and riding her pin into the Séra brief is
+              GEO-SERA-1, on his word. */}
+          {buyer?.contact?.pin !== undefined ? (
+            <View style={{ gap: 8 }}>
+              <Overline level="card">{t('confier.position_cliente')}</Overline>
+              <Text style={TITRE}>
+                {`${buyer.contact.pin.lat}, ${buyer.contact.pin.lng}${
+                  buyer.contact.pin.accuracy !== undefined ? ` · ±${Math.round(buyer.contact.pin.accuracy)} m` : ''
+                }`}
+              </Text>
+              <BtnSoft
+                label={t('confier.position_voir')}
+                onPress={() => {
+                  const p = buyer.contact?.pin;
+                  if (p !== undefined) void Linking.openURL(`https://www.google.com/maps?q=${p.lat},${p.lng}`);
+                }}
+              />
+            </View>
+          ) : null}
           {/* PRET-SECTIONS — what the buyer GAVE sits in its section, read-only
               (her words are the navigation; retyping them is how typos reach a
               rider). Only a field she did NOT give is typed here. */}
