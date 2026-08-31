@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking } from 'react-native';
+import { Linking } from './doubles/react-native';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { ConfierCoursier } from '../src/commandes/confier';
