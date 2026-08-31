@@ -414,6 +414,35 @@ describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
     screen.unmount();
   });
 
+  it('her pin NEVER rides the Séra brief — the composed task wire carries not one of her coordinate bytes (the GEO-SERA-1 gate, asserted)', async () => {
+    // The verifier's MAJOR: display-only was proven by source reading alone,
+    // and a later « helpful » one-liner riding her pin into the brief would
+    // have shipped through a green board. This walk presses the relay
+    // THROUGH on a pinned order and asserts the WIRE'S BYTES: his empty pin
+    // field sends no pin key, and her coordinates appear nowhere in the task.
+    const { routes } = livreSera();
+    const w = wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    // She gave no written repère — the founder transcribes one (the standing
+    // fallback road), then relays.
+    await screen.type('Face à la pharmacie du marché', 'Repère');
+    await screen.press('Créer la course');
+
+    const sent = w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST');
+    expect(sent.length, 'the relay never reached the service').toBe(1);
+    const corps = sent[0]!.body as Record<string, unknown>;
+    const lieu = corps['location'] as Record<string, unknown>;
+    expect(lieu['zone']).toBe('Ouagadougou');
+    expect(lieu['landmark']).toBe('Face à la pharmacie du marché');
+    expect('pin' in lieu, 'his empty pin field must send NO pin key').toBe(false);
+    const octets = JSON.stringify(corps);
+    expect(octets).not.toContain('12.371532');
+    expect(octets).not.toContain('-1.519931');
+    screen.unmount();
+  });
+
   it('no pin, no section — and nothing else on the fold moved', async () => {
     const { routes } = livreSera();
     wire(routes);

@@ -277,7 +277,7 @@ export function Input({ label, value, onChangeText, defaultValue, keyboardType, 
   return (
     <View>
       <Overline>{label}</Overline>
-      <TextInput style={[s.input, { marginTop: C16.labelGap }]} value={value} defaultValue={defaultValue} onChangeText={onChangeText} keyboardType={keyboardType} placeholder={placeholder} placeholderTextColor={P.sub} />
+      <TextInput style={[s.input, { marginTop: C16.labelGap }]} accessibilityLabel={label} value={value} defaultValue={defaultValue} onChangeText={onChangeText} keyboardType={keyboardType} placeholder={placeholder} placeholderTextColor={P.sub} />
     </View>
   );
 }
