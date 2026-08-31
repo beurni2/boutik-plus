@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { t } from '../i18n';
@@ -12,7 +12,6 @@ import {
 } from '../coursiers/service';
 import { mintCommandId } from '../offline/commandId';
 import {
-  lirePin,
   resolveSeraDispatch,
   type BoardSera,
   type SeraDispatchPort,
@@ -153,28 +152,18 @@ function ConfierAvecService({
   onConfiee?: () => void;
 }) {
   const [cleDraft, setCleDraft] = useState('');
-  const [pin, setPin] = useState('');
   /**
-   * ⚠ PRET-SECTIONS (founder order 2026-08-09): « put each one in its section
-   * instead of leaving repère section empty from repère information buyer
-   * gave and do not make them editable. »
-   *
-   * What was wrong, mechanically: the old `useState(buyer?.contact?.quartier
-   * ?? …)` seeded ONCE, at first mount — and this fold mounts while the buyer
-   * row is still LOADING (DetailPret passes `buyer=null` until its fetch
-   * lands), so the seed always captured null and the repère section sat empty
-   * over information the buyer had given. useState never re-seeds.
-   *
-   * So the buyer's fields are no longer copied into state at all: what she
-   * GAVE is read from the prop at render time and shown read-only in its
-   * section — it cannot be stale and it cannot be edited. The typed state
-   * below is ONLY the fallback for what she did NOT give (a repère she spoke
-   * instead of typing — the founder transcribes while listening; a quartier
-   * on an order with no contact row). The pin stays typed: it is HIS field,
-   * pasted from his maps app, never hers.
+   * ⚠ PRET-SECTIONS (founder order 2026-08-09) + CONFIER-AUTO (founder,
+   * 2026-08-31: « remove the GPS section and the repere section there »):
+   * what the buyer GAVE is read from the prop at render time — never copied
+   * into state (the old one-shot seed captured null while her row was still
+   * loading, and useState never re-seeds). The GPS and repère sections are
+   * GONE from the fold entirely: her confirmed pin and her words ride the
+   * brief on their own (see `composer`), with nothing for him to read back
+   * or retype. The only typed fallback left is the zone, for an order whose
+   * contact carries no quartier.
    */
   const [zoneSaisie, setZoneSaisie] = useState(row.zoneTo);
-  const [repereSaisi, setRepereSaisi] = useState('');
   /** REFUS-NOMMÉ — the retire road, offered ONLY on `order_already_has_task`. */
   const [retrait, setRetrait] = useState<Retrait>({ kind: 'aucun' });
   /** VILLE (founder ruling 2026-08-09, « for the quartier section add the
@@ -186,7 +175,6 @@ function ConfierAvecService({
     quartierBrut === '' ? '' : /ouaga/i.test(quartierBrut) ? quartierBrut : `${quartierBrut}, Ouagadougou`;
   const repereDeLaCliente = buyer?.contact?.repere.trim() ?? '';
   const zone = zoneDeLaCliente !== '' ? zoneDeLaCliente : zoneSaisie;
-  const repere = repereDeLaCliente !== '' ? repereDeLaCliente : repereSaisi;
 
   const charger = useCallback(async (): Promise<void> => {
     if (cle === null) return;
@@ -216,25 +204,32 @@ function ConfierAvecService({
 
   const composer = async (): Promise<void> => {
     if (busy || cle === null) return;
-    // Canon v3.11.0 (founder ruling 2026-08-08): the pin is FACULTATIF. Blank
-    // means none — the rider navigates by the repère. Typed but unreadable
-    // still refuses: a half-pasted coordinate must never reach a rider.
-    // GEO-SERA-1 (founder, 2026-08-31): HER confirmed pin now rides the brief
-    // by itself — the rider's Itinéraire opens on the point she confirmed on
-    // her own map. A pin HE types still wins: he looked and chose better.
-    // Accuracy stays behind (the brief's pin is {lat, lng}, canon's shape).
+    // CONFIER-AUTO (founder, 2026-08-31): the fold no longer carries a pin
+    // field or a repère field — what the BUYER gave rides the brief on its
+    // own. Her confirmed pin (canon v3.11.0: FACULTATIF) rides as {lat, lng},
+    // accuracy staying behind (capture metadata, never dispatch truth). The
+    // landmark is her TYPED words first (SE0.3: the words lead); when she
+    // spoke instead, honest words point the rider at her note; when only her
+    // point exists, they say so — canon's Location.landmark is trimmed
+    // non-empty, and a fabricated place name is the one thing that must
+    // never stand in for it.
     const sienne = buyer?.contact?.pin;
-    const point =
-      pin.trim() !== ''
-        ? lirePin(pin)
-        : sienne !== undefined
-          ? { lat: sienne.lat, lng: sienne.lng }
-          : undefined;
-    if (point === null) {
-      setAvis(t('confier.pin_invalide'));
+    const point = sienne !== undefined ? { lat: sienne.lat, lng: sienne.lng } : undefined;
+    const landmark =
+      repereDeLaCliente !== ''
+        ? repereDeLaCliente
+        : buyer?.contact?.audioRef !== undefined
+          ? t('confier.repere_voix')
+          : point !== undefined
+            ? t('confier.repere_gps')
+            : '';
+    // No repère, no voice note, no pin: nothing on THIS screen can cure it,
+    // so the refusal must say what to do, not « fill each field ».
+    if (landmark === '') {
+      setAvis(t('confier.sans_repere'));
       return;
     }
-    if (zone.trim() === '' || repere.trim() === '') {
+    if (zone.trim() === '') {
       setAvis(t('confier.champs_manquants'));
       return;
     }
@@ -251,7 +246,7 @@ function ConfierAvecService({
       {
         ...(point !== undefined ? { pin: point } : {}),
         zone: zone.trim(),
-        landmark: repere.trim(),
+        landmark,
         // CONFIER-ALLEGE (founder report 2026-08-08): canon makes these two
         // optional — an honest absence beats a fake « relais-1 » typed to
         // pass a gate. The buyer's repère is the navigation.
@@ -448,34 +443,10 @@ function ConfierAvecService({
       ) : etape.kind === 'composer' ? (
         <View style={{ marginTop: 10, gap: 8 }}>
           <Text style={CORPS}>{t('confier.composer_aide')}</Text>
-          <Input label={t('confier.pin')} value={pin} onChangeText={setPin} />
-          {/* GEO-ACHAT-2 (founder, 2026-08-31: « make the buyer's live
-              position given appear so I can see it before relaying ») — HER
-              confirmed pin, read-only in its own section like every fact she
-              gave (PRET-SECTIONS). « Voir sur la carte » opens his maps app
-              on her exact coordinates. GEO-SERA-1 (his word, same day): this
-              pin now RIDES the brief by itself when the field above stays
-              empty — typing one there overrides it. */}
-          {buyer?.contact?.pin !== undefined ? (
-            <View style={{ gap: 8 }}>
-              <Overline level="card">{t('confier.position_cliente')}</Overline>
-              <Text style={TITRE}>
-                {`${buyer.contact.pin.lat}, ${buyer.contact.pin.lng}${
-                  buyer.contact.pin.accuracy !== undefined ? ` · ±${Math.round(buyer.contact.pin.accuracy)} m` : ''
-                }`}
-              </Text>
-              <BtnSoft
-                label={t('confier.position_voir')}
-                onPress={() => {
-                  const p = buyer.contact?.pin;
-                  if (p !== undefined) void Linking.openURL(`https://www.google.com/maps?q=${p.lat},${p.lng}`);
-                }}
-              />
-            </View>
-          ) : null}
-          {/* PRET-SECTIONS — what the buyer GAVE sits in its section, read-only
-              (her words are the navigation; retyping them is how typos reach a
-              rider). Only a field she did NOT give is typed here. */}
+          {/* CONFIER-AUTO (founder, 2026-08-31): no GPS section, no repère
+              section — what she gave rides the brief by itself (`composer`).
+              PRET-SECTIONS still governs what remains: her quartier sits in
+              its section read-only; only a field she did NOT give is typed. */}
           {zoneDeLaCliente !== '' ? (
             <View style={{ gap: 8 }}>
               <Overline level="card">{t('confier.zone')}</Overline>
@@ -483,14 +454,6 @@ function ConfierAvecService({
             </View>
           ) : (
             <Input label={t('confier.zone')} value={zoneSaisie} onChangeText={setZoneSaisie} />
-          )}
-          {repereDeLaCliente !== '' ? (
-            <View style={{ gap: 8 }}>
-              <Overline level="card">{t('confier.repere')}</Overline>
-              <Text style={TITRE}>{repereDeLaCliente}</Text>
-            </View>
-          ) : (
-            <Input label={t('confier.repere')} value={repereSaisi} onChangeText={setRepereSaisi} />
           )}
           <Text style={PETIT}>{t('confier.fenetre')}</Text>
           <C07BtnPrimary label={t('confier.creer')} icon="check" onPress={() => void composer()} />

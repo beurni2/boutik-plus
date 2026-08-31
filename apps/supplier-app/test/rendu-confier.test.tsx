@@ -1,5 +1,4 @@
 import React from 'react';
-import { Linking } from './doubles/react-native';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { ConfierCoursier } from '../src/commandes/confier';
@@ -85,9 +84,9 @@ const ROW: PaidOrderRow = {
   registeredAt: '2026-08-13T09:00:00.000Z',
 };
 
-/** The buyer GAVE her quartier and repère (PRET-SECTIONS): both sections are
- *  prefilled read-only, so the compose needs no typing and the pin is
- *  facultatif — the founder's exact one-tap road. */
+/** The buyer GAVE her quartier and repère: the quartier fills the read-only
+ *  zone row and her repère rides the brief unseen (CONFIER-AUTO) — the
+ *  founder's exact one-tap road. */
 const BUYER: LivraisonRow = {
   orderId: 'ord-refus-1',
   state: 'paid',
@@ -373,17 +372,20 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
   });
 });
 
-/* ═══ GEO-ACHAT-2 — HER POSITION ON HIS FOLD, DRIVEN (founder, 2026-08-31:
- * « make the buyer's live position given appear so I can see it before
- * relaying to rider ») ═══
- * The phone-only order arrives with a pin and an EMPTY quartier/repère —
- * the fold must show her position (coordinates + « Voir sur la carte »,
- * dialling his maps app on her exact bytes) and the relay road must remain
- * REACHABLE: the zone falls back to the order's own zoneTo and the repère
- * input is his to type. Since GEO-SERA-1 her pin also RIDES the brief when
- * his field is empty — the precedence walks below pin that law. */
+/* ═══ CONFIER-AUTO — HER DATA RIDES BY ITSELF (founder, 2026-08-31: « on
+ * boutik+ i do not see the live localization, and remove the GPS section and
+ * the repere section there ») ═══
+ * The fold no longer renders a Point GPS input, a « Sa position GPS » display
+ * or a repère section. Her confirmed pin rides the brief as {lat, lng} on its
+ * own — GEO-SERA-1's fallback is now the ONLY road — and the brief's landmark
+ * is her TYPED repère first, then honest words for a voice note or a bare
+ * point: canon's `Location.landmark` is trimmed NON-EMPTY (kernel-types
+ * location.ts), and a fabricated place name must never stand in for it. An
+ * order carrying none of the three refuses BEFORE the wire, with a sentence
+ * that says what to do — never « remplissez chaque champ » over a fold that
+ * has no such field. */
 
-describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
+describe('CONFIER-AUTO — the fold without the GPS and repère sections', () => {
   const BUYER_PIN: LivraisonRow = {
     orderId: 'ord-refus-1',
     state: 'paid',
@@ -393,39 +395,27 @@ describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
     zoneTo: 'Ouagadougou',
   };
 
-  it('her pin renders in its own read-only section, and « Voir sur la carte » opens his maps app on the exact coordinates', async () => {
+  it('the removed sections are GONE — no pin input, no position display, no repère — and the primary action still stands', async () => {
     const { routes } = livreSera();
     wire(routes);
-    const avant = Linking.opened.length;
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
     await screen.settle();
 
-    expect(screen.shows('Sa position GPS'), 'the position section must be present').toBe(true);
-    expect(screen.shows('12.371532, -1.519931 · ±12 m'), 'the coordinates must be spoken exactly').toBe(true);
-    expect(screen.canPress('Voir sur la carte'), 'the map act must be pressable').toBe(true);
-
-    await screen.press('Voir sur la carte');
-    expect(Linking.opened.slice(avant)).toEqual(['https://www.google.com/maps?q=12.371532,-1.519931']);
-
-    // The relay stays REACHABLE on a phone-only order: nothing dead-ends.
-    // The zone input is prefilled from the order's own zoneTo, the repère is
-    // his to transcribe, and the primary action stands.
-    expect(screen.canPress('Créer la course')).toBe(true);
+    expect(screen.shows('Sa position GPS'), 'the position display was removed by his order').toBe(false);
+    expect(screen.shows('Point GPS'), 'the pin input was removed by his order').toBe(false);
+    expect(screen.shows('Repère'), 'the repère section was removed by his order').toBe(false);
+    expect(screen.canPress('Créer la course'), 'the primary action must survive the removals').toBe(true);
     screen.unmount();
   });
 
-  it('GEO-SERA-1 — her confirmed pin RIDES the brief by itself: exact {lat, lng}, no accuracy, on the task wire', async () => {
-    // The founder's word opened the gate the previous walk held shut: with
-    // his pin field EMPTY, the pin she confirmed on her own map rides the
-    // brief, so the rider's Itinéraire opens on her exact point.
+  it('pin-only: one tap — her pin rides as exact {lat, lng}, no accuracy octets, and the landmark says the truth about it', async () => {
     const { routes } = livreSera();
     const w = wire(routes);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
     await screen.settle();
 
-    // She gave no written repère — the founder transcribes one (the standing
-    // fallback road), then relays.
-    await screen.type('Face à la pharmacie du marché', 'Repère');
+    // No typing anywhere: the zone fell back to the order's own zoneTo and
+    // everything else is hers — the founder's whole act is ONE tap.
     await screen.press('Créer la course');
 
     const sent = w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST');
@@ -433,7 +423,9 @@ describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
     const corps = sent[0]!.body as Record<string, unknown>;
     const lieu = corps['location'] as Record<string, unknown>;
     expect(lieu['zone']).toBe('Ouagadougou');
-    expect(lieu['landmark']).toBe('Face à la pharmacie du marché');
+    // Canon's landmark is trimmed non-empty — with neither her words nor a
+    // note, the honest sentence about her point stands in, never a fiction.
+    expect(lieu['landmark']).toBe('Point GPS confirmé par la cliente');
     // Her bytes exactly — and ONLY {lat, lng}: the accuracy stays behind
     // (the brief's pin is canon's own shape).
     expect(lieu['pin']).toEqual({ lat: 12.371532, lng: -1.519931 });
@@ -441,27 +433,67 @@ describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
     screen.unmount();
   });
 
-  it('GEO-SERA-1 — a pin HE types WINS over hers, byte for byte', async () => {
+  it('voice-only: the landmark points the rider at her note, and the note itself rides beside it', async () => {
+    const BUYER_VOIX: LivraisonRow = {
+      ...BUYER_PIN,
+      contact: {
+        phone: '70 00 00 00',
+        quartier: 'Zogona',
+        repere: '',
+        audioRef: 'media/0f0e0d0c-0b0a-4908-8706-050403020100',
+      },
+    };
     const { routes } = livreSera();
     const w = wire(routes);
-    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_VOIX} />);
     await screen.settle();
 
-    await screen.type('12.3000, -1.5000', 'Point GPS');
-    await screen.type('Face à la pharmacie du marché', 'Repère');
     await screen.press('Créer la course');
 
     const sent = w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST');
     expect(sent.length).toBe(1);
-    const lieu = (sent[0]!.body as Record<string, unknown>)['location'] as Record<string, unknown>;
-    expect(lieu['pin']).toEqual({ lat: 12.3, lng: -1.5 });
-    const octets = JSON.stringify(sent[0]!.body);
-    expect(octets).not.toContain('12.371532');
-    expect(octets).not.toContain('-1.519931');
+    const corps = sent[0]!.body as Record<string, unknown>;
+    const lieu = corps['location'] as Record<string, unknown>;
+    expect(lieu['landmark']).toBe('Repère donné en note vocale');
+    expect(corps['repereAudioRef'], 'the note must ride the brief the landmark points at').toBe(
+      'media/0f0e0d0c-0b0a-4908-8706-050403020100',
+    );
+    expect('pin' in lieu, 'an absent pin stays ABSENT — never a zeroed coordinate').toBe(false);
+    expect(lieu['zone']).toBe('Zogona, Ouagadougou');
     screen.unmount();
   });
 
-  it('GEO-SERA-1 — no pin anywhere: the brief still carries NO pin key (absence stays representable)', async () => {
+  it('her TYPED repère leads: it is the landmark byte for byte, unseen on the fold, and her pin and note ride beside it', async () => {
+    const BUYER_TOUT: LivraisonRow = {
+      ...BUYER_PIN,
+      contact: {
+        phone: '70 00 00 00',
+        quartier: 'Zogona',
+        repere: "À l'échangeur, portail vert",
+        pin: { lat: 12.371532, lng: -1.519931, accuracy: 12 },
+        audioRef: 'media/0f0e0d0c-0b0a-4908-8706-050403020100',
+      },
+    };
+    const { routes } = livreSera();
+    const w = wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_TOUT} />);
+    await screen.settle();
+
+    // The repère section is gone: her words ride WITHOUT rendering.
+    expect(screen.shows("À l'échangeur, portail vert")).toBe(false);
+    await screen.press('Créer la course');
+
+    const sent = w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST');
+    expect(sent.length).toBe(1);
+    const corps = sent[0]!.body as Record<string, unknown>;
+    const lieu = corps['location'] as Record<string, unknown>;
+    expect(lieu['landmark'], 'SE0.3 — her own words lead everything else').toBe("À l'échangeur, portail vert");
+    expect(lieu['pin']).toEqual({ lat: 12.371532, lng: -1.519931 });
+    expect(corps['repereAudioRef']).toBe('media/0f0e0d0c-0b0a-4908-8706-050403020100');
+    screen.unmount();
+  });
+
+  it('no pin anywhere: the brief still carries NO pin key (absence stays representable)', async () => {
     const { routes } = livreSera();
     const w = wire(routes);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
@@ -473,16 +505,27 @@ describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
     expect(sent.length).toBe(1);
     const lieu = (sent[0]!.body as Record<string, unknown>)['location'] as Record<string, unknown>;
     expect('pin' in lieu, 'an absent pin stays ABSENT — never a zeroed coordinate').toBe(false);
+    expect(lieu['landmark']).toBe("À l'échangeur, portail vert");
     screen.unmount();
   });
 
-  it('no pin, no section — and nothing else on the fold moved', async () => {
+  it('neither words, nor note, nor point: the compose refuses BEFORE the wire, saying what to do — and the tree survives', async () => {
+    const BUYER_RIEN: LivraisonRow = {
+      ...BUYER_PIN,
+      contact: { phone: '70 00 00 00', quartier: 'Zogona', repere: '' },
+    };
     const { routes } = livreSera();
-    wire(routes);
-    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    const w = wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_RIEN} />);
     await screen.settle();
-    expect(screen.shows('Sa position GPS')).toBe(false);
-    expect(screen.canPress('Créer la course')).toBe(true);
+
+    await screen.press('Créer la course');
+
+    // Nothing left the device: canon's landmark is non-empty, and no honest
+    // sentence exists for an order that gave nothing at all.
+    expect(w.calls.filter((c) => c.path === '/ops/task').length, 'the refusal must happen BEFORE the wire').toBe(0);
+    expect(screen.shows('Demandez un repère à la cliente'), 'the sentence must say the way forward').toBe(true);
+    expect(screen.canPress('Créer la course'), 'the tree survives — his retry stays his').toBe(true);
     screen.unmount();
   });
 });

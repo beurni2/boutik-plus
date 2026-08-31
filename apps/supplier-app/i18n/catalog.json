@@ -4464,34 +4464,22 @@
     "screenClass": "status"
   },
   {
-    "key": "confier.pin",
-    "fr": "Point GPS — si vous l'avez (ex. 12.3714, -1.5197)",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
     "key": "confier.zone",
     "fr": "Quartier",
     "register": "neutral",
     "screenClass": "label"
   },
   {
-    "key": "confier.repere",
-    "fr": "Repère",
+    "key": "confier.repere_voix",
+    "fr": "Repère donné en note vocale",
     "register": "neutral",
-    "screenClass": "label"
+    "screenClass": "status"
   },
   {
-    "key": "confier.position_cliente",
-    "fr": "Sa position GPS",
+    "key": "confier.repere_gps",
+    "fr": "Point GPS confirmé par la cliente",
     "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "confier.position_voir",
-    "fr": "Voir sur la carte",
-    "register": "neutral",
-    "screenClass": "label"
+    "screenClass": "status"
   },
   {
     "key": "confier.fenetre",
@@ -4542,8 +4530,8 @@
     "screenClass": "status"
   },
   {
-    "key": "confier.pin_invalide",
-    "fr": "Ce point GPS ne se lit pas. Collez-le comme : 12.3714, -1.5197",
+    "key": "confier.sans_repere",
+    "fr": "Cette commande n’a ni repère écrit, ni note vocale, ni point GPS. Demandez un repère à la cliente avant de créer la course.",
     "register": "neutral",
     "screenClass": "status"
   },

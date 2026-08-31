@@ -142,17 +142,6 @@ describe('[source-text checks] the tab’s discipline', () => {
   });
 });
 
-describe('RB-2 — the pin the founder pastes, refused before it can reach a rider', () => {
-  it('reads « lat, lng » and nothing else, inside the globe only', async () => {
-    const { lirePin } = await import('../src/commandes/sera-service');
-    expect(lirePin('12.3714, -1.5197')).toEqual({ lat: 12.3714, lng: -1.5197 });
-    expect(lirePin('  -11.5 ,  39.2 ')).toEqual({ lat: -11.5, lng: 39.2 });
-    for (const bad of ['', '12.37', '12,37 -1,52', 'douze, un', '95, 10', '10, 190', '12.3;-1.5']) {
-      expect(lirePin(bad), bad).toBeNull();
-    }
-  });
-});
-
 describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () => {
   const confier = readFileSync(join(import.meta.dirname, '..', 'src/commandes/confier.tsx'), 'utf8');
   const sera = readFileSync(join(import.meta.dirname, '..', 'src/commandes/sera-service.ts'), 'utf8');

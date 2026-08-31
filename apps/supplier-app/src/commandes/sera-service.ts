@@ -54,7 +54,8 @@ export interface BoardSera {
 export interface AdresseTache {
   /** Canon v3.11.0 (founder ruling 2026-08-08): the pin is OPTIONAL — the
    *  rider navigates landmark-first, and an absence beats a fabricated
-   *  coordinate. When given it must have parsed through `lirePin`. */
+   *  coordinate. Since CONFIER-AUTO its only source is the buyer's own
+   *  confirmed pin off the order contact — nobody types coordinates. */
   readonly pin?: { readonly lat: number; readonly lng: number };
   readonly zone: string;
   readonly landmark: string;
@@ -84,21 +85,6 @@ export interface SeraDispatchPort {
     brief?: BriefTache,
   ): Promise<CoursierAnswer<{ taskId: string }>>;
   confier(cle: string, taskId: string, riderId: string): Promise<CoursierAnswer<null>>;
-}
-
-/**
- * « 12.3714, -1.5197 » → a pin, or null. The founder pastes this from a maps
- * app; a slip of the thumb must refuse HERE, before it could ever reach a
- * rider (the Worker re-checks the same bounds — belt and braces, his side).
- */
-export function lirePin(saisie: string): { lat: number; lng: number } | null {
-  const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(saisie);
-  if (m === null) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { lat, lng };
 }
 
 type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;

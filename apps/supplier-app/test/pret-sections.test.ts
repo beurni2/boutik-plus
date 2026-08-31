@@ -69,32 +69,36 @@ describe('PRET-SECTIONS — the buyer’s words reach their sections, read-only,
     expect(bloc).not.toContain('row.zoneTo');
   });
 
-  it('a given field renders as TEXT in its labelled section — never an editable Input', () => {
+  it('her quartier renders as TEXT in its labelled section — never an editable Input', () => {
     // the read-only branch: label + value as Text
     // labelled through the SAME Overline idiom the Input uses — one label
     // voice per card, never a snowflake (verifier minor, fixed in-build)
     expect(confier).toMatch(
       /zoneDeLaCliente !== '' \? \(\s*<View style=\{\{ gap: 8 \}\}>\s*<Overline level="card">\{t\('confier\.zone'\)\}<\/Overline>\s*<Text style=\{TITRE\}>\{zoneDeLaCliente\}<\/Text>/,
     );
-    expect(confier).toMatch(
-      /repereDeLaCliente !== '' \? \(\s*<View style=\{\{ gap: 8 \}\}>\s*<Overline level="card">\{t\('confier\.repere'\)\}<\/Overline>\s*<Text style=\{TITRE\}>\{repereDeLaCliente\}<\/Text>/,
-    );
     // and no Input is ever bound to the buyer's own values
     expect(confier).not.toMatch(/<Input[^>]*value=\{zoneDeLaCliente\}/);
     expect(confier).not.toMatch(/<Input[^>]*value=\{repereDeLaCliente\}/);
   });
 
-  it('the typed fallback exists ONLY for what she did not give (voice-only repère; contact-less order)', () => {
+  it('CONFIER-AUTO (founder 2026-08-31) — the zone is the ONLY typed fallback left: no pin field, no repère field, no position display', () => {
     expect(confier).toMatch(/<Input label=\{t\('confier\.zone'\)\} value=\{zoneSaisie\}/);
-    expect(confier).toMatch(/<Input label=\{t\('confier\.repere'\)\} value=\{repereSaisi\}/);
+    expect(confier).not.toContain("t('confier.repere')");
+    expect(confier).not.toContain("t('confier.pin')");
+    expect(confier).not.toContain("t('confier.position_cliente')");
   });
 
-  it('the composed task carries the effective values — hers when given, his only in her absence', () => {
+  it('CONFIER-AUTO — the composed task carries her values by itself: zone hers-first, landmark her words with HONEST fallbacks', () => {
     expect(confier).toMatch(/const zone = zoneDeLaCliente !== '' \? zoneDeLaCliente : zoneSaisie;/);
-    expect(confier).toMatch(/const repere = repereDeLaCliente !== '' \? repereDeLaCliente : repereSaisi;/);
+    // canon's Location.landmark is trimmed non-empty: her typed repère leads,
+    // then the truthful sentences for a voice note or a bare confirmed point —
+    // never a fabricated place name, never an empty string on the wire.
+    expect(confier).toMatch(
+      /const landmark =\s*repereDeLaCliente !== ''\s*\? repereDeLaCliente\s*: buyer\?\.contact\?\.audioRef !== undefined\s*\? t\('confier\.repere_voix'\)\s*: point !== undefined\s*\? t\('confier\.repere_gps'\)\s*: '';/,
+    );
     // composer still sends zone/landmark from exactly these
     expect(confier).toMatch(/zone: zone\.trim\(\)/);
-    expect(confier).toMatch(/landmark: repere\.trim\(\)/);
+    expect(confier).toMatch(/landmark,/);
   });
 
   it('B1 — the fold is HANDED the live buyer row: the prop the whole fix turns on is pinned at its call site', () => {
