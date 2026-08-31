@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-31 · CONFIER-AUTO-1 — the GPS and repère sections leave the confier fold; her data rides by itself · IN REVIEW
+## 2026-08-31 · CONFIER-AUTO-1 — the GPS and repère sections leave the confier fold; her data rides by itself · DONE
+
+**MERGED AND DEPLOYED (founder: « Go », 2026-08-31).** `main` fast-forwarded `31b7d47..f14a3d2` (build `50c102c` + verifier MINOR fixes `fe6bf50` + journal). **Both push workflows green on f14a3d2 — ci run 331 · expo-preview 209** (the registered v2 preview root carrying the slimmed confier fold; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed in this repo.** No migration. The shop-plus seam half merged the same hour (`213dc4e`, its journal; its four push workflows green — ci 598 · pwa 388 · expo 421 · drift 263).
 
 **Founder, 2026-08-31: « on boutik+ i do not see the live localization, and remove the GPS section and the repere section there »** — with his screenshot of the live fold (voice chip, empty POINT GPS, quartier Dagnoin, empty REPÈRE). Build `50c102c` + the verifier's MINOR fixes `fe6bf50`, pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed in this repo (console = deploy surface); no migration. The shop-plus half (one seam test) is `5c5c621`, its journal.
 
