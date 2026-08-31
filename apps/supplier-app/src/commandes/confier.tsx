@@ -219,7 +219,17 @@ function ConfierAvecService({
     // Canon v3.11.0 (founder ruling 2026-08-08): the pin is FACULTATIF. Blank
     // means none — the rider navigates by the repère. Typed but unreadable
     // still refuses: a half-pasted coordinate must never reach a rider.
-    const point = pin.trim() === '' ? undefined : lirePin(pin);
+    // GEO-SERA-1 (founder, 2026-08-31): HER confirmed pin now rides the brief
+    // by itself — the rider's Itinéraire opens on the point she confirmed on
+    // her own map. A pin HE types still wins: he looked and chose better.
+    // Accuracy stays behind (the brief's pin is {lat, lng}, canon's shape).
+    const sienne = buyer?.contact?.pin;
+    const point =
+      pin.trim() !== ''
+        ? lirePin(pin)
+        : sienne !== undefined
+          ? { lat: sienne.lat, lng: sienne.lng }
+          : undefined;
     if (point === null) {
       setAvis(t('confier.pin_invalide'));
       return;
@@ -443,9 +453,9 @@ function ConfierAvecService({
               position given appear so I can see it before relaying ») — HER
               confirmed pin, read-only in its own section like every fact she
               gave (PRET-SECTIONS). « Voir sur la carte » opens his maps app
-              on her exact coordinates. DELIBERATELY display-only: the field
-              above stays HIS, and riding her pin into the Séra brief is
-              GEO-SERA-1, on his word. */}
+              on her exact coordinates. GEO-SERA-1 (his word, same day): this
+              pin now RIDES the brief by itself when the field above stays
+              empty — typing one there overrides it. */}
           {buyer?.contact?.pin !== undefined ? (
             <View style={{ gap: 8 }}>
               <Overline level="card">{t('confier.position_cliente')}</Overline>
