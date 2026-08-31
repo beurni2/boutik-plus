@@ -2,6 +2,20 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-08-31 · GEO-SERA-1 (boutik+ half) — her confirmed pin rides the Séra brief; his typed pin wins · IN REVIEW
+
+**Founder, 2026-08-31: « now go with GEO-SERA-1 and make sure the direction is well display and well explain for the rider. i want it to be and look very professional and very well simply structured. »** This repo's half is the relay: the compose fold (`commandes/confier.tsx`) stops holding her pin back. Build `7659b39`, pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed in this repo; the supplier console is the deploy surface (expo-preview root); no migration. The rider-side half (the « Itinéraire » act itself) lives in sera's journal.
+
+**THE SHAPE — precedence, exactly three cases.** With his « Point GPS » field EMPTY, her confirmed contact pin rides the `/ops/task` brief by itself as exactly `{lat, lng}` — **accuracy never crosses** (the brief's pin is canon's shape, and ±m is capture metadata, not dispatch truth). A pin HE types still WINS — he looked and chose better. With neither, the brief carries NO pin key — absence stays representable, never a zeroed coordinate. The « Sa position GPS » display section stands unchanged; only its doc note moved from « display-only, never rides » (GEO-ACHAT-2's deliberate hold) to the new law.
+
+**Evidence.** rendu-confier **10/10** — the old « her pin NEVER rides » gate walk replaced by THREE driven precedence walks asserting the task WIRE's bytes: her pin rides alone (`location.pin` toEqual her exact coords, octets carry no `accuracy`), his typed `12.3000, -1.5000` wins (her bytes absent from the whole body), no-pin-anywhere sends no pin key. Board FROM REPO ROOT: turbo test **21/21 --force** (clean run; a first run parallel with sera's board hit 20/21 — a load flake, journalled not hidden) · typecheck **14/14 --force** · `run-gates.sh` **ALL GATES GREEN**. **Mutations, anchor-verified, each red on exactly its guard:** the her-pin fallback arm severed → the rides-alone walk red (`expected undefined to deeply equal { lat: 12.371532, lng: -1.519931 }`) · his-pin precedence severed (hers preferred even when he typed) → the HE-WINS walk red seeing her bytes where his were ordered. Both restored byte-identical, 10/10 green, porcelain 0.
+
+**The ONE fresh-context verifier (shared with the sera half — the order verbatim, the laws incl. the precedence law, both diffs, the DoD; it re-ran both repos' suites, the logistics e2e on real miniflare, copy-lint, and its own anchor-verified mutation): NO BLOCKER, NO MAJOR; one MINOR here, fixed once, never re-inspected.** The MINOR: this walk file's GEO-ACHAT-2 describe header still read « Display-only by design — her pin never auto-rides the Séra brief » — true when written, false since this slice, and contradicted by the precedence walk thirty lines below; reworded to the new law. It confirmed law-by-law: precedence exact (a typed-but-unreadable pin refuses, never silently falls back to hers; accuracy stripped by construction), her pin bounded upstream at the dispatch reader, all three wire cases load-bearing (the fixture carries `accuracy: 12`, so the no-accuracy assert bites). What it ran here: supplier-app 996/996 · typecheck clean · copy-lint 0 violations.
+
+**Named residue:** the fold could PREFILL his « Point GPS » field from her pin — still deliberately not done: the field stays HIS, and the wire-level precedence already carries her point without a keystroke.
+
+---
+
 ## 2026-08-31 · GEO-ACHAT-2 (boutik+ half) — the buyer's position on his fold, before he relays · DONE
 
 **MERGED AND DEPLOYED (founder: « go », 2026-08-31).** `main` fast-forwarded `026cc84..59cd842` (build `818d892` · the typecheck-gate catch `05b6642` · the verifier's wire-proof walk `0914070` + journal). **Both push workflows green on 59cd842 — ci run 327 · expo-preview 205** (the registered v2 preview root carrying the confier fold with « Sa position GPS »; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed in this repo.** No migration.

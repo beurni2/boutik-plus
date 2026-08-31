@@ -380,8 +380,8 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
  * the fold must show her position (coordinates + « Voir sur la carte »,
  * dialling his maps app on her exact bytes) and the relay road must remain
  * REACHABLE: the zone falls back to the order's own zoneTo and the repère
- * input is his to type. Display-only by design — her pin never auto-rides
- * the Séra brief (GEO-SERA-1, on his word). */
+ * input is his to type. Since GEO-SERA-1 her pin also RIDES the brief when
+ * his field is empty — the precedence walks below pin that law. */
 
 describe('GEO-ACHAT-2 — the buyer\'s position on the compose fold', () => {
   const BUYER_PIN: LivraisonRow = {
