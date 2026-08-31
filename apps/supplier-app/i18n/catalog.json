@@ -4459,7 +4459,7 @@
   },
   {
     "key": "confier.composer_aide",
-    "fr": "Donnez le point de livraison. Le coursier lira ces mots.",
+    "fr": "Vérifiez le point de livraison. Le coursier recevra le repère de la cliente.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4531,13 +4531,13 @@
   },
   {
     "key": "confier.sans_repere",
-    "fr": "Cette commande n’a ni repère écrit, ni note vocale, ni point GPS. Demandez un repère à la cliente avant de créer la course.",
+    "fr": "Aucun repère pour cette commande pour le moment. Réessayez dans un instant, ou demandez un repère à la cliente.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "confier.champs_manquants",
-    "fr": "Remplissez chaque champ avant de créer la course.",
+    "fr": "Donnez le quartier de livraison avant de créer la course.",
     "register": "neutral",
     "screenClass": "status"
   },

@@ -524,7 +524,10 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     // Nothing left the device: canon's landmark is non-empty, and no honest
     // sentence exists for an order that gave nothing at all.
     expect(w.calls.filter((c) => c.path === '/ops/task').length, 'the refusal must happen BEFORE the wire').toBe(0);
-    expect(screen.shows('Demandez un repère à la cliente'), 'the sentence must say the way forward').toBe(true);
+    // Wording that survives the loading race (the fold can mount before her
+    // row lands): retry first, then the human way forward — never an absolute
+    // claim the screen cannot yet know.
+    expect(screen.shows('demandez un repère à la cliente'), 'the sentence must say the way forward').toBe(true);
     expect(screen.canPress('Créer la course'), 'the tree survives — his retry stays his').toBe(true);
     screen.unmount();
   });

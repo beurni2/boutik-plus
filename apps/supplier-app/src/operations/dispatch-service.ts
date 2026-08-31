@@ -32,8 +32,9 @@ export interface LivraisonRow {
      *  Shop+ stored at order create. Absent when she typed instead of spoke. */
     readonly audioRef?: string;
     /** GEO-ACHAT-1/2 — the buyer's own confirmed GPS pin, Shop+'s exact
-     *  stored bytes. Display-only on this console (the founder SEES it
-     *  before relaying); riding it into the Séra brief stays GEO-SERA-1. */
+     *  stored bytes. Never displayed on this console (CONFIER-AUTO removed
+     *  the section); it rides the Séra brief by itself as {lat, lng} —
+     *  accuracy is capture metadata and stays behind at the compose. */
     readonly pin?: { readonly lat: number; readonly lng: number; readonly accuracy?: number };
   } | null;
   readonly productVersionId: string;

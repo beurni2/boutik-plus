@@ -25,8 +25,10 @@ import type { PaidOrderRow } from '../operations/service';
  * The whole road on one card, honest at every step:
  *
  *   1. THE TASK. Séra fabricates nothing (his ruling, SE-LIVE-2c option 1):
- *      the founder composes the delivery task himself — GPS pin pasted from
- *      his maps app, zone and repère prefilled from what the BUYER typed.
+ *      the founder relays what the BUYER gave — her confirmed pin, her
+ *      quartier, her repère (typed, spoken, or the honest sentence about her
+ *      point) ride the brief by themselves (CONFIER-AUTO, 2026-08-31); the
+ *      zone is the only typed fallback left, for a contact with no quartier.
  *      CONFIER-ALLEGE (founder report 2026-08-08): directions and relay id
  *      are canon-optional and were pure friction here — the form stopped
  *      asking; the worker receives honest '' for both. Séra's admission gate
