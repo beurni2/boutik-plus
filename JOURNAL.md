@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-31 · GEO-SERA-1 (boutik+ half) — her confirmed pin rides the Séra brief; his typed pin wins · IN REVIEW
+## 2026-08-31 · GEO-SERA-1 (boutik+ half) — her confirmed pin rides the Séra brief; his typed pin wins · DONE
+
+**MERGED AND DEPLOYED (founder: « Go », 2026-08-31).** `main` fast-forwarded `2b65c27..648aa42` (build `7659b39` + journal & the verifier's MINOR fix `648aa42`). **Both push workflows green on 648aa42 — ci run 329 · expo-preview 207** (the registered v2 preview root; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed in this repo.** No migration.
 
 **Founder, 2026-08-31: « now go with GEO-SERA-1 and make sure the direction is well display and well explain for the rider. i want it to be and look very professional and very well simply structured. »** This repo's half is the relay: the compose fold (`commandes/confier.tsx`) stops holding her pin back. Build `7659b39`, pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed in this repo; the supplier console is the deploy surface (expo-preview root); no migration. The rider-side half (the « Itinéraire » act itself) lives in sera's journal.
 
