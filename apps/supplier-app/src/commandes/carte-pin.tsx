@@ -38,9 +38,12 @@ const TUILE = 256;
  *  Ouagadougou — the quartier's main roads readable in a 180 dp card. */
 export const CARTE_ZOOM = 16;
 
-/** The window the tile grid must cover, in dp around the centre — wide
- *  enough for any phone the card renders on (the frame clips the rest). */
-const DEMI_L = 180;
+/** The window the tile grid must cover, in dp around the centre. The card
+ *  is full-width, so the half-width must clear HALF THE WIDEST phone this
+ *  console meets (~430 dp ⇒ 215), or the widest screens would show bare
+ *  ground where tiles belong (verifier MINOR, fixed in-build); the frame
+ *  clips the rest on narrower phones. */
+const DEMI_L = 215;
 const DEMI_H = 100;
 
 /** Web-Mercator forward: degrees → world pixels at `zoom` (the shop-plus

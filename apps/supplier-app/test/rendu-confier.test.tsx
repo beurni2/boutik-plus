@@ -553,6 +553,28 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     screen.unmount();
   });
 
+  it('CONFIER-CARTE — a tile that dies leaves the calm ground, and the fold stays his: the tree survives, the relay stands', async () => {
+    // RENDU-RÉEL question three: the tile load fires by itself — its failure
+    // must leave a way out. The vignette discipline hides THAT url; the rest
+    // of the card and the primary action stand untouched.
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    const avant = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+    expect(avant.length).toBe(6);
+    await screen.imageError(0);
+
+    const apres = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+    expect(apres.length, 'the dead tile must be hidden, not left as a broken glyph').toBe(5);
+    expect(apres).not.toContain(avant[0]!);
+    expect(apres, 'the other tiles must survive their neighbour').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
+    expect(screen.shows('Sa position'), 'the card itself must survive').toBe(true);
+    expect(screen.canPress('Créer la course'), 'the tree must survive a dead tile').toBe(true);
+    screen.unmount();
+  });
+
   it('CONFIER-CARTE — no pin, no map: the card never renders over an order that gave no point', async () => {
     const { routes } = livreSera();
     wire(routes);
