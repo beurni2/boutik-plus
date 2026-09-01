@@ -169,6 +169,14 @@ describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
     expect(urlTuile(CARTE_ZOOM, 0, -1)).toBeNull();
     expect(urlTuile(CARTE_ZOOM, Math.pow(2, CARTE_ZOOM), 0)).toBe('https://tile.openstreetmap.org/16/0/0.png');
   });
+
+  it('[source-text] the card is CAPPED, never the screen — the founder hit the uncapped banner once (2026-09-01)', () => {
+    // Appearance is outside the walks' bound by law, so the photograph
+    // idiom's cap is pinned here the way the fold's other disciplines are.
+    const carte = readFileSync(join(import.meta.dirname, '..', 'src/commandes/carte-pin.tsx'), 'utf8');
+    expect(carte).toContain('const CARTE_LARGEUR_MAX = 340;');
+    expect(carte).toMatch(/width: '100%',\s*maxWidth: CARTE_LARGEUR_MAX,/);
+  });
 });
 
 describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () => {

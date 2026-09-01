@@ -38,11 +38,16 @@ const TUILE = 256;
  *  Ouagadougou — the quartier's main roads readable in a 180 dp card. */
 export const CARTE_ZOOM = 16;
 
-/** The window the tile grid must cover, in dp around the centre. The card
- *  is full-width, so the half-width must clear HALF THE WIDEST phone this
- *  console meets (~430 dp ⇒ 215), or the widest screens would show bare
- *  ground where tiles belong (verifier MINOR, fixed in-build); the frame
- *  clips the rest on narrower phones. */
+/** The photograph law, applied to the map (founder report 2026-09-01:
+ *  « this one is to large » — on a desktop browser the uncapped card ran
+ *  the fold's whole width): THE CARD IS CAPPED, NEVER THE SCREEN — the
+ *  same 340 dp the proof photo lives by. Full width on a phone, a calm
+ *  card on a desktop. */
+const CARTE_LARGEUR_MAX = 340;
+
+/** The window the tile grid must cover, in dp around the centre — the
+ *  half-width must clear half the cap above (170), held at 215 for margin;
+ *  the frame clips the rest. */
 const DEMI_L = 215;
 const DEMI_H = 100;
 
@@ -124,6 +129,8 @@ export function CartePin({ lat, lng }: { lat: number; lng: number }) {
   return (
     <View
       style={{
+        width: '100%',
+        maxWidth: CARTE_LARGEUR_MAX,
         height: 180,
         borderRadius: 14,
         overflow: 'hidden',
