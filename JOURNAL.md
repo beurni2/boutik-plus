@@ -2,6 +2,12 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
+## 2026-09-01 · DEPLOY CORRECTION — the WEB console was stale at d064a15; web-deploy dispatched · DONE
+
+**Founder's screenshot (2026-09-01): the confier fold still showed « POINT GPS — SI VOUS L'AVEZ » and the REPÈRE input** — strings that no longer exist anywhere in the repo. **The code was never wrong; the deploy record was.** His browser console is the Cloudflare Pages surface published by `web-deploy` (MANUAL ONLY, his standing ruling: a deploy is a deliberate act) — last dispatched **run 66 on `d064a15` (2026-08-26, FRAIS-ZERO-1)**. The last four slice entries here (GEO-ACHAT-2, GEO-SERA-1, CONFIER-AUTO-1, CONFIER-CARTE-1) each claimed « the console IS the deploy (expo-preview root) » — **that claim was WRONG for the surface in his hands**: expo-preview publishes the EAS `preview` channel (the phone client), never the web console. So those four slices reached the phone preview on merge and never reached his browser. **Correction applied: `web-deploy` dispatched on `main` (`22792ef`, which carries all four slices) — run 67 SUCCESS (2026-09-01T19:25Z).** The fournisseur surface does not carry the confier code (its root mounts `src/fournisseur/FournisseurApp`; grep confirms no `src/commandes` import), so no fournisseur-web-deploy. **The standing checklist changes: any boutik slice touching the V2 studio's screens ends with a `web-deploy` dispatch on the founder's go — the expo-preview push run alone is NOT the console deploy.**
+
+---
+
 ## 2026-08-31 · CONFIER-CARTE-1 — her pin on a MAP on the confier fold, before he relays · DONE
 
 **MERGED AND DEPLOYED (founder: « go », 2026-09-01).** `main` fast-forwarded `37da3a0..e21e870` (build `5329884` + verifier MINOR fixes `c2b0a1e` + journal). **Both push workflows green on e21e870 — ci run 333 · expo-preview 211** (the registered v2 preview root now carrying the map card; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed.** No migration; no other repo touched.
