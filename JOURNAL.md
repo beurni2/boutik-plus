@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-08-31 · CONFIER-CARTE-1 — her pin on a MAP on the confier fold, before he relays · IN REVIEW
+## 2026-08-31 · CONFIER-CARTE-1 — her pin on a MAP on the confier fold, before he relays · DONE
+
+**MERGED AND DEPLOYED (founder: « go », 2026-09-01).** `main` fast-forwarded `37da3a0..e21e870` (build `5329884` + verifier MINOR fixes `c2b0a1e` + journal). **Both push workflows green on e21e870 — ci run 333 · expo-preview 211** (the registered v2 preview root now carrying the map card; the console IS the deploy). **No dispatched deploy, deliberately: no worker file changed.** No migration; no other repo touched.
 
 **Founder, 2026-08-31: « i want the pin localization on the map displayed so i can know the buyer's location before relaying to the rider »** — the residue CONFIER-AUTO named (with the text display gone he no longer saw whether a pin existed), answered as a MAP, not coordinates. Build `5329884` + the verifier's MINOR fixes, pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed (console = deploy surface); no migration; **no other repo touched, and no wire moved — display only.**
 
