@@ -298,6 +298,7 @@ export function CartePin({ lat, lng }: { lat: number; lng: number }) {
             />
           ))}
           <View
+            testID="carte-epingle"
             pointerEvents="none"
             style={{
               position: 'absolute',

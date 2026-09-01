@@ -527,6 +527,16 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
   const tuilesVisibles = (screen: Screen): string[] =>
     screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
 
+  /** The pin's COMPUTED anchor (marginLeft = its view offset − half the
+   *  glyph). A number the app derived, read like `images()` reads computed
+   *  URIs — it says where the app ANCHORED the pin, and claims nothing
+   *  about rendered pixels (the walks' appearance bound holds). */
+  const ancreEpingle = (screen: Screen): number => {
+    const ep = screen.tree.root.findAll((n) => n.props['testID'] === 'carte-epingle')[0];
+    expect(ep, 'the pin must be mounted').toBeDefined();
+    return (ep!.props['style'] as { marginLeft: number }).marginLeft;
+  };
+
   /** Drive the REAL responder handlers on the map's drag surface — the same
    *  props the finger reaches; no app code is stubbed. */
   const glisserCarte = async (
@@ -607,16 +617,21 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     // Drag the map west by 300 dp and north by 60: the centre commits east/
     // south (the SUBTRACTED offset — the buyer module's sign law), so the
     // window slides one column east: 32494 arrives, 32489 leaves.
+    expect(ancreEpingle(screen), 'the pin opens ON her point (offset 0 − half the glyph)').toBe(-18);
     await glisserCarte(screen, { x: 200, y: 100 }, { x: -100, y: 40 });
     const apres = tuilesVisibles(screen);
     expect(apres, 'the new east edge must be fetched').toContain('https://tile.openstreetmap.org/16/32494/30498.png');
     expect(apres.some((u) => u.includes('/16/32489/')), 'the old west edge must be gone').toBe(false);
+    // GLUED TO THE GROUND, proven at the screen: after the (-300, ·) drag
+    // the app anchors the pin exactly 300 dp west of the new centre.
+    expect(Math.round(ancreEpingle(screen))).toBe(-318);
     // « Recentrer » brings the view back to HER pin at the SAME zoom: the
-    // original window returns exactly.
+    // original window returns exactly, the pin back on its point.
     await screen.press('Recentrer');
     const retour = tuilesVisibles(screen);
     expect(retour).toContain('https://tile.openstreetmap.org/16/32489/30498.png');
     expect(retour.some((u) => u.includes('/16/32494/'))).toBe(false);
+    expect(ancreEpingle(screen)).toBe(-18);
     expect(screen.canPress('Créer la course'), 'the tree survives the slide and the return').toBe(true);
     screen.unmount();
   });
@@ -630,6 +645,10 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     const avant = [...new Set(tuilesVisibles(screen))].sort();
     await glisserCarte(screen, { x: 200, y: 100 }, { x: 202, y: 101 });
     expect([...new Set(tuilesVisibles(screen))].sort(), 'a 2 dp press must move NOTHING').toEqual(avant);
+    // Tile sets cannot see a 2 dp shift — the pin's computed anchor can:
+    // a severed threshold would commit the micro-drag and anchor the pin
+    // 2 dp off its point (this exact mutation survived the tile assert).
+    expect(ancreEpingle(screen), 'the centre must not have moved AT ALL').toBe(-18);
     screen.unmount();
   });
 
