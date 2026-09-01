@@ -35,7 +35,7 @@
  * exactly as it already does for her own capture on the buyer PWA).
  */
 import { useRef, useState } from 'react';
-import { Image, Pressable, Text, View, type GestureResponderEvent } from 'react-native';
+import { Image, Pressable, Text, View, type GestureResponderEvent, type ViewStyle } from 'react-native';
 import { Svg, Path } from 'react-native-svg';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
@@ -207,7 +207,11 @@ function Puce({
         style,
       ]}
     >
-      <Text style={petit === true ? PUCE_PETIT : PUCE_TXT}>{label}</Text>
+      {/* selectable={false}: a mouse drag that sweeps a text selection would
+          otherwise TERMINATE the map's responder mid-gesture (RNW). */}
+      <Text selectable={false} style={petit === true ? PUCE_PETIT : PUCE_TXT}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -254,9 +258,21 @@ export function CartePin({ lat, lng }: { lat: number; lng: number }) {
     >
       <View
         testID="carte-toile"
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+        // The shipped web build's own hazards (verifier BLOCKER, the buyer
+        // module's defenses mirrored): without touch-action none, a finger
+        // drag scrolls the host ScrollView and the scroll TERMINATES the
+        // responder mid-gesture, committing a partial pan — so the surface
+        // claims touch for itself and refuses termination. Trade, stated:
+        // a touch-scroll STARTING on the card pans the map; the ground
+        // beside it still scrolls the fold. touchAction/userSelect are
+        // react-native-web styles, inert on native (hence the cast).
+        style={[
+          { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+          { touchAction: 'none', userSelect: 'none' } as unknown as ViewStyle,
+        ]}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
+        onResponderTerminationRequest={() => false}
         onResponderGrant={(e: GestureResponderEvent) => {
           depart.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0 };
           setGlisse({ dx: 0, dy: 0 });
@@ -272,6 +288,7 @@ export function CartePin({ lat, lng }: { lat: number; lng: number }) {
         onResponderTerminate={lacher}
       >
         <View
+          testID="carte-monde"
           style={{
             position: 'absolute',
             left: 0,
@@ -327,7 +344,9 @@ export function CartePin({ lat, lng }: { lat: number; lng: number }) {
         />
       </View>
       <View pointerEvents="none" style={{ position: 'absolute', right: 6, bottom: 4 }}>
-        <Text style={CREDIT}>{t('confier.carte_osm')}</Text>
+        <Text selectable={false} style={CREDIT}>
+          {t('confier.carte_osm')}
+        </Text>
       </View>
     </View>
   );

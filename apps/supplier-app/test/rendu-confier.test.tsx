@@ -597,8 +597,18 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     await screen.press('+');
     expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/17/64982/60996.png');
     expect(tuilesVisibles(screen).some((u) => u.includes('/16/'))).toBe(false);
-    // Back out, past the start, down to the z13 floor…
-    for (let i = 0; i < 4; i += 1) await screen.press('−');
+    // Up to the z19 CEILING (OSM's deepest tile)…
+    await screen.press('+');
+    await screen.press('+');
+    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/19/259930/243984.png');
+    // …where one more press changes nothing: an escaped ceiling would fetch
+    // nonexistent z20 tiles, every one 404s, and the card would go blank
+    // (verifier MINOR — the ceiling was unwalked and its mutation survived).
+    await screen.press('+');
+    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/19/259930/243984.png');
+    expect(tuilesVisibles(screen).some((u) => u.includes('/20/'))).toBe(false);
+    // Back down, past the start, to the z13 floor…
+    for (let i = 0; i < 6; i += 1) await screen.press('−');
     expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/13/4061/3812.png');
     // …where one MORE press changes nothing: the floor holds.
     await screen.press('−');
@@ -633,6 +643,41 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     expect(retour.some((u) => u.includes('/16/32494/'))).toBe(false);
     expect(ancreEpingle(screen)).toBe(-18);
     expect(screen.canPress('Créer la course'), 'the tree survives the slide and the return').toBe(true);
+    screen.unmount();
+  });
+
+  it('CONFIER-CARTE — the map moves UNDER the finger: the live translate follows the move, then clears on commit', async () => {
+    // Verifier MINOR: severing the move-time translate left every walk
+    // green while the map would only JUMP on release. The inner container's
+    // computed transform is the probe (a number the app derived).
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    const toile = screen.tree.root.findAll((n) => n.props['testID'] === 'carte-toile')[0]!;
+    const ev = (x: number, y: number) => ({ nativeEvent: { pageX: x, pageY: y } });
+    const transforme = (): { translateX: number; translateY: number } => {
+      const monde = screen.tree.root.findAll((n) => n.props['testID'] === 'carte-monde')[0]!;
+      const tr = (monde.props['style'] as { transform: [{ translateX: number }, { translateY: number }] }).transform;
+      return { translateX: tr[0].translateX, translateY: tr[1].translateY };
+    };
+    await act(async () => {
+      (toile.props['onResponderGrant'] as (e: unknown) => void)(ev(200, 100));
+    });
+    await act(async () => {
+      (toile.props['onResponderMove'] as (e: unknown) => void)(ev(120, 60));
+    });
+    expect(transforme(), 'mid-drag, the world must have FOLLOWED the finger').toEqual({ translateX: -80, translateY: -40 });
+    await act(async () => {
+      (toile.props['onResponderRelease'] as (e: unknown) => void)(ev(120, 60));
+    });
+    await screen.settle();
+    expect(transforme(), 'on commit the translate clears — the new centre carries the offset instead').toEqual({
+      translateX: 0,
+      translateY: 0,
+    });
+    expect(Math.round(ancreEpingle(screen)), 'and the pin holds its ground through the commit').toBe(-98);
     screen.unmount();
   });
 
