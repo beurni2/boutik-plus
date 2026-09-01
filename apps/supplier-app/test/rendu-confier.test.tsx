@@ -395,13 +395,16 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     zoneTo: 'Ouagadougou',
   };
 
-  it('the removed sections are GONE — no pin input, no position display, no repère — and the primary action still stands', async () => {
+  it('the removed sections STAY gone — no pin input, no coordinate text, no repère — and the primary action still stands', async () => {
+    // CONFIER-CARTE later gave her point back as a MAP CARD (walked in its
+    // own describe below) — the TYPED sections and the coordinate text his
+    // order removed must never return.
     const { routes } = livreSera();
     wire(routes);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
     await screen.settle();
 
-    expect(screen.shows('Sa position GPS'), 'the position display was removed by his order').toBe(false);
+    expect(screen.shows('Sa position GPS'), 'the coordinate display was removed by his order').toBe(false);
     expect(screen.shows('Point GPS'), 'the pin input was removed by his order').toBe(false);
     expect(screen.shows('Repère'), 'the repère section was removed by his order').toBe(false);
     expect(screen.canPress('Créer la course'), 'the primary action must survive the removals').toBe(true);
@@ -506,6 +509,62 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     const lieu = (sent[0]!.body as Record<string, unknown>)['location'] as Record<string, unknown>;
     expect('pin' in lieu, 'an absent pin stays ABSENT — never a zeroed coordinate').toBe(false);
     expect(lieu['landmark']).toBe("À l'échangeur, portail vert");
+    screen.unmount();
+  });
+
+  /* ═══ CONFIER-CARTE (founder, 2026-08-31: « i want the pin localization on
+   * the map displayed so i can know the buyer's location before relaying to
+   * the rider ») ═══
+   * Her confirmed point renders as a READ-ONLY map card on the composer
+   * face: OpenStreetMap tiles centred on her pin (fixed z16 — the world
+   * pixel and tile numbers below were computed independently for the
+   * fixture's coordinates and pinned as literals), the épingle over the
+   * centre, © attribution riding the view. Nothing on any wire moved:
+   * CONFIER-AUTO's auto-ride is walked above and stays the only road. */
+
+  it('CONFIER-CARTE — her pin renders as a MAP: the tiles the card asks for derive from HER coordinates', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    expect(screen.shows('Sa position'), 'the map card must carry its label').toBe(true);
+    // The © glyph is banned from app chrome (WO-6.0 ruling ①); OSM's policy
+    // requires a clearly visible credit, not the sign — the words carry it.
+    expect(screen.shows('Cartes OpenStreetMap'), "OSM's attribution must ride the view").toBe(true);
+    // The CENTRE tile for {12.371532, -1.519931} at z16 — computed off-line
+    // from the Mercator forward, pinned as a literal so a broken projection
+    // (wrong zoom, wrong axis, degrees/radians slip) goes red HERE.
+    const tuiles = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+    expect(tuiles, 'the card must actually ask for tiles').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
+    // The whole window, no more: x 32490..32492 · y 30497..30498, each once.
+    expect([...new Set(tuiles)].sort()).toEqual(
+      [
+        'https://tile.openstreetmap.org/16/32490/30497.png',
+        'https://tile.openstreetmap.org/16/32490/30498.png',
+        'https://tile.openstreetmap.org/16/32491/30497.png',
+        'https://tile.openstreetmap.org/16/32491/30498.png',
+        'https://tile.openstreetmap.org/16/32492/30497.png',
+        'https://tile.openstreetmap.org/16/32492/30498.png',
+      ].sort(),
+    );
+    // The card is display-only: the primary action still stands beside it.
+    expect(screen.canPress('Créer la course'), 'the tree must survive the map card').toBe(true);
+    screen.unmount();
+  });
+
+  it('CONFIER-CARTE — no pin, no map: the card never renders over an order that gave no point', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    await screen.settle();
+
+    expect(screen.shows('Sa position')).toBe(false);
+    expect(
+      screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/')).length,
+      'no point ⇒ no tile is ever fetched',
+    ).toBe(0);
+    expect(screen.canPress('Créer la course')).toBe(true);
     screen.unmount();
   });
 

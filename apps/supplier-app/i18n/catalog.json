@@ -4464,6 +4464,18 @@
     "screenClass": "status"
   },
   {
+    "key": "confier.carte_titre",
+    "fr": "Sa position",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.carte_osm",
+    "fr": "Cartes OpenStreetMap",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "confier.zone",
     "fr": "Quartier",
     "register": "neutral",

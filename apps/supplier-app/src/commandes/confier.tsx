@@ -11,6 +11,7 @@ import {
   resolveCoursiersService,
 } from '../coursiers/service';
 import { mintCommandId } from '../offline/commandId';
+import { CartePin } from './carte-pin';
 import {
   resolveSeraDispatch,
   type BoardSera,
@@ -176,6 +177,10 @@ function ConfierAvecService({
   const zoneDeLaCliente =
     quartierBrut === '' ? '' : /ouaga/i.test(quartierBrut) ? quartierBrut : `${quartierBrut}, Ouagadougou`;
   const repereDeLaCliente = buyer?.contact?.repere.trim() ?? '';
+  /** CONFIER-CARTE (founder 2026-08-31): her confirmed pin, SHOWN on a map
+   *  before he relays — display-only; the same pin rides the brief by itself
+   *  in `composer`, and this card changes nothing on that wire. */
+  const pinDeLaCliente = buyer?.contact?.pin;
   const zone = zoneDeLaCliente !== '' ? zoneDeLaCliente : zoneSaisie;
 
   const charger = useCallback(async (): Promise<void> => {
@@ -448,7 +453,15 @@ function ConfierAvecService({
           {/* CONFIER-AUTO (founder, 2026-08-31): no GPS section, no repère
               section — what she gave rides the brief by itself (`composer`).
               PRET-SECTIONS still governs what remains: her quartier sits in
-              its section read-only; only a field she did NOT give is typed. */}
+              its section read-only; only a field she did NOT give is typed.
+              CONFIER-CARTE (same day): when she confirmed a point, he SEES
+              it on a map before relaying — read-only, nothing to type. */}
+          {pinDeLaCliente !== undefined ? (
+            <View style={{ gap: 8 }}>
+              <Overline level="card">{t('confier.carte_titre')}</Overline>
+              <CartePin lat={pinDeLaCliente.lat} lng={pinDeLaCliente.lng} />
+            </View>
+          ) : null}
           {zoneDeLaCliente !== '' ? (
             <View style={{ gap: 8 }}>
               <Overline level="card">{t('confier.zone')}</Overline>

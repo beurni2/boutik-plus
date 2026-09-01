@@ -142,6 +142,35 @@ describe('[source-text checks] the tab’s discipline', () => {
   });
 });
 
+describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
+  it('covers the window around her pin with exactly the right tiles, centre-relative to the franc… to the pixel', async () => {
+    const { tuilesPourPin, urlTuile, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
+    // The fixture pin, its world position computed OFF-LINE and pinned:
+    // {12.371532, -1.519931} @ z16 → world (8317774.08, 7807519.75) →
+    // centre tile 32491/30498; the ±180×±100 window adds one column each
+    // side and one row above. A wrong zoom, axis, or sign goes red here.
+    const posees = tuilesPourPin({ lat: 12.371532, lng: -1.519931 });
+    expect(posees.map((p) => p.url).sort()).toEqual(
+      [
+        'https://tile.openstreetmap.org/16/32490/30497.png',
+        'https://tile.openstreetmap.org/16/32490/30498.png',
+        'https://tile.openstreetmap.org/16/32491/30497.png',
+        'https://tile.openstreetmap.org/16/32491/30498.png',
+        'https://tile.openstreetmap.org/16/32492/30497.png',
+        'https://tile.openstreetmap.org/16/32492/30498.png',
+      ].sort(),
+    );
+    // The centre tile's top-left corner, relative to the pin at the centre.
+    const centre = posees.find((p) => p.url.endsWith('/16/32491/30498.png'));
+    expect(centre).toBeDefined();
+    expect(Math.round(centre!.dx)).toBe(-78);
+    expect(Math.round(centre!.dy)).toBe(-32);
+    // Off-globe rows do not exist; the antimeridian wraps.
+    expect(urlTuile(CARTE_ZOOM, 0, -1)).toBeNull();
+    expect(urlTuile(CARTE_ZOOM, Math.pow(2, CARTE_ZOOM), 0)).toBe('https://tile.openstreetmap.org/16/0/0.png');
+  });
+});
+
 describe('RB-2 — [source-text checks] the dispatch fold’s discipline', () => {
   const confier = readFileSync(join(import.meta.dirname, '..', 'src/commandes/confier.tsx'), 'utf8');
   const sera = readFileSync(join(import.meta.dirname, '..', 'src/commandes/sera-service.ts'), 'utf8');
