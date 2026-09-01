@@ -22,6 +22,8 @@ Format per entry:
 
 **Named residue:** the map lives on the COMPOSER face only — the « Choisissez un coursier » step doesn't carry it (his order named « before relaying »; say the word if it should ride there too). The pin-hole glyph and the card's look want his eyes on a real phone in sunlight.
 
+**1b — CAPPED, NEVER THE SCREEN (founder, 2026-09-01: « this one is to large, make it be nice looking and reasonnable », with the live screenshot: the card ran his desktop's whole width, bare ground past the tile window).** The photograph law applied verbatim: `width '100%', maxWidth 340` — the proof photo's own cap; full width on a phone, a calm card on a desktop; the bare-ground condition is unreachable by construction (visible half ≤ 170 < the ±215 tile window). Pinned by a source-text test (appearance is outside the walks' bound by law) — the fix commit + the pin, suite **1001/1001**, boards 21/21 · 14/14 · ALL GATES GREEN (one turbo load-flake, clean re-run green — the journalled pattern). **Its ONE fresh-context verifier (the order + screenshot description, the diff, the DoD; it ran the tests and its own anchor-verified mutation on the cap — red, reverted): NO BLOCKER, NO MINOR; one NOTE journalled — the 340 dp card sits LEFT-ALIGNED like the proof photo (the fold's idiom); his eyes rule whether it should centre instead.**
+
 ---
 
 ## 2026-08-31 · CONFIER-AUTO-1 — the GPS and repère sections leave the confier fold; her data rides by itself · DONE
