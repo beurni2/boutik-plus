@@ -1,6 +1,7 @@
 import React from 'react';
+import { act } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
+import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './rendu';
 import { ConfierCoursier } from '../src/commandes/confier';
 import type { PaidOrderRow } from '../src/operations/service';
 import type { LivraisonRow } from '../src/operations/dispatch-service';
@@ -514,15 +515,44 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
 
   /* ═══ CONFIER-CARTE (founder, 2026-08-31: « i want the pin localization on
    * the map displayed so i can know the buyer's location before relaying to
-   * the rider ») ═══
-   * Her confirmed point renders as a READ-ONLY map card on the composer
-   * face: OpenStreetMap tiles centred on her pin (fixed z16 — the world
-   * pixel and tile numbers below were computed independently for the
-   * fixture's coordinates and pinned as literals), the épingle over the
-   * centre, © attribution riding the view. Nothing on any wire moved:
+   * the rider »; 2026-09-01: « make slidable and zoomable ») ═══
+   * Her confirmed point renders as a slippy map card on the composer face:
+   * OpenStreetMap tiles around the view centre (opening at z16 on her pin —
+   * every world pixel and tile number below was computed independently for
+   * the fixture's coordinates and pinned as literals), the épingle glued to
+   * HER GROUND (never to the frame), +/− zoom steps, « Recentrer » back to
+   * her point, the credit riding the view. Nothing on any wire moved:
    * CONFIER-AUTO's auto-ride is walked above and stays the only road. */
 
-  it('CONFIER-CARTE — her pin renders as a MAP: the tiles the card asks for derive from HER coordinates', async () => {
+  const tuilesVisibles = (screen: Screen): string[] =>
+    screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+
+  /** Drive the REAL responder handlers on the map's drag surface — the same
+   *  props the finger reaches; no app code is stubbed. */
+  const glisserCarte = async (
+    screen: Screen,
+    de: { x: number; y: number },
+    vers: { x: number; y: number },
+  ): Promise<void> => {
+    const toile = screen.tree.root.findAll((n) => n.props['testID'] === 'carte-toile')[0];
+    expect(toile, 'the drag surface must be mounted').toBeDefined();
+    const ev = (x: number, y: number) => ({ nativeEvent: { pageX: x, pageY: y } });
+    const sur = (nom: string, e: unknown): void => {
+      (toile!.props[nom] as (e: unknown) => void)(e);
+    };
+    await act(async () => {
+      sur('onResponderGrant', ev(de.x, de.y));
+    });
+    await act(async () => {
+      sur('onResponderMove', ev(vers.x, vers.y));
+    });
+    await act(async () => {
+      sur('onResponderRelease', ev(vers.x, vers.y));
+    });
+    await screen.settle();
+  };
+
+  it('CONFIER-CARTE — her pin renders as a MAP: the tiles derive from HER coordinates, and every control stands', async () => {
     const { routes } = livreSera();
     wire(routes);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
@@ -534,22 +564,72 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     expect(screen.shows('Cartes OpenStreetMap'), "OSM's attribution must ride the view").toBe(true);
     // The CENTRE tile for {12.371532, -1.519931} at z16 — computed off-line
     // from the Mercator forward, pinned as a literal so a broken projection
-    // (wrong zoom, wrong axis, degrees/radians slip) goes red HERE.
-    const tuiles = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+    // (wrong zoom, wrong axis, degrees/radians slip) goes red HERE. The full
+    // window (±215×±100 plus the drag ring) is twenty tiles.
+    const tuiles = tuilesVisibles(screen);
     expect(tuiles, 'the card must actually ask for tiles').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
-    // The whole window, no more: x 32490..32492 · y 30497..30498, each once.
-    expect([...new Set(tuiles)].sort()).toEqual(
-      [
-        'https://tile.openstreetmap.org/16/32490/30497.png',
-        'https://tile.openstreetmap.org/16/32490/30498.png',
-        'https://tile.openstreetmap.org/16/32491/30497.png',
-        'https://tile.openstreetmap.org/16/32491/30498.png',
-        'https://tile.openstreetmap.org/16/32492/30497.png',
-        'https://tile.openstreetmap.org/16/32492/30498.png',
-      ].sort(),
-    );
-    // The card is display-only: the primary action still stands beside it.
+    expect(new Set(tuiles).size).toBe(20);
+    // The controls are present AND pressable; the primary action stands.
+    expect(screen.canPress('+')).toBe(true);
+    expect(screen.canPress('−')).toBe(true);
+    expect(screen.canPress('Recentrer')).toBe(true);
     expect(screen.canPress('Créer la course'), 'the tree must survive the map card').toBe(true);
+    screen.unmount();
+  });
+
+  it('CONFIER-CARTE — « + » and « − » really zoom, and the range is BOUNDED at z13 and z19', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    // One step in: z17 tiles on her point, no z16 tile left on screen.
+    await screen.press('+');
+    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/17/64982/60996.png');
+    expect(tuilesVisibles(screen).some((u) => u.includes('/16/'))).toBe(false);
+    // Back out, past the start, down to the z13 floor…
+    for (let i = 0; i < 4; i += 1) await screen.press('−');
+    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/13/4061/3812.png');
+    // …where one MORE press changes nothing: the floor holds.
+    await screen.press('−');
+    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/13/4061/3812.png');
+    expect(tuilesVisibles(screen).some((u) => u.includes('/12/'))).toBe(false);
+    expect(screen.canPress('Créer la course'), 'the tree survives the whole zoom road').toBe(true);
+    screen.unmount();
+  });
+
+  it('CONFIER-CARTE — the map SLIDES: the committed view moves by the drag, and « Recentrer » returns to her point', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    // Drag the map west by 300 dp and north by 60: the centre commits east/
+    // south (the SUBTRACTED offset — the buyer module's sign law), so the
+    // window slides one column east: 32494 arrives, 32489 leaves.
+    await glisserCarte(screen, { x: 200, y: 100 }, { x: -100, y: 40 });
+    const apres = tuilesVisibles(screen);
+    expect(apres, 'the new east edge must be fetched').toContain('https://tile.openstreetmap.org/16/32494/30498.png');
+    expect(apres.some((u) => u.includes('/16/32489/')), 'the old west edge must be gone').toBe(false);
+    // « Recentrer » brings the view back to HER pin at the SAME zoom: the
+    // original window returns exactly.
+    await screen.press('Recentrer');
+    const retour = tuilesVisibles(screen);
+    expect(retour).toContain('https://tile.openstreetmap.org/16/32489/30498.png');
+    expect(retour.some((u) => u.includes('/16/32494/'))).toBe(false);
+    expect(screen.canPress('Créer la course'), 'the tree survives the slide and the return').toBe(true);
+    screen.unmount();
+  });
+
+  it('CONFIER-CARTE — a tap is not a drag: a press that never moved (< 4 dp) commits nothing', async () => {
+    const { routes } = livreSera();
+    wire(routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
+    await screen.settle();
+
+    const avant = [...new Set(tuilesVisibles(screen))].sort();
+    await glisserCarte(screen, { x: 200, y: 100 }, { x: 202, y: 101 });
+    expect([...new Set(tuilesVisibles(screen))].sort(), 'a 2 dp press must move NOTHING').toEqual(avant);
     screen.unmount();
   });
 
@@ -562,12 +642,12 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER_PIN} />);
     await screen.settle();
 
-    const avant = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
-    expect(avant.length).toBe(6);
+    const avant = tuilesVisibles(screen);
+    expect(avant.length).toBe(20);
     await screen.imageError(0);
 
-    const apres = screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
-    expect(apres.length, 'the dead tile must be hidden, not left as a broken glyph').toBe(5);
+    const apres = tuilesVisibles(screen);
+    expect(apres.length, 'the dead tile must be hidden, not left as a broken glyph').toBe(19);
     expect(apres).not.toContain(avant[0]!);
     expect(apres, 'the other tiles must survive their neighbour').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
     expect(screen.shows('Sa position'), 'the card itself must survive').toBe(true);

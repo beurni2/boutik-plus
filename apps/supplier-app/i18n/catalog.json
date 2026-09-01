@@ -4476,6 +4476,24 @@
     "screenClass": "label"
   },
   {
+    "key": "confier.carte_plus",
+    "fr": "Rapprocher la carte",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.carte_moins",
+    "fr": "Éloigner la carte",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "confier.carte_recentrer",
+    "fr": "Recentrer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "confier.zone",
     "fr": "Quartier",
     "register": "neutral",

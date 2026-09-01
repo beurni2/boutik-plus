@@ -143,31 +143,50 @@ describe('[source-text checks] the tab’s discipline', () => {
 });
 
 describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
-  it('covers the window around her pin with exactly the right tiles, centre-relative to the franc… to the pixel', async () => {
-    const { tuilesPourPin, urlTuile, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
+  const PIN = { lat: 12.371532, lng: -1.519931 };
+
+  it('covers the window (plus the drag ring) around the view centre with exactly the right tiles', async () => {
+    const { tuilesPourVue, urlTuile, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
     // The fixture pin, its world position computed OFF-LINE and pinned:
     // {12.371532, -1.519931} @ z16 → world (8317774.08, 7807519.75) →
-    // centre tile 32491/30498; the ±180×±100 window adds one column each
-    // side and one row above. A wrong zoom, axis, or sign goes red here.
-    const posees = tuilesPourPin({ lat: 12.371532, lng: -1.519931 });
-    expect(posees.map((p) => p.url).sort()).toEqual(
-      [
-        'https://tile.openstreetmap.org/16/32490/30497.png',
-        'https://tile.openstreetmap.org/16/32490/30498.png',
-        'https://tile.openstreetmap.org/16/32491/30497.png',
-        'https://tile.openstreetmap.org/16/32491/30498.png',
-        'https://tile.openstreetmap.org/16/32492/30497.png',
-        'https://tile.openstreetmap.org/16/32492/30498.png',
-      ].sort(),
-    );
+    // centre tile 32491/30498; the ±215×±100 window plus ONE RING (the
+    // buyer module's drag law) spans x 32489..32493 × y 30496..30499 —
+    // twenty tiles. A wrong zoom, axis, sign, or a dropped ring goes red.
+    const posees = tuilesPourVue(PIN, CARTE_ZOOM);
+    const urls = posees.map((p) => p.url);
+    expect(urls.length).toBe(20);
+    expect(new Set(urls).size).toBe(20);
+    for (let xt = 32489; xt <= 32493; xt += 1) {
+      for (let yt = 30496; yt <= 30499; yt += 1) {
+        expect(urls, `tile ${String(xt)}/${String(yt)} missing`).toContain(
+          `https://tile.openstreetmap.org/16/${String(xt)}/${String(yt)}.png`,
+        );
+      }
+    }
     // The centre tile's top-left corner, relative to the pin at the centre.
     const centre = posees.find((p) => p.url.endsWith('/16/32491/30498.png'));
     expect(centre).toBeDefined();
     expect(Math.round(centre!.dx)).toBe(-78);
     expect(Math.round(centre!.dy)).toBe(-32);
+    // A zoom step re-derives the whole grid: z17 doubles the world.
+    expect(tuilesPourVue(PIN, 17).map((p) => p.url)).toContain('https://tile.openstreetmap.org/17/64982/60996.png');
     // Off-globe rows do not exist; the antimeridian wraps.
     expect(urlTuile(CARTE_ZOOM, 0, -1)).toBeNull();
     expect(urlTuile(CARTE_ZOOM, Math.pow(2, CARTE_ZOOM), 0)).toBe('https://tile.openstreetmap.org/16/0/0.png');
+  });
+
+  it('the pin is glued to the GROUND: its view offset is (0,0) at centre, and exactly the drag delta after a slide', async () => {
+    const { posDansVue, centreApresGlisse, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
+    const surPlace = posDansVue(PIN, PIN, CARTE_ZOOM);
+    expect(Math.abs(surPlace.dx)).toBeLessThan(1e-6);
+    expect(Math.abs(surPlace.dy)).toBeLessThan(1e-6);
+    // The commit's sign law (the buyer module's, verbatim): map dragged by
+    // (-300, -60) ⇒ centre moved (+300, +60) east/south ⇒ the pin now sits
+    // exactly (-300, -60) from the new centre. Round-trips to the pixel.
+    const apres = centreApresGlisse(PIN, -300, -60, CARTE_ZOOM);
+    const pos = posDansVue(PIN, apres, CARTE_ZOOM);
+    expect(pos.dx).toBeCloseTo(-300, 6);
+    expect(pos.dy).toBeCloseTo(-60, 6);
   });
 
   it('[source-text] the card is CAPPED, never the screen — the founder hit the uncapped banner once (2026-09-01)', () => {
