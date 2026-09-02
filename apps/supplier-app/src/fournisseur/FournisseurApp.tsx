@@ -650,8 +650,13 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
         )}
         <View style={{ flex: 1 }}>
           <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={2}>{nom}</Text>
+          {/* FOURNISSEUR-PRIX (founder, 2026-09-02): the buyer's zone is NOT
+              his to see — her whereabouts ride to the delivery organiser and
+              nowhere else, the same law as her number. What he reads is the
+              payment fact and the price HE listed (`sellerBasePrice` is his
+              base price on the /mine allowlist, never the buyer's total). */}
           <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={2}>
-            {commande.zoneTo} · {modeLabel} · {formatF(commande.sellerBasePrice)}
+            {modeLabel} · {formatF(commande.sellerBasePrice)}
           </Text>
         </View>
       </View>
