@@ -2,9 +2,11 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-09-02 · FOURNISSEUR-PRIX-1 — the supplier's order card shows the listed price, never the buyer's zone · IN REVIEW (awaiting founder's word)
+## 2026-09-02 · FOURNISSEUR-PRIX-1 — the supplier's order card shows the listed price, never the buyer's zone · DONE
 
-**Founder, 2026-09-02, with his screenshot of « Mes commandes »: « on the supplier's console do not show the address of the buyer but only the price the product was listed for ».** Build `0a5c581` (+ one test-title wording from the verifier's NOTE), pushed to the branch. **No main merge, no deploy — waiting on his word.** Deploy surface when he says go: `fournisseur-web-deploy` (the supplier surface, manual) — NOT `web-deploy` (his console) and NOT expo-preview.
+**MERGED AND DEPLOYED (founder: « go », 2026-09-02).** `main` fast-forwarded `8734654..1613a13`. **ci 341 · expo-preview 219 green on 1613a13; `fournisseur-web-deploy` run 13 SUCCESS on main** — the supplier surface now serves the card without the buyer's zone. No `web-deploy` (his console carries no change), no worker deploy (no worker changed).
+
+**Founder, 2026-09-02, with his screenshot of « Mes commandes »: « on the supplier's console do not show the address of the buyer but only the price the product was listed for ».** Build `0a5c581` (+ one test-title wording from the verifier's NOTE).
 
 **THE SHAPE.** One line in `fournisseur/FournisseurApp.tsx`: the card's meta read `{zoneTo} · Tout est payé · {sellerBasePrice}`; it now reads the payment fact and the price he listed. `sellerBasePrice` was already the right byte — B, the supplier's own base price carried verbatim off the frozen quote (`order.confirmed.v1` is `.strict()` with no buyer total, no markup, no fee; `fulfillment-do.ts` stores and echoes it « for display to its own supplier, never recomputed »). Her zone leaves his screen for the same law as her number: it rides to the delivery organiser and nowhere else. No other fournisseur surface rendered a location (verifier grep; the founder's AppV2 console keeps zoneTo legitimately and is gated out of the supplier bundle by `fournisseur-bundle-absence`).
 
