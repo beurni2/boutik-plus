@@ -2,9 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-09-01 · CONFIER-CARTE-2 — the map card becomes slidable and zoomable; her pin stays glued to her point · MERGED, WEB-DEPLOY PENDING
+## 2026-09-01 · CONFIER-CARTE-2 — the map card becomes slidable and zoomable; her pin stays glued to her point · DONE
 
-**MERGED (founder: « Go », 2026-09-01): `main` ff `ad113da..2673fa4`.** The push workflows (ci + expo-preview) fire on that push by themselves. **The `web-deploy` dispatch could NOT be sent and their conclusions could NOT be read from this session: the GitHub tooling disconnected immediately after the merge push.** Until it is dispatched, the browser console still serves CONFIER-CARTE-1b (the static capped card) — the founder can fire it himself in one click (GitHub → Actions → web-deploy → Run workflow on main), or the next session dispatches it and verifies ci/expo conclusions. **Nothing is half-deployed: the fold works on the old bundle until the new one lands whole.**
+**MERGED AND DEPLOYED (founder: « Go », 2026-09-01): `main` ff `ad113da..2673fa4`, journal `6dd4c3e`.** Push workflows green twice over — **ci 338 · expo-preview 216 on `2673fa4`; ci 339 · expo-preview 217 on `6dd4c3e`.** The `web-deploy` dispatch could not be sent the moment the merge landed (the GitHub tooling dropped right after the push; the previous version of this entry recorded that honestly); it was sent as soon as the tooling returned — **web-deploy run 69 SUCCESS on `6dd4c3e` (2026-09-02T00:26Z)**: the browser console now serves the slidable, zoomable card. No fournisseur-web-deploy (that surface carries no `src/commandes` code). No migration; no other repo touched.
 
 **Founder, 2026-09-01: « make slidable and zoomable ».** Build `221f2d9` + walk-strengthening `fe34c3e` + the verifier's findings handled once (BLOCKER + 2 MINORs fixed, `f91e074`). No worker changed; no other repo touched; **no wire moved — `composer()` and the Séra task byte-untouched (diffed to zero by the verifier).**
 
