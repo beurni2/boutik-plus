@@ -93,11 +93,12 @@ describe('FOURNISSEUR-PRIX — the order card names the product and its listed p
     screen.unmount();
   });
 
-  it('CONTROL — the wire really carried the zone, so « not shown » is a screen fact and not an empty fixture', async () => {
+  it('CONTROL — the row PARSED and the card is on screen, so « not shown » is a screen fact and not an empty list', async () => {
     // The row's zone is a required field of the /mine reader; a fixture that
-    // dropped it would drop the ROW, and the assertion above would pass over
-    // nothing. This mounts the same wire and proves the card is present at
-    // all — the negative above is only meaningful beside this positive.
+    // dropped it would drop the ROW, and the negative above would pass over
+    // nothing. This proves the card is present at all. (That the fixture
+    // carried the zone is by construction — `ZONE_ACHETEUSE` is the same
+    // constant the negative asserts against; the fake cannot be inspected.)
     const screen = await mountEcran(<FournisseurApp />);
     await screen.press('Commandes');
     await screen.settle();
