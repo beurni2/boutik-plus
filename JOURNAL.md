@@ -2,9 +2,11 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-09-01 · CONFIER-CARTE-2 — the map card becomes slidable and zoomable; her pin stays glued to her point · IN REVIEW
+## 2026-09-01 · CONFIER-CARTE-2 — the map card becomes slidable and zoomable; her pin stays glued to her point · MERGED, WEB-DEPLOY PENDING
 
-**Founder, 2026-09-01: « make slidable and zoomable ».** Build `221f2d9` + walk-strengthening `fe34c3e` + the verifier's findings handled once (BLOCKER + 2 MINORs fixed, latest commit), pushed to the branch. **No main merge, no deploy — waiting on his word.** No worker changed; no other repo touched; **no wire moved — `composer()` and the Séra task byte-untouched (diffed to zero by the verifier).**
+**MERGED (founder: « Go », 2026-09-01): `main` ff `ad113da..2673fa4`.** The push workflows (ci + expo-preview) fire on that push by themselves. **The `web-deploy` dispatch could NOT be sent and their conclusions could NOT be read from this session: the GitHub tooling disconnected immediately after the merge push.** Until it is dispatched, the browser console still serves CONFIER-CARTE-1b (the static capped card) — the founder can fire it himself in one click (GitHub → Actions → web-deploy → Run workflow on main), or the next session dispatches it and verifies ci/expo conclusions. **Nothing is half-deployed: the fold works on the old bundle until the new one lands whole.**
+
+**Founder, 2026-09-01: « make slidable and zoomable ».** Build `221f2d9` + walk-strengthening `fe34c3e` + the verifier's findings handled once (BLOCKER + 2 MINORs fixed, `f91e074`). No worker changed; no other repo touched; **no wire moved — `composer()` and the Séra task byte-untouched (diffed to zero by the verifier).**
 
 **THE SHAPE.** `carte-pin.tsx` becomes a small slippy map, still display-only: the view holds a centre and an INTEGER zoom (opens z16 on her pin; bounds z13–z19, OSM's own ceiling). Drag by the RN responder system on a dedicated surface — live translate under the finger, commit on release with the SUBTRACTED offset, a press under 4 dp commits nothing (all three the buyer module's laws, verbatim). **Her pin is GLUED TO THE GROUND** via `posDansVue`: sliding leaves it behind; « Recentrer » returns to it at the kept zoom. « + » / « − » / « Recentrer » are REAL 44 dp controls (hitSlop is inert on the shipped web build — the tap-targets-44 law's own finding) layered above the drag surface; a11y labels catalogued. Tile grid generalized to `tuilesPourVue(centre, zoom)` with one drag ring; `mondeVersGeo` joins, mirrored verbatim.
 
