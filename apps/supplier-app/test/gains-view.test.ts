@@ -64,7 +64,8 @@ describe('RB-3 — the gains port copies the frozen split, franc for franc', () 
     expect(service).not.toBeNull();
     const answer = await service!.listGains('cle-c-test');
     // the call site, not just the answer: the read went to THE route with THE key
-    expect(calls).toEqual([{ url: 'http://shop/checkout/gains', auth: 'Bearer cle-c-test' }]);
+    // DISPATCH-PAGES-1 — the read asks for ONE page; no `next` answered ⇒ one round trip
+    expect(calls).toEqual([{ url: 'http://shop/checkout/gains?limit=40', auth: 'Bearer cle-c-test' }]);
     if (!answer.ok) throw new Error('expected rows');
     expect(answer.rows).toHaveLength(1);
     const row = answer.rows[0]!;

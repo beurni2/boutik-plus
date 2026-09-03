@@ -781,6 +781,7 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     const keys = new Set(catalog.map((e) => e.key));
     const vue = livraisonsVue({
       kind: 'ok',
+      incomplet: false,
       rows: [
         lrow('o-new', 'confirmed', '2026-08-02T10:00:00.000Z'),
         lrow('o-old', 'confirmed', '2026-08-02T08:00:00.000Z'),
@@ -800,7 +801,7 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
       [{ kind: 'not_configured' }, 'not_configured', 'livraisons.non_configure'],
       [{ kind: 'bad_key' }, 'bad_key', 'livraisons.cle_refusee'],
       [{ kind: 'failed' }, 'failed', 'livraisons.echec'],
-      [{ kind: 'ok', rows: [] }, 'empty', 'livraisons.vide'],
+      [{ kind: 'ok', rows: [], incomplet: false }, 'empty', 'livraisons.vide'],
     ] as const) {
       const v = livraisonsVue(read);
       expect(v.kind, message).toBe(kind);
@@ -824,7 +825,8 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     if (!res.ok) throw new Error(res.reason);
     expect(res.rows).toEqual([good]);
     const [url, init] = spy.mock.calls[0]!;
-    expect(url).toBe('https://shop.example/checkout/dispatch');
+    // DISPATCH-PAGES-1 — one page asked; the old Worker ignores the query
+    expect(url).toBe('https://shop.example/checkout/dispatch?limit=40');
     expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-c');
     stubFetch(async () => new Response('no', { status: 401 }));
     expect(await resolveDispatchService()!.listLivraisons('k')).toEqual({ ok: false, reason: 'bad_key' });

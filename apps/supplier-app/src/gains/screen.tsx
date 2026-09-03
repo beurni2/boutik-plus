@@ -46,7 +46,7 @@ type Etat =
   | { kind: 'porte' }
   | { kind: 'chargement' }
   | { kind: 'echec' }
-  | { kind: 'pret'; rows: readonly GainRow[]; board: BoardSera | null };
+  | { kind: 'pret'; rows: readonly GainRow[]; board: BoardSera | null; incomplet: boolean };
 
 export function SGainsReel() {
   const service = resolveGainsService();
@@ -100,7 +100,7 @@ function GainsAvecService() {
         if (b.kind === 'ok') board = b.value;
         else if (b.kind === 'bad_key') clearStoredCleCoursiers();
       }
-      setEtat({ kind: 'pret', rows: ordonnerGains(answer.rows), board });
+      setEtat({ kind: 'pret', rows: ordonnerGains(answer.rows), board, incomplet: answer.incomplet });
     })();
     return () => {
       alive = false;
@@ -140,6 +140,10 @@ function GainsAvecService() {
         </Card>
       ) : (
         <View style={{ marginTop: 14, gap: 12 }}>
+          {/* DISPATCH-PAGES-1 — the sweep hit its page cap with more standing:
+              the cards below are real and newest-first, and the money read is
+              DECLARED partial (B3's law) rather than served as the whole. */}
+          {etat.incomplet && <Banner tone="warn">{t('suivi.incomplet')}</Banner>}
           <Text style={PETIT}>{t('gains.reconcilie')}</Text>
           {etat.rows.map((row) => (
             <CarteGain key={row.orderId} row={row} coursier={nomCoursierPour(row.orderId, etat.board)} />

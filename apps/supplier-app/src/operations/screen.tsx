@@ -770,7 +770,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     const mine = seq.current;
     const res = await service.listLivraisons(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
     if (mine !== seq.current) return; // only the newest read writes the section
-    if (res.ok) setRead({ kind: 'ok', rows: res.rows });
+    if (res.ok) setRead({ kind: 'ok', rows: res.rows, incomplet: res.incomplet });
     else setRead({ kind: res.reason === 'bad_key' ? 'bad_key' : 'failed' });
   };
 

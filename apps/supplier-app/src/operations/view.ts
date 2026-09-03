@@ -439,7 +439,7 @@ export type LivraisonsRead =
   | { readonly kind: 'not_configured' }
   | { readonly kind: 'bad_key' }
   | { readonly kind: 'failed' }
-  | { readonly kind: 'ok'; readonly rows: readonly LivraisonRow[] };
+  | { readonly kind: 'ok'; readonly rows: readonly LivraisonRow[]; readonly incomplet: boolean };
 
 export type LivraisonsVue =
   | { readonly kind: 'loading'; readonly message: string }
@@ -456,6 +456,9 @@ export type LivraisonsVue =
       readonly sansContact: readonly LivraisonRow[];
       /** Not yet confirmed — context, newest first, whispering. */
       readonly enAttente: readonly LivraisonRow[];
+      /** DISPATCH-PAGES-1 — the sweep hit its page cap with pages standing:
+       *  the groups are real and newest-first, and DECLARED partial. */
+      readonly incomplet: boolean;
     };
 
 export function livraisonsVue(read: LivraisonsRead): LivraisonsVue {
@@ -463,12 +466,14 @@ export function livraisonsVue(read: LivraisonsRead): LivraisonsVue {
   if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'livraisons.non_configure' };
   if (read.kind === 'bad_key') return { kind: 'bad_key', message: 'livraisons.cle_refusee' };
   if (read.kind === 'failed') return { kind: 'failed', message: 'livraisons.echec' };
-  if (read.rows.length === 0) return { kind: 'empty', message: 'livraisons.vide' };
+  // DISPATCH-PAGES-1 — a PARTIAL sweep that happened to carry no rows is not
+  // « vide »: the empty sentence would claim a fact the read does not hold.
+  if (read.rows.length === 0 && !read.incomplet) return { kind: 'empty', message: 'livraisons.vide' };
   const confirmed = read.rows.filter((r) => r.state === 'confirmed');
   const aLivrer = confirmed.filter((r) => r.contact !== null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const sansContact = confirmed.filter((r) => r.contact === null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const enAttente = read.rows.filter((r) => r.state !== 'confirmed').sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return { kind: 'liste', aLivrer, sansContact, enAttente };
+  return { kind: 'liste', aLivrer, sansContact, enAttente, incomplet: read.incomplet };
 }
 
 /* ───── ACCESS-GATE-1 — the reseller ACCESS-code inventory, PURE decisions ───── */

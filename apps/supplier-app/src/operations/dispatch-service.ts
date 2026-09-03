@@ -42,12 +42,29 @@ export interface LivraisonRow {
 }
 
 export type LivraisonsResult =
-  | { readonly ok: true; readonly rows: readonly LivraisonRow[] }
+  /** DISPATCH-PAGES-1 — `incomplet` TRUE means the page cap ended the sweep
+   *  with a `next` still standing: the rows shown are real and newest-first,
+   *  but the list is declared partial (B3's law: a short list is never served
+   *  as a complete one). At the cap that is 1 000 orders. */
+  | { readonly ok: true; readonly rows: readonly LivraisonRow[]; readonly incomplet: boolean }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 export interface DispatchServicePort {
   listLivraisons(cleC: string): Promise<LivraisonsResult>;
 }
+
+/**
+ * DISPATCH-PAGES-1 (AUDIT-SHOP-1 slice b) — the Shop+ Worker now serves these
+ * two reads in PAGES (the whole-list fan-out 500'd the platform's subrequest
+ * budget at ≈49 lifetime orders), answering `next` while rows remain. This
+ * console follows the cursor — one HTTP request per page, each within budget,
+ * each under its own DISPATCH_TIMEOUT_MS — and aggregates WHOLE-OR-NOTHING:
+ * a page that fails mid-sweep fails the read (a half list dressed as the
+ * board would hide real deliveries below the fold). An OLDER Worker ignores
+ * the query and answers everything with no `next`: one round trip, done.
+ */
+export const PAGE_LIVRAISONS = 40;
+export const PAGES_MAX = 25;
 
 /**
  * THE WAIT IS BOUNDED, AND THAT IS A HONESTY PROPERTY, NOT A PERFORMANCE ONE
@@ -70,31 +87,41 @@ export function resolveDispatchService(): DispatchServicePort | null {
   const trimmed = base.replace(/\/+$/, '');
   return {
     async listLivraisons(cleC: string): Promise<LivraisonsResult> {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/checkout/dispatch`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
-          signal: ctl.signal,
-        });
-      } catch {
-        // a refused connection, a blocked CORS answer, or OUR OWN abort — all
-        // the same honest sentence: we could not read, try again
-        return { ok: false, reason: 'unreachable' };
-      } finally {
-        clearTimeout(timer);
-      }
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
-      if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
       const rows: LivraisonRow[] = [];
-      for (const raw of body.orders) {
-        const row = readLivraisonRow(raw);
-        if (row !== null) rows.push(row);
+      let cursor: string | undefined;
+      for (let tour = 0; tour < PAGES_MAX; tour += 1) {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+        let res: Response;
+        try {
+          res = await fetch(
+            `${trimmed}/checkout/dispatch?limit=${PAGE_LIVRAISONS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+            {
+              headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
+              signal: ctl.signal,
+            },
+          );
+        } catch {
+          // a refused connection, a blocked CORS answer, or OUR OWN abort — all
+          // the same honest sentence: we could not read, try again. Mid-sweep
+          // too: rows already fetched are NOT served as the board.
+          return { ok: false, reason: 'unreachable' };
+        } finally {
+          clearTimeout(timer);
+        }
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown; next?: unknown } | null;
+        if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
+        for (const raw of body.orders) {
+          const row = readLivraisonRow(raw);
+          if (row !== null) rows.push(row);
+        }
+        if (typeof body.next !== 'string' || body.next === '') return { ok: true, rows, incomplet: false };
+        cursor = body.next;
       }
-      return { ok: true, rows };
+      // the cap ended the sweep with a next still standing — DECLARED partial
+      return { ok: true, rows, incomplet: true };
     },
   };
 }
@@ -534,7 +561,8 @@ export interface GainRow {
 }
 
 export type GainsResult =
-  | { readonly ok: true; readonly rows: readonly GainRow[] }
+  /** DISPATCH-PAGES-1 — same declared-partial law as `LivraisonsResult`. */
+  | { readonly ok: true; readonly rows: readonly GainRow[]; readonly incomplet: boolean }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 export interface GainsServicePort {
@@ -589,29 +617,40 @@ export function resolveGainsService(): GainsServicePort | null {
   const trimmed = base.replace(/\/+$/, '');
   return {
     async listGains(cleC: string): Promise<GainsResult> {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/checkout/gains`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
-          signal: ctl.signal,
-        });
-      } catch {
-        return { ok: false, reason: 'unreachable' };
-      } finally {
-        clearTimeout(timer);
-      }
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; gains?: unknown } | null;
-      if (body?.ok !== true || !Array.isArray(body.gains)) return { ok: false, reason: 'unreachable' };
+      // DISPATCH-PAGES-1 — the cursor walks the ORDER INDEX, so a page can be
+      // empty of confirmed orders and still carry `next`: « no gains on this
+      // page » is not « no more pages ».
       const rows: GainRow[] = [];
-      for (const raw of body.gains) {
-        const row = readGainRow(raw);
-        if (row !== null) rows.push(row);
+      let cursor: string | undefined;
+      for (let tour = 0; tour < PAGES_MAX; tour += 1) {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
+        let res: Response;
+        try {
+          res = await fetch(
+            `${trimmed}/checkout/gains?limit=${PAGE_LIVRAISONS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+            {
+              headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
+              signal: ctl.signal,
+            },
+          );
+        } catch {
+          return { ok: false, reason: 'unreachable' };
+        } finally {
+          clearTimeout(timer);
+        }
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; gains?: unknown; next?: unknown } | null;
+        if (body?.ok !== true || !Array.isArray(body.gains)) return { ok: false, reason: 'unreachable' };
+        for (const raw of body.gains) {
+          const row = readGainRow(raw);
+          if (row !== null) rows.push(row);
+        }
+        if (typeof body.next !== 'string' || body.next === '') return { ok: true, rows, incomplet: false };
+        cursor = body.next;
       }
-      return { ok: true, rows };
+      return { ok: true, rows, incomplet: true };
     },
   };
 }
