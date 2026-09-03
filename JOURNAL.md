@@ -2,7 +2,9 @@
 Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
-## 2026-09-03 · DISPATCH-PAGES-1 (console half; AUDIT-SHOP-1 slice b) — the founder's dispatch and gains reads follow the Worker's cursor · IN REVIEW (branch `e88eac5` → `2916efc`; deploys TOGETHER with shop-plus's Worker half on his Go)
+## 2026-09-03 · DISPATCH-PAGES-1 (console half; AUDIT-SHOP-1 slice b) — the founder's dispatch and gains reads follow the Worker's cursor · DONE
+
+**MERGED AND DEPLOYED (founder: « Go », 2026-09-03), together with the shop-plus Worker half as required.** `main` → 163789c: **ci 343 · expo-preview 221 · web-deploy 71, all green**; shop's side green on 37f6bb9 (storefront-deploy 80). The console's board and gains screens survive any lifetime order count now, declaring « Lecture partielle » past the 1 000-order sweep cap instead of lying.
 
 **Why:** Shop+'s `/checkout/dispatch` and `/checkout/gains` fanned out one subrequest per lifetime order and 500'd at ≈49 — his delivery board and money screen dark for good at a count the pilot will reach. The Worker (shop-plus `ece518a`→`09494d0`) now answers pages with a `next` cursor; **this half makes the console follow it**: both ports ask pages of 40, one HTTP request per page, each under its own timeout, aggregating WHOLE-OR-NOTHING (mid-sweep failure fails the read; a later-page 401 is `bad_key`); a sweep the 25-page cap ends with a `next` standing is DECLARED — `incomplet: true`, « Lecture partielle » (the existing `suivi.incomplet` string) on the gains screen, the livraisons fold carrying the flag with its empty state no longer claiming « vide » over a partial sweep. An older Worker = one round trip, byte-compatible.
 
