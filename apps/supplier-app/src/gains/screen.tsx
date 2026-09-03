@@ -134,7 +134,11 @@ function GainsAvecService() {
           <Text style={CORPS}>{t('commandes.echec')}</Text>
           <BtnSoft label={t('commandes.reessayer')} onPress={() => setRecharge((n) => n + 1)} />
         </View>
-      ) : etat.rows.length === 0 ? (
+      ) : etat.rows.length === 0 && !etat.incomplet ? (
+        // DISPATCH-PAGES-1 (verifier MAJOR): a capped sweep with zero rows is
+        // NOT « aucun gain » — it falls through to the list arm, where the
+        // partial declaration stands over however little the sweep held.
+
         <Card variant="Llg" style={{ marginTop: 14 }}>
           <Text style={CORPS}>{t('gains.vide')}</Text>
         </Card>

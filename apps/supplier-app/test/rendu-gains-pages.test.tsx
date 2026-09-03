@@ -78,7 +78,16 @@ describe('the gains screen over pages', () => {
   });
 
   it('a sweep the cap ends is DECLARED: « Lecture partielle » over cards that still render', async () => {
-    const { route, requetes } = pagesDeGains([{ gains: [gain('ord-sans-fin', '3')], next: 'encore' }]);
+    // distinct ids per page — the real Worker provably never repeats a row
+    // (dispatch-pages.e2e), and the fake stays inside those certified bounds
+    let page = 0;
+    const requetes: string[] = [];
+    const route: Route = (path, _b, search) => {
+      if (path !== '/checkout/gains') return null;
+      requetes.push(search.toString());
+      page += 1;
+      return { status: 200, json: { ok: true, gains: [gain(`ord-p${page}`, '3')] as never, next: `c${page}` } };
+    };
     wire([route]);
     const screen = await mountEcran(<SGainsReel />);
     await screen.settle();
@@ -86,7 +95,22 @@ describe('the gains screen over pages', () => {
     expect(requetes).toHaveLength(PAGES_MAX);
     expect(screen.shows('Lecture partielle'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     // the cards behind the declaration are real — the note never hides them
-    expect(screen.shows('ord-sans-fin')).toBe(true);
+    expect(screen.shows('ord-p1')).toBe(true);
+    expect(screen.shows(`ord-p${PAGES_MAX}`)).toBe(true);
+    screen.unmount();
+  });
+
+  it('a capped sweep with ZERO rows is NOT « pas encore de vente » — the declaration stands, the empty sentence does not', async () => {
+    // verifier MAJOR: the empty arm rendered gains.vide over a partial sweep —
+    // « no gains » claimed about a read the cap cut short (the B3 law)
+    const { route, requetes } = pagesDeGains([{ gains: [], next: 'encore' }]);
+    wire([route]);
+    const screen = await mountEcran(<SGainsReel />);
+    await screen.settle();
+
+    expect(requetes).toHaveLength(PAGES_MAX);
+    expect(screen.shows('Lecture partielle'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('Pas encore de vente payée'), 'the empty sentence is a claim a partial sweep cannot make').toBe(false);
     screen.unmount();
   });
 

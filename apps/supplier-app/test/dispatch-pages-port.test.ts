@@ -115,7 +115,9 @@ describe('listGains — the same loop, the same declarations', () => {
     vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'http://shop');
     pages([
       { body: { ok: true, gains: [grow('ord-g1')], next: 'c1' } },
-      { body: 'pas du json' },
+      // a body whose SHAPE refuses (ok !== true) — the parse-throw road rides
+      // the same `.catch(() => null)` and lands on this identical exit
+      { body: { ok: false } },
     ]);
     expect(await resolveGainsService()!.listGains('cle-c')).toEqual({ ok: false, reason: 'unreachable' });
 
