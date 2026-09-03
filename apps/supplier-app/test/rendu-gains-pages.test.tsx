@@ -85,7 +85,7 @@ describe('the gains screen over pages', () => {
 
     expect(requetes).toHaveLength(PAGES_MAX);
     expect(screen.shows('Lecture partielle'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
-    // the cards behind the declaration are real, not withheld
+    // the cards behind the declaration are real — the note never hides them
     expect(screen.shows('ord-sans-fin')).toBe(true);
     screen.unmount();
   });

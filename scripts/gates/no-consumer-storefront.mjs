@@ -43,6 +43,15 @@ runScanGate({
     { file: 'apps/supplier-app/test/gains-view.test.ts', pattern: 'checkout-route', ruling: 'the gains client’s own wire pins (RB-3)' },
     { file: 'apps/supplier-app/test/gains-view.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker e2e as the certification source' },
     /**
+     * DISPATCH-PAGES-1 (AUDIT-SHOP-1 slice b): the two founder-only key-C
+     * reads above are now PAGED, and these are the page-following tests of
+     * the SAME two carved-out clients — the port loop's wire pins and the
+     * gains screen's driven walk over the paged fake. No buyer surface, no
+     * order created, no money moves in Boutik+.
+     */
+    { file: 'apps/supplier-app/test/dispatch-pages-port.test.ts', pattern: 'checkout-route', ruling: 'the paged dispatch/gains clients’ own wire pins (DISPATCH-PAGES-1)' },
+    { file: 'apps/supplier-app/test/rendu-gains-pages.test.tsx', pattern: 'checkout-route', ruling: 'the gains screen’s paged walk over its own wire (DISPATCH-PAGES-1)' },
+    /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
      * `fulfillment.ready.v1` to the Shop+ Worker, whose deployed name is
