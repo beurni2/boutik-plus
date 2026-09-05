@@ -177,10 +177,11 @@ describe('WYSIWYG — the previewed derivative IS the stored derivative (one tra
 });
 
 describe('scope + dependency law', () => {
-  it('exactly the two ordered deps at the SDK-54 bundled versions', () => {
+  it('exactly the two ordered deps at the SDK-57 bundled versions', () => {
+    // EXPO-57-2: values from `expo@57.0.20/bundledNativeModules.json`, read, never guessed.
     const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies['expo-camera']).toBe('~17.0.10');
-    expect(pkg.dependencies['expo-image-manipulator']).toBe('~14.0.8');
+    expect(pkg.dependencies['expo-camera']).toBe('~57.0.4');
+    expect(pkg.dependencies['expo-image-manipulator']).toBe('~57.0.16');
   });
   it('the offline queue is honest: capture completion sets the pending notice, never « done »', () => {
     const app = read('App.tsx');

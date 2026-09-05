@@ -77,13 +77,18 @@ describe('the Faso Premium typeface roots — data only, loads nothing', () => {
 });
 
 describe('the approved dependencies — every one traceable to a founder ruling', () => {
+  // EXPO-57-2 (founder 2026-09-05: « go sdk ») — every version below is what
+  // `expo@57.0.20/bundledNativeModules.json` pins for SDK 57, read from the
+  // packed tarball, never guessed. The founder's Expo Go moved off SDK 54 with
+  // its store update, so the WO-4.0d re-target (57 → 54) is reversed; the
+  // rulings that admitted each dependency stand unchanged.
   it('the approved set, and NO other runtime dep', () => {
     const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
-    expect(pkg.dependencies['react-native-svg']).toBe('15.12.1');
-    expect(pkg.dependencies['expo-haptics']).toBe('~15.0.8');
-    expect(pkg.dependencies['expo-font']).toBe('~14.0.12');
-    expect(pkg.dependencies['expo-file-system']).toBe('~19.0.23');
-    expect(pkg.dependencies['expo-crypto']).toBe('~15.0.9');
+    expect(pkg.dependencies['react-native-svg']).toBe('15.15.4');
+    expect(pkg.dependencies['expo-haptics']).toBe('~57.0.2');
+    expect(pkg.dependencies['expo-font']).toBe('~57.0.3');
+    expect(pkg.dependencies['expo-file-system']).toBe('~57.0.6');
+    expect(pkg.dependencies['expo-crypto']).toBe('~57.0.2');
     // STUDIO-GALLERY-1 (founder ruling 2026-07-25): « HE WANTS TO UPLOAD FROM HIS
     // DEVICE, not only capture » — gallery for hero and details, camera-only for
     // the PROOF role on native. The picker is the only way to obtain a library URI.
@@ -94,8 +99,8 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     // ~17.0.11). The web target exploded at require (`createPermissionHook is
     // not a function`); the next NATIVE build would have paired mismatched
     // native code with the SDK 54 runtime. A gate that only checks presence
-    // cannot catch a wrong generation.
-    expect(pkg.dependencies['expo-image-picker']).toBe('~17.0.11');
+    // cannot catch a wrong generation. (SDK 57 now: ~57.0.16, same source.)
+    expect(pkg.dependencies['expo-image-picker']).toBe('~57.0.16');
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',

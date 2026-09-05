@@ -3,7 +3,7 @@ import type { QueueStore } from './queue';
 
 /**
  * WO-6.5 · B2.1 — the PRODUCTION QueueStore: Expo's own durable document store
- * (SDK 54, expo-file-system 19). Forcing evidence, quoted from the installed
+ * (SDK 57, expo-file-system 57 — the File/Paths API unchanged since 19). Forcing evidence, quoted from the installed
  * package's types (node_modules/expo-file-system/build/…):
  *
  *   FileSystem.d.ts   class Paths { static get document(): Directory }

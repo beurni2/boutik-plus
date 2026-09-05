@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: C.soft },
   enterFill: { flex: 1 },
   celebrationWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: appColour.celebrationScrim,
     alignItems: 'center',
     justifyContent: 'center',

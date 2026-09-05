@@ -350,7 +350,11 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar style="dark" backgroundColor={C.paper} />
+      {/* EXPO-57-2: `backgroundColor` left expo-status-bar at SDK 56 — Android is
+          edge-to-edge, so the bar's ground is this SafeAreaView's own fill
+          (`styles.screen`, the paper token). The SDK-54 restore (WO-4.0d-prep
+          ruling ③) is retired with the re-target. */}
+      <StatusBar style="dark" />
       {IS_PREVIEW && (
         <View style={styles.previewBanner}>
           <Text style={ts('caps', C.warnFgAlt)}>{t('preview.banner')}</Text>

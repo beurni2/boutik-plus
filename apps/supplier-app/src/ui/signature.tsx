@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   ledgerWeave: { borderRadius: R.ledger },
   ledgerDivider: { marginTop: D.gap, paddingTop: D.gap, borderTopWidth: D.hair, borderTopColor: C.onPrimary, opacity: 1 },
-  tileGlyphWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  tileGlyphWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   tileGlyph: { opacity: 0.9, textShadowColor: C.ink, textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 6 },
   selectable: { borderRadius: R.tile, padding: D.cardPad, backgroundColor: C.card },
   selectableOff: { borderWidth: D.selOff, borderColor: C.hairlineInput },
