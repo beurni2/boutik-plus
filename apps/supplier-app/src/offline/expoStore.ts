@@ -4,12 +4,14 @@ import type { QueueStore } from './queue';
 /**
  * WO-6.5 · B2.1 — the PRODUCTION QueueStore: Expo's own durable document store
  * (SDK 57, expo-file-system 57 — the File/Paths API unchanged since 19). Forcing evidence, quoted from the installed
- * package's types (node_modules/expo-file-system/build/…):
+ * package's types (node_modules/expo-file-system/build/…; EXPO-57-2 re-attributed
+ * the files — at 57 `Paths` lives in Paths.d.ts and `File`'s members on
+ * NativeFileSystemFile in internal/NativeFileSystem.types.d.ts):
  *
- *   FileSystem.d.ts   class Paths { static get document(): Directory }
+ *   Paths.d.ts        class Paths { static get document(): Directory }
  *                     // "the document directory – a place to store files that
  *                     //  are safe from being deleted by the system."
- *   ExpoFileSystem.types.d.ts
+ *   internal/NativeFileSystem.types.d.ts
  *                     class File {
  *                       constructor(...uris: (string | File | Directory)[]);
  *                       text(): Promise<string>;
