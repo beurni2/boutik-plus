@@ -107,7 +107,7 @@ describe('RETOUR-VIVANT — the return check on the « En route » card', () => 
     await screen.settle();
     await screen.press('Livré');
     await screen.settle();
-    expect(screen.shows('Colis revenu chez vous.'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('Vous avez confirmé le code de retour.'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.shows('Livré au client.'), 'a return must never read as a delivery').toBe(false);
     await screen.press('En route');
     await screen.settle();

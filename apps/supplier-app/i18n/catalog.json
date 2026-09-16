@@ -5143,7 +5143,7 @@
   },
   {
     "key": "fournisseur.etape_retournee",
-    "fr": "Colis revenu chez vous. Cette commande est terminée.",
+    "fr": "Vous avez confirmé le code de retour. Le colis revient chez vous.",
     "register": "neutral",
     "screenClass": "status"
   }

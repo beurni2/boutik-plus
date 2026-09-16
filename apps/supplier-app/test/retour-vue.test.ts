@@ -60,7 +60,10 @@ describe('the return mark ends the road — the colis is back in his hands', () 
     expect(vue.kind === 'liste' ? vue.commandes[0]?.etape : null).toBe('retournee');
     expect(vue.kind === 'liste' ? vue.aFaire : -1).toBe(0);
     const catalog = JSON.parse(read('i18n/catalog.json')) as { key: string; fr: string }[];
-    expect(catalog.find((e) => e.key === 'fournisseur.etape_retournee')?.fr).toContain('Colis revenu chez vous');
+    // The sentence claims only what HE did (the verifier's MINOR, closed): his
+    // confirmed code — never a custody transfer the ledger has not made yet.
+    expect(catalog.find((e) => e.key === 'fournisseur.etape_retournee')?.fr).toContain('Vous avez confirmé le code de retour');
+    expect(catalog.find((e) => e.key === 'fournisseur.etape_retournee')?.fr).not.toMatch(/termin/i);
   });
 
   it('a malformed return mark drops the WHOLE row — never a row demoted to « en route »', async () => {
