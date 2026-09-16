@@ -39,6 +39,14 @@ jobs:
           count=$(jq '.items | length' <<<"$body")
           echo "LIVE OFFERS: $count"
           jq -r '.items[] | [(.offerId[:12]), (.productVersionId[:12]), (.assetRefs | length | tostring)] | "offer " + .[0] + "…  pv " + .[1] + "…  photos: " + .[2]' <<<"$body"
+          # RAYON-VIDEO-CHECK (founder report 2026-09-16: « the product with the
+          # video is still not showing » under « Maison » on Shop+). Per product,
+          # what the SUPPLY ROAD decides from — none of it a name, a price or a
+          # ref: the rayon it was published under (Shop+ matches on it exactly),
+          # the declared stock, whether a clip is attached, and the refusal
+          # ladder's own reason when the row is hidden from Shop+ (absent ⇒ live).
+          echo "---- rayon · stock · clip · visibility (the supply road's inputs) ----"
+          jq -r '.items[] | "pv " + (.productVersionId[:12]) + "…  rayon: " + ((.category // "—") | tostring) + "  stock: " + (.available | tostring) + "  clip: " + (if .videoRef then "yes" else "no" end) + "  " + (if .hiddenReason then "HIDDEN: " + .hiddenReason else "live to Shop+" end)' <<<"$body"
           echo "---- photo liveness (media read route, truncated refs) ----"
           for ref in $(jq -r '.items[].assetRefs[]' <<<"$body"); do
             code=$(curl -sS -o /dev/null -w '%{http_code}' "${MEDIA_BASE%/}/$ref" || echo "ERR")
