@@ -71,6 +71,16 @@ const SUPPLIERCODE_PREFIX = 'suppliercode:';
  */
 const HANDOVER_PREFIX = 'handover:';
 /**
+ * RETOUR-VIVANT-1 (Séra SE6.2, the supplier's half) — the coursier brings a
+ * REFUSED colis back and says his RETURN code; the supplier types it here,
+ * Séra's logistics book judges it, and a `confirme` is the supplier's
+ * acceptance of the package back (it releases his own key onto the rider's
+ * session; custody then moves on the rider's two-key act, never here). This
+ * row records what the SUPPLIER confirmed, for his own screens — the
+ * handover row's mirror image. Nothing here touches money or custody.
+ */
+const RETOUR_PREFIX = 'retour:';
+/**
  * BOUTIK-SUIVI — Séra DELIVERED it (founder: « when the delivery is completed
  * and the product leaves en route to that screen »). Boutik+ never witnesses
  * a delivery and never asserts one: this row exists only because the fact
@@ -260,6 +270,14 @@ interface HandoverRecord {
   readonly orderId: string;
   /** THIS Worker's clock at the moment Séra answered `confirme`. */
   readonly handedOverAt: string;
+}
+
+/** RETOUR-VIVANT-1 — the confirmed return code, one row per order. */
+interface RetourRecord {
+  readonly orderId: string;
+  /** THIS Worker's clock at the moment Séra answered `confirme` on the
+   *  RETURN code — the supplier accepted the colis back. */
+  readonly returnedAt: string;
 }
 
 /** BOUTIK-SUIVI — the delivery, as the authority that proved it told us. */
@@ -984,6 +1002,8 @@ export class FulfillmentDO {
       // his own confirmed handover, and Séra's delivery as Shop+ relayed it.
       const handovers = await this.state.storage.list<HandoverRecord>({ prefix: HANDOVER_PREFIX });
       const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
+      // RETOUR-VIVANT-1 — the fourth mark: his own confirmed RETURN code.
+      const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
       const orders = [...entries.values()]
         .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
@@ -992,6 +1012,7 @@ export class FulfillmentDO {
           const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
           const handed = handovers.get(`${HANDOVER_PREFIX}${r.orderId}`);
           const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
+          const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -1001,13 +1022,14 @@ export class FulfillmentDO {
             paidAt: r.paidAt,
             zoneTo: r.zoneTo,
             sellerBasePrice: r.sellerBasePrice,
-            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined
+            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined
               ? {
                   fulfillment: {
                     ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
                     ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
                     ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
                     ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
+                    ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
                   },
                 }
               : {}),
@@ -1127,6 +1149,72 @@ export class FulfillmentDO {
             orderId,
             handedOverAt: new Date().toISOString(),
           } satisfies HandoverRecord);
+        }
+      }
+      return Response.json({ ok: true, verdict });
+    }
+
+    /**
+     * RETOUR-VIVANT-1 (Séra SE6.2, the supplier's half) — the ramassage
+     * door's mirror image, byte for byte in its discipline: identity is the
+     * personal code, ownership is proven on the ORDER before Séra is asked,
+     * the relay is SYNCHRONOUS (the coursier is standing at the stall with
+     * the refused colis), the expected code is never held here, and no
+     * verdict is ever invented locally. A `confirme` is the supplier
+     * ACCEPTING the colis back: Séra's book releases his own key onto the
+     * rider's session, and custody moves on the rider's two-key act —
+     * this row marks only what HE confirmed, for his own screens.
+     */
+    if (request.method === 'POST' && pathname === '/retour/verify') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const orderId = body?.['orderId'];
+      const dit = body?.['codeRetour'];
+      if (
+        typeof orderId !== 'string' || orderId === '' ||
+        typeof dit !== 'string' || dit.trim() === '' || dit.length > 32 ||
+        Object.keys(body ?? {}).length !== 3
+      ) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined || !order.supplierResolved || order.supplierId !== resolved.supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      const base = (this.env?.SERA_INTAKE_BASE ?? '').replace(/\/+$/, '');
+      const secret = this.env?.SERA_INTAKE_SECRET ?? '';
+      if (base === '' || secret === '') {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      // Clockless and replay-safe, the ramassage law: the same (order,
+      // said-code) pair may share one command id forever.
+      const norme = dit.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let res: Response;
+      try {
+        res = await fetch(`${base}/intake/retour/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+          body: JSON.stringify({ command_id: `cmd-boutik-retour-${orderId}-${norme}`, orderId, code: dit }),
+        });
+      } catch {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      const answer = res.status === 200 ? ((await res.json().catch(() => null)) as Record<string, unknown> | null) : null;
+      const verdict = answer?.['verdict'];
+      if (answer?.['ok'] !== true || (verdict !== 'confirme' && verdict !== 'non_confirme')) {
+        return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
+      }
+      // A CONFIRMED return code is the colis coming back into his hands, so
+      // the row leaves « En route » for the archive. Written only on Séra's
+      // own verdict, first-wins, never on `non_confirme`.
+      if (verdict === 'confirme') {
+        const key = `${RETOUR_PREFIX}${orderId}`;
+        if ((await this.state.storage.get<RetourRecord>(key)) === undefined) {
+          await this.state.storage.put(key, {
+            orderId,
+            returnedAt: new Date().toISOString(),
+          } satisfies RetourRecord);
         }
       }
       return Response.json({ ok: true, verdict });
@@ -1370,6 +1458,7 @@ export class FulfillmentDO {
         `${READY_PREFIX}${orderId}`,
         `${HANDOVER_PREFIX}${orderId}`,
         `${LIVRAISON_PREFIX}${orderId}`,
+        `${RETOUR_PREFIX}${orderId}`,
         ...outbox.keys(),
       ];
       // ONE DELETE CALL, so the row and its marks leave together or not at
@@ -1643,7 +1732,7 @@ export async function handleSupplierContactsList(env: FulfillmentEnv): Promise<R
 export async function forwardSupplierAct(
   request: Request,
   env: FulfillmentEnv,
-  path: '/mine' | '/accept' | '/ready/challenge' | '/ready' | '/ramassage/verify',
+  path: '/mine' | '/accept' | '/ready/challenge' | '/ready' | '/ramassage/verify' | '/retour/verify',
 ): Promise<Response> {
   const auth = request.headers.get('Authorization') ?? '';
   const code = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';

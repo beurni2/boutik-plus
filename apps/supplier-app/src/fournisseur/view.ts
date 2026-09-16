@@ -32,7 +32,15 @@ export type EtapeCommande =
    */
   | 'en_route'
   /** Séra delivered it and the fact reached us: « livré et terminé ». */
-  | 'livree';
+  | 'livree'
+  /**
+   * RETOUR-VIVANT-1 (Séra SE6.2) — the buyer refused and the coursier brought
+   * the colis BACK; his own confirmed RETURN code marks it. Terminal, like
+   * livrée: nothing to do, the colis is in his hands again. It sits in the
+   * « Livré et terminé » archive with its own sentence — the zone's meaning
+   * is « done as far as the platform can prove », and a return is done.
+   */
+  | 'retournee';
 
 /**
  * BOUTIK-SUIVI — the three screens the founder asked for, as data. A zone is
@@ -48,6 +56,7 @@ const ZONE_DE: Record<EtapeCommande, ZoneCommandes> = {
   prete: 'commandes',
   en_route: 'en_route',
   livree: 'livrees',
+  retournee: 'livrees',
 };
 
 /** Each zone's own empty sentence — « rien à faire » and « rien en route »
@@ -96,6 +105,9 @@ export type FournisseurVue =
  */
 export function etapeOf(row: CommandeRow): EtapeCommande {
   if (row.fulfillment?.deliveredAt !== undefined) return 'livree';
+  // A return ends the road after the handover, as a delivery does: the
+  // colis is back in his hands, and « en route » would be a lie.
+  if (row.fulfillment?.returnedAt !== undefined) return 'retournee';
   if (row.fulfillment?.handedOverAt !== undefined) return 'en_route';
   if (row.fulfillment?.readyAt !== undefined) return 'prete';
   if (row.fulfillment?.acceptedAt !== undefined) return 'a_preparer';
@@ -103,11 +115,11 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
 }
 
 const ETAPE_RANK: Record<EtapeCommande, number> = {
-  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4,
+  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4,
 };
 
 /** Rows that need no act read as an archive — newest first. */
-const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree'];
+const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee'];
 
 export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'commandes'): FournisseurVue {
   if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };

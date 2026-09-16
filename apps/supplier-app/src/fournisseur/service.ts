@@ -42,6 +42,9 @@ export interface CommandeRow {
     readonly readyAt?: string;
     readonly handedOverAt?: string;
     readonly deliveredAt?: string;
+    /** RETOUR-VIVANT-1 — HIS confirmed RETURN code: the refused colis came
+     *  back into his hands (→ the archive, « colis revenu »). */
+    readonly returnedAt?: string;
   };
 }
 
@@ -118,6 +121,10 @@ export type RamassageResult =
   | { readonly ok: true; readonly verdict: 'confirme' | 'non_confirme' }
   | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'unreachable' };
 
+/** RETOUR-VIVANT-1 — the return check answers in the ramassage's exact
+ *  vocabulary: a verdict names the act, everything else is a refusal. */
+export type RetourResult = RamassageResult;
+
 export interface FournisseurServicePort {
   listMine(code: string): Promise<MineResult>;
   /** LISTER-POUR-1c — his own products, same door, same Bearer. */
@@ -127,6 +134,10 @@ export interface FournisseurServicePort {
   /** The typed code travels as `codeRamassage` — `code` is the Bearer's name
    *  on this wire, and the two must never be confusable. */
   verifierRamassage(code: string, orderId: string, codeRamassage: string): Promise<RamassageResult>;
+  /** RETOUR-VIVANT-1 — the coursier's RETURN code, typed by the supplier
+   *  when a refused colis comes back; travels as `codeRetour`, same door
+   *  discipline as the ramassage check. */
+  verifierRetour(code: string, orderId: string, codeRetour: string): Promise<RetourResult>;
   /** The strict canon confirmation travels whole; the Worker re-parses it. */
   ready(code: string, confirmation: {
     orderId: string;
@@ -245,6 +256,18 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       return { ok: false, reason: 'unreachable' };
     },
 
+    async verifierRetour(code: string, orderId: string, codeRetour: string): Promise<RetourResult> {
+      const res = await post('/fulfillment/retour/verify', code, { orderId, codeRetour });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_code' };
+      if (res.status === 404) return { ok: false, reason: 'not_yours_or_unknown' };
+      const verdict = res.json['verdict'];
+      if (res.json['ok'] === true && (verdict === 'confirme' || verdict === 'non_confirme')) {
+        return { ok: true, verdict };
+      }
+      return { ok: false, reason: 'unreachable' };
+    },
+
     async ready(code, confirmation): Promise<ReadyResult> {
       const res = await post('/fulfillment/ready', code, confirmation);
       if (res === null) return { ok: false, reason: 'unreachable' };
@@ -324,7 +347,7 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     // one drops the WHOLE row. A row demoted to « no handover » would re-arm
     // the ramassage check over a colis already gone (verifier N4's law, now
     // guarding two more fields).
-    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt'] as const;
+    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt'] as const;
     const lus: Partial<Record<(typeof marks)[number], string>> = {};
     for (const m of marks) {
       if (fr[m] === undefined) continue;

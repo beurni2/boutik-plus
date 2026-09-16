@@ -420,6 +420,24 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     if (next !== null) setPret(next);
   };
 
+  /** RETOUR-VIVANT-1 — the return check rides the session code exactly as the
+   *  ramassage check does; a dead code escalates the whole screen to the door.
+   *  NO re-read on « confirmé », deliberately (the ramassage law): the verdict
+   *  must stay under his eyes — the coursier still has to validate on his
+   *  phone before the colis changes hands — and the row moves to the archive
+   *  on his next refresh, when the book is re-asked. */
+  const verifierRetour = async (orderId: string, dit: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
+    if (service === null) return 'echec';
+    try {
+      const res = await service.verifierRetour(code, orderId, dit);
+      if (res.ok) return res.verdict;
+      if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
+      return 'echec';
+    } catch {
+      return 'echec';
+    }
+  };
+
   /** RAMASSAGE — the act rides the session code like every other; a dead code
    *  escalates the whole screen to the door, exactly as accept does. */
   const verifierRamassage = async (orderId: string, dit: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
@@ -558,6 +576,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
               onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
               onEnvoyer={() => { void envoyer(c); }}
               onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
+              onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
             />
           ))}
           <View style={{ marginTop: 22 }}>
@@ -605,9 +624,48 @@ function VerifierRamassage({ onVerifier }: { onVerifier: (dit: string) => Promis
   );
 }
 
+/**
+ * RETOUR-VIVANT-1 (Séra SE6.2, the supplier's half) — « le coursier rapporte
+ * le colis, il donne son code de retour ». The ramassage check's mirror, on
+ * the EN ROUTE card: the buyer refused, the coursier is back at the stall
+ * with the sealed colis and says the return code his app shows; the supplier
+ * types it; Séra judges it and, on « confirmé », releases the supplier's own
+ * acceptance key onto the coursier's phone — the two-key handover then runs
+ * on the coursier's act, never here. One field, one button, one verdict
+ * naming the act (reprenez / ne reprenez pas); a network refusal is its own
+ * honest sentence, never dressed as a verdict.
+ */
+function VerifierRetour({ onVerifier }: { onVerifier: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'> }) {
+  const [dit, setDit] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [verdict, setVerdict] = useState<'confirme' | 'non_confirme' | 'echec' | null>(null);
+  const verifier = async (): Promise<void> => {
+    if (busy || dit.trim() === '') return;
+    setBusy(true);
+    setVerdict(null);
+    setVerdict(await onVerifier(dit.trim()));
+    setBusy(false);
+  };
+  return (
+    <View style={{ marginTop: 10, gap: 8 }}>
+      <Overline level="card">{t('retour.titre')}</Overline>
+      <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('retour.aide')}</Text>
+      <Input label={t('retour.placeholder')} value={dit} onChangeText={(v) => { setDit(v); setVerdict(null); }} />
+      <BtnSoft label={busy ? t('retour.encours') : t('retour.verifier')} onPress={() => { void verifier(); }} />
+      {verdict === 'confirme' ? (
+        <Banner tone="success" check>{t('retour.confirme')}</Banner>
+      ) : verdict === 'non_confirme' ? (
+        <Banner tone="warn">{t('retour.non_confirme')}</Banner>
+      ) : verdict === 'echec' ? (
+        <Banner tone="warn">{t('retour.echec_reseau')}</Banner>
+      ) : null}
+    </View>
+  );
+}
+
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
-function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage }: {
+function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour }: {
   commande: CommandeVue;
   pret: PretUi;
   accepting: boolean;
@@ -618,6 +676,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
   onChoisirPhoto: () => void;
   onEnvoyer: () => void;
   onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
+  onVerifierRetour: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
 }) {
   const nom = commande.productName !== '' ? commande.productName : commande.productVersionId;
   /** The product's own photographs, through the SAME two helpers « Mes
@@ -676,12 +735,21 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
       {commande.etape === 'en_route' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="info">{t('fournisseur.etape_en_route')}</Banner>
+          {/* RETOUR-VIVANT-1 — a colis on the road can come BACK refused; the
+              return check lives on the card that holds it, behind HIS code. */}
+          <VerifierRetour onVerifier={onVerifierRetour} />
         </View>
       )}
 
       {commande.etape === 'livree' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="success" check>{t('fournisseur.etape_livree')}</Banner>
+        </View>
+      )}
+
+      {commande.etape === 'retournee' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">{t('fournisseur.etape_retournee')}</Banner>
         </View>
       )}
 

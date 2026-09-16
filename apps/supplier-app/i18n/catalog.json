@@ -5092,5 +5092,59 @@
     "fr": "Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "retour.titre",
+    "fr": "Code de retour",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "retour.aide",
+    "fr": "Le coursier vous rapporte le colis ? Demandez son code de retour et tapez-le ici avant de reprendre le colis.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "retour.placeholder",
+    "fr": "Code de retour du coursier",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "retour.verifier",
+    "fr": "Vérifier le code de retour",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "retour.confirme",
+    "fr": "Code confirmé. Le coursier valide de son côté, puis vous reprenez le colis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "retour.non_confirme",
+    "fr": "Code non confirmé. Ne reprenez pas le colis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "retour.encours",
+    "fr": "On vérifie le code…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "retour.echec_reseau",
+    "fr": "Pas de réponse pour le moment. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_retournee",
+    "fr": "Colis revenu chez vous. Cette commande est terminée.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]
