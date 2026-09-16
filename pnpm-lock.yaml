@@ -50,6 +50,9 @@ importers:
       '@platform/i18n':
         specifier: git+https://github.com/beurni2/platform-contracts.git#199bc2ab172dbbf93b446af35445e17f5a0f3f35&path:packages/i18n
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/199bc2ab172dbbf93b446af35445e17f5a0f3f35#path:packages/i18n
+      '@platform/taxonomy':
+        specifier: git+https://github.com/beurni2/platform-contracts.git#1fb7649d981521329b5ad041ec52c89728981b14&path:packages/taxonomy
+        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14#path:packages/taxonomy
       '@platform/ui-tokens':
         specifier: git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens
         version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/a832df0a8ed9e9fc83083826bc11c2a2e57e615a#path:packages/ui-tokens
@@ -1383,6 +1386,10 @@ packages:
   '@platform/kernel-types@https://codeload.github.com/beurni2/platform-contracts/tar.gz/35a21ea178ea3eb4cbb7d4d6c6264c5d2e5829ff#path:packages/kernel-types':
     resolution: {path: packages/kernel-types, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/35a21ea178ea3eb4cbb7d4d6c6264c5d2e5829ff}
     version: 3.13.0
+
+  '@platform/taxonomy@https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14#path:packages/taxonomy':
+    resolution: {path: packages/taxonomy, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14}
+    version: 3.14.0
 
   '@platform/ui-tokens@https://codeload.github.com/beurni2/platform-contracts/tar.gz/a832df0a8ed9e9fc83083826bc11c2a2e57e615a#path:packages/ui-tokens':
     resolution: {path: packages/ui-tokens, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/a832df0a8ed9e9fc83083826bc11c2a2e57e615a}
@@ -4722,6 +4729,8 @@ snapshots:
   '@platform/kernel-types@https://codeload.github.com/beurni2/platform-contracts/tar.gz/35a21ea178ea3eb4cbb7d4d6c6264c5d2e5829ff#path:packages/kernel-types':
     dependencies:
       zod: 4.4.3
+
+  '@platform/taxonomy@https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14#path:packages/taxonomy': {}
 
   '@platform/ui-tokens@https://codeload.github.com/beurni2/platform-contracts/tar.gz/a832df0a8ed9e9fc83083826bc11c2a2e57e615a#path:packages/ui-tokens': {}
 

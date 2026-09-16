@@ -34,27 +34,20 @@ export interface VarianteChamp {
   readonly exempleKey: string;
 }
 
-export interface Rayon {
-  readonly titre: string;
-  readonly categories: readonly string[];
-}
-
 /**
  * The shelves, in the order he shops them: his named products first (bébé,
  * jouets, maison), the shipped eight after. Titles and category names are
  * taxonomy DATA like the quartier répertoire — proper nouns of the store, not
  * sentences (the field labels and examples live in the catalog, tagged).
+ *
+ * TAXONOMIE-CANON-1 (founder order 2026-09-16, canon 3.14.0): the list lives
+ * ONCE, in `@platform/taxonomy`, and Shop+'s pickers offer the same shelves —
+ * a reseller can choose a rayon before any product reaches the feed under it.
+ * A category label is a wire value, so the list is edited THERE, with a canon
+ * MINOR, never here. Re-exported under its own name so every call site and
+ * test in this app reads as it did.
  */
-export const RAYONS: readonly Rayon[] = [
-  { titre: 'Bébé — sortie & voyage', categories: ['Siège auto', 'Poussette'] },
-  { titre: 'Bébé — chambre', categories: ['Lit petit enfant', 'Lit à barreaux', 'Couffin'] },
-  { titre: 'Bébé — bain', categories: ['Baignoire bébé', 'Bassine de bain', 'Tapis de bain', 'Serviette bébé'] },
-  { titre: 'Bébé — repas', categories: ['Chaise haute', 'Assiettes & couverts enfant', 'Table de repas enfant', 'Bavoir'] },
-  { titre: 'Jouets & jeux', categories: ['Petites voitures', 'Jeux éducatifs', 'Poupées & dînette', "Jeux d'extérieur", 'Vélo enfant'] },
-  { titre: 'Maison & chambre', categories: ['Coiffeuse', 'Draps & housses', 'Vase', 'Décoration', 'Maison'] },
-  { titre: 'Mode & tissus', categories: ['Mode femme', 'Mode homme', 'Enfant', 'Chaussures', 'Sacs', 'Tissus'] },
-  { titre: 'Beauté', categories: ['Beauté scellée'] },
-];
+export { RAYONS, type Rayon } from '@platform/taxonomy';
 
 // ── the field vocabulary — one entry per QUESTION, reused across categories ──
 const TAILLES: VarianteChamp = { labelKey: 'publier.variantes_tailles', exempleKey: 'publier.variantes_tailles_ex' };

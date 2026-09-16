@@ -104,6 +104,12 @@ describe('the approved dependencies — every one traceable to a founder ruling'
     const before = new Set([
       '@platform/i18n', '@platform/ui-tokens', 'expo', 'expo-camera',
       'expo-image-manipulator', 'expo-status-bar', 'expo-updates', 'react', 'react-native',
+      // TAXONOMIE-CANON-1 (founder order 2026-09-16: « fix the 3 that is still
+      // open » — the category list's home is platform-contracts): the wizard's
+      // shelves now come from the platform's own data package (canon 3.14.0),
+      // pure data, RN-safe, no intra-family dep — a first-party package, not a
+      // third-party dependency.
+      '@platform/taxonomy',
     ]);
     const added = Object.keys(pkg.dependencies).filter((d) => !before.has(d));
     // WO-FP-BOUTIK adds NO new runtime dep (the FP fonts are assets; gradients

@@ -15,6 +15,7 @@
   "dependencies": {
     "@platform/i18n": "git+https://github.com/beurni2/platform-contracts.git#199bc2ab172dbbf93b446af35445e17f5a0f3f35&path:packages/i18n",
     "@platform/ui-tokens": "git+https://github.com/beurni2/platform-contracts.git#a832df0a8ed9e9fc83083826bc11c2a2e57e615a&path:packages/ui-tokens",
+    "@platform/taxonomy": "git+https://github.com/beurni2/platform-contracts.git#1fb7649d981521329b5ad041ec52c89728981b14&path:packages/taxonomy",
     "expo": "~57.0.20",
     "expo-camera": "~57.0.4",
     "expo-crypto": "~57.0.2",
