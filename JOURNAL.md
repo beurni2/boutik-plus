@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-16 · RETOUR-VIVANT-1 (supplier half) — the return-code check on the « En route » card: Séra SE6.2's two-key handover, the supplier's side · BUILT on the branch (144b9d1) · NOT MERGED · NOT DEPLOYED · awaiting the founder's word
+## 2026-09-16 · RETOUR-VIVANT-1 (supplier half) — the return-code check on the « En route » card: Séra SE6.2's two-key handover, the supplier's side · MERGED AND DEPLOYED 2026-09-17 on the founder's « go »
+
+**MERGED + DEPLOYED (founder: « go », 2026-09-17).** main fast-forwarded df6a184 → 8903419 (the branch head, verified `merge-base --is-ancestor`; this carried RAYON-VIDEO-CHECK's read-only `live-check` extension in with it, as that entry said it would). Runs on main at 8903419, all `success`: ci #347 · expo-preview #225 · offer-deploy #34 (id 35169084358, `workflow_dispatch`) · fournisseur-web-deploy #15 (id 35169085657, `workflow_dispatch`). Dispatched only AFTER Séra's logistics-deploy #29 was green on its main (the intake door the console asks now exists live).
 
 **Why here.** Séra's return road (sera 47335b8) ends at the supplier's counter: the coursier brings the refused, sealed colis back and says his RETURN code; the supplier types it on his own console; Séra's book confirms it and releases the supplier's acceptance key onto the coursier's phone; custody moves on the coursier's two-key act. Without this half the supplier had no field to type into and the road home could not close. The ramassage check's mirror image (founder, 2026-08-09: « that screen should be on the supplier's console not mine »), same door discipline.
 
