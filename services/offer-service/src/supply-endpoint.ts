@@ -168,6 +168,9 @@ export function serveProjection(
    * cannot disagree about who is verified.
    */
   attested?: AttestedSuppliersEnv,
+  /** STOCK-JOURNAL-1 — the reconfirmation window (the composition root's
+   *  lower-only knob); omitted ⇒ the constant. */
+  dueMs?: number,
 ): ServeOutcome {
   if (!entry) {
     return { ok: false, status: 404, body: { service, status: 'not_found', reason: 'unknown_product_version' } };
@@ -175,7 +178,15 @@ export function serveProjection(
   // Resolved from the SUPPLIER ID THE STORE ALREADY HOLDS and the deployment's
   // own configuration — never from anything on the request.
   const tier = attestedTier(entry.product.supplierId, attested);
-  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets, tier);
+  // STOCK-JOURNAL-1 — the freeze is the ladder's last rung, decided here from
+  // the entry's own `stockConfirmedAt` and the serve clock: a stock nobody has
+  // vouched for within the window answers 409 `stock_unconfirmed`, which
+  // Shop+ already treats as « an extant offer refusing service » (its supply
+  // source's `unknown` presence — omitted from a render, never auto-hidden).
+  const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets, tier, {
+    confirmedAt: entry.stockConfirmedAt,
+    ...(dueMs !== undefined ? { dueMs } : {}),
+  });
   if (!built.ok) {
     // the projection.ts refusal ladder surfaces verbatim — never a 200-empty
     return { ok: false, status: 409, body: { service, status: 'unavailable', reason: built.reason } };
@@ -245,10 +256,11 @@ export function serveProjections(
   entries: readonly OfferEntry[],
   nowIso: string,
   attested?: AttestedSuppliersEnv,
+  dueMs?: number,
 ): SupplyCollection {
   const items: SupplyReadModel[] = [];
   for (const entry of entries) {
-    const outcome = serveProjection(service, entry, nowIso, attested);
+    const outcome = serveProjection(service, entry, nowIso, attested, dueMs);
     if (outcome.ok) items.push(outcome.body);
   }
   return { asOf: nowIso, items };
@@ -270,6 +282,8 @@ export function makeSupplyFetch(
   service: string = SERVICE_NAME,
   /** SELLER-TIER-WIRE-1 — the deployment's attestations, handed down from the Worker's env. */
   attested?: AttestedSuppliersEnv,
+  /** STOCK-JOURNAL-1 — the reconfirmation window, handed down from the Worker's env (lower-only). */
+  dueMs?: number,
 ): (request: Request) => Promise<Response> {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -289,11 +303,11 @@ export function makeSupplyFetch(
     // DISCOVERY — every servable offer, one serve clock for all of them.
     if (isCollection) {
       const entries = await store.listEntries();
-      return Response.json(serveProjections(service, entries, now(), attested), { status: 200, headers });
+      return Response.json(serveProjections(service, entries, now(), attested, dueMs), { status: 200, headers });
     }
     const productVersionId = decodeURIComponent(match![1]!);
     const entry = await store.getEntryByProductVersion(productVersionId);
-    const outcome = serveProjection(service, entry, now(), attested);
+    const outcome = serveProjection(service, entry, now(), attested, dueMs);
     return Response.json(outcome.body, { status: outcome.status, headers });
   };
 }

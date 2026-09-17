@@ -92,7 +92,50 @@ export function hiddenSentence(reason: HiddenReason): string {
     case 'product_not_approved':
     case 'offer_not_active':
       return 'produits.retiree';
+    case 'stock_unconfirmed':
+      // STOCK-JOURNAL-1 — frozen for want of a confirmation. The sentence
+      // names the cause AND the way back, because there IS one this time.
+      return 'produits.stock_gele';
   }
+}
+
+/**
+ * STOCK-JOURNAL-1 — WHAT THE FICHE SAYS ABOUT THE COUNT'S TRUTH, chosen purely.
+ *
+ * Three states, never collapsed: nobody has ever vouched (a pre-slice offer —
+ * shown, not frozen), someone vouched on a date (the ordinary state), or the
+ * vouching is too old and Shop+ has stopped selling (`hiddenReason` says so —
+ * the ladder's own word, not a local re-derivation of « too old »).
+ */
+export type StockEtat =
+  | { readonly kind: 'jamais'; readonly message: 'produits.stock_jamais_confirme' }
+  | { readonly kind: 'confirme'; readonly message: 'produits.stock_confirme_le'; readonly date: string }
+  | { readonly kind: 'gele'; readonly message: 'produits.stock_confirme_le'; readonly date: string };
+
+export function stockEtat(row: Pick<SupplierOfferRow, 'stockConfirmedAt' | 'hiddenReason'>): StockEtat {
+  if (row.stockConfirmedAt === undefined) return { kind: 'jamais', message: 'produits.stock_jamais_confirme' };
+  const date = dateCourte(row.stockConfirmedAt);
+  if (row.hiddenReason === 'stock_unconfirmed') return { kind: 'gele', message: 'produits.stock_confirme_le', date };
+  return { kind: 'confirme', message: 'produits.stock_confirme_le', date };
+}
+
+/** `17/09/2026` — the day, in his browser's own time zone. Deterministic, no Intl. */
+export function dateCourte(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/**
+ * THE TYPED COUNT, read purely: a whole number, zero or more. `null` is the
+ * refusal — the screen says « écrivez un nombre entier » and sends nothing.
+ * Spaces are tolerated (« 1 200 » is how a hand writes it); anything else is not.
+ */
+export function lireQuantite(saisie: string): number | null {
+  const clean = saisie.replace(/\s+/g, '');
+  if (!/^\d{1,6}$/.test(clean)) return null;
+  return Number(clean);
 }
 
 /**

@@ -1,6 +1,7 @@
-import { decideAttachAssets, decideConsumeAvailable, decideCreateOffer, decideRestockAvailable, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry } from '../src/offer-core.js';
+import { decideAttachAssets, decideConfirmStock, decideConsumeAvailable, decideCreateOffer, decideRestockAvailable, journalRow, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry, type StockJournalRow } from '../src/offer-core.js';
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
+import { stockDueMs } from '../src/stock-freeze.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -24,6 +25,14 @@ import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 const ENTRY_KEY = 'offer-entry';
 const POINTER_KEY = 'pv-pointer';
 const INDEX_KEY = 'index-list';
+/**
+ * STOCK-JOURNAL-1 — one key per journal row, ZERO-PADDED so the storage
+ * order (`list` walks keys lexically) IS the sequence order; a row never
+ * rewrites another because the core mints a fresh `seq` for every write and
+ * the entry's counter moves in the SAME batch as the row.
+ */
+const JOURNAL_PREFIX = 'journal-';
+const journalKey = (seq: number): string => `${JOURNAL_PREFIX}${String(seq).padStart(6, '0')}`;
 
 interface PvPointer {
   offerId: string;
@@ -58,12 +67,23 @@ export class OfferDO {
       const current = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       let result: { decision: CreateOfferDecision; next?: OfferEntry };
       try {
-        result = decideCreateOffer(current, cmd);
+        // STOCK-JOURNAL-1 — the SERVER clock stamps the declaration; the
+        // command's own `asOf` is a device clock and never vouches for stock.
+        result = decideCreateOffer(current, cmd, new Date().toISOString());
       } catch (err) {
         if (err instanceof OfferAvailableError) return Response.json({ error: 'malformed' }, { status: 400 });
         throw err;
       }
-      if (result.next) await this.state.storage.put(ENTRY_KEY, result.next);
+      if (result.next) {
+        // The `declare` row lands in the SAME batch as the entry (STOCK-JOURNAL-1):
+        // an offer that exists without its first row would be a journal with a
+        // hole at line one.
+        const writes: Record<string, unknown> = { [ENTRY_KEY]: result.next };
+        if (result.decision.status === 'created' && result.decision.row !== undefined) {
+          writes[journalKey(result.decision.row.seq)] = result.decision.row;
+        }
+        await this.state.storage.put(writes);
+      }
       return Response.json(result.decision);
     }
     // THE COMPLETION PATH — attach photographs to THIS offer after create.
@@ -125,8 +145,11 @@ export class OfferDO {
         });
       }
       const d = decideConsumeAvailable(entry);
-      await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: { alreadyEmpty: d.alreadyEmpty } });
-      return Response.json({ status: 'consumed', available: d.entry.available, alreadyEmpty: d.alreadyEmpty });
+      // STOCK-JOURNAL-1 — the `vendu` row rides the same atomic batch as the
+      // moved counter and the marker: three facts, one write, no crash window.
+      const { row, next } = journalRow(d.entry, 'vendu', entry.available, d.entry.available, new Date().toISOString(), { orderId });
+      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: { alreadyEmpty: d.alreadyEmpty }, [journalKey(row.seq)]: row });
+      return Response.json({ status: 'consumed', available: next.available, alreadyEmpty: d.alreadyEmpty });
     }
     /**
      * STOCK-VENDU-1b — the refused unit comes home (founder order 2026-08-23:
@@ -150,9 +173,61 @@ export class OfferDO {
       if ((await this.state.storage.get(marker)) !== undefined) {
         return Response.json({ status: 'idempotent', available: entry.available });
       }
-      const next = decideRestockAvailable(entry);
-      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: true });
+      const moved = decideRestockAvailable(entry);
+      // STOCK-JOURNAL-1 — the `rendu` row, same batch as the counter and marker.
+      const { row, next } = journalRow(moved, 'rendu', entry.available, moved.available, new Date().toISOString(), { orderId });
+      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: true, [journalKey(row.seq)]: row });
       return Response.json({ status: 'restocked', available: next.available });
+    }
+
+    /**
+     * STOCK-JOURNAL-1 (B5.2) — « CONFIRMER LE STOCK », the challenge capture.
+     * The founder TYPES the count from his console; equal to the counter it is
+     * a `confirme` row, different it is an `ajuste` row and the counter is SET
+     * to what he typed. Either way `stockConfirmedAt` restarts the
+     * reconfirmation clock (server time). Idempotent per `commandId` under an
+     * `ajust-` marker, like consume's `vendu-` — a retried tap must never
+     * journal the same act twice. Row, marker and entry: ONE batch.
+     *
+     * ⚠ WHO MAY ASK IS DECIDED AT THE COMPOSITION ROOT (his ops credential),
+     * exactly as retrait-acces states: this instance holds one offer and no
+     * caller identity. The supplier's own confirm act is DEFERRED (LISTER-POUR:
+     * he « edits nothing ») — when it comes, its door and its ownership check
+     * come with it, not a speculative one here.
+     */
+    if (request.method === 'POST' && pathname === '/entry/stock') {
+      const body = (await request.json().catch(() => null)) as { commandId?: unknown; available?: unknown } | null;
+      const commandId = body?.commandId;
+      if (typeof commandId !== 'string' || commandId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'commandId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const marker = `ajust-${commandId}`;
+      if ((await this.state.storage.get(marker)) !== undefined) {
+        return Response.json({ status: 'idempotent', available: entry.available, stockConfirmedAt: entry.stockConfirmedAt ?? null });
+      }
+      const available = typeof body?.available === 'number' ? body.available : Number.NaN;
+      const d = decideConfirmStock(entry, { commandId, available }, new Date().toISOString());
+      if (d.status === 'refused') return Response.json({ error: d.reason, param: 'available' }, { status: 400 });
+      await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: true, [journalKey(d.row.seq)]: d.row });
+      return Response.json({ status: d.status, available: d.entry.available, stockConfirmedAt: d.entry.stockConfirmedAt });
+    }
+
+    // STOCK-JOURNAL-1 — the journal READ: every row this offer ever wrote, in
+    // sequence order (the zero-padded keys make the storage walk the order),
+    // beside the live counter and the last confirmation. Read-only, append-only:
+    // there is no route that edits or removes a row.
+    if (request.method === 'GET' && pathname === '/entry/journal') {
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const listed = await this.state.storage.list<StockJournalRow>({ prefix: JOURNAL_PREFIX });
+      return Response.json({
+        offerId: entry.offerId,
+        available: entry.available,
+        stockConfirmedAt: entry.stockConfirmedAt ?? null,
+        rows: [...listed.values()],
+      });
     }
 
     /**
@@ -187,7 +262,12 @@ export class OfferDO {
     // anything existed so the router can report deleted vs idempotent.
     if (request.method === 'POST' && pathname === '/entry/delete') {
       const existed = (await this.state.storage.get<OfferEntry>(ENTRY_KEY)) !== undefined;
-      await this.state.storage.delete(ENTRY_KEY);
+      // STOCK-JOURNAL-1 — the journal goes WITH the record it describes. An
+      // erased offer with a ghost journal is « erased as a word » (the
+      // purge's own objection), and a re-created offer under the same id would
+      // otherwise start writing `seq 1` over an older row.
+      const rows = await this.state.storage.list({ prefix: JOURNAL_PREFIX });
+      await this.state.storage.delete([ENTRY_KEY, ...rows.keys()]);
       return Response.json({ existed });
     }
 
@@ -253,6 +333,8 @@ export class OfferDO {
 
 interface Env {
   OFFER: DurableObjectNamespace;
+  /** STOCK-JOURNAL-1 TEST KNOB — lower-only, see `stockDueMs`. Never set in wrangler.toml. */
+  STOCK_RECONFIRM_DUE_MS?: string;
 }
 
 const offerStub = (env: Env, offerId: string): DurableObjectStub =>
@@ -483,7 +565,38 @@ export default {
       }
       // Filtering, the wire-order refs and the ladder-derived `hiddenReason` all
       // live in the PURE builder, so they are testable without a DO.
-      return Response.json(buildSupplierList(supplierId, entries, new Date().toISOString()));
+      return Response.json(buildSupplierList(supplierId, entries, new Date().toISOString(), stockDueMs(env)));
+    }
+
+    /**
+     * STOCK-JOURNAL-1 — the founder's confirm act and the journal read, body-
+     * and query-addressed by `offerId` (the DO name IS the offerId, the create
+     * route's convention). Both are gated at the composition root on HIS ops
+     * credential; this router is never reachable from outside it.
+     */
+    if (request.method === 'POST' && pathname === '/offers/stock') {
+      const raw = await request.text();
+      const cmd = ((): { offerId?: unknown } | null => {
+        try {
+          return JSON.parse(raw) as { offerId?: unknown };
+        } catch {
+          return null;
+        }
+      })();
+      if (cmd === null || typeof cmd.offerId !== 'string' || cmd.offerId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
+      }
+      const res = await offerStub(env, cmd.offerId).fetch(
+        new Request('https://do/entry/stock', { method: 'POST', body: raw, headers: { 'Content-Type': 'application/json' } }),
+      );
+      return forward(res); // status preserved — 404 unknown, 400 invalid_qty
+    }
+    if (request.method === 'GET' && pathname === '/offers/journal') {
+      const offerId = new URL(request.url).searchParams.get('offerId');
+      if (offerId === null || offerId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
+      }
+      return forward(await offerStub(env, offerId).fetch(new Request('https://do/entry/journal')));
     }
 
     // INVENTAIRE-COMPLET — EVERY offer, each tagged with its supplier. Auth is
@@ -498,7 +611,7 @@ export default {
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
         entries.push((await eRes.json()) as OfferEntry);
       }
-      return Response.json(buildFullInventory(entries, new Date().toISOString()));
+      return Response.json(buildFullInventory(entries, new Date().toISOString(), stockDueMs(env)));
     }
 
     /**

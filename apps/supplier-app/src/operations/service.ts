@@ -163,6 +163,8 @@ export interface InventaireRow {
   readonly videoRef?: string;
   readonly variantsNote?: string;
   readonly hiddenReason?: string;
+  /** STOCK-JOURNAL-1 — when the count was last vouched for; absent = never. */
+  readonly stockConfirmedAt?: string;
 }
 
 export type InventaireResult =
@@ -270,7 +272,27 @@ export interface OperationsServicePort {
   /** CODE-REVU — reread a code already given (founder ruling 2026-08-09).
    *  `code_anterieur` names a pre-ruling code the book cannot show back. */
   revealCode(opsKey: string, supplierId: string): Promise<RevealResult>;
+  /** STOCK-JOURNAL-1 — « Confirmer le stock »: the count HE TYPED for one
+   *  offer. Equal to the counter the service journals `confirme`, different it
+   *  journals `ajuste` and sets the counter; either restarts the freeze clock.
+   *  His key only — the bundled write key never opens this door. */
+  confirmStock(opsKey: string, cmd: ConfirmStockCommand): Promise<ConfirmStockResult>;
 }
+
+export interface ConfirmStockCommand {
+  readonly commandId: string;
+  readonly offerId: string;
+  readonly available: number;
+}
+
+export type ConfirmStockResult =
+  | {
+      readonly ok: true;
+      readonly status: 'confirmed' | 'adjusted' | 'idempotent';
+      readonly available: number;
+      readonly stockConfirmedAt: string | null;
+    }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'invalid_qty' | 'unknown_offer' };
 
 export type RevealResult =
   | { readonly ok: true; readonly code: string; readonly supplierId: string }
@@ -348,9 +370,45 @@ export function resolveOperationsService(): OperationsServicePort | null {
           ...(typeof r['videoRef'] === 'string' ? { videoRef: r['videoRef'] } : {}),
           ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
           ...(typeof r['hiddenReason'] === 'string' ? { hiddenReason: r['hiddenReason'] } : {}),
+          ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
+            ? { stockConfirmedAt: r['stockConfirmedAt'] }
+            : {}),
         });
       }
       return { ok: true, rows };
+    },
+
+    async confirmStock(opsKey: string, cmd: ConfirmStockCommand): Promise<ConfirmStockResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/offers/stock`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          body: JSON.stringify({ commandId: cmd.commandId, offerId: cmd.offerId, available: cmd.available }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404) return { ok: false, reason: 'unknown_offer' };
+      if (res.status === 400) return { ok: false, reason: 'invalid_qty' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as
+        | { status?: unknown; available?: unknown; stockConfirmedAt?: unknown }
+        | null;
+      if (
+        body === null ||
+        (body.status !== 'confirmed' && body.status !== 'adjusted' && body.status !== 'idempotent') ||
+        typeof body.available !== 'number'
+      ) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return {
+        ok: true,
+        status: body.status,
+        available: body.available,
+        stockConfirmedAt: typeof body.stockConfirmedAt === 'string' ? body.stockConfirmedAt : null,
+      };
     },
 
   async listSupplierContacts(opsKey: string): Promise<ContactsResult> {

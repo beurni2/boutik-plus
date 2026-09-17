@@ -84,6 +84,113 @@ export interface OfferEntry {
    * producer needs.
    */
   readonly retraitAcces?: string;
+  /**
+   * STOCK-JOURNAL-1 (B5.2 « Immutable adjustments + reconfirmation freeze ») —
+   * WHEN a human last VOUCHED for the declared stock: the create (the author
+   * declared it), or a later « Confirmer le stock » on the founder's console
+   * (a typed count — the challenge capture). SERVER CLOCK, never the device's
+   * (`asOf` above is the cautionary tale). The reconfirmation freeze reads
+   * this: older than `STOCK_RECONFIRM_DUE_MS` ⇒ the refusal ladder answers
+   * `stock_unconfirmed` and Shop+ stops seeing the offer until someone
+   * confirms again.
+   *
+   * ABSENT on every entry that predates the slice — and absent means « never
+   * confirmed », which is SHOWN (the console says so) but NOT frozen: freezing
+   * the whole live catalogue at deploy for a date nobody could have written
+   * would be the silent-disappearance family. The clock starts at the first
+   * confirmation; new creates carry it from the start. Safest default,
+   * flagged in the journal for the founder.
+   *
+   * BOUTIK-LOCAL like `retraitAcces`: canon `SupplierOffer` is untouched (§7).
+   */
+  readonly stockConfirmedAt?: string;
+  /** STOCK-JOURNAL-1 — how many journal rows this offer has written (the next
+   *  row's `seq` is this + 1). Absent = none yet (pre-slice entries). */
+  readonly journalSeq?: number;
+}
+
+/**
+ * ═══ STOCK-JOURNAL-1 — THE IMMUTABLE ADJUSTMENTS JOURNAL (B5.2) ═══
+ *
+ * Every movement of an offer's `available` is a ROW, appended and never
+ * edited: the declaration at create, each paid sale (`vendu`), each unit that
+ * came home (`rendu`), and the founder's own acts — a `confirme` when the
+ * count he typed equals the counter, an `ajuste` when it does not. Rows are
+ * written in the SAME atomic batch as the entry that moved (the DO's storage
+ * — « moved » and « remembered » inseparable, the STOCK-VENDU law), under
+ * their own keys so the journal never bloats the entry.
+ *
+ * `from` and `to` are the counter before and after; on an oversold sale both
+ * are 0 (the floor), which is exactly the row a reader wants to see.
+ */
+export type StockJournalKind = 'declare' | 'vendu' | 'rendu' | 'ajuste' | 'confirme';
+
+export interface StockJournalRow {
+  readonly seq: number;
+  /** SERVER clock. */
+  readonly at: string;
+  readonly kind: StockJournalKind;
+  readonly from: number;
+  readonly to: number;
+  /** The paid order, on `vendu` / `rendu`. */
+  readonly orderId?: string;
+  /** The act's idempotency key, on `ajuste` / `confirme` / `declare`. */
+  readonly commandId?: string;
+}
+
+/** The next row for this entry, and the entry with its counter bumped — one
+ *  call, so a caller cannot write a row without advancing the sequence. */
+export function journalRow(
+  entry: OfferEntry,
+  kind: StockJournalKind,
+  from: number,
+  to: number,
+  at: string,
+  extra: { orderId?: string; commandId?: string } = {},
+): { row: StockJournalRow; next: OfferEntry } {
+  const seq = (entry.journalSeq ?? 0) + 1;
+  return {
+    row: {
+      seq,
+      at,
+      kind,
+      from,
+      to,
+      ...(extra.orderId !== undefined ? { orderId: extra.orderId } : {}),
+      ...(extra.commandId !== undefined ? { commandId: extra.commandId } : {}),
+    },
+    next: { ...entry, journalSeq: seq },
+  };
+}
+
+export { STOCK_RECONFIRM_DUE_MS, stockOverdue } from './stock-freeze.js';
+
+/**
+ * « CONFIRMER LE STOCK » — the challenge capture. The founder TYPES the count
+ * he has (never a one-tap « c'est bon » that would confirm without looking);
+ * equal to the counter ⇒ `confirme`, different ⇒ `ajuste` (the counter is
+ * SET to what he typed — an adjustment, not a delta). Both stamp
+ * `stockConfirmedAt` with the server clock. PURE; idempotency (the command
+ * id) is the caller's marker, exactly as consume's is.
+ */
+export interface ConfirmStockCommand {
+  readonly commandId: string;
+  readonly available: number;
+}
+
+export type ConfirmStockDecision =
+  | { readonly status: 'confirmed' | 'adjusted'; readonly entry: OfferEntry; readonly row: StockJournalRow }
+  | { readonly status: 'refused'; readonly reason: 'invalid_qty' };
+
+export function decideConfirmStock(entry: OfferEntry, cmd: ConfirmStockCommand, nowIso: string): ConfirmStockDecision {
+  if (!Number.isInteger(cmd.available) || cmd.available < 0) return { status: 'refused', reason: 'invalid_qty' };
+  const kind: StockJournalKind = cmd.available === entry.available ? 'confirme' : 'ajuste';
+  const { row, next } = journalRow(entry, kind, entry.available, cmd.available, nowIso, { commandId: cmd.commandId });
+  return {
+    status: kind === 'confirme' ? 'confirmed' : 'adjusted',
+    entry: { ...next, available: cmd.available, stockConfirmedAt: nowIso },
+    row,
+  };
 }
 
 /**
@@ -164,7 +271,13 @@ export function restockOnRefusal(faultClass: unknown): boolean {
 }
 
 export type CreateOfferDecision =
-  | { readonly status: 'created'; readonly entry: OfferEntry; readonly preview: NetPreview }
+  | {
+      readonly status: 'created';
+      readonly entry: OfferEntry;
+      readonly preview: NetPreview;
+      /** STOCK-JOURNAL-1 — the `declare` row, written beside the entry. */
+      readonly row?: StockJournalRow;
+    }
   | { readonly status: 'idempotent'; readonly entry: OfferEntry }
   | { readonly status: 'collision'; readonly existing: OfferEntry }
   | {
@@ -253,6 +366,9 @@ export function decideAttachAssets(
 export function decideCreateOffer(
   current: OfferEntry | undefined,
   cmd: CreateOfferCommand,
+  /** STOCK-JOURNAL-1 — the SERVER clock the declaration is stamped with
+   *  (`stockConfirmedAt`, the `declare` row). Never `cmd.asOf`. */
+  nowIso: string = new Date().toISOString(),
 ): { decision: CreateOfferDecision; next?: OfferEntry } {
   if (current) {
     if (current.createCommandId === cmd.commandId) {
@@ -291,7 +407,7 @@ export function decideCreateOffer(
   const variantsNote = typeof cmd.variantsNote === 'string' && cmd.variantsNote.trim().length > 0
     ? cmd.variantsNote.trim()
     : undefined;
-  const entry: OfferEntry = {
+  const declared: OfferEntry = {
     offerId: cmd.offerId,
     product,
     offer: outcome.offer,
@@ -300,6 +416,9 @@ export function decideCreateOffer(
     createCommandId: cmd.commandId,
     ...(assets !== undefined ? { assets } : {}), // exactOptionalPropertyTypes: absent, never `undefined`
     ...(variantsNote !== undefined ? { variantsNote } : {}),
+    // STOCK-JOURNAL-1 — the author vouched for this count NOW (server clock).
+    stockConfirmedAt: nowIso,
   };
-  return { decision: { status: 'created', entry, preview: outcome.preview }, next: entry };
+  const { row, next: entry } = journalRow(declared, 'declare', 0, cmd.available, nowIso, { commandId: cmd.commandId });
+  return { decision: { status: 'created', entry, preview: outcome.preview, row }, next: entry };
 }

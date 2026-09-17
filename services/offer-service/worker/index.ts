@@ -1,6 +1,7 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
+import { stockDueMs } from '../src/stock-freeze.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
 import {
@@ -194,6 +195,10 @@ interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
    *  challenge TTL so the e2e can prove expiry without waiting. Production
    *  never sets it; unset or unparseable falls to the canon value. */
   READINESS_TTL_MS?: string;
+  /** STOCK-JOURNAL-1 TEST KNOB, never a secret: may only SHORTEN the seven-day
+   *  reconfirmation window (`stockDueMs`) so the e2e can prove the freeze
+   *  without waiting a week. Production never sets it. */
+  STOCK_RECONFIRM_DUE_MS?: string;
 }
 
 /**
@@ -388,6 +393,26 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       return offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
     }
+    // STOCK-JOURNAL-1 (B5.2) — « Confirmer le stock » and the journal read,
+    // on HIS ops credential like the inventory above: the confirm act moves a
+    // counter Shop+ sells on, and the journal names every paid order that
+    // moved it. Neither the bundled write key nor a supplier's personal code
+    // opens them (the supplier's own confirm act is deferred — LISTER-POUR:
+    // he watches, he edits nothing). The body is forwarded as-is: the router
+    // owns `offerId`, the object owns `commandId`/`available`, one home each.
+    if (request.method === 'POST' && fp === '/offers/stock') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return offerRouter.fetch(
+        new Request('https://do/offers/stock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: await request.text() }),
+        env,
+      );
+    }
+    if (request.method === 'GET' && fp === '/offers/journal') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return offerRouter.fetch(new Request(`https://do/offers/journal${new URL(request.url).search}`), env);
+    }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
@@ -549,5 +574,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // over the DURABLE store, resolved here against the DO namespace via the
     // fetcher shim (the analogue of shop-plus's read-path shim).
     const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
-    return makeSupplyFetch(store, undefined, undefined, undefined, env)(request);
+    // STOCK-JOURNAL-1 — the reconfirmation window rides into the SAME ladder
+    // his list reads, so Shop+ and his console can never disagree about a
+    // frozen product.
+    return makeSupplyFetch(store, undefined, undefined, undefined, env, stockDueMs(env))(request);
 }

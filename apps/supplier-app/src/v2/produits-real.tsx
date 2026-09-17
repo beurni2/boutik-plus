@@ -333,6 +333,38 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     return true;
   };
 
+  /**
+   * STOCK-JOURNAL-1 — « Confirmer le stock », HIS act (the ops key on this
+   * device is what makes it his; a supplier's screen has no key and no
+   * button). One command id PER PRESS: a retry after a lost answer may journal
+   * the same count twice, and two honest rows beat a stale id replaying an
+   * older count. On success the cache is dropped and a fresh read paints the
+   * new date and count into this very fiche (the sync effect below).
+   */
+  const confirmOpen = async (available: number): Promise<boolean> => {
+    const opsKey = readStoredOpsKey();
+    const ops = resolveOperationsService();
+    if (opsKey === null || ops === null || openOffer === null) return false;
+    const res = await ops.confirmStock(opsKey, { commandId: mintCommandId(), offerId: openOffer.offerId, available });
+    if (!res.ok) return false;
+    cache.current = { rows: null, asOf: null };
+    void load();
+    return true;
+  };
+  const opsIci = readStoredOpsKey() !== null && resolveOperationsService() !== null;
+
+  // THE OPEN FICHE FOLLOWS THE LATEST READ. `openOffer` is the row he tapped —
+  // a snapshot. After a confirm (or any re-read) the same offer's fresh row
+  // replaces it, so the date, the count and a lifted freeze show without him
+  // closing and reopening. A row that vanished from the read is left alone:
+  // the delete path closes the fiche itself.
+  useEffect(() => {
+    if (read.kind !== 'ok' || openOffer === null) return;
+    const frais = read.rows.find((r) => r.offerId === openOffer.offerId);
+    if (frais !== undefined && frais !== openOffer) setOpenOffer(frais);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [read]);
+
   if (openOffer !== null) {
     return (
       <SOffreFiche
@@ -340,6 +372,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
         mediaBase={mediaBase}
         onBack={() => setOpenOffer(null)}
         {...(service === null ? {} : { onDelete: deleteOpen })}
+        {...(opsIci ? { onConfirmStock: confirmOpen } : {})}
       />
     );
   }

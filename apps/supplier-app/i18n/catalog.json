@@ -1644,6 +1644,66 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.stock_gele",
+    "fr": "Le stock n’a pas été confirmé depuis 7 jours. Les revendeuses ne voient plus cette offre. Confirmez le stock pour la remettre en ligne.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_jamais_confirme",
+    "fr": "Stock jamais confirmé",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_confirme_le",
+    "fr": "Stock confirmé le",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_confirmer",
+    "fr": "Confirmer le stock",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.stock_combien",
+    "fr": "Combien en avez-vous ?",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.stock_envoyer",
+    "fr": "Envoyer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.stock_envoi",
+    "fr": "Envoi en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_annuler",
+    "fr": "Annuler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.stock_invalide",
+    "fr": "Écrivez un nombre entier, 0 ou plus.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_echec",
+    "fr": "La confirmation n’a pas abouti. Vérifiez le réseau et réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.err_commission",
     "fr": "La commission doit être un nombre entier.",
     "register": "money",

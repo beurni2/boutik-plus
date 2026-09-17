@@ -206,6 +206,8 @@ describe('combined Worker — durable offers on real workerd', () => {
       name: 'Pagne tissé Faso (démo)',
       category: 'fashion_bags_fabrics',
       assetRefs: [],
+      // STOCK-JOURNAL-1 — when the count was last vouched for (server clock at create)
+      stockConfirmedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
     });
     // the second offer, its own live values
     expect(byOffer['offer-2']?.available).toBe(3);

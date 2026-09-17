@@ -5,6 +5,7 @@ import type { ProductAssets, ProductVersion, SellerTrustTier, SupplierOffer } fr
 // devDependency; the ban-test enforces this).
 import type { SupplyProjectionEventPayloadSchema } from '@platform/certification';
 import type { z } from 'zod';
+import { stockOverdue } from './stock-freeze.js';
 
 /**
  * B4.2 — supply-to-reseller projection: "Only approved active eligible;
@@ -36,7 +37,17 @@ export type SupplyProjection = z.infer<typeof SupplyProjectionEventPayloadSchema
 
 export type ProjectionOutcome =
   | { ok: true; projection: SupplyProjection }
-  | { ok: false; reason: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective' };
+  | { ok: false; reason: ProjectionRefusal };
+
+/** The refusal ladder's rungs, in order. `stock_unconfirmed` is STOCK-JOURNAL-1's
+ *  (B5.2 « reconfirmation freeze »): nobody has vouched for the stock within
+ *  the window, so Shop+ must not sell on it. */
+export type ProjectionRefusal =
+  | 'product_not_active'
+  | 'product_not_approved'
+  | 'offer_not_active'
+  | 'offer_not_effective'
+  | 'stock_unconfirmed';
 
 /**
  * THE WIRE CAP — six refs per product (founder ruling 2026-07-24). The founder's
@@ -90,11 +101,20 @@ export function buildSupplyProjection(
    * Option B. Every path where a caller forgets therefore fails CLOSED.
    */
   sellerTier?: SellerTrustTier,
+  /**
+   * STOCK-JOURNAL-1 — the reconfirmation freeze, the LAST rung: when the
+   * stock was last vouched for (`OfferEntry.stockConfirmedAt`) and the window
+   * it must fall within. Both resolved by the CALLER like every other input,
+   * so this stays pure. OMITTED ⇒ no freeze is decided here (absent means
+   * « never confirmed », which is shown, not frozen — see the entry field).
+   */
+  stock?: { readonly confirmedAt: string | undefined; readonly dueMs?: number },
 ): ProjectionOutcome {
   if (product.status !== 'active') return { ok: false, reason: 'product_not_active' };
   if (!product.moderationState.startsWith('approved')) return { ok: false, reason: 'product_not_approved' };
   if (offer.status !== 'active') return { ok: false, reason: 'offer_not_active' };
   if (nowIso < offer.effective || nowIso > offer.expiry) return { ok: false, reason: 'offer_not_effective' };
+  if (stock !== undefined && stockOverdue(stock.confirmedAt, nowIso, stock.dueMs)) return { ok: false, reason: 'stock_unconfirmed' };
 
   // EXACTLY the contract fields — building via explicit literals means a
   // supplier id or pickup point is not expressible here AS A KEY. `productName`

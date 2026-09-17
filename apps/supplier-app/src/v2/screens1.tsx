@@ -17,10 +17,10 @@ import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
 import { FicheVideo } from './fiche-video';
-import { galleryPhotos, hiddenSentence, photoSlot, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
+import { galleryPhotos, hiddenSentence, lireQuantite, photoSlot, stockEtat, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
-  EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, MoneyBreakdown, Overline, PageTitle,
+  EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, Input, MoneyBreakdown, Overline, PageTitle,
   OfferTile, PhotoViewer, ProductPill, Row, SkeletonBoot, StatCard, StatusPill, Timeline,
 } from './components';
 
@@ -245,7 +245,7 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
  * small » → 560 → « a little more bigger again » → 680. One word changes it. */
 const PHOTO_COLUMN_MAX = 680;
 
-export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
+export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }: {
   row: SupplierOfferRow;
   mediaBase: string | null;
   onBack: () => void;
@@ -253,6 +253,12 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
    * (the parent closes this fiche); false surfaces the designed failure here.
    * Absent (service unconfigured) ⇒ no delete UI at all. */
   onDelete?: (() => Promise<boolean>) | undefined;
+  /** STOCK-JOURNAL-1 (B5.2) — « Confirmer le stock »: the count he typed.
+   * Resolves true when the service journaled it (the parent re-reads and this
+   * fiche's row refreshes); false surfaces the designed failure here, with the
+   * act still reachable. Absent (no ops key on this device) ⇒ the state line
+   * only — the act is the founder's, never a supplier's (LISTER-POUR). */
+  onConfirmStock?: ((available: number) => Promise<boolean>) | undefined;
 }) {
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   // The delete walk: idle → confirm (the warning states what happens, in
@@ -265,6 +271,26 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
     if (!gone) setDel('failed');
     // on success the parent unmounts this fiche — no state to set here.
   };
+  // The confirm walk: idle → saisie (he TYPES the count — the challenge
+  // capture, never a one-tap « c'est bon ») → pending → failed (retryable) or
+  // back to idle on success, where the refreshed row says the new date.
+  const [stock, setStock] = useState<'idle' | 'saisie' | 'pending' | 'failed'>('idle');
+  const [saisie, setSaisie] = useState('');
+  const [saisieInvalide, setSaisieInvalide] = useState(false);
+  const runConfirm = async () => {
+    if (onConfirmStock === undefined || stock === 'pending') return;
+    const n = lireQuantite(saisie);
+    if (n === null) {
+      setSaisieInvalide(true);
+      return;
+    }
+    setSaisieInvalide(false);
+    setStock('pending');
+    const ok = await onConfirmStock(n);
+    setStock(ok ? 'idle' : 'failed');
+    if (ok) setSaisie('');
+  };
+  const etat = stockEtat(row);
   const photos = galleryPhotos(row.assetRefs, mediaBase);
   // VIDEO-PARTOUT — his clip, on his own product page (founder order
   // 2026-08-03). Absolutized through the SAME media base as the photographs.
@@ -318,7 +344,47 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete }: {
             <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.ink), TNUM, { flexShrink: 1, textAlign: 'right' }]} numberOfLines={2}>{value}</Text>
           </View>
         ))}
+        {/* STOCK-JOURNAL-1 — when the count was last vouched for. A pre-slice
+            offer says « jamais confirmé » honestly; it is shown, not frozen. */}
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.5 }, P.sub), { marginTop: 6 }]}>
+          {etat.kind === 'jamais' ? tr(etat.message) : `${tr(etat.message)} ${etat.date}`}
+        </Text>
       </Card>
+      {/* STOCK-JOURNAL-1 — « Confirmer le stock », the challenge capture: he
+          types what he has, the service journals it and restarts the clock.
+          A failed send keeps the act reachable — never a dead end. */}
+      {onConfirmStock !== undefined && (
+        <View style={{ marginTop: 14 }}>
+          {stock === 'failed' && (
+            <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.stock_echec')}</Banner>
+          )}
+          {stock === 'idle' || stock === 'failed' ? (
+            <BtnSoft label={tr('produits.stock_confirmer')} onPress={() => { setSaisieInvalide(false); setStock('saisie'); }} />
+          ) : (
+            <>
+              <Input
+                label={tr('produits.stock_combien')}
+                value={saisie}
+                onChangeText={setSaisie}
+                keyboardType="number-pad"
+                placeholder={`${row.available}`}
+              />
+              {saisieInvalide && (
+                <Banner tone="warn" style={{ marginTop: 10 }}>{tr('produits.stock_invalide')}</Banner>
+              )}
+              <View style={{ marginTop: 10 }}>
+                <BtnSoft
+                  label={tr(stock === 'pending' ? 'produits.stock_envoi' : 'produits.stock_envoyer')}
+                  onPress={() => { void runConfirm(); }}
+                />
+              </View>
+              {stock !== 'pending' && (
+                <BtnGhost label={tr('produits.stock_annuler')} onPress={() => { setSaisieInvalide(false); setStock('idle'); }} style={{ marginTop: 10 }} />
+              )}
+            </>
+          )}
+        </View>
+      )}
       {/* OFFER-DELETE-1 — the refusal path as dignified as the purchase path:
           the action whispers below the facts, the warning says exactly what
           happens and where, and confirming takes a second deliberate tap. */}

@@ -240,7 +240,7 @@ describe('THE HIDDEN SENTENCE — mapped PURELY, and true of every reason it ans
    */
   it('every ladder reason maps to a key that RESOLVES — t() throws on a miss', () => {
     const reasons: HiddenReason[] = [
-      'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective',
+      'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective', 'stock_unconfirmed',
     ];
     for (const r of reasons) {
       const key = hiddenSentence(r);

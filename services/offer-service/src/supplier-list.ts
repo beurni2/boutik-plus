@@ -1,5 +1,5 @@
 import type { OfferEntry } from './offer-core.js';
-import { buildSupplyProjection, wireAssetRefs } from './projection.js';
+import { buildSupplyProjection, wireAssetRefs, type ProjectionRefusal } from './projection.js';
 import { estRetireAcces } from './retrait-acces.js';
 
 /**
@@ -73,7 +73,15 @@ export interface SupplierOfferRow {
    * than from a local `now > expiry` is what stops the two drifting: one ladder,
    * one home.
    */
-  readonly hiddenReason?: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective';
+  readonly hiddenReason?: ProjectionRefusal;
+  /**
+   * STOCK-JOURNAL-1 — when a human last vouched for this stock (server
+   * clock). ABSENT on an entry that predates the slice: the console says
+   * « jamais confirmé » and offers the act; it is not frozen (see the entry
+   * field's note). Present, the console says the date and — past the window
+   * — `hiddenReason: 'stock_unconfirmed'` rides beside it.
+   */
+  readonly stockConfirmedAt?: string;
 }
 
 /** The envelope — same `{asOf, items}` shape and SERVE clock as the supply collection. */
@@ -118,13 +126,13 @@ export interface SupplierOfferList {
  * book, never the bundled write key. Unscoped supply is his to see because he
  * is the platform; it is not a capability any app carries.
  */
-export function buildFullInventory(entries: readonly OfferEntry[], nowIso: string): {
+export function buildFullInventory(entries: readonly OfferEntry[], nowIso: string, dueMs?: number): {
   readonly asOf: string;
   readonly items: readonly (SupplierOfferRow & { readonly supplierId: string })[];
 } {
   const items: (SupplierOfferRow & { supplierId: string })[] = [];
   for (const entry of entries) {
-    const one = buildSupplierList(entry.product.supplierId, [entry], nowIso).items[0];
+    const one = buildSupplierList(entry.product.supplierId, [entry], nowIso, dueMs).items[0];
     // ONE BUILDER, not two: the row shape comes from the same function the
     // scoped list uses, so the two reads can never disagree about a product.
     if (one !== undefined) items.push({ ...one, supplierId: entry.product.supplierId });
@@ -136,6 +144,9 @@ export function buildSupplierList(
   supplierId: string,
   entries: readonly OfferEntry[],
   nowIso: string,
+  /** STOCK-JOURNAL-1 — the reconfirmation window (the composition root's
+   *  knob); omitted ⇒ the constant. Passed to the SAME ladder the wire runs. */
+  dueMs?: number,
 ): SupplierOfferList {
   const items: SupplierOfferRow[] = [];
   for (const entry of entries) {
@@ -150,7 +161,10 @@ export function buildSupplierList(
     // gone from Shop+ too, so an invisible product here is not a product still
     // being sold — which was the entire harm in the INVENTAIRE-COMPLET report.
     if (estRetireAcces(entry)) continue;
-    const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets);
+    const built = buildSupplyProjection(entry.product, entry.offer, entry.available, nowIso, entry.assets, undefined, {
+      confirmedAt: entry.stockConfirmedAt,
+      ...(dueMs !== undefined ? { dueMs } : {}),
+    });
     const row: SupplierOfferRow = {
       offerId: entry.offerId,
       productVersionId: entry.product.id,
@@ -164,6 +178,7 @@ export function buildSupplierList(
       ...(entry.assets?.video !== undefined ? { videoRef: entry.assets.video.ref } : {}),
       ...(entry.variantsNote === undefined ? {} : { variantsNote: entry.variantsNote }),
       ...(built.ok ? {} : { hiddenReason: built.reason }),
+      ...(entry.stockConfirmedAt === undefined ? {} : { stockConfirmedAt: entry.stockConfirmedAt }),
     };
     items.push(row);
   }

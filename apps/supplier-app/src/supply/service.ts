@@ -147,9 +147,11 @@ export interface AttachAssetsOutcome {
   readonly reason?: string;
 }
 
-/** The four reasons the wire's refusal ladder can give — mirrors `supplier-list.ts`. */
+/** The five reasons the wire's refusal ladder can give — mirrors `supplier-list.ts`.
+ *  `stock_unconfirmed` is STOCK-JOURNAL-1's freeze: nobody vouched for the
+ *  count within the window, so Shop+ stopped selling on it. */
 export const HIDDEN_REASONS = [
-  'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective',
+  'product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective', 'stock_unconfirmed',
 ] as const;
 export type HiddenReason = (typeof HIDDEN_REASONS)[number];
 
@@ -184,6 +186,12 @@ export interface SupplierOfferRow {
    * case. The reader below refuses anything outside the union.
    */
   readonly hiddenReason?: HiddenReason;
+  /**
+   * STOCK-JOURNAL-1 — when a human last vouched for the count (server clock).
+   * ABSENT on an offer that predates the slice: the fiche says « jamais
+   * confirmé » and offers the act; it is not frozen.
+   */
+  readonly stockConfirmedAt?: string;
 }
 
 /** The envelope — SERVE clock, matching the supply collection. */
@@ -229,6 +237,11 @@ export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
       ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
       ...(HIDDEN_REASONS.includes(r['hiddenReason'] as HiddenReason)
         ? { hiddenReason: r['hiddenReason'] as HiddenReason }
+        : {}),
+      // An unparseable stamp reads ABSENT — « jamais confirmé » — never a
+      // confident wrong date on his fiche.
+      ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
+        ? { stockConfirmedAt: r['stockConfirmedAt'] }
         : {}),
     });
   }

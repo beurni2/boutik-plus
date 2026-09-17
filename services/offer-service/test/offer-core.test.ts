@@ -59,7 +59,9 @@ describe('decideCreateOffer', () => {
     expect(decision.preview.sellerPlatformFeeFcfa).toBe(0);
     // the persisted entry carries NO seller-net field — money stays a preview
     // (platformFeeVersion is a legit offer field — the fee-schedule pointer, not the net)
-    expect(Object.keys(decision.entry)).toEqual(['offerId', 'product', 'offer', 'available', 'asOf', 'createCommandId']);
+    // STOCK-JOURNAL-1 added the two stock-truth keys (when the count was last
+    // vouched for; how many journal rows exist) — neither is money.
+    expect(Object.keys(decision.entry)).toEqual(['offerId', 'product', 'offer', 'available', 'asOf', 'createCommandId', 'stockConfirmedAt', 'journalSeq']);
     expect(JSON.stringify(decision.entry)).not.toMatch(/sellerNet|sellerPlatformFee|8500/);
   });
 
