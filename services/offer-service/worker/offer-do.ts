@@ -33,6 +33,8 @@ const INDEX_KEY = 'index-list';
  */
 const JOURNAL_PREFIX = 'journal-';
 const journalKey = (seq: number): string => `${JOURNAL_PREFIX}${String(seq).padStart(6, '0')}`;
+/** Durable Object storage accepts at most 128 keys per `delete(keys[])` call. */
+const DELETE_BATCH_MAX = 128;
 
 interface PvPointer {
   offerId: string;
@@ -267,7 +269,14 @@ export class OfferDO {
       // purge's own objection), and a re-created offer under the same id would
       // otherwise start writing `seq 1` over an older row.
       const rows = await this.state.storage.list({ prefix: JOURNAL_PREFIX });
-      await this.state.storage.delete([ENTRY_KEY, ...rows.keys()]);
+      // CHUNKED to the platform's documented per-call cap (128 keys): a long
+      // journal must never make its offer undeletable — by this point the
+      // pointer and the index row are already gone, and a throw here would
+      // strand the entry as an unreachable ghost on every replay (verifier).
+      const keys = [ENTRY_KEY, ...rows.keys()];
+      for (let i = 0; i < keys.length; i += DELETE_BATCH_MAX) {
+        await this.state.storage.delete(keys.slice(i, i + DELETE_BATCH_MAX));
+      }
       return Response.json({ existed });
     }
 

@@ -355,6 +355,14 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }
           A failed send keeps the act reachable — never a dead end. */}
       {onConfirmStock !== undefined && (
         <View style={{ marginTop: 14 }}>
+          {/* The WAY BACK is said only where the act exists (verifier MAJOR):
+              a supplier reads the cause above and no instruction he cannot
+              follow — the button is the founder's, so is this sentence. */}
+          {etat.kind === 'gele' && stock !== 'pending' && (
+            <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
+              {tr('produits.stock_gele_action')}
+            </Text>
+          )}
           {stock === 'failed' && (
             <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.stock_echec')}</Banner>
           )}
@@ -362,12 +370,14 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }
             <BtnSoft label={tr('produits.stock_confirmer')} onPress={() => { setSaisieInvalide(false); setStock('saisie'); }} />
           ) : (
             <>
+              {/* No placeholder: a challenge that displays its own answer is a
+                  soft challenge (verifier note). The facts card above says the
+                  current count; the field asks what he actually has. */}
               <Input
                 label={tr('produits.stock_combien')}
                 value={saisie}
                 onChangeText={setSaisie}
                 keyboardType="number-pad"
-                placeholder={`${row.available}`}
               />
               {saisieInvalide && (
                 <Banner tone="warn" style={{ marginTop: 10 }}>{tr('produits.stock_invalide')}</Banner>

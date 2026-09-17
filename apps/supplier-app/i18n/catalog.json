@@ -1645,7 +1645,13 @@
   },
   {
     "key": "produits.stock_gele",
-    "fr": "Le stock n’a pas été confirmé depuis 7 jours. Les revendeuses ne voient plus cette offre. Confirmez le stock pour la remettre en ligne.",
+    "fr": "Le stock n’a pas été confirmé depuis trop longtemps. Les revendeuses ne voient plus cette offre.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_gele_action",
+    "fr": "Confirmez le stock pour la remettre en ligne.",
     "register": "neutral",
     "screenClass": "status"
   },

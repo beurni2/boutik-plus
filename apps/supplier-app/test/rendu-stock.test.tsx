@@ -124,8 +124,10 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
     expect(screen.shows('Pagne tissé')).toBe(true);
     await screen.press('Pagne tissé');
 
-    // The fiche names the cause and the way back, and the last confirmation date.
+    // The fiche names the cause, the way back (HE can act — the sentence is
+    // shown only beside the act), and the last confirmation date.
     expect(screen.shows('Les revendeuses ne voient plus cette offre')).toBe(true);
+    expect(screen.shows('Confirmez le stock pour la remettre en ligne')).toBe(true);
     expect(screen.shows(`Stock confirmé le ${dateCourte(CONFIRME_LE)}`)).toBe(true);
     expect(screen.canPress('Confirmer le stock'), 'the primary action must be reachable').toBe(true);
 
@@ -147,8 +149,8 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
     // THE NEXT STATE, on the same fiche: the freeze is gone, the count and the
     // date are the new ones — the re-read painted them without closing.
     expect(screen.shows('Les revendeuses ne voient plus cette offre')).toBe(false);
+    expect(screen.shows('Confirmez le stock pour la remettre en ligne')).toBe(false);
     expect(screen.shows('Stock confirmé le 17/09/2026')).toBe(true);
-    expect(screen.shows('4')).toBe(true);
     // …and the act is offered again, idle, for next week.
     expect(screen.canPress('Confirmer le stock')).toBe(true);
     screen.unmount();
@@ -222,6 +224,10 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
     const screen = await monter();
     await screen.press('Pagne tissé');
     expect(screen.shows(`Stock confirmé le ${dateCourte(CONFIRME_LE)}`)).toBe(true);
+    // The cause is stated; the INSTRUCTION is not — he has nothing to press,
+    // so no sentence tells him to (verifier MAJOR: no dead instruction).
+    expect(screen.shows('Les revendeuses ne voient plus cette offre')).toBe(true);
+    expect(screen.shows('Confirmez le stock pour la remettre en ligne')).toBe(false);
     expect(screen.canPress('Confirmer le stock')).toBe(false);
     screen.unmount();
   });
