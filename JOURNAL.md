@@ -3,6 +3,16 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-17 · DECOUVERTE-RETIREE-1 (this repo's half: the canon repin) — canon 3.13.0 → 3.15.0, SP-I05 amended: there is NO cross-reseller discovery · docs + pins only, no code · BUILT ON THE BRANCH, awaiting the founder's word
+
+**Founder ruling 2026-09-17:** « shop+ app is only for resellers app only and not for buyers included, i do not want buyers to have the ability to search other resellers … » — then « go ahead with your recommendation ». The canon half lives in platform-contracts (`289db98`, canon 3.15.0: Shop-Plus-Build-Spec §3 rewritten, SP-I05 amended — « a buyer reaches a store only through that reseller's signed link or QR » — SP5.1 retired, SP5.2 = store-name moderation only); the code half lives in shop-plus (the buyer directory, the discovery stub, the discoverable toggle and the old gate removed). This repo carries neither surface: it takes the amended canon so its `/docs` copy tells the truth and its pinned packages match.
+
+**What changed here.** The 12 canonical docs copied from canon 3.15.0 (`docs/`); `@platform/contracts`, `@platform/kernel-types` and `@platform/certification` repinned `35a21ea` (3.13.0) → `289db98` (3.15.0) in every manifest that names them AND in the pnpm-workspace overrides (the real pin); the workspace file annotated; `pnpm install` refreshed the lockfile. `@platform/ui-tokens` and `@platform/i18n` keep their own pins, deliberately. Between 3.13.0 and 3.15.0 the canon changed no shape this repo consumes: 3.13.1 undid unicode escapes in package descriptions, 3.14.0 added the `@platform/taxonomy` package (not consumed here), 3.15.0 is the docs amendment with a version-only snapshot re-stamp.
+
+**Evidence.** `pnpm install` exit 0 · installed versions read back 3.15.0 / 3.15.0 / 3.15.0 (`node -p require('@platform/…/package.json').version`) · gate board `bash scripts/run-gates.sh` (typecheck 14/14 and tests 21/21 run inside it): the first run tripped on ONE line — `EXPECTED_CANON="3.13.0"`, the value this repo DECLARES so the `canon-pin-declared` gate can refuse a half-done repin (it did exactly its job: « declares 3.13.0 but resolves 3.15.0 ») — bumped to 3.15.0 in the same commit as the gate demands, then **ALL GATES GREEN** (drift-check pristine on 3.15.0 / tampered refused, canon-pin-declared positive/negative, every invariant gate).
+
+**What did NOT change.** No app code, no service code, no test, no gate, no secret, no migration.
+
 ## 2026-09-16 · RETOUR-VIVANT-1 (supplier half) — the return-code check on the « En route » card: Séra SE6.2's two-key handover, the supplier's side · MERGED AND DEPLOYED 2026-09-17 on the founder's « go »
 
 **MERGED + DEPLOYED (founder: « go », 2026-09-17).** main fast-forwarded df6a184 → 8903419 (the branch head, verified `merge-base --is-ancestor`; this carried RAYON-VIDEO-CHECK's read-only `live-check` extension in with it, as that entry said it would). Runs on main at 8903419, all `success`: ci #347 · expo-preview #225 · offer-deploy #34 (id 35169084358, `workflow_dispatch`) · fournisseur-web-deploy #15 (id 35169085657, `workflow_dispatch`). Dispatched only AFTER Séra's logistics-deploy #29 was green on its main (the intake door the console asks now exists live).
