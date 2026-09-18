@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-18 · RESERVATION-FOURNISSEUR-1 (B5.1, the producer's half) — the supplier-side hold: one unit set aside on the offer object while a buyer pays, gone from every reseller's page the moment it is held, converted by the confirmed sale, given back on a failed payment or by its own expiry · DONE on the branch · NOT MERGED, NOT DEPLOYED — awaiting the founder's word (offer-deploy owed on « go »)
+## 2026-09-18 · RESERVATION-FOURNISSEUR-1 (B5.1, the producer's half) — the supplier-side hold: one unit set aside on the offer object while a buyer pays, gone from every reseller's page the moment it is held, converted by the confirmed sale, given back on a failed payment or by its own expiry · MERGED AND DEPLOYED 2026-09-18 on the founder's « go on both »
+
+**Merged and deployed (2026-09-18, founder: « go on both »).** `main` fast-forwarded 157e36d → 3fb2aee (the three B5.1 commits: the hold `ed9ea0f`, the verifier fix `2d16f06`, this journal `3fb2aee`); ci 354 · expo-preview 232 · offer-deploy 37 green; provenance read back off the live Worker by the deploy job itself: « PROVENANCE OK — live Worker is 3fb2aee speaking canon 3.15.0 ». Deployed BEFORE Shop+'s half, as the report promised. The console pages were not redeployed — no app change in this slice.
 
 **Spec authority (re-read).** Boutik-Plus-Building-Plan.md M5: « **B5.1 Atomic reservation (Durable Object)** ⚠ | L | Reserve/release atomic; no negative; concurrency test. » Boutik-Plus-Build-Spec.md acceptance: « **concurrent reservation cannot oversell** ». Shop-Plus-Build-Spec.md boundary: « … fund legs → provider hold → **reserve** → seller readiness → … ». Founder ruling 2026-09-17 on the §7 stop (the wire shape): « **private door, go ahead with your recommendation** » — a private Shop+→Boutik+ door on the intake credential, NO canon change.
 
