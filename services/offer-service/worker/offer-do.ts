@@ -2,6 +2,7 @@ import { decideAttachAssets, decideConfirmStock, decideConsumeAvailable, decideC
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 import { stockDueMs } from '../src/stock-freeze.js';
+import { activeHolds, decideHold, decideHoldRelease, heldUnits, holdForOrder, stockHoldTtlMs, type StockHolds } from '../src/stock-hold.js';
 
 /**
  * OfferDO — the DURABLE offer authority (BOUTIK-OFFER-DURABLE-1). One DO instance
@@ -35,6 +36,18 @@ const JOURNAL_PREFIX = 'journal-';
 const journalKey = (seq: number): string => `${JOURNAL_PREFIX}${String(seq).padStart(6, '0')}`;
 /** Durable Object storage accepts at most 128 keys per `delete(keys[])` call. */
 const DELETE_BATCH_MAX = 128;
+/**
+ * B5.1 (RESERVATION-FOURNISSEUR-1) — the live holds on this offer, ONE storage
+ * value (reservationId → hold) so a hold lands in the SAME atomic batch as the
+ * entry it claims against, and the consume that converts it can drop it in the
+ * same batch as the counter it moves. See `src/stock-hold.ts`.
+ */
+const HOLDS_KEY = 'stock-holds';
+
+/** What the Durable Object reads off the Worker env: the hold-expiry knob only. */
+interface OfferDoEnv {
+  readonly STOCK_HOLD_TTL_MS?: string;
+}
 
 interface PvPointer {
   offerId: string;
@@ -53,7 +66,10 @@ interface IndexRow {
 }
 
 export class OfferDO {
-  constructor(private readonly state: DurableObjectState) {}
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env: OfferDoEnv = {},
+  ) {}
 
   async fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -113,7 +129,68 @@ export class OfferDO {
     if (request.method === 'GET' && pathname === '/entry') {
       const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
-      return Response.json(entry);
+      // B5.1 — EVERY READER SEES THE NET. `available` on the wire is the
+      // physical counter minus the live holds, so the unit one buyer is paying
+      // for is already gone from every other reseller's page (the projection,
+      // his list, the inventory all read here). The counter itself is untouched
+      // — the journal keeps describing it — and `heldUnits` says why the two
+      // differ when they do. Derived on read, never stored.
+      const held = heldUnits((await this.state.storage.get<StockHolds>(HOLDS_KEY)) ?? {}, new Date().toISOString());
+      if (held === 0) return Response.json(entry);
+      return Response.json({ ...entry, available: Math.max(0, entry.available - held), heldUnits: held });
+    }
+
+    /**
+     * ═══ B5.1 (RESERVATION-FOURNISSEUR-1) — THE HOLD, and its release. ═══
+     *
+     * Shop+ asks for ONE unit while its buyer pays (`{reservationId, orderId}`
+     * — its own reservation id, the chain's; the order id it derives from the
+     * quote, so the confirmed sale can find this hold). Granted only while
+     * `available − held ≥ 1`, decided inside this object, so concurrent asks
+     * for the last unit are serialized by the runtime and exactly one is
+     * granted — « no negative » by construction, « cannot oversell » proven on
+     * workerd. Idempotent on the reservation id (the wire is at-least-once).
+     * A refusal is BY NAME, 409 `insufficient_stock`, with the net count.
+     *
+     * WHO MAY ASK is decided at the composition root (Shop+'s intake
+     * credential), exactly as for `/entry/consume`: this object holds one
+     * offer and no caller identity.
+     */
+    if (request.method === 'POST' && pathname === '/entry/hold') {
+      const body = (await request.json().catch(() => null)) as { reservationId?: unknown; orderId?: unknown } | null;
+      const reservationId = body?.reservationId;
+      const orderId = body?.orderId;
+      if (typeof reservationId !== 'string' || reservationId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'reservationId' }, { status: 400 });
+      }
+      if (typeof orderId !== 'string' || orderId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'orderId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const holds = (await this.state.storage.get<StockHolds>(HOLDS_KEY)) ?? {};
+      const d = decideHold(entry.available, holds, { reservationId, orderId }, new Date().toISOString(), stockHoldTtlMs(this.env));
+      if (d.status === 'insufficient_stock') {
+        // The sweep's result is kept even on a refusal: expired holds are gone.
+        await this.state.storage.put(HOLDS_KEY, d.holds);
+        return Response.json({ error: 'insufficient_stock', available: d.available }, { status: 409 });
+      }
+      await this.state.storage.put(HOLDS_KEY, d.holds);
+      return Response.json({ status: d.status, reservationId, expiresAt: d.hold.expiresAt, available: d.available });
+    }
+    if (request.method === 'POST' && pathname === '/entry/hold-release') {
+      const body = (await request.json().catch(() => null)) as { reservationId?: unknown } | null;
+      const reservationId = body?.reservationId;
+      if (typeof reservationId !== 'string' || reservationId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'reservationId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const holds = (await this.state.storage.get<StockHolds>(HOLDS_KEY)) ?? {};
+      const now = new Date().toISOString();
+      const d = decideHoldRelease(holds, reservationId, now);
+      await this.state.storage.put(HOLDS_KEY, d.holds);
+      return Response.json({ status: d.status, available: Math.max(0, entry.available - heldUnits(d.holds, now)) });
     }
     /**
      * STOCK-VENDU-1 — a provider-confirmed order consumed ONE unit of this
@@ -149,9 +226,24 @@ export class OfferDO {
       const d = decideConsumeAvailable(entry);
       // STOCK-JOURNAL-1 — the `vendu` row rides the same atomic batch as the
       // moved counter and the marker: three facts, one write, no crash window.
-      const { row, next } = journalRow(d.entry, 'vendu', entry.available, d.entry.available, new Date().toISOString(), { orderId });
-      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: { alreadyEmpty: d.alreadyEmpty }, [journalKey(row.seq)]: row });
-      return Response.json({ status: 'consumed', available: next.available, alreadyEmpty: d.alreadyEmpty });
+      const now = new Date().toISOString();
+      const { row, next } = journalRow(d.entry, 'vendu', entry.available, d.entry.available, now, { orderId });
+      // B5.1 — THE HOLD BECOMES THE SALE. The unit this order held (found by
+      // the order id Shop+ named at hold time) leaves the holds in the SAME
+      // batch the counter moves in, so the net never double-counts: before,
+      // net = counter − 1 (held); after, counter − 1 and nothing held. An
+      // order that never held (an older flow, or a hold that expired before
+      // the confirmed fact arrived) consumes exactly as before this slice.
+      const holdsBefore = activeHolds((await this.state.storage.get<StockHolds>(HOLDS_KEY)) ?? {}, now);
+      const matched = holdForOrder(holdsBefore, orderId, now);
+      const { [matched?.reservationId ?? '']: _consumed, ...holdsAfter } = holdsBefore;
+      await this.state.storage.put({
+        [ENTRY_KEY]: next,
+        [marker]: { alreadyEmpty: d.alreadyEmpty },
+        [journalKey(row.seq)]: row,
+        [HOLDS_KEY]: holdsAfter,
+      });
+      return Response.json({ status: 'consumed', available: next.available, alreadyEmpty: d.alreadyEmpty, ...(matched !== undefined ? { heldReservationId: matched.reservationId } : {}) });
     }
     /**
      * STOCK-VENDU-1b — the refused unit comes home (founder order 2026-08-23:
@@ -344,6 +436,8 @@ interface Env {
   OFFER: DurableObjectNamespace;
   /** STOCK-JOURNAL-1 TEST KNOB — lower-only, see `stockDueMs`. Never set in wrangler.toml. */
   STOCK_RECONFIRM_DUE_MS?: string;
+  /** B5.1 TEST KNOB — lower-only, see `stockHoldTtlMs`. Never set in wrangler.toml. */
+  STOCK_HOLD_TTL_MS?: string;
 }
 
 const offerStub = (env: Env, offerId: string): DurableObjectStub =>
@@ -723,6 +817,37 @@ export default {
       );
       if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
       return forward(res); // status preserved — a malformed body must stay a 400
+    }
+
+    /**
+     * B5.1 — the hold and its release, resolved pointer → the per-offer
+     * object, symmetric with consume and restock. INTERNAL ONLY: the
+     * composition root gates both on Shop+'s intake credential and forwards
+     * here; the public worker routes neither path.
+     */
+    const mh = /^\/supply-hold\/([^/]+)$/.exec(pathname);
+    if (mh && request.method === 'POST') {
+      const productVersionId = decodeURIComponent(mh[1]!);
+      const ptrRes = await pvStub(env, productVersionId).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      const ptr = (await ptrRes.json()) as PvPointer;
+      const res = await offerStub(env, ptr.offerId).fetch(
+        new Request('https://do/entry/hold', { method: 'POST', body: await request.text(), headers: { 'Content-Type': 'application/json' } }),
+      );
+      if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      return forward(res); // 409 insufficient_stock and 400 malformed stay what they are
+    }
+    const mhr = /^\/supply-hold-release\/([^/]+)$/.exec(pathname);
+    if (mhr && request.method === 'POST') {
+      const productVersionId = decodeURIComponent(mhr[1]!);
+      const ptrRes = await pvStub(env, productVersionId).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      const ptr = (await ptrRes.json()) as PvPointer;
+      const res = await offerStub(env, ptr.offerId).fetch(
+        new Request('https://do/entry/hold-release', { method: 'POST', body: await request.text(), headers: { 'Content-Type': 'application/json' } }),
+      );
+      if (res.status === 404) return Response.json({ error: 'not_found' }, { status: 404 });
+      return forward(res);
     }
 
     // STOCK-VENDU-1b — the restock resolution, same shape and same internal-only

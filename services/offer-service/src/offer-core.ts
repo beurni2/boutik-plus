@@ -107,6 +107,13 @@ export interface OfferEntry {
   /** STOCK-JOURNAL-1 — how many journal rows this offer has written (the next
    *  row's `seq` is this + 1). Absent = none yet (pre-slice entries). */
   readonly journalSeq?: number;
+  /**
+   * B5.1 — DERIVED ON READ, NEVER STORED: how many units live holds have set
+   * aside right now. Present on the `/entry` wire only when > 0, beside an
+   * `available` that is already the NET (`counter − heldUnits`). The stored
+   * entry never carries it; the holds live under their own key.
+   */
+  readonly heldUnits?: number;
 }
 
 /**

@@ -199,6 +199,10 @@ interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
    *  reconfirmation window (`stockDueMs`) so the e2e can prove the freeze
    *  without waiting a week. Production never sets it. */
   STOCK_RECONFIRM_DUE_MS?: string;
+  /** B5.1 TEST KNOB, never a secret: may only SHORTEN the fifteen-minute hold
+   *  expiry (`stockHoldTtlMs`) so the e2e can prove a stranded hold frees
+   *  itself. Production never sets it. */
+  STOCK_HOLD_TTL_MS?: string;
 }
 
 /**
@@ -307,6 +311,34 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
       return handleRefusedIntake(request, store, env);
+    }
+    /**
+     * ═══ B5.1 (RESERVATION-FOURNISSEUR-1, founder ruling 2026-09-17: « private
+     * door ») — THE HOLD AND ITS RELEASE, on the SAME credential and the same
+     * terms as the confirmed-order intake: Shop+ presents the intake secret
+     * as Bearer, the body names the product, Shop+'s own reservation id and
+     * the order it will become. Gated BEFORE any dispatch (a 401 is never an
+     * existence oracle); an unset secret refuses everything (fail closed).
+     * Neither the bundled write key nor the founder's ops key opens these —
+     * a hold is a buyer's act relayed by Shop+, nobody else's.
+     */
+    if (request.method === 'POST' && (fp === '/fulfillment/stock-hold' || fp === '/fulfillment/stock-hold/release')) {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      if (refused) return refused;
+      const body = (await request.json().catch(() => null)) as { productVersionId?: unknown } | null;
+      const pv = body?.productVersionId;
+      if (typeof pv !== 'string' || pv.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'productVersionId' }, { status: 400 });
+      }
+      const road = fp === '/fulfillment/stock-hold' ? 'supply-hold' : 'supply-hold-release';
+      return offerRouter.fetch(
+        new Request(`https://do/${road}/${encodeURIComponent(pv)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        env,
+      );
     }
     // The OPS READ of the book — gated by the FOUNDER'S OWN credential, never
     // the intake secret: the list carries `supplierId`, and the intake secret
