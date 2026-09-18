@@ -220,7 +220,7 @@ describe('THE HOLD — one unit set aside, seen by every reader, given back or c
     expect((await release(mf, { productVersionId: PV, reservationId: 'res-a', reason: 'payment_failed' })).json).toEqual({ status: 'idempotent', available: 1 });
   });
 
-  it('CONSUMED: the confirmed order (REAL intake) that named this hold takes the unit — counter 1 → 0, hold gone, ONE atomic write; the redelivery moves nothing', async () => {
+  it('CONSUMED: the confirmed order (REAL intake) that named this hold takes the unit — counter 1 → 0, the hold gone; the redelivery moves nothing', async () => {
     const b = await hold(mf, { productVersionId: PV, reservationId: 'res-b', orderId: 'ord-b' });
     expect(b.json['status']).toBe('held');
     expect((await projection(mf, PV)).json.value?.available).toBe(0);
@@ -230,13 +230,28 @@ describe('THE HOLD — one unit set aside, seen by every reader, given back or c
     expect(j.rows![1]!.orderId).toBe('ord-b');
     expect(j.available).toBe(0);
     expect((await projection(mf, PV)).json.value?.available).toBe(0);
-    // the hold is gone: releasing it now is « nothing to release », and the
-    // net did not double-count (a stale hold on top of the consumed unit would
-    // have read −1, floored to 0 — proven by the next line NOT being 0 after a
-    // restock below)
+    // the hold is gone: releasing it now is « nothing to release » (a stale
+    // hold left on top of the consumed unit would answer `released` here)
     expect((await release(mf, { productVersionId: PV, reservationId: 'res-b', reason: 'cancelled' })).json['status']).toBe('idempotent');
     expect(await postIntake('ord-b', PV)).toBe(200);
     expect((await journal(OFFER)).rows).toHaveLength(2);
+  });
+
+  it('HER OWN hold under a NEW reservation id (Shop+’s two-minute slot died, she reserved again): re-keyed, never refused to her, never counted twice — and the sale still finds it', async () => {
+    await seed(mf, 'pv-hold-rekey', 'offer-hold-rekey', 1);
+    expect((await hold(mf, { productVersionId: 'pv-hold-rekey', reservationId: 'res-k1', orderId: 'ord-k' })).json['status']).toBe('held');
+    const again = await hold(mf, { productVersionId: 'pv-hold-rekey', reservationId: 'res-k2', orderId: 'ord-k' });
+    expect(again.status, JSON.stringify(again.json)).toBe(200);
+    expect(again.json['status']).toBe('held');
+    expect(again.json['available']).toBe(0);
+    expect((await projection(mf, 'pv-hold-rekey')).json.value?.available).toBe(0);
+    // another buyer is still refused; her OLD id now releases nothing
+    expect((await hold(mf, { productVersionId: 'pv-hold-rekey', reservationId: 'res-other', orderId: 'ord-other' })).status).toBe(409);
+    expect((await release(mf, { productVersionId: 'pv-hold-rekey', reservationId: 'res-k1', reason: 'payment_failed' })).json).toEqual({ status: 'idempotent', available: 0 });
+    // the confirmed sale finds the hold by its ORDER id, whichever reservation id it wears
+    expect(await postIntake('ord-k', 'pv-hold-rekey')).toBe(200);
+    expect((await journal('offer-hold-rekey')).rows!.map((r) => [r.kind, r.from, r.to])).toEqual([['declare', 0, 1], ['vendu', 1, 0]]);
+    expect((await release(mf, { productVersionId: 'pv-hold-rekey', reservationId: 'res-k2', reason: 'cancelled' })).json['status']).toBe('idempotent');
   });
 
   it('a sale that never held (an older flow) consumes exactly as before this slice', async () => {

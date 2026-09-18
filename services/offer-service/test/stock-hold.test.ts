@@ -60,10 +60,38 @@ describe('decideHold — one unit, granted only while it exists', () => {
     expect(heldUnits(a.holds, plus(TTL))).toBe(1);
   });
 
-  it('never mutates its inputs', () => {
-    const holds: StockHolds = {};
-    decideHold(3, holds, { reservationId: 'r', orderId: 'o' }, T0, TTL);
-    expect(holds).toEqual({});
+  it('the SAME ORDER under a NEW reservation id (Shop+’s slot died, she reserved again) re-keys HER hold — granted, never double-counted, the old id gone', () => {
+    const a = decideHold(1, {}, { reservationId: 'res-a1', orderId: 'ord-a' }, T0, TTL);
+    if (a.status !== 'held') throw new Error('unreachable');
+    const later = plus(5_000);
+    const b = decideHold(1, a.holds, { reservationId: 'res-a2', orderId: 'ord-a' }, later, TTL);
+    expect(b.status).toBe('held');
+    if (b.status !== 'held') return;
+    expect(Object.keys(b.holds)).toEqual(['res-a2']);
+    expect(b.hold).toEqual({ reservationId: 'res-a2', orderId: 'ord-a', qty: 1, at: later, expiresAt: plus(5_000 + TTL) });
+    expect(b.available).toBe(0);
+    expect(heldUnits(b.holds, later)).toBe(1);
+    // another buyer is still refused; her OLD id releases nothing; her NEW id releases the unit
+    expect(decideHold(1, b.holds, { reservationId: 'res-x', orderId: 'ord-x' }, later, TTL).status).toBe('insufficient_stock');
+    expect(decideHoldRelease(b.holds, 'res-a1', later)).toEqual({ status: 'idempotent', holds: b.holds });
+    expect(decideHoldRelease(b.holds, 'res-a2', later)).toEqual({ status: 'released', holds: {} });
+    // with two units on the shelf her second ask still hides ONE, not two
+    const c = decideHold(2, a.holds, { reservationId: 'res-a3', orderId: 'ord-a' }, T0, TTL);
+    if (c.status !== 'held') throw new Error('unreachable');
+    expect(c.available).toBe(1);
+    expect(heldUnits(c.holds, T0)).toBe(1);
+  });
+
+  it('never mutates its inputs — on a grant, a re-key, a refusal, a replay and a release', () => {
+    const a = decideHold(1, {}, { reservationId: 'res-a', orderId: 'ord-a' }, T0, TTL);
+    if (a.status !== 'held') throw new Error('unreachable');
+    const frozen = JSON.stringify(a.holds);
+    decideHold(3, a.holds, { reservationId: 'res-c', orderId: 'ord-c' }, T0, TTL);
+    decideHold(1, a.holds, { reservationId: 'res-a2', orderId: 'ord-a' }, T0, TTL);
+    decideHold(1, a.holds, { reservationId: 'res-b', orderId: 'ord-b' }, T0, TTL);
+    decideHold(1, a.holds, { reservationId: 'res-a', orderId: 'ord-a' }, T0, TTL);
+    decideHoldRelease(a.holds, 'res-a', T0);
+    expect(JSON.stringify(a.holds)).toBe(frozen);
   });
 });
 

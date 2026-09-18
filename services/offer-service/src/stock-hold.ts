@@ -85,6 +85,23 @@ export function decideHold(available: number, holds: StockHolds, cmd: HoldComman
   if (existing !== undefined) {
     return { status: 'idempotent', holds: alive, hold: existing, available: Math.max(0, available - heldUnits(alive, nowIso)) };
   }
+  // THE SAME ORDER UNDER A NEW ID. Shop+'s own slot lives two minutes and
+  // mints a fresh reservation id when the buyer reserves again on the same
+  // quote (offline, app closed, a refusal) — but the order id it names is the
+  // same. Her earlier hold is HERS: it is re-keyed to the new id and renewed,
+  // never counted twice, and never refused to her as « someone else's ».
+  const mine = Object.entries(alive).find(([, h]) => h.orderId === cmd.orderId);
+  if (mine !== undefined) {
+    const { [mine[0]]: _old, ...rest } = alive;
+    const hold: StockHold = {
+      ...mine[1],
+      reservationId: cmd.reservationId,
+      at: nowIso,
+      expiresAt: new Date(Date.parse(nowIso) + ttlMs).toISOString(),
+    };
+    const next: StockHolds = { ...rest, [cmd.reservationId]: hold };
+    return { status: 'held', holds: next, hold, available: Math.max(0, available - heldUnits(next, nowIso)) };
+  }
   const net = available - heldUnits(alive, nowIso);
   if (net < 1) return { status: 'insufficient_stock', holds: alive, available: Math.max(0, net) };
   const hold: StockHold = {
