@@ -5,6 +5,7 @@ import {
   attenteDepuis,
   nomFournisseur,
   pilluleCommande,
+  raisonBlocage,
   segmenter,
   tonAttente,
 } from '../src/commandes/view';
@@ -115,6 +116,44 @@ describe('one pill per row', () => {
     expect(
       pilluleCommande(order('o', { fulfillment: { acceptedAt: '2026-08-08T10:30:00.000Z' } }), 'a_traiter').label,
     ).toBe('commandes.pill_acceptee');
+  });
+});
+
+describe('REMBOURSEMENT-2 — a refused or refunding order leaves every relay queue', () => {
+  const refusee = order('ord-r', { fulfillment: { acceptedAt: '2026-08-08T10:10:00.000Z', refusedAt: '2026-08-08T10:20:00.000Z' } });
+  const pretRemb = order('ord-p', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
+  const routeRemb = order('ord-e', { fulfillment: { readyAt: '2026-08-08T11:00:00.000Z' } });
+  const sain = order('ord-s');
+
+  it('refused by the book or refunding by Shop+ → incidents, whatever stage it held; the rest untouched', () => {
+    const s = segmenter([refusee, pretRemb, routeRemb, sain], new Set(), new Set(['ord-e']), new Set(), new Set(['ord-p', 'ord-e']));
+    expect(s.incidents.map((o) => o.orderId)).toEqual(['ord-r', 'ord-p', 'ord-e']);
+    expect(s.a_traiter.map((o) => o.orderId)).toEqual(['ord-s']);
+    expect(s.pret).toEqual([]);
+    expect(s.en_route).toEqual([]);
+  });
+
+  it('without the refund read, the book’s own refusal still moves it', () => {
+    const s = segmenter([refusee, pretRemb], new Set(), new Set(), new Set());
+    expect(s.incidents.map((o) => o.orderId)).toEqual(['ord-r']);
+    expect(s.pret.map((o) => o.orderId)).toEqual(['ord-p']);
+  });
+
+  it('the pill names the refund first, loudest when blocked; the book’s refusal when there is no read', () => {
+    expect(pilluleCommande(refusee, 'incidents', { etat: 'bloque', raison: 'sans_confirmation' })).toEqual({ label: 'commandes.pill_remb_bloque', ton: 'alerte' });
+    expect(pilluleCommande(refusee, 'incidents', { etat: 'en_cours' })).toEqual({ label: 'commandes.pill_remb_en_cours', ton: 'attente' });
+    expect(pilluleCommande(sain, 'incidents', { etat: 'fait' })).toEqual({ label: 'commandes.pill_rembourse', ton: 'ok' });
+    expect(pilluleCommande(sain, 'incidents', { etat: 'rien' })).toEqual({ label: 'commandes.pill_rien_a_rembourser', ton: 'ok' });
+    expect(pilluleCommande(refusee, 'incidents')).toEqual({ label: 'commandes.pill_refusee', ton: 'alerte' });
+    expect(pilluleCommande(sain, 'incidents').label).toBe('commandes.pill_incident');
+  });
+
+  it('why a refund is blocked, one sentence per reason; nothing when it is not blocked', () => {
+    expect(raisonBlocage({ etat: 'bloque', raison: 'refus_du_prestataire' })).toBe('commandes.remb_bloque_prestataire');
+    expect(raisonBlocage({ etat: 'bloque', raison: 'sans_confirmation' })).toBe('commandes.remb_bloque_sans_confirmation');
+    expect(raisonBlocage({ etat: 'bloque', raison: 'refus_illisible' })).toBe('commandes.remb_bloque_illisible');
+    expect(raisonBlocage({ etat: 'en_cours' })).toBeNull();
+    expect(raisonBlocage(undefined)).toBeNull();
   });
 });
 

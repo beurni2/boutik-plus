@@ -22,6 +22,7 @@ import {
   resolveGainsService,
   storeCleC,
   type LivraisonRow,
+  type RemboursementOperateur,
 } from '../operations/dispatch-service';
 import { readStoredCleFonds, resolveFondsService } from '../fonds/service';
 import { readStoredCleCoursiers } from '../coursiers/service';
@@ -35,6 +36,7 @@ import {
   attenteDepuis,
   nomFournisseur,
   pilluleCommande,
+  raisonBlocage,
   segmenter,
   tonAttente,
   type SegmentCommandes,
@@ -180,6 +182,10 @@ function LivreCommandes({
    */
   const [boardSera, setBoardSera] = useState<BoardSera | null>(null);
   const [livrees, setLivrees] = useState<ReadonlySet<string>>(new Set());
+  /** REMBOURSEMENT-2 — the buyer refunds Shop+ is running, by orderId, off the
+   *  same key-C read as the buyer's contact. Best-effort like the gains read:
+   *  without it a refunding order keeps its old stage, never a guessed one. */
+  const [remboursements, setRemboursements] = useState<ReadonlyMap<string, RemboursementOperateur>>(new Map());
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -212,6 +218,15 @@ function LivreCommandes({
     if (cleC !== null && gains !== null) {
       const g = await gains.listGains(cleC);
       if (g.ok) setLivrees(new Set(g.rows.filter((r) => r.livree).map((r) => r.orderId)));
+    }
+    const dispatch = resolveDispatchService();
+    if (cleC !== null && dispatch !== null) {
+      const l = await dispatch.listLivraisons(cleC);
+      if (l.ok) {
+        setRemboursements(
+          new Map(l.rows.flatMap((r) => (r.remboursement !== undefined ? [[r.orderId, r.remboursement] as const] : []))),
+        );
+      }
     }
 
     // Incidents: joined from the claims book ONLY when the fund key is
@@ -257,13 +272,26 @@ function LivreCommandes({
   }
 
   const enRoute = new Set(boardSera?.affectations.map((a) => a.orderId) ?? []);
-  const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees);
+  const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees, new Set(remboursements.keys()));
   const rows = segments[segment];
   const now = Date.now();
+  const bloques = [...remboursements.values()].filter((r) => r.etat === 'bloque').length;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
       <PageTitle>{t('commandes.titre')}</PageTitle>
+      {/* REMBOURSEMENT-2 — a buyer's refund that cannot finish by itself is
+          the one thing on this tab nobody else will notice: said at the top,
+          whatever segment is open. */}
+      {bloques > 0 ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="danger">
+            {bloques === 1
+              ? t('commandes.remb_bloque_un')
+              : t('commandes.remb_bloques_n').replace('{n}', String(bloques))}
+          </Banner>
+        </View>
+      ) : null}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -314,6 +342,7 @@ function LivreCommandes({
               cle={cle}
               mediaBase={mediaBase}
               coursier={nomCoursierPour(o.orderId, boardSera)}
+              remboursement={remboursements.get(o.orderId)}
               onChanged={() => void charger()}
               onCleRefusee={onCleRefusee}
             />
@@ -441,6 +470,7 @@ function RangCommande({
   cle,
   mediaBase,
   coursier,
+  remboursement,
   onChanged,
   onCleRefusee,
 }: {
@@ -455,13 +485,16 @@ function RangCommande({
   mediaBase: string | null;
   /** The carrier's name off the Séra board join — En route rows only. */
   coursier: string | null;
+  /** REMBOURSEMENT-2 — the buyer's refund on this order, when there is one. */
+  remboursement: RemboursementOperateur | undefined;
   onChanged: () => void;
   /** Threaded down for the retire control: a refused key escalates to the
    *  console's own surface instead of dying silently on this card. */
   onCleRefusee: () => void;
 }) {
   const qui = nomFournisseur(row.supplierId, contacts);
-  const pill = pilluleCommande(row, segment);
+  const pill = pilluleCommande(row, segment, remboursement);
+  const raison = raisonBlocage(remboursement);
   const attente = attenteDepuis(row.paidAt, nowMs);
   const pillBg = pill.ton === 'ok' ? '#E5F0E5' : pill.ton === 'alerte' ? '#F6E2DC' : '#F6E9C8';
   const pillFg = pill.ton === 'ok' ? '#2F5D3A' : pill.ton === 'alerte' ? '#7C2D12' : '#5F4403';
@@ -485,6 +518,11 @@ function RangCommande({
               {row.productName !== '' ? row.productName : row.productVersionId} · {row.zoneTo}
             </Text>
             <Text style={[PETIT, { marginTop: 2 }]} numberOfLines={1}>{row.orderId}</Text>
+            {raison !== null ? (
+              <Text style={[CORPS, { marginTop: 4 }]}>{t(raison)}</Text>
+            ) : row.fulfillment?.refusedAt !== undefined ? (
+              <Text style={[CORPS, { marginTop: 4 }]}>{t('commandes.refusee_ligne')}</Text>
+            ) : null}
           </View>
         </View>
       </Pressable>
@@ -492,7 +530,18 @@ function RangCommande({
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
           <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} onChanged={onChanged} />
         ) : (
-          <DetailATraiter row={row} qui={qui} attente={attente} nowMs={nowMs} service={service} cle={cle} onChanged={onChanged} />
+          <DetailATraiter
+            row={row}
+            qui={qui}
+            attente={attente}
+            nowMs={nowMs}
+            service={service}
+            cle={cle}
+            // REMBOURSEMENT-2 — nudging a supplier to prepare an order that is
+            // refused or being refunded would send him after a dead order.
+            relancePossible={remboursement === undefined && row.fulfillment?.refusedAt === undefined}
+            onChanged={onChanged}
+          />
         )
       ) : null}
       {/* PURGE-ESSAI — the retire lives HERE, under whichever detail is open:
@@ -577,6 +626,7 @@ function DetailATraiter({
   nowMs,
   service,
   cle,
+  relancePossible,
   onChanged,
 }: {
   row: PaidOrderRow;
@@ -585,6 +635,7 @@ function DetailATraiter({
   nowMs: number;
   service: OperationsServicePort;
   cle: string;
+  relancePossible: boolean;
   onChanged: () => void;
 }) {
   const ton = tonAttente(row.paidAt, nowMs);
@@ -622,20 +673,22 @@ function DetailATraiter({
         ) : (
           <Banner tone="info">{t('commandes.pas_de_numero')}</Banner>
         )}
-        <BtnSoft
-          label={fait ? t('commandes.relance_faite') : t('commandes.notifier')}
-          onPress={() => {
-            if (busy !== null || fait) return void 0;
-            setBusy('relance');
-            void service.recordRelance(cle, row.orderId).then((r) => {
-              setBusy(null);
-              if (r.ok) {
-                setFait(true);
-                onChanged();
-              }
-            });
-          }}
-        />
+        {relancePossible ? (
+          <BtnSoft
+            label={fait ? t('commandes.relance_faite') : t('commandes.notifier')}
+            onPress={() => {
+              if (busy !== null || fait) return void 0;
+              setBusy('relance');
+              void service.recordRelance(cle, row.orderId).then((r) => {
+                setBusy(null);
+                if (r.ok) {
+                  setFait(true);
+                  onChanged();
+                }
+              });
+            }}
+          />
+        ) : null}
       </View>
 
       {qui.carteAbsente || qui.telephone === '' ? (

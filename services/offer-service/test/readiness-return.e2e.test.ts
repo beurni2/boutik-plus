@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { afterAll, describe, expect, it } from 'vitest';
+import { FulfillmentProgressPayloadSchema, PlatformEventSchema } from '@platform/contracts';
 
 /**
  * READINESS-RETURN-1b — THE RETURN LEG LEAVING BOUTIK+, on real workerd.
@@ -256,6 +257,140 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
  * retries. This is the honest-failure half of the wire, and it is the half a
  * comment could otherwise claim without owning.
  */
+/**
+ * ═══ REMBOURSEMENT-2 — THE SUPPLIER REFUSES A PAID ORDER (B6.1 « Accept/reject ») ═══
+ *
+ * « Je ne peux pas fournir », before « prêt » only. The fact leaves on the
+ * same keyed outbox as accepted/ready, under the canon name
+ * `fulfillment.rejected.v1` and the canon progress payload {orderId, at} —
+ * each delivered body is held HERE to exactly what Shop+'s progress door
+ * checks (the canon envelope, the name, the strict payload), so a body this
+ * stub accepts is a body the real door accepts. Nothing else can then be done
+ * on the order, and the refusal closes once the parcel is ready (it is on
+ * Séra's road then: the rider's pickup check is the refusal there).
+ */
+describe('REMBOURSEMENT-2 — the supplier refuses a paid order: the canon fact leaves for Shop+, and the order closes', () => {
+  const REFUSEE = 'ord-return-0901';
+  const PRETE = 'ord-return-0902';
+  let code = '';
+  const confirmer = (orderId: string) =>
+    post(
+      '/fulfillment/order-confirmed',
+      {
+        name: 'order.confirmed.v1',
+        envelope: {
+          command_id: `ord-confirm-${orderId}`, correlation_id: `corr-${orderId}`,
+          aggregateVersion: 5, actor: 'shop-plus:order-emitter', serverTime: T0, version: 'v1',
+        },
+        payload: {
+          orderId, productVersionId: PV, offerVersion: 'ov-1', paymentMode: 'FULL_PREPAY',
+          paidAt: T0, zoneTo: 'Gounghin, Ouagadougou', sellerBasePrice: 8_000,
+        },
+      },
+      { Authorization: `Bearer ${FULFILL_SECRET}` },
+    );
+
+  it('refused before « prêt »: fulfillment.rejected.v1 {orderId, at} reaches Shop+ as its door checks it; accept and prêt are closed; a repeat announces nothing', async () => {
+    const minted = await post('/fulfillment/supplier-code', { supplierId: SUPPLIER }, { Authorization: `Bearer ${OPS_SECRET}` });
+    expect(minted.status, minted.text).toBe(200);
+    code = minted.json['code'] as string;
+    expect((await confirmer(REFUSEE)).status).toBe(200);
+
+    const before = delivered.length;
+    const refus = await post('/fulfillment/refuse', { orderId: REFUSEE }, { Authorization: `Bearer ${code}` });
+    expect(refus.status, refus.text).toBe(200);
+    expect(refus.json['status']).toBe('refused');
+    await waitForDeliveries(before + 1);
+    const sent = delivered.slice(before).find((d) => (JSON.parse(d.body) as { name: string }).name === 'fulfillment.rejected.v1');
+    expect(sent, 'the refusal never left Boutik+').toBeDefined();
+    expect(sent!.path).toBe('/fulfillment/progress');
+    expect(sent!.auth).toBe(`Bearer ${PROGRESS_SECRET}`);
+    // Held to Shop+'s own door: the canon envelope, the name, the strict payload.
+    const event = PlatformEventSchema.safeParse(JSON.parse(sent!.body));
+    expect(event.success).toBe(true);
+    const payload = FulfillmentProgressPayloadSchema.safeParse(event.success ? event.data.payload : null);
+    expect(payload.success, 'the payload is not the canon {orderId, at}').toBe(true);
+    expect(payload.success && payload.data).toEqual({ orderId: REFUSEE, at: refus.json['refusedAt'] });
+
+    // The order is over for him: nothing more is accepted or made ready.
+    const accepte = await post('/fulfillment/accept', { orderId: REFUSEE }, { Authorization: `Bearer ${code}` });
+    expect(accepte.status).toBe(409);
+    expect(accepte.json['reason']).toBe('refusee');
+    // His list says so.
+    const mine = await mf.dispatchFetch('http://o/fulfillment/mine', { headers: { Authorization: `Bearer ${code}` } });
+    const row = ((await mine.json()) as { orders: { orderId: string; fulfillment?: Record<string, string> }[] }).orders.find((o) => o.orderId === REFUSEE);
+    expect(row?.fulfillment?.['refusedAt']).toBe(refus.json['refusedAt']);
+    // Re-asserting is absorbed: nothing new leaves.
+    const avant = delivered.length;
+    const encore = await post('/fulfillment/refuse', { orderId: REFUSEE }, { Authorization: `Bearer ${code}` });
+    expect(encore.json['status']).toBe('already_refused');
+    await new Promise((r) => setTimeout(r, 400));
+    expect(delivered.filter((d) => (JSON.parse(d.body) as { name: string }).name === 'fulfillment.rejected.v1')).toHaveLength(1);
+    expect(delivered.length).toBe(avant);
+  });
+
+  it('after « prêt » the refusal is closed — the parcel is on Séra\'s road; another supplier learns nothing', async () => {
+    expect((await confirmer(PRETE)).status).toBe(200);
+    expect((await post('/fulfillment/accept', { orderId: PRETE }, { Authorization: `Bearer ${code}` })).status).toBe(200);
+    const challenge = await post('/fulfillment/ready/challenge', { orderId: PRETE }, { Authorization: `Bearer ${code}` });
+    const ready = await post(
+      '/fulfillment/ready',
+      {
+        orderId: PRETE,
+        photoRef: { ref: `media/readiness/${PRETE}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+        readinessChallenge: challenge.json['challenge'],
+        qty: 1,
+        variant: PV,
+        availableConfirmed: true,
+        at: new Date().toISOString(),
+      },
+      { Authorization: `Bearer ${code}` },
+    );
+    expect(ready.status, ready.text).toBe(200);
+    const refus = await post('/fulfillment/refuse', { orderId: PRETE }, { Authorization: `Bearer ${code}` });
+    expect(refus.status).toBe(409);
+    expect(refus.json['reason']).toBe('already_ready');
+    // A code that is not his: the uniform refusal, never « already ready ».
+    const autre = await post('/fulfillment/supplier-code', { supplierId: 'supplier-other-009' }, { Authorization: `Bearer ${OPS_SECRET}` });
+    const etranger = await post('/fulfillment/refuse', { orderId: PRETE }, { Authorization: `Bearer ${autre.json['code'] as string}` });
+    expect(etranger.status).toBe(404);
+    expect(etranger.json['reason']).toBe('not_yours_or_unknown');
+  });
+
+  it('accepted, then refused: « prêt » is closed both ways — a new challenge, and a challenge he already held', async () => {
+    const ACCEPTEE = 'ord-return-0903';
+    expect((await confirmer(ACCEPTEE)).status).toBe(200);
+    expect((await post('/fulfillment/accept', { orderId: ACCEPTEE }, { Authorization: `Bearer ${code}` })).status).toBe(200);
+    const tenu = await post('/fulfillment/ready/challenge', { orderId: ACCEPTEE }, { Authorization: `Bearer ${code}` });
+    expect(tenu.status, tenu.text).toBe(200);
+    const refus = await post('/fulfillment/refuse', { orderId: ACCEPTEE }, { Authorization: `Bearer ${code}` });
+    expect(refus.json['status']).toBe('refused');
+
+    const nouveau = await post('/fulfillment/ready/challenge', { orderId: ACCEPTEE }, { Authorization: `Bearer ${code}` });
+    expect(`${nouveau.status} ${nouveau.json['reason']}`).toBe('409 refusee');
+    const pret = await post(
+      '/fulfillment/ready',
+      {
+        orderId: ACCEPTEE,
+        photoRef: { ref: `media/readiness/${ACCEPTEE}`, sha256: 'c'.repeat(64), mimeType: 'image/jpeg' },
+        readinessChallenge: tenu.json['challenge'],
+        qty: 1,
+        variant: PV,
+        availableConfirmed: true,
+        at: new Date().toISOString(),
+      },
+      { Authorization: `Bearer ${code}` },
+    );
+    expect(`${pret.status} ${pret.json['reason']}`).toBe('409 refusee');
+    await new Promise((r) => setTimeout(r, 400));
+    const pretsEnvoyes = delivered.filter((d) => {
+      const e = JSON.parse(d.body) as { name: string; payload: { orderId?: string } };
+      return e.name === 'fulfillment.ready.v1' && e.payload.orderId === ACCEPTEE;
+    });
+    expect(pretsEnvoyes, 'a refused order was announced ready').toHaveLength(0);
+  });
+});
+
 describe('READINESS-RETURN-1b — with no progress secret, the act succeeds and nothing is ever claimed delivered', () => {
   const persist2 = mkdtempSync(join(tmpdir(), 'readiness-return-nosecret-'));
   const seen: string[] = [];

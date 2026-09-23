@@ -39,6 +39,28 @@ export interface LivraisonRow {
   } | null;
   readonly productVersionId: string;
   readonly zoneTo: string;
+  /** REMBOURSEMENT-2 — the buyer's refund, as Shop+ judges it: its state and,
+   *  when it cannot finish by itself, why. Absent from a Worker built before
+   *  it, and when nothing is refunded. */
+  readonly remboursement?: RemboursementOperateur;
+}
+
+export type RemboursementOperateur =
+  | { readonly etat: 'en_cours' | 'fait' | 'rien' }
+  | { readonly etat: 'bloque'; readonly raison: 'refus_illisible' | 'refus_du_prestataire' | 'sans_confirmation' };
+
+/** A refund status is one of Shop+'s own words, or the row is not read at all
+ *  (same law as the pin: a malformed field drops the whole row, never a
+ *  half-read one). `null`/absent is « nothing refunded ». */
+function lireRemboursement(v: unknown): RemboursementOperateur | null | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== 'object') return null;
+  const r = v as Record<string, unknown>;
+  if (r['etat'] === 'en_cours' || r['etat'] === 'fait' || r['etat'] === 'rien') return { etat: r['etat'] };
+  if (r['etat'] === 'bloque' && (r['raison'] === 'refus_illisible' || r['raison'] === 'refus_du_prestataire' || r['raison'] === 'sans_confirmation')) {
+    return { etat: 'bloque', raison: r['raison'] };
+  }
+  return null;
 }
 
 export type LivraisonsResult =
@@ -191,6 +213,8 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
       ...(pin !== undefined ? { pin } : {}),
     };
   }
+  const remboursement = lireRemboursement(r['remboursement']);
+  if (remboursement === null) return null;
   return {
     orderId: r['orderId'],
     state: r['state'],
@@ -198,6 +222,7 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     contact,
     productVersionId: r['productVersionId'],
     zoneTo: r['zoneTo'],
+    ...(remboursement !== undefined ? { remboursement } : {}),
   };
 }
 

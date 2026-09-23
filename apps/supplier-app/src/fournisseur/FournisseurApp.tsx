@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, BtnSoft, C07BtnPrimary, Card, ChipCategory, Input, Overline, PageTitle, PhotoViewer } from '../v2/components';
+import { Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipCategory, Input, Overline, PageTitle, PhotoViewer } from '../v2/components';
 import { formatF } from '../v2/money';
 import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
@@ -420,6 +420,29 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     if (next !== null) setPret(next);
   };
 
+  /** REMBOURSEMENT-2 — « Je ne peux pas fournir »: the refusal rides the
+   *  session code like accept; on success the book is re-read at once, so the
+   *  card leaves his « à faire » for the archive. A colis already readied
+   *  answers `trop_tard` (the coursier's pickup check is the refusal then). */
+  const refuser = async (orderId: string): Promise<'fait' | 'trop_tard' | 'echec'> => {
+    if (service === null) return 'echec';
+    try {
+      const res = await service.refuser(code, orderId);
+      if (res.ok) {
+        await load(true);
+        return 'fait';
+      }
+      if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
+      if (res.reason === 'already_ready') {
+        await load(true);
+        return 'trop_tard';
+      }
+      return 'echec';
+    } catch {
+      return 'echec';
+    }
+  };
+
   /** RETOUR-VIVANT-1 — the return check rides the session code exactly as the
    *  ramassage check does; a dead code escalates the whole screen to the door.
    *  NO re-read on « confirmé », deliberately (the ramassage law): the verdict
@@ -577,6 +600,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
               onEnvoyer={() => { void envoyer(c); }}
               onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
               onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
+              onRefuser={() => refuser(c.orderId)}
             />
           ))}
           <View style={{ marginTop: 22 }}>
@@ -665,7 +689,7 @@ function VerifierRetour({ onVerifier }: { onVerifier: (dit: string) => Promise<'
 
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
-function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour }: {
+function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour, onRefuser }: {
   commande: CommandeVue;
   pret: PretUi;
   accepting: boolean;
@@ -677,6 +701,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
   onEnvoyer: () => void;
   onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
   onVerifierRetour: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
+  onRefuser: () => Promise<'fait' | 'trop_tard' | 'echec'>;
 }) {
   const nom = commande.productName !== '' ? commande.productName : commande.productVersionId;
   /** The product's own photographs, through the SAME two helpers « Mes
@@ -753,6 +778,12 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
         </View>
       )}
 
+      {commande.etape === 'refusee' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">{t('fournisseur.etape_refusee')}</Banner>
+        </View>
+      )}
+
       {commande.etape === 'prete' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="success" check>{t('fournisseur.etape_prete')}</Banner>
@@ -775,6 +806,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('fournisseur.accepter_echec')}</Text>
             </View>
           )}
+          {!accepting && <RefuserCommande onRefuser={onRefuser} />}
         </View>
       )}
 
@@ -807,8 +839,51 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t(pret.messageKey)}</Text>
             </View>
           )}
+          {!enEnvoi && <RefuserCommande onRefuser={onRefuser} />}
         </View>
       )}
     </Card>
+  );
+}
+
+/**
+ * REMBOURSEMENT-2 — « Je ne peux pas fournir » (B6.1 « Accept/reject »). A
+ * secondary act that whispers under the card's one primary action, and asks
+ * once before it acts: the buyer is refunded and the order cannot come back.
+ * A refusal the network lost says so, never dressed as done.
+ */
+function RefuserCommande({ onRefuser }: { onRefuser: () => Promise<'fait' | 'trop_tard' | 'echec'> }) {
+  const [confirmer, setConfirmer] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [issue, setIssue] = useState<'trop_tard' | 'echec' | null>(null);
+  const refuser = async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    setIssue(null);
+    const r = await onRefuser();
+    setBusy(false);
+    if (r === 'fait') return;
+    setConfirmer(false);
+    setIssue(r);
+  };
+  return (
+    <View style={{ marginTop: 10, gap: 8 }}>
+      {busy ? (
+        <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.refus_encours')}</Text>
+      ) : confirmer ? (
+        <>
+          <Banner tone="warn">{t('fournisseur.refus_confirmer')}</Banner>
+          <BtnSoft label={t('fournisseur.refus_oui')} onPress={() => { void refuser(); }} />
+          <BtnGhost label={t('fournisseur.refus_non')} onPress={() => setConfirmer(false)} />
+        </>
+      ) : (
+        <BtnGhost label={t('fournisseur.refus_action')} onPress={() => { setIssue(null); setConfirmer(true); }} />
+      )}
+      {issue !== null && (
+        <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
+          {t(issue === 'trop_tard' ? 'fournisseur.refus_trop_tard' : 'fournisseur.refus_echec')}
+        </Text>
+      )}
+    </View>
   );
 }

@@ -127,3 +127,45 @@ describe('listGains — the same loop, the same declarations', () => {
     expect(res.incomplet).toBe(true);
   });
 });
+
+describe('REMBOURSEMENT-2 — the refund on a Livraisons row, in Shop+’s own words or not at all', () => {
+  it('each of Shop+’s words is read; null or absent is « nothing refunded »', async () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'http://shop');
+    pages([{ body: { ok: true, orders: [
+      { ...lrow('ord-1'), remboursement: { etat: 'en_cours' } },
+      { ...lrow('ord-2'), remboursement: { etat: 'bloque', raison: 'refus_du_prestataire' } },
+      { ...lrow('ord-3'), remboursement: { etat: 'bloque', raison: 'sans_confirmation' } },
+      { ...lrow('ord-4'), remboursement: { etat: 'bloque', raison: 'refus_illisible' } },
+      { ...lrow('ord-5'), remboursement: { etat: 'fait' } },
+      { ...lrow('ord-6'), remboursement: { etat: 'rien' } },
+      { ...lrow('ord-7'), remboursement: null },
+      lrow('ord-8'),
+    ] } }]);
+    const res = await resolveDispatchService()!.listLivraisons('cle-c');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.rows.map((r) => [r.orderId, r.remboursement])).toEqual([
+      ['ord-1', { etat: 'en_cours' }],
+      ['ord-2', { etat: 'bloque', raison: 'refus_du_prestataire' }],
+      ['ord-3', { etat: 'bloque', raison: 'sans_confirmation' }],
+      ['ord-4', { etat: 'bloque', raison: 'refus_illisible' }],
+      ['ord-5', { etat: 'fait' }],
+      ['ord-6', { etat: 'rien' }],
+      ['ord-7', undefined],
+      ['ord-8', undefined],
+    ]);
+  });
+
+  it('a word Shop+ never says drops the row whole, like a malformed contact', async () => {
+    vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'http://shop');
+    pages([{ body: { ok: true, orders: [
+      { ...lrow('ord-1'), remboursement: { etat: 'bloque' } },
+      { ...lrow('ord-2'), remboursement: { etat: 'bloque', raison: 'autre' } },
+      { ...lrow('ord-3'), remboursement: { etat: 'rembourse' } },
+      { ...lrow('ord-4'), remboursement: 'en_cours' },
+      { ...lrow('ord-5'), remboursement: { etat: 'fait' } },
+    ] } }]);
+    const res = await resolveDispatchService()!.listLivraisons('cle-c');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.rows.map((r) => r.orderId)).toEqual(['ord-5']);
+  });
+});

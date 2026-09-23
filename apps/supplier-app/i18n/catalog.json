@@ -2556,6 +2556,54 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.refus_action",
+    "fr": "Je ne peux pas fournir",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.refus_confirmer",
+    "fr": "Refuser cette commande ? Le client sera remboursé, et vous ne pourrez plus l'accepter.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.refus_oui",
+    "fr": "Oui, refuser la commande",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.refus_non",
+    "fr": "Non, je garde la commande",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.refus_encours",
+    "fr": "Refus en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.refus_echec",
+    "fr": "Le refus n'a pas marché. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.refus_trop_tard",
+    "fr": "Le colis est déjà prêt : le coursier le vérifiera au ramassage.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_refusee",
+    "fr": "Vous avez refusé cette commande. Le client sera remboursé.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.etape_preparer",
     "fr": "Colis prêt — envoyer la photo",
     "register": "money",
@@ -4486,6 +4534,72 @@
     "fr": "Livrée",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_remb_bloque",
+    "fr": "Remboursement bloqué",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_remb_en_cours",
+    "fr": "Remboursement en cours",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_rembourse",
+    "fr": "Client remboursé",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_rien_a_rembourser",
+    "fr": "Rien à rembourser",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_refusee",
+    "fr": "Refusée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.refusee_ligne",
+    "fr": "Le fournisseur a refusé cette commande. Le client est remboursé.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.remb_bloque_prestataire",
+    "fr": "Le service de paiement a refusé de rembourser le client. Appelez-le avec ce numéro de commande.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.remb_bloque_sans_confirmation",
+    "fr": "Le service de paiement n'a pas encore confirmé ce remboursement. Appelez-le avec ce numéro de commande.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.remb_bloque_illisible",
+    "fr": "Séra a refusé la livraison, mais son message n'a pas pu être lu : le remboursement n'a pas commencé. Voyez avec Séra.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.remb_bloque_un",
+    "fr": "Un remboursement est bloqué. Il est dans « Incidents ».",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.remb_bloques_n",
+    "fr": "{n} remboursements sont bloqués. Ils sont dans « Incidents ».",
+    "register": "money",
+    "screenClass": "status"
   },
   {
     "key": "commandes.en_route_avec",

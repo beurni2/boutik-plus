@@ -510,6 +510,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'POST' && fp === '/fulfillment/accept') {
       return forwardSupplierAct(request, env, '/accept');
     }
+    // REMBOURSEMENT-2 — « Je ne peux pas fournir »: the supplier refuses a paid
+    // order through his OWN door, identity from his code, like accept.
+    if (request.method === 'POST' && fp === '/fulfillment/refuse') {
+      return forwardSupplierAct(request, env, '/refuse');
+    }
     if (request.method === 'POST' && fp === '/fulfillment/ready/challenge') {
       return forwardSupplierAct(request, env, '/ready/challenge');
     }

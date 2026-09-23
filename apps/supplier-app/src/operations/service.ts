@@ -45,6 +45,9 @@ export interface RelanceMark {
 export interface FulfillmentMark {
   readonly acceptedAt?: string;
   readonly readyAt?: string;
+  /** REMBOURSEMENT-2 — the supplier refused the order (« je ne peux pas
+   *  fournir »); the buyer is refunded. */
+  readonly refusedAt?: string;
 }
 
 /** Mirrors `PaidOrderRecord` (offer-service `worker/fulfillment-do.ts`). */
@@ -769,10 +772,12 @@ function readFulfillment(value: unknown): FulfillmentMark | null {
     typeof v === 'string' && v !== '' && !Number.isNaN(Date.parse(v));
   const acceptedAt = validIso(r['acceptedAt']) ? r['acceptedAt'] : undefined;
   const readyAt = validIso(r['readyAt']) ? r['readyAt'] : undefined;
-  if (acceptedAt === undefined && readyAt === undefined) return null;
+  const refusedAt = validIso(r['refusedAt']) ? r['refusedAt'] : undefined;
+  if (acceptedAt === undefined && readyAt === undefined && refusedAt === undefined) return null;
   return {
     ...(acceptedAt !== undefined ? { acceptedAt } : {}),
     ...(readyAt !== undefined ? { readyAt } : {}),
+    ...(refusedAt !== undefined ? { refusedAt } : {}),
   };
 }
 

@@ -45,6 +45,9 @@ export interface CommandeRow {
     /** RETOUR-VIVANT-1 — HIS confirmed RETURN code: the refused colis came
      *  back into his hands (→ the archive, « colis revenu »). */
     readonly returnedAt?: string;
+    /** REMBOURSEMENT-2 — HIS refusal: « je ne peux pas fournir » (→ the
+     *  archive; the buyer is refunded). */
+    readonly refusedAt?: string;
   };
 }
 
@@ -90,6 +93,12 @@ export type ActResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'unreachable' };
 
+/** REMBOURSEMENT-2 — his refusal answers `refused` (or `already_refused`),
+ *  or `already_ready` once the colis is on Séra's road. */
+export type RefusResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'already_ready' | 'unreachable' };
+
 export type ChallengeResult =
   | { readonly ok: true; readonly challenge: string; readonly expiresAt: string }
   | { readonly ok: false; readonly reason: 'bad_code' | 'not_accepted' | 'already_ready' | 'not_yours_or_unknown' | 'unreachable' };
@@ -130,6 +139,8 @@ export interface FournisseurServicePort {
   /** LISTER-POUR-1c — his own products, same door, same Bearer. */
   listProduits(code: string): Promise<ProduitsResult>;
   accept(code: string, orderId: string): Promise<ActResult>;
+  /** REMBOURSEMENT-2 — « Je ne peux pas fournir », before « prêt » only. */
+  refuser(code: string, orderId: string): Promise<RefusResult>;
   challenge(code: string, orderId: string): Promise<ChallengeResult>;
   /** The typed code travels as `codeRamassage` — `code` is the Bearer's name
    *  on this wire, and the two must never be confusable. */
@@ -225,6 +236,17 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       if (res.status === 404) return { ok: false, reason: 'not_yours_or_unknown' };
       if (res.json['ok'] !== true) return { ok: false, reason: 'unreachable' };
       return { ok: true };
+    },
+
+    async refuser(code: string, orderId: string): Promise<RefusResult> {
+      const res = await post('/fulfillment/refuse', code, { orderId });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_code' };
+      if (res.status === 404) return { ok: false, reason: 'not_yours_or_unknown' };
+      if (res.json['reason'] === 'already_ready') return { ok: false, reason: 'already_ready' };
+      const status = res.json['status'];
+      if (res.json['ok'] === true && (status === 'refused' || status === 'already_refused')) return { ok: true };
+      return { ok: false, reason: 'unreachable' };
     },
 
     async challenge(code: string, orderId: string): Promise<ChallengeResult> {
@@ -347,7 +369,7 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     // one drops the WHOLE row. A row demoted to « no handover » would re-arm
     // the ramassage check over a colis already gone (verifier N4's law, now
     // guarding two more fields).
-    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt'] as const;
+    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'refusedAt'] as const;
     const lus: Partial<Record<(typeof marks)[number], string>> = {};
     for (const m of marks) {
       if (fr[m] === undefined) continue;

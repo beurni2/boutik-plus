@@ -1,5 +1,6 @@
 import {
   FulfillmentAcceptedEventSchema,
+  FulfillmentProgressPayloadSchema,
   FulfillmentReadyEventSchema,
   OrderConfirmedEventSchema,
   PackageReadinessConfirmationSchema,
@@ -56,6 +57,8 @@ const RELANCE_PREFIX = 'relance:';
 const ACCEPT_PREFIX = 'accept:';
 const CHALLENGE_PREFIX = 'challenge:';
 const READY_PREFIX = 'ready:';
+/** REMBOURSEMENT-2 — the supplier's refusal of a paid order, one row per order. */
+const REFUS_PREFIX = 'refus:';
 const CODEHASH_PREFIX = 'codehash:';
 const SUPPLIERCODE_PREFIX = 'suppliercode:';
 /**
@@ -265,6 +268,14 @@ interface IssuedChallengeRecord {
   readonly consumedAt?: string;
 }
 
+/** REMBOURSEMENT-2 — the supplier refused this paid order (B6.1 « Accept/reject »). */
+interface RefusRecord {
+  readonly orderId: string;
+  readonly supplierId: string;
+  /** THIS Worker's clock. */
+  readonly refusedAt: string;
+}
+
 /** BOUTIK-SUIVI — the confirmed handover, one row per order. */
 interface HandoverRecord {
   readonly orderId: string;
@@ -429,11 +440,25 @@ export class FulfillmentDO {
     }
   }
 
-  private async enqueueProgress(kind: 'accepted' | 'ready', orderId: string, at: string): Promise<void> {
+  private async enqueueProgress(kind: 'accepted' | 'ready' | 'rejected', orderId: string, at: string): Promise<void> {
     try {
-      const name = kind === 'accepted' ? 'fulfillment.accepted.v1' : 'fulfillment.ready.v1';
-      const schema = kind === 'accepted' ? FulfillmentAcceptedEventSchema : FulfillmentReadyEventSchema;
+      const name =
+        kind === 'accepted' ? 'fulfillment.accepted.v1' : kind === 'ready' ? 'fulfillment.ready.v1' : 'fulfillment.rejected.v1';
+      /**
+       * REMBOURSEMENT-2 — canon lists `fulfillment.rejected.v1` without its
+       * own artifact; its payload is the SAME canon progress payload as the
+       * other two ({orderId, at}, strict), so it is composed through the
+       * envelope schema AND that payload schema — Shop+'s door binds it the
+       * same way on receipt.
+       */
+      const schema =
+        kind === 'accepted'
+          ? FulfillmentAcceptedEventSchema
+          : kind === 'ready'
+            ? FulfillmentReadyEventSchema
+            : PlatformEventSchema.refine((e) => FulfillmentProgressPayloadSchema.safeParse(e.payload).success);
       const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      const accepte = kind === 'rejected' ? await this.state.storage.get(`${ACCEPT_PREFIX}${orderId}`) : undefined;
       const composed = schema.safeParse({
         name,
         envelope: {
@@ -449,7 +474,7 @@ export class FulfillmentDO {
           correlation_id: order?.correlationId ?? `corr-${orderId}`,
           /** VERIFIER M3 — acceptance and readiness are two DISTINCT transitions
            *  of the same aggregate; declaring both version 1 said otherwise. */
-          aggregateVersion: kind === 'accepted' ? 1 : 2,
+          aggregateVersion: kind === 'accepted' ? 1 : kind === 'ready' ? 2 : accepte !== undefined ? 2 : 1,
           actor: 'offer-service:fulfillment',
           serverTime: at,
           version: 'v1',
@@ -672,6 +697,7 @@ export class FulfillmentDO {
       const marks = await this.state.storage.list<RelanceMark>({ prefix: RELANCE_PREFIX });
       const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
       const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
+      const refusees = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
       const orders = [...entries.values()]
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
         // Merged at READ — the stored record stays exactly the bytes the
@@ -682,12 +708,14 @@ export class FulfillmentDO {
           const mark = marks.get(`${RELANCE_PREFIX}${r.orderId}`);
           const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
           const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
+          const refusee = refusees.get(`${REFUS_PREFIX}${r.orderId}`);
           const fulfillment =
-            accepted === undefined && ready === undefined
+            accepted === undefined && ready === undefined && refusee === undefined
               ? undefined
               : {
                   ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
                   ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+                  ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
                 };
           return {
             ...r,
@@ -1004,6 +1032,8 @@ export class FulfillmentDO {
       const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
       // RETOUR-VIVANT-1 — the fourth mark: his own confirmed RETURN code.
       const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
+      // REMBOURSEMENT-2 — the fifth: his own refusal.
+      const refus = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
       const orders = [...entries.values()]
         .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
@@ -1013,6 +1043,7 @@ export class FulfillmentDO {
           const handed = handovers.get(`${HANDOVER_PREFIX}${r.orderId}`);
           const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
           const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
+          const refusee = refus.get(`${REFUS_PREFIX}${r.orderId}`);
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -1022,7 +1053,7 @@ export class FulfillmentDO {
             paidAt: r.paidAt,
             zoneTo: r.zoneTo,
             sellerBasePrice: r.sellerBasePrice,
-            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined
+            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined
               ? {
                   fulfillment: {
                     ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
@@ -1030,6 +1061,7 @@ export class FulfillmentDO {
                     ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
                     ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
                     ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
+                    ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
                   },
                 }
               : {}),
@@ -1056,6 +1088,10 @@ export class FulfillmentDO {
       const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
       if (order === undefined || !order.supplierResolved || order.supplierId !== supplierId) {
         return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      // REMBOURSEMENT-2 — a refused order is over: nothing more is accepted on it.
+      if ((await this.state.storage.get(`${REFUS_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'refusee' }, { status: 409 });
       }
       const key = `${ACCEPT_PREFIX}${orderId}`;
       const existing = await this.state.storage.get<FulfillmentAcceptanceRecord>(key);
@@ -1084,6 +1120,43 @@ export class FulfillmentDO {
       // first-wins above means a repeat accept never re-announces.
       await this.enqueueProgress('accepted', orderId, acceptance.acceptedAt);
       return Response.json({ ok: true, status: 'accepted', acceptedAt: acceptance.acceptedAt });
+    }
+
+    /**
+     * REMBOURSEMENT-2 — THE SUPPLIER REFUSES A PAID ORDER (B6.1 « Accept/reject »;
+     * the Execution Contract's « supplier accepted but cannot fulfill »). Until
+     * he confirms « prêt » only: after that the parcel is on Séra's road and
+     * the rider's pickup check is the refusal. Identity from the code, the
+     * same uniform refusal for another supplier's order. First-wins; the fact
+     * travels to Shop+ (`fulfillment.rejected.v1`), which refunds the buyer
+     * every franc. No Séra task is ever admitted: readiness never comes.
+     */
+    if (request.method === 'POST' && pathname === '/refuse') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const resolved = await this.resolveCode(body?.['code']);
+      if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
+      const orderId = body?.['orderId'];
+      if (typeof orderId !== 'string' || orderId === '' || Object.keys(body ?? {}).length !== 2) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined || !order.supplierResolved || order.supplierId !== resolved.supplierId) {
+        return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      const key = `${REFUS_PREFIX}${orderId}`;
+      const existing = await this.state.storage.get<RefusRecord>(key);
+      if (existing !== undefined) {
+        // Re-asserting the act repairs a lost fact (the accept route's B1 law).
+        await this.enqueueProgress('rejected', orderId, existing.refusedAt);
+        return Response.json({ ok: true, status: 'already_refused', refusedAt: existing.refusedAt });
+      }
+      if ((await this.state.storage.get(`${READY_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
+      }
+      const refus: RefusRecord = { orderId, supplierId: resolved.supplierId, refusedAt: new Date().toISOString() };
+      await this.state.storage.put(key, refus);
+      await this.enqueueProgress('rejected', orderId, refus.refusedAt);
+      return Response.json({ ok: true, status: 'refused', refusedAt: refus.refusedAt });
     }
 
     /**
@@ -1243,6 +1316,9 @@ export class FulfillmentDO {
       if ((await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`)) !== undefined) {
         return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
       }
+      if ((await this.state.storage.get(`${REFUS_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'refusee' }, { status: 409 });
+      }
       const issued: IssuedChallengeRecord = {
         challenge: `srch-${crypto.randomUUID()}`,
         expiresAt: new Date(Date.now() + this.readinessTtlMs()).toISOString(),
@@ -1278,6 +1354,9 @@ export class FulfillmentDO {
       const owned = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
       if (owned === undefined || !owned.supplierResolved || owned.supplierId !== resolved.supplierId) {
         return Response.json({ ok: false, reason: 'not_yours_or_unknown' }, { status: 404 });
+      }
+      if ((await this.state.storage.get(`${REFUS_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'refusee' }, { status: 409 });
       }
 
       const already = await this.state.storage.get<ReadinessRecord>(`${READY_PREFIX}${orderId}`);
@@ -1459,6 +1538,7 @@ export class FulfillmentDO {
         `${HANDOVER_PREFIX}${orderId}`,
         `${LIVRAISON_PREFIX}${orderId}`,
         `${RETOUR_PREFIX}${orderId}`,
+        `${REFUS_PREFIX}${orderId}`,
         ...outbox.keys(),
       ];
       // ONE DELETE CALL, so the row and its marks leave together or not at
@@ -1732,7 +1812,7 @@ export async function handleSupplierContactsList(env: FulfillmentEnv): Promise<R
 export async function forwardSupplierAct(
   request: Request,
   env: FulfillmentEnv,
-  path: '/mine' | '/accept' | '/ready/challenge' | '/ready' | '/ramassage/verify' | '/retour/verify',
+  path: '/mine' | '/accept' | '/refuse' | '/ready/challenge' | '/ready' | '/ramassage/verify' | '/retour/verify',
 ): Promise<Response> {
   const auth = request.headers.get('Authorization') ?? '';
   const code = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';

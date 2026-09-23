@@ -1,3 +1,4 @@
+import type { RemboursementOperateur } from '../operations/dispatch-service';
 import type { PaidOrderRow, SupplierContact } from '../operations/service';
 
 /**
@@ -42,6 +43,8 @@ export function segmenter(
   enRouteOrderIds: ReadonlySet<string>,
   /** OrderIds whose gains row says `livree` — the settlement's own word. */
   livreeOrderIds: ReadonlySet<string>,
+  /** REMBOURSEMENT-2 — orderIds Shop+ is refunding (the key-C row's own word). */
+  rembourseesOrderIds: ReadonlySet<string> = new Set(),
 ): CommandesSegments {
   const a_traiter: PaidOrderRow[] = [];
   const pret: PaidOrderRow[] = [];
@@ -49,7 +52,11 @@ export function segmenter(
   const terminees: PaidOrderRow[] = [];
   const incidents: PaidOrderRow[] = [];
   for (const o of orders) {
-    if (claimedOrderIds.has(o.orderId)) incidents.push(o);
+    // REMBOURSEMENT-2 — refused by the supplier, or being refunded: the order
+    // will not be delivered, and it must never sit in a queue that relays it.
+    if (claimedOrderIds.has(o.orderId) || o.fulfillment?.refusedAt !== undefined || rembourseesOrderIds.has(o.orderId)) {
+      incidents.push(o);
+    }
     else if (livreeOrderIds.has(o.orderId)) terminees.push(o);
     else if (enRouteOrderIds.has(o.orderId)) en_route.push(o);
     else if (o.fulfillment?.readyAt !== undefined) pret.push(o);
@@ -112,7 +119,14 @@ export function nomFournisseur(
 export function pilluleCommande(
   row: PaidOrderRow,
   segment: SegmentCommandes,
+  remboursement?: RemboursementOperateur,
 ): { readonly label: string; readonly ton: 'attente' | 'ok' | 'alerte' } {
+  // REMBOURSEMENT-2 — a refund that cannot finish by itself is the loudest fact.
+  if (remboursement?.etat === 'bloque') return { label: 'commandes.pill_remb_bloque', ton: 'alerte' };
+  if (remboursement?.etat === 'en_cours') return { label: 'commandes.pill_remb_en_cours', ton: 'attente' };
+  if (remboursement?.etat === 'fait') return { label: 'commandes.pill_rembourse', ton: 'ok' };
+  if (remboursement?.etat === 'rien') return { label: 'commandes.pill_rien_a_rembourser', ton: 'ok' };
+  if (row.fulfillment?.refusedAt !== undefined) return { label: 'commandes.pill_refusee', ton: 'alerte' };
   if (segment === 'incidents') return { label: 'commandes.pill_incident', ton: 'alerte' };
   if (segment === 'terminees') return { label: 'commandes.pill_livree', ton: 'ok' };
   if (segment === 'en_route') return { label: 'commandes.pill_en_route', ton: 'ok' };
@@ -120,4 +134,14 @@ export function pilluleCommande(
   return row.fulfillment?.acceptedAt !== undefined
     ? { label: 'commandes.pill_acceptee', ton: 'attente' }
     : { label: 'commandes.pill_attente', ton: 'attente' };
+}
+
+/** REMBOURSEMENT-2 — why a refund is blocked, in his words (a catalog key). */
+export function raisonBlocage(r: RemboursementOperateur | undefined): string | null {
+  if (r?.etat !== 'bloque') return null;
+  return r.raison === 'refus_du_prestataire'
+    ? 'commandes.remb_bloque_prestataire'
+    : r.raison === 'sans_confirmation'
+      ? 'commandes.remb_bloque_sans_confirmation'
+      : 'commandes.remb_bloque_illisible';
 }

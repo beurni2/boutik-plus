@@ -52,6 +52,15 @@ runScanGate({
     { file: 'apps/supplier-app/test/dispatch-pages-port.test.ts', pattern: 'checkout-route', ruling: 'the paged dispatch/gains clients’ own wire pins (DISPATCH-PAGES-1)' },
     { file: 'apps/supplier-app/test/rendu-gains-pages.test.tsx', pattern: 'checkout-route', ruling: 'the gains screen’s paged walk over its own wire (DISPATCH-PAGES-1)' },
     /**
+     * REMBOURSEMENT-2 (founder order 2026-09-23: « There is no alert for you
+     * when a refund gets stuck… »). The Commandes tab now reads the SAME
+     * carved-out key-C dispatch read for the refund state of each order; this
+     * is that screen's driven walk over the same two wires, and the pointer
+     * naming the Shop+ Worker e2e that certifies the row's key set.
+     */
+    { file: 'apps/supplier-app/test/rendu-commandes-remboursement.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s walk over the dispatch/gains wires (REMBOURSEMENT-2)' },
+    { file: 'apps/supplier-app/test/rendu-commandes-remboursement.test.tsx', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker e2e as the certification source (REMBOURSEMENT-2)' },
+    /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
      * `fulfillment.ready.v1` to the Shop+ Worker, whose deployed name is

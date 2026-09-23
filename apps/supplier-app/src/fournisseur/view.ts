@@ -40,7 +40,13 @@ export type EtapeCommande =
    * « Livré et terminé » archive with its own sentence — the zone's meaning
    * is « done as far as the platform can prove », and a return is done.
    */
-  | 'retournee';
+  | 'retournee'
+  /**
+   * REMBOURSEMENT-2 — HE refused it (« je ne peux pas fournir »): terminal,
+   * nothing to do, the buyer is refunded. In the archive with its own
+   * sentence, like a return.
+   */
+  | 'refusee';
 
 /**
  * BOUTIK-SUIVI — the three screens the founder asked for, as data. A zone is
@@ -57,6 +63,7 @@ const ZONE_DE: Record<EtapeCommande, ZoneCommandes> = {
   en_route: 'en_route',
   livree: 'livrees',
   retournee: 'livrees',
+  refusee: 'livrees',
 };
 
 /** Each zone's own empty sentence — « rien à faire » and « rien en route »
@@ -104,6 +111,8 @@ export type FournisseurVue =
  * delivered beats handed-over beats ready beats accepted.
  */
 export function etapeOf(row: CommandeRow): EtapeCommande {
+  // His refusal ends the order before any road began (it closes at « prêt »).
+  if (row.fulfillment?.refusedAt !== undefined) return 'refusee';
   if (row.fulfillment?.deliveredAt !== undefined) return 'livree';
   // A return ends the road after the handover, as a delivery does: the
   // colis is back in his hands, and « en route » would be a lie.
@@ -115,11 +124,11 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
 }
 
 const ETAPE_RANK: Record<EtapeCommande, number> = {
-  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4,
+  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4, refusee: 4,
 };
 
 /** Rows that need no act read as an archive — newest first. */
-const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee'];
+const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee', 'refusee'];
 
 export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'commandes'): FournisseurVue {
   if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };
