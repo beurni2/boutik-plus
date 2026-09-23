@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-23 · REMBOURSEMENT-2 (Boutik+ half) — the supplier can say « Je ne peux pas fournir » on a paid order before « prêt », and the fact leaves for Shop+ as canon `fulfillment.rejected.v1` (the buyer is refunded there); the founder's Commandes tab shows each order's refund and says at the top when one is blocked · ON THE BRANCH, awaiting the founder's word
+## 2026-09-23 · REMBOURSEMENT-2 (Boutik+ half) — the supplier can say « Je ne peux pas fournir » on a paid order before « prêt », and the fact leaves for Shop+ as canon `fulfillment.rejected.v1` (the buyer is refunded there); the founder's Commandes tab shows each order's refund and says at the top when one is blocked · MERGED AND DEPLOYED 2026-09-23 on the founder's « go »
+
+**MERGED AND DEPLOYED (founder: « go, then build option 1 », 2026-09-23).** `main` fast-forwarded `76986c4 → 34870c3` (ancestry verified with `merge-base --is-ancestor` before the push). **offer-deploy 38 green** — provenance read back « live Worker is 34870c3 speaking canon 3.15.0 »; **web-deploy 74 · fournisseur-web-deploy 17 green**; on `34870c3`: **ci 356 · expo-preview 234 green**. Shop+ half: `main` `f4c4861 → a335c39`, storefront-deploy 107 green (see shop-plus JOURNAL.md). Canon half: platform-contracts `main` `d366c3a → 94f7f3e`, ci 141 green.
 
 **Founder order (2026-09-23).** « go for option and this : Still open: If a supplier refuses an order that is already paid, no refund starts yet. That needs its own connection, which isn't built … There is no alert for you when a refund gets stuck or the provider refuses it … » The refund itself, the alerts and her screen are Shop+'s (its journal, same date); this repo carries the supplier's act and the founder's view.
 
