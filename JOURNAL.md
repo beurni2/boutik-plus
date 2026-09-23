@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-23 · COLIS-FOURNISSEUR-1 (Boutik+ half) — one package per supplier: the grouping door Shop+ asks (groups of product ids, never the supplier), one card, one « Accepter le colis », one « prêt » with one confirmation per article, one pickup and one return code for the whole bag, one Séra course composed by the founder · canon 3.20.0 · ON THE BRANCH, awaiting the founder's word
+## 2026-09-23 · COLIS-FOURNISSEUR-1 (Boutik+ half) — one package per supplier: the grouping door Shop+ asks (groups of product ids, never the supplier), one card, one « Accepter le colis », one « prêt » with one confirmation per article, one pickup and one return code for the whole bag, one Séra course composed by the founder · canon 3.20.0 · MERGED AND DEPLOYED 2026-09-23 on the founder's « go »
+
+**MERGED AND DEPLOYED (founder: « go , A, when she gives an article back because she changed her mind i keep the delivery fee », 2026-09-23).** `main` fast-forwarded `b0e3b03 → 30fb0c5` (ancestry verified with `merge-base --is-ancestor` before the push). **offer-deploy 39 green** — provenance read back « live Worker is 30fb0c5 speaking canon 3.20.0 »; **web-deploy 75 · fournisseur-web-deploy 18 green**; on `30fb0c5`: **ci 358 · expo-preview 236 green**. Canon half: platform-contracts `main` `e344080 → 914be2a`, ci 143 green. Séra half: `main` `6bf279c → 314843d`, custody-deploy 23 · logistics-deploy 33 (provenance read back: both live Workers are `314843d` speaking canon 3.20.0) · ci 199 · expo-preview 144 green. Shop+ half: `main` `9888110 → ff0d059`, storefront-deploy 108 (provenance: live Worker is `ff0d059` speaking canon 3.20.0) · pwa-preview 487 · expo-preview 520 · ci 699 green; service-canon-drift 385 green on attempt 2.
 
 **Founder order (2026-09-23).** Decisions a–d answered « Proceed with your recommendations », then « go, then build option 1 ». Order of the build: canon → Séra → Boutik+ → Shop+.
 
