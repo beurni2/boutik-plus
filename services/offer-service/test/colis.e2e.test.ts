@@ -169,7 +169,7 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
       expect(seeded.status, seeded.text).toBe(200);
     }
 
-    const ask = { productVersionIds: [PV1, PV3, PV2, 'pv-colis-inconnu'] };
+    const ask = { productVersionIds: [PV1, PV3, PV2, 'pv-colis-inconnu', 'pv-colis-inconnu-2'] };
     // No key, a wrong key, and the app's own write key: all refused.
     expect((await post('/supply-grouping', ask, {})).status).toBe(401);
     expect((await post('/supply-grouping', ask, { Authorization: 'Bearer faux' })).status).toBe(401);
@@ -180,7 +180,8 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
     }
     const answer = await post('/supply-grouping', ask, { Authorization: `Bearer ${READ_SECRET}` });
     expect(answer.status, answer.text).toBe(200);
-    expect(answer.json).toEqual({ groups: [[PV1, PV2], [PV3], ['pv-colis-inconnu']] });
+    // Two products this book does not know are never one package: nothing says they leave together.
+    expect(answer.json).toEqual({ groups: [[PV1, PV2], [PV3], ['pv-colis-inconnu'], ['pv-colis-inconnu-2']] });
     for (const s of [SUPPLIER_A, SUPPLIER_B]) expect(answer.text.includes(s), `supplier ${s} leaked`).toBe(false);
     expect(Object.keys(answer.json)).toEqual(['groups']);
   });
