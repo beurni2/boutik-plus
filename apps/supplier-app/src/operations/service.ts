@@ -87,6 +87,9 @@ export interface PaidOrderRow {
   /** STOCK-VENDU-1b — the sale arrived on an EMPTY counter (money moved,
    *  stock did not exist); rows from before the mark never carry it. */
   readonly oversold?: boolean;
+  /** COLIS-FOURNISSEUR-1 — the package this order travels in (one buyer, one
+   *  supplier, one course): its id and every order in it. Absent when alone. */
+  readonly colis?: { readonly packageId: string; readonly orderIds: readonly string[] };
 }
 
 export type PaidOrdersResult =
@@ -705,6 +708,19 @@ function readCodeRow(value: unknown): CodeRow | null {
   };
 }
 
+/** COLIS-FOURNISSEUR-1 — a package that names this order among 2..10
+ *  distinct orders, or nothing: a malformed one reads as an order alone (Séra
+ *  composes from its own facts either way; only the article names are lost). */
+function colisDe(v: unknown, orderId: string): { colis: NonNullable<PaidOrderRow['colis']> } | null {
+  if (v === null || typeof v !== 'object') return null;
+  const c = v as Record<string, unknown>;
+  const ids = c['orderIds'];
+  if (typeof c['packageId'] !== 'string' || c['packageId'] === '' || !Array.isArray(ids)) return null;
+  if (ids.length < 2 || ids.length > 10 || !ids.every((x) => typeof x === 'string' && x !== '')) return null;
+  if (new Set(ids).size !== ids.length || !ids.includes(orderId)) return null;
+  return { colis: { packageId: c['packageId'], orderIds: ids as string[] } };
+}
+
 function readPaidOrderRow(value: unknown): PaidOrderRow | null {
   if (value === null || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
@@ -732,6 +748,7 @@ function readPaidOrderRow(value: unknown): PaidOrderRow | null {
     ...(fulfillment !== null ? { fulfillment } : {}),
     orderId: r['orderId'] as string,
     ...(r['oversold'] === true ? { oversold: true } : {}),
+    ...(colisDe(r['colis'], r['orderId'] as string) ?? {}),
     productVersionId: r['productVersionId'] as string,
     productName: typeof r['productName'] === 'string' ? r['productName'] : '',
     // A Worker that has not shipped the join yet omits the field entirely; ''

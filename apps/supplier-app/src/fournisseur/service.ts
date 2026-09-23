@@ -49,6 +49,12 @@ export interface CommandeRow {
      *  archive; the buyer is refunded). */
     readonly refusedAt?: string;
   };
+  /**
+   * COLIS-FOURNISSEUR-1 — the colis this order travels in (one buyer, one
+   * address, all HIS): the package's id and every order in it. His screen
+   * shows them as ONE card, made ready in ONE act. Absent on an order alone.
+   */
+  readonly colis?: { readonly packageId: string; readonly orderIds: readonly string[] };
 }
 
 export type MineResult =
@@ -379,6 +385,24 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     if (Object.keys(lus).length === 0) return null;
     fulfillment = lus;
   }
+  // COLIS-FOURNISSEUR-1 — the same strictness: a malformed package drops the
+  // WHOLE row, never a half-formed card asking for an act on a guessed bag.
+  const c = r['colis'];
+  let colis: CommandeRow['colis'];
+  if (c !== undefined) {
+    if (c === null || typeof c !== 'object') return null;
+    const cr = c as Record<string, unknown>;
+    const ids = cr['orderIds'];
+    if (
+      typeof cr['packageId'] !== 'string' || cr['packageId'] === '' ||
+      !Array.isArray(ids) || ids.length < 2 || ids.length > 10 ||
+      !ids.every((id) => typeof id === 'string' && id !== '') ||
+      new Set(ids).size !== ids.length || !ids.includes(r['orderId'])
+    ) {
+      return null;
+    }
+    colis = { packageId: cr['packageId'], orderIds: ids as string[] };
+  }
   return {
     orderId: r['orderId'] as string,
     productName: r['productName'] as string,
@@ -389,6 +413,7 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     zoneTo: r['zoneTo'] as string,
     sellerBasePrice: r['sellerBasePrice'] as number,
     ...(fulfillment !== undefined ? { fulfillment } : {}),
+    ...(colis !== undefined ? { colis } : {}),
   };
 }
 

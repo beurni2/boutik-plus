@@ -84,12 +84,15 @@ export function ConfierCoursier({
   row,
   buyer,
   preuvePhotoRef = null,
+  articles = [],
   onConfiee,
 }: {
   row: PaidOrderRow;
   buyer: LivraisonRow | null;
   /** COURSE-BRIEF — the supplier's readiness proof, travelling to the rider. */
   preuvePhotoRef?: string | null;
+  /** COLIS-FOURNISSEUR-1 — the names of the articles of this order's package. */
+  articles?: readonly { orderId: string; libelle: string }[];
   onConfiee?: () => void;
 }) {
   const service = useMemo(() => resolveSeraDispatch(), []);
@@ -119,6 +122,7 @@ export function ConfierCoursier({
       busy={busy}
       setBusy={setBusy}
       preuvePhotoRef={preuvePhotoRef}
+      articles={articles}
       {...(onConfiee !== undefined ? { onConfiee } : {})}
     />
   );
@@ -137,6 +141,7 @@ function ConfierAvecService({
   busy,
   setBusy,
   preuvePhotoRef,
+  articles,
   onConfiee,
 }: {
   service: SeraDispatchPort;
@@ -144,6 +149,7 @@ function ConfierAvecService({
   buyer: LivraisonRow | null;
   /** COURSE-BRIEF — the readiness proof that travels with the relay. */
   preuvePhotoRef: string | null;
+  articles: readonly { orderId: string; libelle: string }[];
   cle: string | null;
   setCle: (v: string | null) => void;
   etape: Etape;
@@ -249,7 +255,10 @@ function ConfierAvecService({
     const end = new Date(start.getTime() + FENETRE_HEURES * 3_600_000);
     const answer = await service.composerTache(
       cle,
-      row.orderId,
+      // COLIS-FOURNISSEUR-1 — a package is ONE course, composed under its
+      // first order whichever article he opened: one command id for the bag,
+      // so a compose from the other article replays instead of refusing.
+      row.colis?.orderIds[0] ?? row.orderId,
       {
         ...(point !== undefined ? { pin: point } : {}),
         zone: zone.trim(),
@@ -272,6 +281,7 @@ function ConfierAvecService({
       {
         ...(buyer?.contact?.audioRef !== undefined ? { repereAudioRef: buyer.contact.audioRef } : {}),
         ...(preuvePhotoRef !== null ? { preuvePhotoRefs: [preuvePhotoRef] } : {}),
+        ...(articles.length > 0 ? { articles } : {}),
       },
     );
     setBusy(false);

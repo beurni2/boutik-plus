@@ -96,5 +96,6 @@ runScanGate({
      */
     { file: 'services/offer-service/test/ramassage-verify.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
     { file: 'services/offer-service/test/retour-verify.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding (the ramassage seam’s twin)' },
+    { file: 'services/offer-service/test/colis.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding (COLIS-FOURNISSEUR-1 seam)' },
   ],
 });

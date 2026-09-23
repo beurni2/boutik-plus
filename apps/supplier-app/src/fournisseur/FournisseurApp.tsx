@@ -9,6 +9,7 @@ import { pickShots } from '../studio/pick';
 import { nativeImageSource } from '../studio/pick-native';
 import { bytesFromUri } from '../supply/uri-bytes';
 import { resolveReadinessUpload } from './media-upload';
+import { pretColis } from './pret-colis';
 import {
   clearStoredCode,
   readStoredCode,
@@ -18,11 +19,13 @@ import {
 } from './service';
 import {
   PRET_REPOS,
+  aAccepterDuColis,
   fournisseurVue,
   pretChoisir,
   pretEnvoyer,
   pretIssue,
   produitsVue,
+  type CarteFournisseur,
   type CommandeVue,
   type FournisseurRead,
   type PretUi,
@@ -534,6 +537,66 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     else if (issue.then === 'bad_code') setRead({ kind: 'bad_code' });
   };
 
+  /**
+   * COLIS-FOURNISSEUR-1 — « Accepter le colis »: each article still to accept,
+   * one after the other, on the SAME session code, each its own acceptance
+   * in the book (the terms each one locks are its own). A failure stops the
+   * loop and says so on the card; the next tap accepts what is left.
+   */
+  const accepterColis = async (packageId: string, orderIds: readonly string[]): Promise<void> => {
+    if (service === null || accepting !== null) return;
+    setAccepting(packageId);
+    setAcceptEchec(null);
+    try {
+      for (const orderId of orderIds) {
+        const res = await service.accept(code, orderId);
+        if (res.ok) continue;
+        if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
+        else setAcceptEchec(packageId);
+        return;
+      }
+      await load(true);
+    } catch {
+      setAcceptEchec(packageId);
+    } finally {
+      setAccepting(null);
+    }
+  };
+
+  /**
+   * COLIS-FOURNISSEUR-1 — « Colis prêt » in ONE act (B6.2 as amended: one
+   * photo, one confirmation per order under it, each with its own
+   * challenge). The photo is uploaded ONCE; then, for every article still to
+   * make ready, a fresh short-TTL challenge and the strict canon confirmation
+   * repeating THAT article's locked terms, with the same photo as evidence.
+   * The first refusal stops the loop with its own sentence; articles already
+   * confirmed stay confirmed (the book is first-wins), and the next send
+   * readies what is left.
+   */
+  const envoyerColis = async (carte: Extract<CarteFournisseur, { kind: 'colis' }>): Promise<void> => {
+    if (service === null) return;
+    const started = pretEnvoyer(pret);
+    if (started === null) return;
+    if (pret.etat !== 'photo_choisie' || pret.orderId !== carte.packageId) return;
+    const previewUri = pret.previewUri;
+    setPret(started);
+    let issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' });
+    try {
+      const upload = resolveReadinessUpload();
+      const up = upload === null ? null : await upload(await bytesFromUri(previewUri));
+      if (up === null || !up.ok) {
+        issue = pretIssue(carte.packageId, { ok: false, reason: 'photo_echec' });
+      } else {
+        issue = await pretColis(service, code, carte.packageId, carte.articles, up.value);
+      }
+    } catch {
+      issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' });
+    }
+    setPret(issue.ui);
+    if (issue.then === 'refresh') await load(true);
+    else if (issue.then === 'bad_code') setRead({ kind: 'bad_code' });
+  };
+
   const vue = fournisseurVue(read, zone);
   const titreKey =
     zone === 'en_route' ? 'fournisseur.titre_en_route'
@@ -592,24 +655,50 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
               {t(compteKey).replace('{n}', String(zone === 'commandes' ? vue.aFaire : vue.commandes.length))}
             </Text>
           </View>
-          {vue.commandes.map((c) => (
-            <CarteCommande
-              key={c.orderId}
-              commande={c}
-              pret={pret}
-              accepting={accepting === c.orderId}
-              acceptEchec={acceptEchec === c.orderId}
-              assetRefs={photos.get(c.productVersionId) ?? []}
-              mediaBase={mediaBase}
-              onAccepter={() => { void accepter(c.orderId); }}
-              onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
-              onEnvoyer={() => { void envoyer(c); }}
-              onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
-              onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
-              onRefuser={() => refuser(c.orderId)}
-              refusTropTard={refusTropTard.has(c.orderId)}
-            />
-          ))}
+          {vue.cartes.map((carte) => {
+            if (carte.kind === 'colis') {
+              // The pickup and return checks name the bag through its first
+              // article still in play — Séra resolves the ONE course from any.
+              const vivant = carte.articles.find((a) => a.etape !== 'refusee' && a.etape !== 'livree') ?? carte.articles[0]!;
+              return (
+                <CarteColis
+                  key={carte.packageId}
+                  carte={carte}
+                  pret={pret}
+                  accepting={accepting === carte.packageId}
+                  acceptEchec={acceptEchec === carte.packageId}
+                  photos={photos}
+                  mediaBase={mediaBase}
+                  onAccepter={() => { void accepterColis(carte.packageId, aAccepterDuColis(carte.articles)); }}
+                  onChoisirPhoto={() => { void choisirPhoto(carte.packageId); }}
+                  onEnvoyer={() => { void envoyerColis(carte); }}
+                  onVerifierRamassage={(dit) => verifierRamassage(vivant.orderId, dit)}
+                  onVerifierRetour={(dit) => verifierRetour(vivant.orderId, dit)}
+                  onRefuser={(orderId) => refuser(orderId)}
+                  refusTropTard={refusTropTard}
+                />
+              );
+            }
+            const c = carte.commande;
+            return (
+              <CarteCommande
+                key={c.orderId}
+                commande={c}
+                pret={pret}
+                accepting={accepting === c.orderId}
+                acceptEchec={acceptEchec === c.orderId}
+                assetRefs={photos.get(c.productVersionId) ?? []}
+                mediaBase={mediaBase}
+                onAccepter={() => { void accepter(c.orderId); }}
+                onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
+                onEnvoyer={() => { void envoyer(c); }}
+                onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
+                onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
+                onRefuser={() => refuser(c.orderId)}
+                refusTropTard={refusTropTard.has(c.orderId)}
+              />
+            );
+          })}
           <View style={{ marginTop: 22 }}>
             <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { void load(); }} />
           </View>
@@ -852,6 +941,158 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
             </View>
           )}
           {!enEnvoi && <RefuserCommande onRefuser={onRefuser} />}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+/* ────────────────────────────── one colis ─────────────────────────────── */
+
+/**
+ * COLIS-FOURNISSEUR-1 — ONE card for the articles one buyer bought from him
+ * together (founder ruling 2026-09-23): they leave in ONE colis, with ONE
+ * coursier. The card lists each article (its photo, its name, HIS price —
+ * never the buyer's whereabouts), and asks for the ONE act the bag still
+ * needs: accept it, make it ready with one photo, check the coursier's code,
+ * or take back what the buyer refused. An article he cannot supply is
+ * refused on its own line — the rest of the colis still leaves.
+ */
+function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour, onRefuser, refusTropTard }: {
+  carte: Extract<CarteFournisseur, { kind: 'colis' }>;
+  pret: PretUi;
+  accepting: boolean;
+  acceptEchec: boolean;
+  photos: ReadonlyMap<string, readonly string[]>;
+  mediaBase: string | null;
+  onAccepter: () => void;
+  onChoisirPhoto: () => void;
+  onEnvoyer: () => void;
+  onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
+  onVerifierRetour: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
+  onRefuser: (orderId: string) => Promise<'fait' | 'trop_tard' | 'echec'>;
+  refusTropTard: ReadonlySet<string>;
+}) {
+  const premier = carte.articles[0]!;
+  const modeLabel = premier.paymentMode === 'DELIVERY_FEE_PREPAID_PRODUCT_AT_DOOR'
+    ? t('operations.mode_porte')
+    : t('operations.mode_paye');
+  const mine = pret.etat !== 'repos' && pret.orderId === carte.packageId;
+  const enEnvoi = pret.etat === 'envoi' && pret.orderId === carte.packageId;
+  const aFaire = carte.etape === 'a_accepter' || carte.etape === 'a_preparer';
+  return (
+    <Card variant="Llist" style={{ marginTop: 10 }}>
+      <Overline level="card">{`${t('fournisseur.colis_titre')} · ${carte.articles.length} ${t('fournisseur.colis_articles')}`}</Overline>
+      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{modeLabel}</Text>
+      {carte.articles.map((a) => {
+        const slot = photoSlot(photos.get(a.productVersionId) ?? [], mediaBase);
+        const nom = a.productName !== '' ? a.productName : a.productVersionId;
+        return (
+          <View key={a.orderId} style={{ marginTop: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {slot.kind === 'photo' ? (
+                <Image source={{ uri: slot.uri }} style={{ width: 48, height: 48, borderRadius: 8 }} resizeMode="cover" />
+              ) : (
+                <View style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: P.borderCard }} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={2}>{nom}</Text>
+                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{formatF(a.sellerBasePrice)}</Text>
+                {a.etape === 'refusee' ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_refuse')}</Text>
+                ) : a.etape === 'livree' && carte.etape !== 'livree' ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_livre')}</Text>
+                ) : a.etape === 'retournee' ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_revenu')}</Text>
+                ) : null}
+              </View>
+            </View>
+            {refusTropTard.has(a.orderId) && (
+              <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 6 }]}>{t('fournisseur.refus_trop_tard')}</Text>
+            )}
+            {aFaire && (a.etape === 'a_accepter' || a.etape === 'a_preparer') && !enEnvoi && !accepting && (
+              <RefuserCommande onRefuser={() => onRefuser(a.orderId)} />
+            )}
+          </View>
+        );
+      })}
+
+      {carte.etape === 'a_accepter' && (
+        <View style={{ marginTop: 12 }}>
+          <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('fournisseur.colis_aide')}</Text>
+          <View style={{ marginTop: 8 }}>
+            {accepting ? (
+              <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.accepter_encours')}</Text>
+            ) : (
+              <C07BtnPrimary label={t('fournisseur.colis_accepter')} icon="check" onPress={onAccepter} />
+            )}
+          </View>
+          {acceptEchec && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('fournisseur.accepter_echec')}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {carte.etape === 'a_preparer' && (
+        <View style={{ marginTop: 12 }}>
+          {enEnvoi ? (
+            <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.pret_envoi')}</Text>
+          ) : mine && pret.etat === 'photo_choisie' ? (
+            <>
+              <Image
+                source={{ uri: pret.previewUri }}
+                style={{ width: '100%', maxWidth: 340, height: 180, borderRadius: 12, backgroundColor: P.bg }}
+                resizeMode="cover"
+              />
+              <View style={{ marginTop: 8 }}>
+                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('fournisseur.colis_attestation')}</Text>
+              </View>
+              <View style={{ marginTop: 8 }}>
+                <C07BtnPrimary label={t('fournisseur.pret_envoyer')} icon="check" onPress={onEnvoyer} />
+              </View>
+            </>
+          ) : (
+            <BtnSoft label={t('fournisseur.colis_photo')} icon="camera" onPress={onChoisirPhoto} />
+          )}
+          {mine && pret.etat === 'refus' && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t(pret.messageKey)}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {carte.etape === 'prete' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="success" check>{t('fournisseur.etape_prete')}</Banner>
+          <VerifierRamassage onVerifier={onVerifierRamassage} />
+        </View>
+      )}
+
+      {carte.etape === 'en_route' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('fournisseur.etape_en_route')}</Banner>
+          <VerifierRetour onVerifier={onVerifierRetour} />
+        </View>
+      )}
+
+      {carte.etape === 'livree' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="success" check>{t('fournisseur.etape_livree')}</Banner>
+        </View>
+      )}
+
+      {carte.etape === 'retournee' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('fournisseur.etape_retournee')}</Banner>
+        </View>
+      )}
+
+      {carte.etape === 'refusee' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('fournisseur.etape_refusee')}</Banner>
         </View>
       )}
     </Card>

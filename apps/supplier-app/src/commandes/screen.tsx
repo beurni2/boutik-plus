@@ -272,6 +272,18 @@ function LivreCommandes({
   }
 
   const enRoute = new Set(boardSera?.affectations.map((a) => a.orderId) ?? []);
+  /**
+   * COLIS-FOURNISSEUR-1 — for an order in a package, the names of every
+   * article in it (the rider's door reads them: refuse one, keep the rest).
+   * A product name, bounded to the one line Séra accepts; an article whose
+   * name is unknown is simply not named (the rider then reads « Article n »).
+   */
+  const articlesColis = (row: PaidOrderRow): { orderId: string; libelle: string }[] =>
+    (row.colis?.orderIds ?? []).flatMap((id) => {
+      const nom = read.orders.find((o) => o.orderId === id)?.productName.trim() ?? '';
+      if (nom === '') return [];
+      return [{ orderId: id, libelle: nom.length > 80 ? `${nom.slice(0, 79)}…` : nom }];
+    });
   const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees, new Set(remboursements.keys()));
   const rows = segments[segment];
   const now = Date.now();
@@ -342,6 +354,7 @@ function LivreCommandes({
               cle={cle}
               mediaBase={mediaBase}
               coursier={nomCoursierPour(o.orderId, boardSera)}
+              articlesColis={articlesColis(o)}
               remboursement={remboursements.get(o.orderId)}
               onChanged={() => void charger()}
               onCleRefusee={onCleRefusee}
@@ -470,6 +483,7 @@ function RangCommande({
   cle,
   mediaBase,
   coursier,
+  articlesColis,
   remboursement,
   onChanged,
   onCleRefusee,
@@ -485,6 +499,8 @@ function RangCommande({
   mediaBase: string | null;
   /** The carrier's name off the Séra board join — En route rows only. */
   coursier: string | null;
+  /** COLIS-FOURNISSEUR-1 — the named articles of this order's package. */
+  articlesColis: readonly { orderId: string; libelle: string }[];
   /** REMBOURSEMENT-2 — the buyer's refund on this order, when there is one. */
   remboursement: RemboursementOperateur | undefined;
   onChanged: () => void;
@@ -528,7 +544,7 @@ function RangCommande({
       </Pressable>
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} onChanged={onChanged} />
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} onChanged={onChanged} />
         ) : (
           <DetailATraiter
             row={row}
@@ -726,6 +742,7 @@ function DetailTerminee({
   mediaBase,
   etape,
   coursier,
+  articlesColis,
   onChanged,
 }: {
   row: PaidOrderRow;
@@ -734,6 +751,7 @@ function DetailTerminee({
   mediaBase: string | null;
   etape: 'pret' | 'en_route' | 'terminees';
   coursier: string | null;
+  articlesColis: readonly { orderId: string; libelle: string }[];
   onChanged: () => void;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
@@ -855,12 +873,22 @@ function DetailTerminee({
            COURSE-BRIEF (founder order 2026-08-09): the readiness proof photo
            this very screen is showing travels WITH the relay, so the rider
            checks the package against the same picture the founder just saw. */
-        <ConfierCoursier
-          row={row}
-          buyer={typeof buyer === 'object' ? buyer : null}
-          preuvePhotoRef={typeof preuve === 'object' ? preuve.photoRef.ref : null}
-          onConfiee={onChanged}
-        />
+        <>
+          {/* COLIS-FOURNISSEUR-1 — said before he relays: this one course
+              carries every article of the bag. */}
+          {row.colis !== undefined ? (
+            <View style={{ marginTop: 12 }}>
+              <Banner tone="info">{t('commandes.colis_note').replace('{n}', String(row.colis.orderIds.length))}</Banner>
+            </View>
+          ) : null}
+          <ConfierCoursier
+            row={row}
+            buyer={typeof buyer === 'object' ? buyer : null}
+            preuvePhotoRef={typeof preuve === 'object' ? preuve.photoRef.ref : null}
+            articles={articlesColis}
+            onConfiee={onChanged}
+          />
+        </>
       )}
     </View>
   );

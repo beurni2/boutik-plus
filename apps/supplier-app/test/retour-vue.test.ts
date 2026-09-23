@@ -126,7 +126,14 @@ describe('the check stands on the EN ROUTE card, and the verdict names the act (
     const check = app.indexOf('<VerifierRetour onVerifier={onVerifierRetour} />');
     expect(check).toBeGreaterThan(route);
     expect(check).toBeLessThan(livree);
-    expect(app.split('<VerifierRetour').length - 1).toBe(1);
+    // COLIS-FOURNISSEUR-1: a colis card mounts its OWN return check — on its
+    // en-route branch too, and nowhere else. Two cards, one check each.
+    expect(app.split('<VerifierRetour').length - 1).toBe(2);
+    const colisRoute = app.indexOf("carte.etape === 'en_route'");
+    const colisLivree = app.indexOf("carte.etape === 'livree'");
+    const colisCheck = app.indexOf('<VerifierRetour onVerifier={onVerifierRetour} />', check + 1);
+    expect(colisCheck).toBeGreaterThan(colisRoute);
+    expect(colisCheck).toBeLessThan(colisLivree);
   });
 
   it('the verdict names the ACT: reprenez only after the coursier validates / ne reprenez pas', () => {

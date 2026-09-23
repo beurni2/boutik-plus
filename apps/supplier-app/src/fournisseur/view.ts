@@ -89,6 +89,23 @@ export interface CommandeVue extends CommandeRow {
   readonly etape: EtapeCommande;
 }
 
+/**
+ * COLIS-FOURNISSEUR-1 — what his screen shows: one card per order alone, and
+ * ONE card per colis (founder ruling 2026-09-23; B6.2 as amended: « made
+ * ready in ONE act — one photo, one confirmation per order under it »). A
+ * colis's step is its LEAST advanced article that he did not refuse: the
+ * card asks for the next act the bag still needs, and an article refused
+ * inside it stays listed there with its own line.
+ */
+export type CarteFournisseur =
+  | { readonly kind: 'commande'; readonly commande: CommandeVue }
+  | {
+      readonly kind: 'colis';
+      readonly packageId: string;
+      readonly etape: EtapeCommande;
+      readonly articles: readonly CommandeVue[];
+    };
+
 export type FournisseurVue =
   | { readonly kind: 'loading'; readonly message: string }
   | { readonly kind: 'not_configured'; readonly message: string }
@@ -101,7 +118,11 @@ export type FournisseurVue =
        *  préparer, oldest paid first inside each) — then the done ones,
        *  newest first: the work stays above the archive. */
       readonly commandes: readonly CommandeVue[];
-      /** How many need an act — the screen's honest headline number. */
+      /** COLIS-FOURNISSEUR-1 — the same rows, as the cards he sees: an order
+       *  alone is its own card, a colis is ONE card holding its articles. */
+      readonly cartes: readonly CarteFournisseur[];
+      /** How many need an act — the screen's honest headline number (a
+       *  colis is one act for him, so it counts once). */
       readonly aFaire: number;
     };
 
@@ -130,20 +151,65 @@ const ETAPE_RANK: Record<EtapeCommande, number> = {
 /** Rows that need no act read as an archive — newest first. */
 const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee', 'refusee'];
 
+/** COLIS-FOURNISSEUR-1 — the colis's one step: its least advanced article he
+ *  did not refuse (a delivered bag with one article home reads « revenu »). */
+export function etapeDuColis(articles: readonly CommandeVue[]): EtapeCommande {
+  const vivants = articles.filter((a) => a.etape !== 'refusee');
+  if (vivants.length === 0) return 'refusee';
+  const min = Math.min(...vivants.map((a) => ETAPE_RANK[a.etape]));
+  const au = vivants.filter((a) => ETAPE_RANK[a.etape] === min).map((a) => a.etape);
+  if (min === ETAPE_RANK.livree) return vivants.some((a) => a.etape === 'retournee') ? 'retournee' : 'livree';
+  return au[0]!;
+}
+
+/** COLIS-FOURNISSEUR-1 — the articles « Accepter le colis » accepts. */
+export function aAccepterDuColis(articles: readonly CommandeVue[]): string[] {
+  return articles.filter((a) => a.etape === 'a_accepter').map((a) => a.orderId);
+}
+
+/** The rows as his cards: a colis's articles gathered on one card, in the
+ *  order the package lists them. */
+function cartesDe(rows: readonly CommandeVue[]): CarteFournisseur[] {
+  const cartes: CarteFournisseur[] = [];
+  const vus = new Set<string>();
+  for (const c of rows) {
+    if (c.colis === undefined) {
+      cartes.push({ kind: 'commande', commande: c });
+      continue;
+    }
+    if (vus.has(c.colis.packageId)) continue;
+    vus.add(c.colis.packageId);
+    const ordre = c.colis.orderIds;
+    const articles = rows
+      .filter((r) => r.colis?.packageId === c.colis!.packageId)
+      .sort((a, b) => ordre.indexOf(a.orderId) - ordre.indexOf(b.orderId));
+    cartes.push({ kind: 'colis', packageId: c.colis.packageId, etape: etapeDuColis(articles), articles });
+  }
+  return cartes;
+}
+
+const etapeDeCarte = (c: CarteFournisseur): EtapeCommande => (c.kind === 'colis' ? c.etape : c.commande.etape);
+const paidAtDeCarte = (c: CarteFournisseur): string =>
+  c.kind === 'colis' ? c.articles.map((a) => a.paidAt).sort()[0] ?? '' : c.commande.paidAt;
+
 export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'commandes'): FournisseurVue {
   if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };
   if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'fournisseur.non_configure' };
   if (read.kind === 'bad_code') return { kind: 'bad_code', message: 'fournisseur.code_refuse' };
   if (read.kind === 'failed') return { kind: 'failed', message: 'fournisseur.echec' };
-  const commandes = read.rows
-    .map((r) => ({ ...r, etape: etapeOf(r) }))
-    .filter((c) => ZONE_DE[c.etape] === zone)
+  const cartes = cartesDe(read.rows.map((r) => ({ ...r, etape: etapeOf(r) })))
+    .filter((c) => ZONE_DE[etapeDeCarte(c)] === zone)
     .sort((a, b) => {
-      if (ETAPE_RANK[a.etape] !== ETAPE_RANK[b.etape]) return ETAPE_RANK[a.etape] - ETAPE_RANK[b.etape];
+      const ea = etapeDeCarte(a);
+      const eb = etapeDeCarte(b);
+      if (ETAPE_RANK[ea] !== ETAPE_RANK[eb]) return ETAPE_RANK[ea] - ETAPE_RANK[eb];
       // inside the work: oldest paid first (the longest-waiting buyer wins);
       // inside the done: newest first (the archive reads backwards).
-      return ARCHIVE.includes(a.etape) ? (a.paidAt < b.paidAt ? 1 : -1) : (a.paidAt < b.paidAt ? -1 : 1);
+      const pa = paidAtDeCarte(a);
+      const pb = paidAtDeCarte(b);
+      return ARCHIVE.includes(ea) ? (pa < pb ? 1 : -1) : (pa < pb ? -1 : 1);
     });
+  const commandes = cartes.flatMap((c) => (c.kind === 'colis' ? c.articles : [c.commande]));
   // EMPTY IS PER ZONE (BOUTIK-SUIVI): « aucune commande » on a screen whose
   // orders have all moved on would be a lie about the book, not about the
   // zone — each screen says what IT is missing.
@@ -154,7 +220,8 @@ export function fournisseurVue(read: FournisseurRead, zone: ZoneCommandes = 'com
   return {
     kind: 'liste',
     commandes,
-    aFaire: commandes.filter((c) => !ARCHIVE.includes(c.etape)).length,
+    cartes,
+    aFaire: cartes.filter((c) => !ARCHIVE.includes(etapeDeCarte(c))).length,
   };
 }
 

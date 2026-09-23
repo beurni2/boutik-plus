@@ -1,6 +1,7 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
+import { handleSupplyGrouping } from '../src/supply-grouping.js';
 import { stockDueMs } from '../src/stock-freeze.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
@@ -224,6 +225,14 @@ const SUPPLY_PREFIX = '/supply-projection/';
 const SUPPLY_COLLECTION = '/supply-projections';
 const isSupplyRoute = (pathname: string): boolean =>
   pathname.startsWith(SUPPLY_PREFIX) || pathname === SUPPLY_COLLECTION;
+/**
+ * COLIS-FOURNISSEUR-1 — which of a panier's products leave together (groups
+ * of product ids, never a supplier). Shop+'s supply-read credential, and it
+ * is routed BEFORE the write gate: a POST here carries no write key (that key
+ * ships in the supplier app bundle; this one never leaves the two Workers —
+ * they must not be interchangeable, the order-confirmed intake's own law).
+ */
+const SUPPLY_GROUPING = '/supply-grouping';
 
 /**
  * BOUTIK-WEB-W1 — CORS at the one deployed entry (Boutik-Plus-Web North Star,
@@ -280,6 +289,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // oracle for order ids, and an unset secret refuses everything (the
     // emitter's outbox absorbs that as retry-hourly, by design).
     const { pathname: fp } = new URL(request.url);
+    if (fp === SUPPLY_GROUPING) {
+      // Gated before any store is touched: the 401 is never an existence oracle.
+      const refused = await rejectUnauthorizedSupplyRead(request, env);
+      if (refused) return refused;
+      if (request.method !== 'POST') return Response.json({ ok: false, reason: 'method_not_allowed' }, { status: 405 });
+      const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
+      return handleSupplyGrouping(request, store);
+    }
     if (request.method === 'POST' && fp === '/fulfillment/order-confirmed') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
       if (refused) return refused;

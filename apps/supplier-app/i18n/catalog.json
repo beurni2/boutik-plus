@@ -5326,5 +5326,65 @@
     "fr": "Vous avez confirmé le code de retour. Le colis revient chez vous.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.colis_titre",
+    "fr": "Colis",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.colis_articles",
+    "fr": "articles, pour le même client",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.colis_aide",
+    "fr": "Mettez tous ces articles dans un seul colis. Un seul coursier le prend.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "fournisseur.colis_accepter",
+    "fr": "Accepter le colis",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.colis_photo",
+    "fr": "Choisir la photo du colis",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.colis_attestation",
+    "fr": "En envoyant, vous confirmez : tous les articles sont dans le colis et disponibles.",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "fournisseur.colis_article_refuse",
+    "fr": "Refusé par vous. Le client est remboursé.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.colis_article_livre",
+    "fr": "Livré",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.colis_article_revenu",
+    "fr": "Revenu chez vous",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.colis_note",
+    "fr": "Colis de {n} articles pour la même cliente. Une seule course les emporte tous.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

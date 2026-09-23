@@ -73,6 +73,9 @@ export interface AdresseTache {
 export interface BriefTache {
   readonly repereAudioRef?: string;
   readonly preuvePhotoRefs?: readonly string[];
+  /** COLIS-FOURNISSEUR-1 — each article's name, so the rider can say which
+   *  one the buyer keeps or refuses at the door (a product name, never a price). */
+  readonly articles?: readonly { readonly orderId: string; readonly libelle: string }[];
 }
 
 export interface SeraDispatchPort {
@@ -145,11 +148,21 @@ export function httpSeraDispatch(
             if (e === null || typeof e !== 'object') continue;
             const q = e as Record<string, unknown>;
             if (typeof q['taskId'] !== 'string' || typeof q['orderId'] !== 'string') continue;
-            queued.push({
-              taskId: q['taskId'],
-              orderId: q['orderId'],
-              admittedAt: typeof q['admittedAt'] === 'string' ? q['admittedAt'] : '',
-            });
+            // COLIS-FOURNISSEUR-1 — a queued package is ONE task for every
+            // article in it: each of its orders reads that task, so no screen
+            // offers a second compose for an article already in the bag.
+            const colis = q['colis'];
+            const ids =
+              colis !== null && typeof colis === 'object' && Array.isArray((colis as Record<string, unknown>)['orderIds'])
+                ? ((colis as Record<string, unknown>)['orderIds'] as unknown[]).filter((x): x is string => typeof x === 'string' && x !== '')
+                : [];
+            for (const orderId of ids.includes(q['orderId']) ? ids : [q['orderId']]) {
+              queued.push({
+                taskId: q['taskId'],
+                orderId,
+                admittedAt: typeof q['admittedAt'] === 'string' ? q['admittedAt'] : '',
+              });
+            }
           }
         }
         const riders: CoursierLibre[] = [];
@@ -176,6 +189,13 @@ export function httpSeraDispatch(
           }
         }
         const affectations: AffectationSera[] = [];
+        // COLIS-FOURNISSEUR-1 — a live course carrying a package names every
+        // article in it (`colisEnCourse`, by assignmentId): each order is
+        // carried by that one rider, so each reads the same assignment.
+        const colisEnCourse =
+          raw['colisEnCourse'] !== null && typeof raw['colisEnCourse'] === 'object'
+            ? (raw['colisEnCourse'] as Record<string, unknown>)
+            : {};
         if (Array.isArray(raw['assignments'])) {
           for (const e of raw['assignments']) {
             if (e === null || typeof e !== 'object') continue;
@@ -183,12 +203,19 @@ export function httpSeraDispatch(
             if (typeof a['taskId'] !== 'string' || a['taskId'] === '') continue;
             if (typeof a['orderId'] !== 'string' || a['orderId'] === '') continue;
             if (typeof a['riderId'] !== 'string' || a['riderId'] === '') continue;
-            affectations.push({
-              taskId: a['taskId'],
-              orderId: a['orderId'],
-              riderId: a['riderId'],
-              status: typeof a['status'] === 'string' ? a['status'] : '',
-            });
+            const colis = typeof a['assignmentId'] === 'string' ? colisEnCourse[a['assignmentId']] : undefined;
+            const ids =
+              colis !== null && typeof colis === 'object' && Array.isArray((colis as Record<string, unknown>)['orderIds'])
+                ? ((colis as Record<string, unknown>)['orderIds'] as unknown[]).filter((x): x is string => typeof x === 'string' && x !== '')
+                : [];
+            for (const orderId of ids.includes(a['orderId']) ? ids : [a['orderId']]) {
+              affectations.push({
+                taskId: a['taskId'],
+                orderId,
+                riderId: a['riderId'],
+                status: typeof a['status'] === 'string' ? a['status'] : '',
+              });
+            }
           }
         }
         return { queued, riders, affectations };
@@ -227,6 +254,7 @@ export function httpSeraDispatch(
             ...(brief.preuvePhotoRefs !== undefined && brief.preuvePhotoRefs.length > 0
               ? { preuvePhotoRefs: brief.preuvePhotoRefs }
               : {}),
+            ...(brief.articles !== undefined && brief.articles.length > 0 ? { articles: brief.articles } : {}),
           }),
         },
         (b) => {

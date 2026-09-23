@@ -330,6 +330,14 @@ export interface PaidOrderRecord {
    *  stock did not exist. Optional — rows registered before the mark existed
    *  simply never carry it. */
   readonly oversold?: boolean;
+  /**
+   * COLIS-FOURNISSEUR-1 — the package this order travels in, exactly as the
+   * paid-order wire named it (canon `OrderPackageSchema`): the package's id
+   * and EVERY order in it, all of this one supplier. His card shows them as
+   * ONE colis, made ready in ONE act (B6.2 as amended), handed over once.
+   * Absent on an order that travels alone.
+   */
+  readonly colis?: { readonly packageId: string; readonly orderIds: readonly string[] };
 }
 
 export class FulfillmentDO {
@@ -654,6 +662,23 @@ export class FulfillmentDO {
   /** Hash the presented code and look it up — a miss, a non-string, and a
    *  revoked code are all the SAME null (one uniform 401 upstream, never an
    *  oracle). No secret-dependent comparison exists: the hash is the key. */
+  /**
+   * COLIS-FOURNISSEUR-1 — the orders of this order's colis that are HIS: the
+   * order itself first, then every other order the package names that this
+   * book holds under the same supplier. A package is one supplier's by
+   * construction; the ownership check is kept anyway, so a malformed wire
+   * can never let one supplier's act mark another's order.
+   */
+  private async membresDuColis(order: PaidOrderRecord, supplierId: string): Promise<string[]> {
+    const autres = (order.colis?.orderIds ?? []).filter((id) => id !== order.orderId);
+    const miens: string[] = [order.orderId];
+    for (const id of autres) {
+      const r = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${id}`);
+      if (r !== undefined && r.supplierResolved && r.supplierId === supplierId) miens.push(id);
+    }
+    return miens;
+  }
+
   private async resolveCode(presented: unknown): Promise<SupplierCodeRecord | null> {
     if (typeof presented !== 'string' || presented === '') return null;
     const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(presented)}`);
@@ -1062,6 +1087,8 @@ export class FulfillmentDO {
             paidAt: r.paidAt,
             zoneTo: r.zoneTo,
             sellerBasePrice: r.sellerBasePrice,
+            // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
+            ...(r.colis !== undefined ? { colis: r.colis } : {}),
             ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined
               ? {
                   fulfillment: {
@@ -1225,12 +1252,17 @@ export class FulfillmentDO {
       // own verdict, first-wins (a second confirmation keeps the first clock —
       // the same law `/accept` follows), and never on `non_confirme`.
       if (verdict === 'confirme') {
-        const key = `${HANDOVER_PREFIX}${orderId}`;
-        if ((await this.state.storage.get<HandoverRecord>(key)) === undefined) {
-          await this.state.storage.put(key, {
-            orderId,
-            handedOverAt: new Date().toISOString(),
-          } satisfies HandoverRecord);
+        // COLIS-FOURNISSEUR-1 — ONE code at the stall for the whole colis:
+        // every article of HIS package that he made ready (and did not
+        // refuse) leaves his hands with it.
+        const handedOverAt = new Date().toISOString();
+        for (const id of await this.membresDuColis(order, resolved.supplierId)) {
+          if (id !== orderId && (await this.state.storage.get(`${READY_PREFIX}${id}`)) === undefined) continue;
+          if ((await this.state.storage.get(`${REFUS_PREFIX}${id}`)) !== undefined) continue;
+          const key = `${HANDOVER_PREFIX}${id}`;
+          if ((await this.state.storage.get<HandoverRecord>(key)) === undefined) {
+            await this.state.storage.put(key, { orderId: id, handedOverAt } satisfies HandoverRecord);
+          }
         }
       }
       return Response.json({ ok: true, verdict });
@@ -1291,12 +1323,18 @@ export class FulfillmentDO {
       // the row leaves « En route » for the archive. Written only on Séra's
       // own verdict, first-wins, never on `non_confirme`.
       if (verdict === 'confirme') {
-        const key = `${RETOUR_PREFIX}${orderId}`;
-        if ((await this.state.storage.get<RetourRecord>(key)) === undefined) {
-          await this.state.storage.put(key, {
-            orderId,
-            returnedAt: new Date().toISOString(),
-          } satisfies RetourRecord);
+        // COLIS-FOURNISSEUR-1 — ONE return bag per course: every article of
+        // HIS colis that left his hands and was not delivered comes back with
+        // it. A delivery that lands later still wins on his screen (a
+        // delivered article reads « livré » whatever this row says).
+        const returnedAt = new Date().toISOString();
+        for (const id of await this.membresDuColis(order, resolved.supplierId)) {
+          if (id !== orderId && (await this.state.storage.get(`${HANDOVER_PREFIX}${id}`)) === undefined) continue;
+          if (id !== orderId && (await this.state.storage.get(`${LIVRAISON_PREFIX}${id}`)) !== undefined) continue;
+          const key = `${RETOUR_PREFIX}${id}`;
+          if ((await this.state.storage.get<RetourRecord>(key)) === undefined) {
+            await this.state.storage.put(key, { orderId: id, returnedAt } satisfies RetourRecord);
+          }
         }
       }
       return Response.json({ ok: true, verdict });
@@ -1640,6 +1678,11 @@ export async function handleOrderConfirmedIntake(
     // 1b — the oversell mark, persisted where his board reads (a sale that
     // arrived on an empty counter: the money moved, the stock did not exist).
     ...(oversold ? { oversold: true } : {}),
+    // COLIS-FOURNISSEUR-1 — the package, as the wire named it (already
+    // canon-parsed above: it lists this order, 2..10 distinct orders).
+    ...(event.payload.package !== undefined
+      ? { colis: { packageId: event.payload.package.packageId, orderIds: [...event.payload.package.orderIds] } }
+      : {}),
   };
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
   const res = await stub.fetch(
