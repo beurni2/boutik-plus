@@ -2558,7 +2558,7 @@
   {
     "key": "fournisseur.refus_action",
     "fr": "Je ne peux pas fournir",
-    "register": "money",
+    "register": "neutral",
     "screenClass": "general"
   },
   {
@@ -4549,7 +4549,7 @@
   },
   {
     "key": "commandes.pill_rembourse",
-    "fr": "Client remboursé",
+    "fr": "Cliente remboursée",
     "register": "money",
     "screenClass": "label"
   },
@@ -4567,19 +4567,19 @@
   },
   {
     "key": "commandes.refusee_ligne",
-    "fr": "Le fournisseur a refusé cette commande. Le client est remboursé.",
-    "register": "money",
+    "fr": "Le fournisseur a refusé cette commande.",
+    "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "commandes.remb_bloque_prestataire",
-    "fr": "Le service de paiement a refusé de rembourser le client. Appelez-le avec ce numéro de commande.",
+    "fr": "Le service de paiement a refusé de rembourser la cliente. Appelez le service de paiement avec ce numéro de commande.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.remb_bloque_sans_confirmation",
-    "fr": "Le service de paiement n'a pas encore confirmé ce remboursement. Appelez-le avec ce numéro de commande.",
+    "fr": "Le service de paiement n'a pas encore confirmé ce remboursement. Appelez le service de paiement avec ce numéro de commande.",
     "register": "money",
     "screenClass": "status"
   },

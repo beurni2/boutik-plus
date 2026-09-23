@@ -579,6 +579,15 @@ export class FulfillmentDO {
          * order permanently undispatchable while every board looked healthy.
          */
         if (seraRow && res !== undefined && res.status !== 400) permanentRefusal = false;
+        /**
+         * REMBOURSEMENT-2 (verifier MAJOR) — A SUPPLIER'S REFUSAL IS NEVER
+         * PARKED. It is the buyer's only road to her refund, and a Shop+ still
+         * running a build that predates its door answers it 400: parked, it
+         * would leave her unpaid for ever with nothing to revive it (a repeat
+         * refusal finds the row and stops). The ladder keeps trying, hourly at
+         * worst, until Shop+ takes it.
+         */
+        if ((row.event as { name?: unknown }).name === 'fulfillment.rejected.v1') permanentRefusal = false;
       }
       if (delivered) {
         await this.state.storage.put(key, { ...row, status: 'delivered', attempts: row.attempts + 1 });

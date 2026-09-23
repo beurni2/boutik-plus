@@ -616,3 +616,95 @@ describe('READINESS-RETURN-1b — a refusal keeps the fact alive until it truly 
     }
   }, 30_000);
 });
+
+/**
+ * REMBOURSEMENT-2 (verifier MAJOR) — A REFUSAL IS NEVER PARKED.
+ *
+ * A Shop+ running a build from before its door knew `fulfillment.rejected.v1`
+ * answers 400 `event_not_canonical` (the shape of `storefront-service`
+ * `worker/index.ts` at `f4c4861`). Every other 400 parks its row for good; this
+ * one must not — it is the buyer's only road to her refund. Once Shop+ takes
+ * it, the refusal must still arrive, exactly once.
+ */
+describe('REMBOURSEMENT-2 — a supplier refusal Shop+ refuses today is still delivered tomorrow', () => {
+  it('400 first (an older Shop+), then 200: the refusal survives and lands exactly once', async () => {
+    const p = mkdtempSync(join(tmpdir(), 'readiness-return-refus-400-'));
+    let ancien = true;
+    const arrived: string[] = [];
+    const world = new Miniflare({
+      modules: true,
+      scriptPath: SCRIPT,
+      durableObjects: { OFFER: 'OfferDO', FULFILLMENT: 'FulfillmentDO' },
+      durableObjectsPersist: p,
+      bindings: {
+        OFFER_WRITE_SECRET: WRITE_SECRET,
+        FULFILLMENT_WRITE_SECRET: FULFILL_SECRET,
+        FULFILLMENT_OPS_SECRET: OPS_SECRET,
+        PROGRESS_WRITE_SECRET: PROGRESS_SECRET,
+      },
+      serviceBindings: {
+        STOREFRONT: async (request: Request) => {
+          const body = await request.text();
+          if (ancien) return Response.json({ ok: false, reason: 'event_not_canonical' }, { status: 400 });
+          arrived.push(body);
+          return Response.json({ ok: true, status: 'recorded' });
+        },
+      },
+    });
+    const ORDER = 'ord-return-0904';
+    try {
+      const code = async () =>
+        ((await (await world.dispatchFetch('http://o/fulfillment/supplier-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
+          body: JSON.stringify({ supplierId: SUPPLIER }),
+        })).json()) as { code: string }).code;
+      await code();
+      await world.dispatchFetch('http://o/offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
+        body: JSON.stringify({ ...seed, commandId: 'seed-return-904', offerId: 'offer-return-904' }),
+      });
+      await world.dispatchFetch('http://o/fulfillment/order-confirmed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FULFILL_SECRET}` },
+        body: JSON.stringify({
+          name: 'order.confirmed.v1',
+          envelope: {
+            command_id: `ord-confirm-${ORDER}`, correlation_id: `corr-${ORDER}`,
+            aggregateVersion: 5, actor: 'shop-plus:order-emitter', serverTime: T0, version: 'v1',
+          },
+          payload: {
+            orderId: ORDER, productVersionId: PV, offerVersion: 'ov-1', paymentMode: 'FULL_PREPAY',
+            paidAt: T0, zoneTo: 'Gounghin, Ouagadougou', sellerBasePrice: 8_000,
+          },
+        }),
+      });
+      const theCode = await code();
+      const refus = await world.dispatchFetch('http://o/fulfillment/refuse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${theCode}` },
+        body: JSON.stringify({ orderId: ORDER }),
+      });
+      expect(refus.status).toBe(200);
+
+      // The older Shop+ answered 400 at least once; nothing arrived.
+      await new Promise((r) => setTimeout(r, 600));
+      expect(arrived).toEqual([]);
+
+      // Shop+ is updated: the refusal must still be there to send.
+      ancien = false;
+      const started = Date.now();
+      while (arrived.length === 0 && Date.now() - started < 12_000) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      expect(arrived.length, 'a refusal refused once by an older Shop+ was parked for ever').toBe(1);
+      const event = JSON.parse(arrived[0]!) as { name: string; payload: { orderId: string } };
+      expect(event.name).toBe('fulfillment.rejected.v1');
+      expect(event.payload.orderId).toBe(ORDER);
+    } finally {
+      await world.dispose();
+      rmSync(p, { recursive: true, force: true });
+    }
+  }, 40_000);
+});

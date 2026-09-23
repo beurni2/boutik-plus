@@ -19,7 +19,7 @@ import { FournisseurApp } from '../src/fournisseur/FournisseurApp';
 const CODE = 'FOURN-REFUS-1';
 const ORDRE = 'ord-refus-1';
 
-function routes(etat: { refusee: boolean; reponse: { status: number; json: Record<string, unknown> } }): Route[] {
+function routes(etat: { refusee: boolean; prete?: boolean; reponse: { status: number; json: Record<string, unknown> } }): Route[] {
   return [
     (path) =>
       path === '/fulfillment/mine'
@@ -38,6 +38,11 @@ function routes(etat: { refusee: boolean; reponse: { status: number; json: Recor
                   zoneTo: 'Gounghin',
                   sellerBasePrice: 9_000,
                   ...(etat.refusee ? { fulfillment: { refusedAt: '2026-09-23T08:00:00.000Z' } } : {}),
+                  // The book's truth after `already_ready`: the parcel IS ready
+                  // (readied elsewhere after his list was read).
+                  ...(etat.prete === true
+                    ? { fulfillment: { acceptedAt: '2026-09-23T07:10:00.000Z', readyAt: '2026-09-23T07:40:00.000Z' } }
+                    : {}),
                 },
               ],
             },
@@ -47,6 +52,7 @@ function routes(etat: { refusee: boolean; reponse: { status: number; json: Recor
     (path) => {
       if (path !== '/fulfillment/refuse') return null;
       if (etat.reponse.status === 200) etat.refusee = true;
+      if (etat.reponse.json['reason'] === 'already_ready') etat.prete = true;
       return etat.reponse;
     },
   ];
@@ -114,6 +120,10 @@ describe('REMBOURSEMENT-2 — the supplier refuses a paid order he cannot supply
     await screen.press('Je ne peux pas fournir');
     await screen.press('Oui, refuser la commande');
     await screen.settle();
+    // The book was re-read and the card is « prête » now (verifier MAJOR: the
+    // refusal control left with it, and so did its sentence) — the card
+    // itself must still say why his refusal was not taken.
+    expect(screen.canPress('Je ne peux pas fournir'), 'the card did not move to « prête »').toBe(false);
     expect(screen.shows('Le colis est déjà prêt'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.shows('Vous avez refusé')).toBe(false);
     screen.unmount();

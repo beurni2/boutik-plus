@@ -366,6 +366,11 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
   const [pret, setPret] = useState<PretUi>(PRET_REPOS);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [acceptEchec, setAcceptEchec] = useState<string | null>(null);
+  /** REMBOURSEMENT-2 (verifier MAJOR) — orders whose refusal came too late.
+   *  Held HERE, not on the refusal control: the re-read turns the card
+   *  « prête » and that control leaves the screen, so its own sentence would
+   *  leave with it and the card would flip without a word. */
+  const [refusTropTard, setRefusTropTard] = useState<ReadonlySet<string>>(new Set());
 
   const load = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
@@ -434,6 +439,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
       }
       if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
       if (res.reason === 'already_ready') {
+        setRefusTropTard((prev) => new Set(prev).add(orderId));
         await load(true);
         return 'trop_tard';
       }
@@ -601,6 +607,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
               onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
               onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
               onRefuser={() => refuser(c.orderId)}
+              refusTropTard={refusTropTard.has(c.orderId)}
             />
           ))}
           <View style={{ marginTop: 22 }}>
@@ -689,7 +696,7 @@ function VerifierRetour({ onVerifier }: { onVerifier: (dit: string) => Promise<'
 
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
-function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour, onRefuser }: {
+function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour, onRefuser, refusTropTard }: {
   commande: CommandeVue;
   pret: PretUi;
   accepting: boolean;
@@ -702,6 +709,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
   onVerifierRamassage: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
   onVerifierRetour: (dit: string) => Promise<'confirme' | 'non_confirme' | 'echec'>;
   onRefuser: () => Promise<'fait' | 'trop_tard' | 'echec'>;
+  refusTropTard: boolean;
 }) {
   const nom = commande.productName !== '' ? commande.productName : commande.productVersionId;
   /** The product's own photographs, through the SAME two helpers « Mes
@@ -784,6 +792,10 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
         </View>
       )}
 
+      {refusTropTard && (
+        <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 10 }]}>{t('fournisseur.refus_trop_tard')}</Text>
+      )}
+
       {commande.etape === 'prete' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="success" check>{t('fournisseur.etape_prete')}</Banner>
@@ -855,16 +867,16 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
 function RefuserCommande({ onRefuser }: { onRefuser: () => Promise<'fait' | 'trop_tard' | 'echec'> }) {
   const [confirmer, setConfirmer] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [issue, setIssue] = useState<'trop_tard' | 'echec' | null>(null);
+  // « Trop tard » is said by the card itself (it outlives this control).
+  const [issue, setIssue] = useState<'echec' | null>(null);
   const refuser = async (): Promise<void> => {
     if (busy) return;
     setBusy(true);
     setIssue(null);
     const r = await onRefuser();
     setBusy(false);
-    if (r === 'fait') return;
     setConfirmer(false);
-    setIssue(r);
+    if (r === 'echec') setIssue('echec');
   };
   return (
     <View style={{ marginTop: 10, gap: 8 }}>
@@ -880,9 +892,7 @@ function RefuserCommande({ onRefuser }: { onRefuser: () => Promise<'fait' | 'tro
         <BtnGhost label={t('fournisseur.refus_action')} onPress={() => { setIssue(null); setConfirmer(true); }} />
       )}
       {issue !== null && (
-        <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
-          {t(issue === 'trop_tard' ? 'fournisseur.refus_trop_tard' : 'fournisseur.refus_echec')}
-        </Text>
+        <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('fournisseur.refus_echec')}</Text>
       )}
     </View>
   );

@@ -142,9 +142,12 @@ describe('REMBOURSEMENT-2 — refunds on the founder’s Commandes tab', () => {
     expect(screen.shows('Pagne wax')).toBe(true);
     expect(screen.shows('Sac en cuir')).toBe(true);
     expect(screen.shows('Remboursement bloqué')).toBe(true);
-    expect(screen.shows('Le service de paiement a refusé de rembourser le client')).toBe(true);
+    expect(screen.shows('Le service de paiement a refusé de rembourser la cliente. Appelez le service de paiement')).toBe(true);
     expect(screen.shows('Remboursement en cours')).toBe(true);
-    expect(screen.shows('Le fournisseur a refusé cette commande')).toBe(true);
+    expect(screen.texts()).toContain('Le fournisseur a refusé cette commande.');
+    // Verifier MAJOR: nothing on the tab may claim a refund Shop+ has not confirmed.
+    expect(screen.shows('est remboursé'), 'a refund still en cours is claimed done').toBe(false);
+    expect(screen.shows('Cliente remboursée')).toBe(false);
 
     // The refused card opens (the tree survives) and offers no nudge to prepare it.
     await screen.press('Pagne wax');
@@ -176,6 +179,9 @@ describe('REMBOURSEMENT-2 — refunds on the founder’s Commandes tab', () => {
     await screen.press('Incidents');
     expect(screen.shows('Pagne wax')).toBe(true);
     expect(screen.shows('Refusée')).toBe(true);
+    expect(screen.texts()).toContain('Le fournisseur a refusé cette commande.');
+    // Without Shop+'s word, nothing is said about her money at all.
+    expect(screen.shows('rembours'), 'a refund claimed with no refund read').toBe(false);
     screen.unmount();
   });
 });
