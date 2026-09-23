@@ -277,10 +277,14 @@ function LivreCommandes({
    * article in it (the rider's door reads them: refuse one, keep the rest).
    * A product name, bounded to the one line Séra accepts; an article whose
    * name is unknown is simply not named (the rider then reads « Article n »).
+   * An article its supplier refused does not travel (Séra holds it
+   * `cancelled`), so it is never named: Séra refuses a name outside the bag.
    */
   const articlesColis = (row: PaidOrderRow): { orderId: string; libelle: string }[] =>
     (row.colis?.orderIds ?? []).flatMap((id) => {
-      const nom = read.orders.find((o) => o.orderId === id)?.productName.trim() ?? '';
+      const membre = read.orders.find((o) => o.orderId === id);
+      if (membre?.fulfillment?.refusedAt !== undefined) return [];
+      const nom = membre?.productName.trim() ?? '';
       if (nom === '') return [];
       return [{ orderId: id, libelle: nom.length > 80 ? `${nom.slice(0, 79)}…` : nom }];
     });

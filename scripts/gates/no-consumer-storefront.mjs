@@ -60,6 +60,7 @@ runScanGate({
      */
     { file: 'apps/supplier-app/test/rendu-commandes-remboursement.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s walk over the dispatch/gains wires (REMBOURSEMENT-2)' },
     { file: 'apps/supplier-app/test/rendu-commandes-remboursement.test.tsx', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker e2e as the certification source (REMBOURSEMENT-2)' },
+    { file: 'apps/supplier-app/test/rendu-commandes-colis.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s walk over the dispatch/gains wires, a colis whose supplier refused one article (COLIS-FOURNISSEUR-1, verifier M1)' },
     /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
