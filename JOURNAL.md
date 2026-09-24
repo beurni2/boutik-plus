@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-24 · COMPTE-CLIENTE-2 (Boutik+ half) — « Aider une cliente Shop+ »: the founder mints a Shop+ buyer's one-time recovery code for her NUMBER on his console and gives it by calling that number · canon 3.23.0 (Shop+ side; this repo keeps its 3.20.0 pin) · ON THE BRANCH, awaiting the founder's word
+## 2026-09-24 · COMPTE-CLIENTE-2 (Boutik+ half) — « Aider une cliente Shop+ »: the founder mints a Shop+ buyer's one-time recovery code for her NUMBER on his console and gives it by calling that number · canon 3.23.0 (Shop+ side; this repo keeps its 3.20.0 pin) · MERGED AND DEPLOYED 2026-09-24 on the founder's « Go »
+
+**MERGED AND DEPLOYED (founder: « Go », 2026-09-24).** After the Shop+ Worker was live on 3.23.0 (the door this card calls): `main` fast-forwarded `191af6b → 2a74eee`; **web-deploy 76 (id 36004712211) `success`** — the founder's console with « Aider une cliente Shop+ »; on `2a74eee`: ci 362 · expo-preview 240 green.
 
 **Founder order (2026-09-24).** « Go, and fix the ones still open » — the first open item: a Shop+ buyer who forgot her password, or whose number someone else signed up with, had no way back.
 
