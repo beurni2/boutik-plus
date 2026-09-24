@@ -5386,5 +5386,71 @@
     "fr": "Colis de {n} articles pour la même cliente. Une seule course les emporte tous.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "clientes.titre",
+    "fr": "Aider une cliente Shop+",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "clientes.sens",
+    "fr": "Mot de passe oublié, ou numéro pris par quelqu’un d’autre : créez un code pour qu’elle retrouve son compte.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "clientes.champ",
+    "fr": "Numéro de la cliente",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "clientes.creer",
+    "fr": "Créer le code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "clientes.creation",
+    "fr": "Création du code…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "clientes.pour",
+    "fr": "Code pour le {tel}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "clientes.note",
+    "fr": "Donnez-le seulement à ce numéro : appelez-le. Le code marche une fois, pendant 24 heures.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "clientes.vu",
+    "fr": "C’est fait",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "clientes.aucun",
+    "fr": "Aucun compte avec ce numéro.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "clientes.numero",
+    "fr": "Ce numéro n’est pas complet.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "clientes.echec",
+    "fr": "Le code n’a pas pu être créé. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

@@ -1734,14 +1734,15 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
 
   it('the one-time code renders through ONE ceremonial card everywhere a plaintext exists once', () => {
     const source = screenSource();
-    // three mints, one discipline — comptes, acces, fournisseur codes
-    expect([...source.matchAll(/<CarteCodeUnique/g)].length).toBe(3);
+    // four mints, one discipline — comptes, acces, fournisseur codes, and
+    // (COMPTE-CLIENTE-2) a Shop+ buyer's recovery code
+    expect([...source.matchAll(/<CarteCodeUnique/g)].length).toBe(4);
     // THE PLAINTEXT REACHES THE SCREEN ONLY AS THE CARD'S PROP — a mutation
     // run proved counting mounts alone lets a plain duplicate render ride
     // beside a dead ceremonial one. Every occurrence of the plaintext must be
-    // the prop form, and there must be exactly the three of them.
-    expect([...source.matchAll(/ui\.nouveau\.code/g)].length).toBe(3);
-    expect([...source.matchAll(/code=\{ui\.nouveau\.code\}/g)].length).toBe(3);
+    // the prop form, and there must be exactly the four of them.
+    expect([...source.matchAll(/ui\.nouveau\.code/g)].length).toBe(4);
+    expect([...source.matchAll(/code=\{ui\.nouveau\.code\}/g)].length).toBe(4);
     // …and no branch is switched off instead of deleted
     expect(source).not.toContain('{false &&');
   });

@@ -126,7 +126,16 @@ type ZoneConsole = 'revendeuses' | 'fournisseurs' | 'fonds' | 'coursiers';
 
 /** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
  *  `menu` is the chooser he lands on. */
-type VueRevendeuses = 'menu' | 'comptes' | 'suivi' | 'acces';
+type VueRevendeuses = 'menu' | 'comptes' | 'suivi' | 'acces' | 'clientes';
+
+/** COMPTE-CLIENTE-2 — « Aider une cliente »: what the section holds while he works. */
+interface RecupUi {
+  readonly busy: boolean;
+  readonly echec: null | 'no_account' | 'bad_phone' | 'unreachable';
+  /** The one-time code on screen, and the number it is for — until « C'est fait ». */
+  readonly nouveau: null | { readonly code: string; readonly phone: string };
+}
+const RECUP_IDLE: RecupUi = { busy: false, echec: null, nouveau: null };
 
 /** One content column whatever the browser width: a console reads like a bank
  *  document, never like text poured across a living-room screen. The app-wide
@@ -644,6 +653,26 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   const comptesSeq = useRef(0);
   const [suiviRead, setSuiviRead] = useState<SuiviRead>({ kind: 'loading' });
   const suiviSeq = useRef(0);
+  /* ── COMPTE-CLIENTE-2 — a Shop+ buyer's way back, on the SAME key C ── */
+  const [recupDraft, setRecupDraft] = useState('');
+  const [recupUi, setRecupUi] = useState<RecupUi>(RECUP_IDLE);
+
+  const creerRecup = async (phone: string, key: string): Promise<void> => {
+    if (comptes === null || phone === '' || recupUi.busy || recupUi.nouveau !== null) return;
+    setRecupUi({ busy: true, echec: null, nouveau: null });
+    const res = await comptes.codeRecuperationCliente(key, phone).catch(() => ({ ok: false, reason: 'unreachable' } as const));
+    if (res.ok) {
+      setRecupDraft('');
+      setRecupUi({ busy: false, echec: null, nouveau: { code: res.code, phone } });
+      return;
+    }
+    if (res.reason === 'bad_key') {
+      setRecupUi(RECUP_IDLE);
+      setRead({ kind: 'bad_key' });
+      return;
+    }
+    setRecupUi({ busy: false, echec: res.reason, nouveau: null });
+  };
 
   const loadComptes = async (key: string): Promise<void> => {
     if (comptes === null) { setComptesRead({ kind: 'failed' }); return; }
@@ -874,6 +903,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
               <ChoixSection titre={t('comptes.titre')} sens={t('comptes.sens')} onPress={() => setVueRev('comptes')} />
               <ChoixSection titre={t('suivi.titre')} sens={t('suivi.sens')} onPress={() => setVueRev('suivi')} />
               <ChoixSection titre={t('acces.titre')} sens={t('acces.sens')} onPress={() => setVueRev('acces')} />
+              <ChoixSection titre={t('clientes.titre')} sens={t('clientes.sens')} onPress={() => setVueRev('clientes')} />
             </>
           )}
 
@@ -908,6 +938,15 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
           <SSuivi
             read={suiviRead}
             onRetry={() => { setSuiviRead({ kind: 'loading' }); void loadSuivi(cleC); }}
+          />
+          )}
+          {vueRev === 'clientes' && (
+          <SClientes
+            ui={recupUi}
+            draft={recupDraft}
+            onDraft={setRecupDraft}
+            onCreer={() => { void creerRecup(recupDraft.trim(), cleC); }}
+            onVu={() => setRecupUi(RECUP_IDLE)}
           />
           )}
           {vueRev === 'acces' && (
@@ -1138,6 +1177,56 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
  * he is reading it out over the phone, and the screen says so in words where
  * the buttons were rather than leaving a dead tap.
  */
+/**
+ * COMPTE-CLIENTE-2 — « AIDER UNE CLIENTE ». A Shop+ buyer forgot her password,
+ * or someone else signed up with her number: he types the NUMBER, the service
+ * mints a one-time code for the account on it, and he gives it to THAT number
+ * — the call is the proof no signup could ask for. The answer carries the code
+ * and nothing about her. While the code is on screen the form is hidden, the
+ * law of every one-time code on this console.
+ */
+function SClientes({ ui, draft, onDraft, onCreer, onVu }: {
+  ui: RecupUi;
+  draft: string;
+  onDraft: (v: string) => void;
+  onCreer: () => void;
+  onVu: () => void;
+}) {
+  return (
+    <View>
+      <TeteSection titre={t('clientes.titre')} sens={t('clientes.sens')} />
+      {ui.nouveau !== null && (
+        <CarteCodeUnique
+          pour={t('clientes.pour').replace('{tel}', ui.nouveau.phone)}
+          code={ui.nouveau.code}
+          note={t('clientes.note')}
+          vuLabel={t('clientes.vu')}
+          onVu={onVu}
+        />
+      )}
+      {ui.nouveau === null && (
+        <Card variant="Llg" style={{ marginTop: 14 }}>
+          <Input label={t('clientes.champ')} value={draft} onChangeText={onDraft} />
+          {ui.echec !== null && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
+                {t(ui.echec === 'no_account' ? 'clientes.aucun' : ui.echec === 'bad_phone' ? 'clientes.numero' : 'clientes.echec')}
+              </Text>
+            </View>
+          )}
+          <View style={{ marginTop: 12 }}>
+            {ui.busy ? (
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('clientes.creation')}</Text>
+            ) : (
+              <BtnSoft label={t('clientes.creer')} icon="check" onPress={draft.trim() === '' ? () => undefined : onCreer} />
+            )}
+          </View>
+        </Card>
+      )}
+    </View>
+  );
+}
+
 function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
   read: AccesRead;
   ui: AccesUi;

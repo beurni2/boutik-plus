@@ -736,7 +736,16 @@ export type CodeAccesRevealResult =
   | { readonly ok: true; readonly accountId: string; readonly code: string }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_code' | 'code_anterieur' | 'not_found' };
 
+/** COMPTE-CLIENTE-2 — the one-time recovery code for a Shop+ BUYER's number:
+ *  the code and when it stops working, nothing about her. */
+export type CodeRecuperationResult =
+  | { readonly ok: true; readonly code: string; readonly expiresAt: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'no_account' | 'bad_phone' };
+
 export interface ComptesServicePort {
+  /** COMPTE-CLIENTE-2 — a buyer forgot her password, or her number was taken:
+   *  he mints a code for the NUMBER and gives it by calling that number. */
+  codeRecuperationCliente(cleC: string, phone: string): Promise<CodeRecuperationResult>;
   listComptes(cleC: string): Promise<ComptesResult>;
   codeAcces(cleC: string, accountId: string): Promise<CodeAccesResult>;
   /** CODE-REVU — reread the UNCONSUMED admission code (spent = gone). */
@@ -818,6 +827,18 @@ export function resolveComptesService(): ComptesServicePort | null {
   };
 
   return {
+    async codeRecuperationCliente(cleC: string, phone: string): Promise<CodeRecuperationResult> {
+      const res = await appel('/buyer/accounts/recovery-code', cleC, { method: 'POST', body: JSON.stringify({ phone }) });
+      if (res === null) return { ok: false, reason: 'unreachable' };
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404 && res.body?.['reason'] === 'no_account') return { ok: false, reason: 'no_account' };
+      if (res.status === 400) return { ok: false, reason: 'bad_phone' };
+      const code = res.body?.['code'];
+      const expiresAt = res.body?.['expiresAt'];
+      if (res.body?.['ok'] !== true || typeof code !== 'string' || typeof expiresAt !== 'string') return { ok: false, reason: 'unreachable' };
+      return { ok: true, code, expiresAt };
+    },
+
     async listComptes(cleC: string): Promise<ComptesResult> {
       const res = await appel('/reseller/accounts', cleC);
       if (res === null) return { ok: false, reason: 'unreachable' };
