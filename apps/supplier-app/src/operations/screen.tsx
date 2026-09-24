@@ -1166,18 +1166,6 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
 }
 
 /**
- * ACCESS-GATE-1 — WHO CAN GET INTO SHOP+, AND SINCE WHEN.
- *
- * Founder order, 2026-08-04: a new revendeuse gets a code from him and types it
- * once to enter the app. This is where that code is made.
- *
- * THE PLAINTEXT APPEARS EXACTLY ONCE, and this card is the only place it will
- * ever exist — the Worker keeps only its SHA-256. So a live code BLOCKS every
- * other act until he taps « C'est noté »: any re-render would destroy it while
- * he is reading it out over the phone, and the screen says so in words where
- * the buttons were rather than leaving a dead tap.
- */
-/**
  * COMPTE-CLIENTE-2 — « AIDER UNE CLIENTE ». A Shop+ buyer forgot her password,
  * or someone else signed up with her number: he types the NUMBER, the service
  * mints a one-time code for the account on it, and he gives it to THAT number
@@ -1227,6 +1215,18 @@ function SClientes({ ui, draft, onDraft, onCreer, onVu }: {
   );
 }
 
+/**
+ * ACCESS-GATE-1 — WHO CAN GET INTO SHOP+, AND SINCE WHEN.
+ *
+ * Founder order, 2026-08-04: a new revendeuse gets a code from him and types it
+ * once to enter the app. This is where that code is made.
+ *
+ * THE PLAINTEXT APPEARS EXACTLY ONCE, and this card is the only place it will
+ * ever exist — the Worker keeps only its SHA-256. So a live code BLOCKS every
+ * other act until he taps « C'est noté »: any re-render would destroy it while
+ * he is reading it out over the phone, and the screen says so in words where
+ * the buttons were rather than leaving a dead tap.
+ */
 function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
   read: AccesRead;
   ui: AccesUi;

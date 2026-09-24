@@ -106,6 +106,32 @@ describe('« Aider une cliente » — her way back, from his console', () => {
     screen.unmount();
   });
 
+  it('a number the service calls incomplete is said plainly — the form stays, nothing is minted', async () => {
+    wire([livre(['70123456']), ...autour]);
+    const screen = await versAider();
+    await screen.type('70 12');
+    await screen.press('Créer le code');
+    await screen.settle();
+    expect(screen.shows('Ce numéro n’est pas complet.')).toBe(true);
+    expect(screen.shows(CODE)).toBe(false);
+    expect(screen.canPress('Créer le code')).toBe(true);
+    screen.unmount();
+  });
+
+  it('a refused key C sends him to type his key again, like every card', async () => {
+    storage({ 'boutik.operateur.cle': OPS, 'boutik.livraisons.cle': 'une-vieille-cle' });
+    const w = wire([livre(['70123456']), ...autour]);
+    const screen = await versAider();
+    await screen.type('70 12 34 56');
+    await screen.press('Créer le code');
+    await screen.settle();
+    expect(w.calls.find((c) => c.path === '/buyer/accounts/recovery-code')?.headers['authorization']).toBe('Bearer une-vieille-cle');
+    expect(screen.shows(CODE)).toBe(false);
+    expect(screen.shows('Cette clé n\'est pas la bonne. Vérifiez ce que vous avez tapé.')).toBe(true);
+    expect(screen.canPress('Ressaisir la clé')).toBe(true);
+    screen.unmount();
+  });
+
   it('an unreachable service says « Réessayez » and the button presses again', async () => {
     wire(autour);
     const screen = await versAider();
