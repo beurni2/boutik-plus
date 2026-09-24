@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-23 · PICKUP-REFUS (founder « 1 ») — a parcel refused at pickup is final and refunds the buyer at once: 2026-07-10 ruling ② (the corrective flow) is SUPERSEDED · no Boutik+ code change · journal only
+## 2026-09-23 · PICKUP-REFUS (founder « 1 ») — a parcel refused at pickup is final and refunds the buyer at once: 2026-07-10 ruling ② (the corrective flow) is SUPERSEDED · no Boutik+ code change · journal only · MERGED 2026-09-24 on the founder's « go »
+
+**MERGED (founder: « go », 2026-09-24).** `main` fast-forwarded `490cf7e → 9444b8b` (journal only; nothing to deploy); ci 360 · expo-preview 238 green. The Séra and Shop+ halves are live — see their journals.
 
 **Founder order (2026-09-23).** « when the rider refuses a parcel at pickup (wrong item, damage), nobody tells Shop+, so the buyer isn't refunded. Fix this ». The build stopped on §7 because this journal's 2026-07-10 entry records ruling ② — « The corrective-flow reading is **RATIFIED**; the refused-never-corrected limbo closes at E2 assembly by name: a versioned `correctionDeadline` ages into `refund_required(faultClass=seller)` » — while the canon says « rider refuses custody, buyer refunded, no round-trip » (B+7, B6.3; Séra §6.1). Put to him as option 1 (refund at once, the « fix it and come back » road closed for good) or option 2 (honour 2026-07-10), he answered « 1 ». **Ruling ② of 2026-07-10 is superseded; the canon text stands as written.**
 
