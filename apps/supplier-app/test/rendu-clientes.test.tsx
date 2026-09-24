@@ -16,9 +16,9 @@ import { SOperations } from '../src/operations/screen';
  * a refusal leaves the form and says why · he reaches the next screen (the
  * code, big, with what to do with it — and the way back).
  *
- * ⚠ CONTRACT-CERTIFIED to the Shop+ Worker's real answers
- * (services/storefront-service/worker/buyer-accounts-do.ts `/recovery-code`,
- * proven on workerd by comptes-clientes-2.e2e): `{ ok, code, expiresAt }` on a
+ * ⚠ CONTRACT-CERTIFIED to the Shop+ Worker's real answers (its buyer
+ * accounts book, `buyer-accounts-do.ts` `/recovery-code`, proven on workerd
+ * by the Shop+ repo's comptes-clientes-2.e2e): `{ ok, code, expiresAt }` on a
  * number with an account, `404 { ok:false, reason:'no_account' }` otherwise,
  * `401` on a refused key C. Nothing about her ever rides the answer.
  */
@@ -27,12 +27,12 @@ const OPS = 'cle-ops';
 const CLE_C = 'cle-c-e2e';
 const CODE = 'SPR-ABCD-EFGH-IJKL-MNOP';
 
-/** The rest of the console, answered emptily so the Revendeuses zone renders. */
+/** The rest of the console, answered emptily so the Revendeuses zone renders
+ *  (the Shop+ order read is left unanswered: this walk does not need it). */
 const autour: Route[] = [
   (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [] } } : null),
   (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
   (path) => (path === '/fulfillment/supplier-codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
-  (path) => (path === '/checkout/dispatch' ? { status: 200, json: { ok: true, rows: [] } } : null),
   (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
   (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [] } } : null),
   (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
