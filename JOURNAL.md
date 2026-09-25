@@ -3,6 +3,42 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-25 · AUDIT-B+2 — extensive read-only audit of the whole Boutik+ web app (both surfaces, the services behind them, the deploy chain) · REPORTED, NOTHING CHANGED · awaiting the founder's choice of tiers
+
+**Founder order (2026-09-25).** « now i want you to do an extensive audit of the whole webapp boutik+ without hitting any guardrails ».
+
+**How it was run.** A defensive, read-only review of our own code: no request to any deployed service, no attack tooling, every repo left untouched (`git status` clean in all four after the run). Baseline measured once at `c9177ad` (= `main`): typecheck 14/14, tests 21/21 tasks, gate board ALL GATES GREEN; `pnpm audit` 31 high · 13 moderate · 0 critical. Then one orchestrated run of 57 agents: 11 area auditors (authoring, shell, console, fournisseur, offer doors, offer domain, media and small services, deploy chain, tests, seams with Shop+ and Séra, the standing-open ledger), a completeness critic that opened 6 more areas (founder artifact, book growth, Worker mutation, revendeuses, French voice, committed data), 38 fresh-context verifications (every MAJOR by one skeptic, every BLOCKER-candidate through three lenses), and one synthesis.
+
+**My own miss, stated.** My baseline « founder » web export was built without `EXPO_PUBLIC_ROOT=v2`, so it was the E1 root, not the console `web-deploy.yml` ships (F-94). The auditors caught it and measured the v2 console through the gate board's own export instead.
+
+**Verdict: 0 BLOCKER · 18 MAJOR · 75 MINOR · 45 NOTE** (239 area findings merged into 138; of 38 verified, 23 confirmed, 15 downgraded, 0 refuted). I checked five headline findings against the code myself before recording them (F-01, F-03, F-06, F-10, F-94): all hold.
+
+**What holds (measured):** the money reconciles to the franc (wizard net = the pinned waterfall = `decideCreateOffer`); no app holds funds, no wallet anywhere; the four secrets never substituted, the readiness challenge CSPRNG, short-lived and single-use, `buyerDropCode` absent from the supplier bundle and refused by the strict parse; zero deposit; no ML; nothing multi-level; the suppliers' bundle carries none of the founder's doors; 18 internal paths × 6 credentials → zero 200s; no credential in 904 tracked files, 1 101 zip members or 90 commits; none of the 44 advisories reaches a phone or a Worker (all build/test tooling); canon pin 3.20.0 has no contract-shape drift from 3.25.0; 102 of 131 single-guard mutants killed.
+
+**The majors, by title** (full report with evidence, fixes and fix risks held outside the public repo while F-01 is open, and sent to the founder):
+- F-01 · the founder console's credential model no longer fits once other suppliers have catalogues (the supplier-#2 precondition of LISTER-POUR was never closed) — details withheld here until fixed.
+- F-02 · a paid order its supplier never answers has no refund road (the B6.1 timeout was ratified at 120 min on 2026-07-10 and never built).
+- F-03 · « Confirmer le stock » counts sold-but-not-collected units back in; later oversells go unflagged.
+- F-04 · every supplier's 60-second refresh re-reads the whole order book; on the Free plan the account-wide daily row-read allowance runs out at a few hundred orders.
+- F-05 · every catalogue walk makes one DO call per offer, unbounded — the reseller browse, both product lists, the access cut and the purge break near 50 offers.
+- F-06 · the supplier's code door refuses the right code typed the way a phone types it (case, spaces, dashes).
+- F-07 · a stock-frozen product vanishes from the supplier's « Mes produits ».
+- F-08 · after a rider refuses the parcel at pickup, the supplier's card says « Remis au coursier » forever.
+- F-09 · the supplier's order card pairs a payment label with a figure it does not describe; « Reste à payer à la porte » stays on delivered orders.
+- F-10 · the doorstep-refusal act (the only writer of the §6.4 buyer ladder) has had no mount since RB-1; a source-text test still certifies it.
+- F-11 · the readiness challenge is never shown, and the photo is picked before it exists.
+- F-12 · every offer leaves every vitrine on its 365th day, with no visible expiry and no renewal (GAP 3, ratified with two required fixes).
+- F-13 · a product clip keeps its capture location; every buyer's browser downloads it.
+- F-14 · one tap from the founder home: a made-up trust level, a sign-up that creates nothing, and a fee line that contradicts FRAIS-ZERO.
+- F-15 · nothing proves « Publier » calls the real publish (a one-character slip ships a fake « en ligne » through a green board).
+- F-16 · « Envoyer la preuve » is never pressed by any test; its upload client has no behaviour test.
+- F-17 · the deploy token goes to an unpinned `npx wrangler@4`, beside actions pinned by mutable tags (Shop+'s CHAINE-DEPLOI-1, never ported).
+- F-18 · the E0 scanning baseline is not held: the only secret gate is Expo-only, and CI never audits dependencies.
+
+**Tiered plan proposed** (every slice under the standing sequence; each waits for his word): Tier 1 — PORTE-CODE-1 (F-06, S) · PRODUITS-GELES-1 (F-07, S) · CARTE-ARGENT-1 (F-09/23/24, S) · VITRINE-HONNETE-1 (F-14a, S) · REFUS-PORTE-2 (F-10) · ENLEVEMENT-REFUSE-1 (F-08) · STOCK-EN-COURS-1 (F-03) · ANNULER-REMBOURSER-1 (F-02 part 1) · OFFRE-PROLONGER-1 (F-12) · CLE-FONDATEUR-1 (F-01) · VIDEO-SANS-LIEU-1 (F-13) · CATALOGUE-PAGES-1 (F-05) · LIVRE-PAR-FOURNISSEUR-1 (F-04) · DELAI-ACCEPTATION-1 (F-02 part 2, after his ruling). Tier 2 — PUBLIER-WALK-1 (F-15) · PREUVE-PRET-SEAM-1 (F-16) · CHAINE-DEPLOI-1 (F-17) · SCAN-SECRETS-1 (F-18). Tier 3 — 17 minor bundles. Tier 4 — his decisions (the console key model and a zero-code stopgap now; the Workers plan; the 120-minute clock; the readiness code; video clean-up and clips already live; the demo screens; the refusal button's home; and the older open items).
+
+**Standing-open ledger (area J):** still open and now causing harm — the supplier-#2 credential precondition (→ F-01), the B6.1 timeout (→ F-02), GAP 3 (→ F-12); closed in code and verified — STOCK-VENDU-1 opens 1–3, REMBOURSEMENT-2 (0)(2)(4), COLIS m3, the TAXONOMIE pin, MEDIA-KEY-SPLIT on the supplier bundle, REFUS-IDEMPOTENCE-1, AUDIT-B+1 F25/F12, CONSOLE-3, GAP 2.
+
 ## 2026-09-24 · COMPTE-CLIENTE-2 (Boutik+ half) — « Aider une cliente Shop+ »: the founder mints a Shop+ buyer's one-time recovery code for her NUMBER on his console and gives it by calling that number · canon 3.23.0 (Shop+ side; this repo keeps its 3.20.0 pin) · MERGED AND DEPLOYED 2026-09-24 on the founder's « Go »
 
 **MERGED AND DEPLOYED (founder: « Go », 2026-09-24).** After the Shop+ Worker was live on 3.23.0 (the door this card calls): `main` fast-forwarded `191af6b → 2a74eee`; **web-deploy 76 (id 36004712211) `success`** — the founder's console with « Aider une cliente Shop+ »; on `2a74eee`: ci 362 · expo-preview 240 green.
