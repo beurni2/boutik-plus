@@ -13,9 +13,12 @@ import {
   PRET_REPOS,
   etapeOf,
   fournisseurVue,
+  modeVisible,
   pretChoisir,
   pretEnvoyer,
   pretIssue,
+  pretPhotoEnMain,
+  pretPhotoRefusee,
   pretRefusKey,
 } from '../src/fournisseur/view';
 import { catalog } from '../src/i18n';
@@ -118,6 +121,43 @@ describe('the « Produit prêt » reducer — one flow at a time, Law-7 honest, 
     }
     const photo = pretIssue('o9', { ok: false, reason: 'photo_echec' });
     expect(photo.ui).toEqual({ etat: 'refus', orderId: 'o9', messageKey: 'fournisseur.pret_photo_echec' });
+  });
+});
+
+describe('FOURNISSEUR-VRAI-1 — the photo stays in his hand, a refusal never crosses cards, the payment way only while moving', () => {
+  it('F-21 — a photo the phone could not open is its own refusal on HIS card — and never overwrites another card\'s send in flight', () => {
+    expect(pretPhotoRefusee(PRET_REPOS, 'o1', 'fournisseur.pret_photo_illisible'))
+      .toEqual({ etat: 'refus', orderId: 'o1', messageKey: 'fournisseur.pret_photo_illisible' });
+    expect(pretPhotoRefusee({ etat: 'photo_choisie', orderId: 'o2', previewUri: 'data:x' }, 'o1', 'fournisseur.pret_photo_illisible'))
+      .toEqual({ etat: 'refus', orderId: 'o1', messageKey: 'fournisseur.pret_photo_illisible' });
+    // card A is SENDING: a refusal on card B must not touch it
+    expect(pretPhotoRefusee({ etat: 'envoi', orderId: 'oA' }, 'oB', 'fournisseur.pret_photo_illisible')).toBeNull();
+    expect(keys.has('fournisseur.pret_photo_illisible')).toBe(true);
+  });
+
+  it('F-22 — a refusal a retry can cure keeps the photo, and the send can start again from it; one no retry can cure drops it', () => {
+    for (const reason of ['unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used'] as const) {
+      const ui = pretIssue('o1', { ok: false, reason }, 'data:photo').ui;
+      expect(pretPhotoEnMain(ui), reason).toBe('data:photo');
+      expect(pretEnvoyer(ui), reason).toEqual({ etat: 'envoi', orderId: 'o1' });
+    }
+    const photo = pretIssue('o1', { ok: false, reason: 'photo_echec' }, 'data:photo').ui;
+    expect(pretPhotoEnMain(photo)).toBe('data:photo');
+    for (const reason of ['locked_terms_mismatch', 'not_accepted', 'not_yours_or_unknown', 'not_canonical_or_foreign_secret'] as const) {
+      const ui = pretIssue('o1', { ok: false, reason }, 'data:photo').ui;
+      expect(pretPhotoEnMain(ui), reason).toBeNull();
+      expect(pretEnvoyer(ui), reason).toBeNull();
+    }
+    // a refusal with no photo in hand (F-21) arms nothing
+    expect(pretEnvoyer({ etat: 'refus', orderId: 'o1', messageKey: 'fournisseur.pret_photo_illisible' })).toBeNull();
+    expect(pretPhotoEnMain({ etat: 'photo_choisie', orderId: 'o1', previewUri: 'data:y' })).toBe('data:y');
+    expect(pretPhotoEnMain({ etat: 'envoi', orderId: 'o1' })).toBeNull();
+    expect(pretPhotoEnMain(PRET_REPOS)).toBeNull();
+  });
+
+  it('F-09 — the payment way shows while the order moves, never once it is finished', () => {
+    expect(['a_accepter', 'a_preparer', 'prete', 'en_route'].every((e) => modeVisible(e as never))).toBe(true);
+    expect(['livree', 'retournee', 'refusee'].some((e) => modeVisible(e as never))).toBe(false);
   });
 });
 
