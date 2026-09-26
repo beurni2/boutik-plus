@@ -232,7 +232,13 @@ export function operationsView(read: OperationsRead, nowMs: number): OperationsV
   const preparation = rows
     .filter((r) => signalOf(r) !== undefined)
     .sort((a, b) => (signalOf(a)! < signalOf(b)! ? 1 : -1));
-  const unprepared = rows.filter((r) => signalOf(r) === undefined);
+  // REMBOURSABLE-1 (verifier MINOR) — an order already ended (refused by its
+  // supplier, cancelled by him, refused at pickup) waits for no one: counting
+  // it would keep « attendent un appel » on the board forever after his own
+  // « Annuler et rembourser ».
+  const unprepared = rows.filter(
+    (r) => signalOf(r) === undefined && r.fulfillment?.refusedAt === undefined && r.fulfillment?.pickupRefusedAt === undefined,
+  );
   // A called order leaves the queue WHATEVER its age — the founder does not
   // need to be told twice about a supplier he has already phoned.
   const called = unprepared.filter((r) => r.relance !== undefined);

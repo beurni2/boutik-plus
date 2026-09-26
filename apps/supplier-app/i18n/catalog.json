@@ -2796,6 +2796,12 @@
     "screenClass": "label"
   },
   {
+    "key": "livraisons.cle_saisie",
+    "fr": "Collez la clé Shop+",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "livraisons.cle_ouvrir",
     "fr": "Ouvrir avec la clé Shop+",
     "register": "neutral",
@@ -4369,7 +4375,7 @@
   },
   {
     "key": "commandes.cle_c_requise",
-    "fr": "Pour voir le contact de la cliente, entrez une fois la clé C dans la console.",
+    "fr": "Pour voir le contact de la cliente, entrez une fois la clé Shop+.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4423,7 +4429,7 @@
   },
   {
     "key": "commandes.cle_c_placeholder",
-    "fr": "Collez la clé C",
+    "fr": "Collez la clé Shop+",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -5071,7 +5077,13 @@
   },
   {
     "key": "operations.retrait_refus_en_attente",
-    "fr": "Le remboursement de la cliente n’est pas encore parti. Réessayez dans quelques minutes.",
+    "fr": "Le remboursement de la cliente n’est pas encore parti. Réessayez plus tard.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.balayage_refus_en_attente",
+    "fr": "Gardées pour l’instant : {n}. Le remboursement de la cliente n’est pas encore parti. Réessayez plus tard.",
     "register": "money",
     "screenClass": "status"
   },

@@ -841,7 +841,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
         <>
           <TeteSection titre={t('livraisons.titre')} sens={t('livraisons.cle_explication')} />
           <Card variant="Llg" style={{ marginTop: 12 }}>
-            <Input label={t('livraisons.cle_libelle')} value={draft} onChangeText={setDraft} />
+            <Input label={t('livraisons.cle_saisie')} value={draft} onChangeText={setDraft} />
             <View style={{ marginTop: 12 }}>
               <BtnSoft
                 label={t('livraisons.cle_ouvrir')}

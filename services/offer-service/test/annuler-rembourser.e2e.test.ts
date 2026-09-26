@@ -391,9 +391,13 @@ describe('F-08 + F-61 — a rider\'s refusal at pickup is written on the order, 
     expect((await rowOf(PICK))?.['fulfillment']).toMatchObject({ pickupRefusedAt: T1 });
   });
 
-  it('pickup refused on a provider fault: the unit comes home AND the mark is written — the two never depend on each other', async () => {
-    const r = await post('/fulfillment/delivery-refused', pickupRefusal(PICK_PROVIDER, T1, 'provider'), `Bearer ${FULFILL_SECRET}`);
+  it('pickup refused on a payment-provider fault: the unit comes home AND the mark is written — the two never depend on each other', async () => {
+    // `payment_provider` is one of the two classes `restockOnRefusal` sends
+    // home (verifier MINOR: 'provider' took the no-restock road, so the mark
+    // was never proven outside it).
+    const r = await post('/fulfillment/delivery-refused', pickupRefusal(PICK_PROVIDER, T1, 'payment_provider'), `Bearer ${FULFILL_SECRET}`);
     expect(r.status, r.text).toBe(200);
+    expect(r.json['status']).toBe('restocked');
     expect((await rowOf(PICK_PROVIDER))?.['fulfillment']).toMatchObject({ pickupRefusedAt: T1 });
   });
 

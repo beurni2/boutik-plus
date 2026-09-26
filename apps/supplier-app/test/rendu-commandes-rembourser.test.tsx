@@ -207,6 +207,26 @@ describe('F-02 — « Annuler et rembourser », HIS act on an order nobody will 
     screen.unmount();
   });
 
+  it('never offered on an order Shop+ is already refunding, even before « prêt » and with no refusal on the book', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    wire([
+      livre(() => [ATTENTE]),
+      contacts,
+      (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) =>
+        path === '/checkout/dispatch'
+          ? { status: 200, json: { ok: true, orders: [ligneShop('ord-attente', { etat: 'en_cours' })] } }
+          : null,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    await screen.press('Incidents');
+    await screen.press('Bazin riche');
+    expect(screen.canPress('Retirer cette commande'), 'the card did not open').toBe(true);
+    expect(screen.canPress('Annuler et rembourser'), 'a second refund offered on one already running').toBe(false);
+    screen.unmount();
+  });
+
   it('never offered once the parcel is ready, nor on an order already refunding', async () => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops' });
     wire([
@@ -221,7 +241,9 @@ describe('F-02 — « Annuler et rembourser », HIS act on an order nobody will 
     expect(screen.canPress('Annuler et rembourser')).toBe(false);
     await screen.press('Incidents');
     await screen.press('Tissu');
-    expect(screen.shows('En attente depuis'), 'the card did not open').toBe(true);
+    expect(screen.canPress('Retirer cette commande'), 'the card did not open').toBe(true);
+    // An ended order waits for no one (verifier MINOR): no « En attente depuis ».
+    expect(screen.shows('En attente depuis'), 'an ended order told it is still waiting').toBe(false);
     expect(screen.canPress('Annuler et rembourser')).toBe(false);
     screen.unmount();
   });
@@ -254,7 +276,8 @@ describe('F-08 + F-61 — finished orders are classed from the book, with no oth
     // offered that the book would only refuse (mutation A3 survived without this).
     for (const nom of ['Panier tressé', 'Robe brodée']) {
       await screen.press(nom);
-      expect(screen.shows('En attente depuis'), `${nom}: the card did not open`).toBe(true);
+      expect(screen.canPress('Retirer cette commande'), `${nom}: the card did not open`).toBe(true);
+      expect(screen.shows('En attente depuis'), `${nom}: an ended order told it is still waiting`).toBe(false);
       expect(screen.canPress('Annuler et rembourser'), `${nom}: a cancel offered after « prêt »`).toBe(false);
       await screen.press(nom);
     }
@@ -276,6 +299,26 @@ describe('F-08 + F-61 — finished orders are classed from the book, with no oth
     // …and the book still classes what it knows.
     await screen.press('Terminées');
     expect(screen.shows('Chaussures')).toBe(true);
+    screen.unmount();
+  });
+});
+
+describe('F-61 — a Shop+ read cut short by its page cap is said as partial', () => {
+  it('every page answers « next »: the sweep stops at its cap and the one sentence appears', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    const fil = wire([
+      livre(() => [PRETE]),
+      contacts,
+      (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path, _b, search) =>
+        path === '/checkout/dispatch'
+          ? { status: 200, json: { ok: true, orders: [], next: `p${Number(search.get('cursor')?.slice(1) ?? '0') + 1}` } }
+          : null,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(fil.calls.filter((c) => c.path === '/checkout/dispatch').length).toBeGreaterThan(1);
+    expect(screen.shows('Une partie des informations n’a pas pu être lue.'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     screen.unmount();
   });
 });
@@ -389,6 +432,18 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
     sans.screen.unmount();
   });
 
+  it('a key C Shop+ refuses sends the card to its door, said as refused — never a fold that silently vanishes', async () => {
+    const { screen } = await versIncident((path) =>
+      path === '/checkout/dispatch/ord-revenue/refusal' ? { status: 401, json: { error: 'unauthorized' } } : null,
+    );
+    await screen.press('Signaler');
+    await screen.press("Elle a changé d'avis");
+    await screen.settle();
+    expect(screen.shows("Cette clé n'est pas la bonne."), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.canPress('Ouvrir'), 'no way back to type the key').toBe(true);
+    screen.unmount();
+  });
+
   it('never offered where it would blame her for our failure: refused by the supplier, or at pickup', async () => {
     const { screen } = await versIncident(() => null);
     screen.unmount();
@@ -399,7 +454,7 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
       await s.settle();
       await s.press('Incidents');
       await s.press(nom);
-      expect(s.shows('En attente depuis'), `${nom}: the card did not open`).toBe(true);
+      expect(s.canPress('Retirer cette commande'), `${nom}: the card did not open`).toBe(true);
       expect(s.canPress('Signaler'), `${nom}: « Signaler » would blame the buyer`).toBe(false);
       s.unmount();
     }
@@ -426,6 +481,31 @@ describe('F-37 — « Retirer » waits for a refund notice that has not left yet
     expect(screen.shows('Le remboursement de la cliente n’est pas encore parti.'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.shows('Tissu')).toBe(true);
     expect(screen.canPress('Retirer cette commande')).toBe(true);
+    screen.unmount();
+  });
+});
+
+describe('F-37 — the sweep says which rows it kept for a refund notice', () => {
+  it('a row the book keeps (refus_en_attente) is counted apart and said, never « pas pu »', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops' });
+    wire([
+      (path, body) =>
+        path === '/fulfillment/order/retirer'
+          ? body?.['orderId'] === 'ord-refusee'
+            ? { status: 409, json: { ok: false, reason: 'refus_en_attente' } }
+            : { status: 200, json: { ok: true, status: 'retire', orderId: String(body?.['orderId']) } }
+          : null,
+      livre(() => [commande('ord-refusee', 'Tissu', { refusedAt: '2026-09-26T08:00:00.000Z' }), REVENUE]),
+      contacts,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    await screen.press('Incidents');
+    await screen.press("Retirer les commandes d'essai");
+    await screen.press('Oui, tout retirer');
+    await screen.settle();
+    expect(screen.shows('Gardées pour l’instant : 1.'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows("n'ont pas pu l'être"), 'a deliberate wait counted as a failure').toBe(false);
     screen.unmount();
   });
 });

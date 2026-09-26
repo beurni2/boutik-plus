@@ -151,7 +151,9 @@ describe('REMBOURSEMENT-2 — refunds on the founder’s Commandes tab', () => {
 
     // The refused card opens (the tree survives) and offers no nudge to prepare it.
     await screen.press('Pagne wax');
-    expect(screen.shows('En attente depuis'), 'the card did not open').toBe(true);
+    expect(screen.canPress('Retirer cette commande'), 'the card did not open').toBe(true);
+    // An ended order waits for no one (verifier MINOR): no « En attente depuis ».
+    expect(screen.shows('En attente depuis'), 'an ended order told it is still waiting').toBe(false);
     expect(screen.canPress('Noter : j’ai appelé'), 'a nudge to prepare a refused order').toBe(false);
     screen.unmount();
   });

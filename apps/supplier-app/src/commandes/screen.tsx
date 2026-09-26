@@ -197,6 +197,8 @@ function LivreCommandes({
    *  did not answer. Said once at the top: the book's own marks still class
    *  every order, but what only those reads know is missing. */
   const [lectureEchouee, setLectureEchouee] = useState(false);
+  /** Shop+ refused the key C this device held — the door says so. */
+  const [cleCRefusee, setCleCRefusee] = useState(false);
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -237,11 +239,16 @@ function LivreCommandes({
     if (cleC === null || dispatch === null) setLivraisons('cle_c_absente');
     else {
       const l = await dispatch.listLivraisons(cleC);
-      if (l.ok) setLivraisons(new Map(l.rows.map((r) => [r.orderId, r] as const)));
+      if (l.ok) {
+        setLivraisons(new Map(l.rows.map((r) => [r.orderId, r] as const)));
+        // A sweep the page cap cut short is a partial read, said as one.
+        if (l.incomplet) echec = true;
+      }
       else if (l.reason === 'bad_key') {
         // A refused key C clears back to its door — the rotation moment, same
         // law as every stored key in this app.
         clearStoredCleC();
+        setCleCRefusee(true);
         setLivraisons('cle_c_absente');
       } else {
         echec = true;
@@ -394,13 +401,16 @@ function LivreCommandes({
               articlesColis={articlesColis(o)}
               remboursement={remboursements.get(o.orderId)}
               livraison={livraisonDe(o.orderId)}
+              cleCRefusee={cleCRefusee}
               onCleC={(k) => {
                 storeCleC(k);
+                setCleCRefusee(false);
                 setLivraisons('chargement');
                 void charger();
               }}
               onCleCRefusee={() => {
                 clearStoredCleC();
+                setCleCRefusee(true);
                 setLivraisons('cle_c_absente');
               }}
               onChanged={() => void charger()}
@@ -450,6 +460,9 @@ function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
   onCleRefusee: () => void;
 }) {
   const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
+  /** REMBOURSABLE-1 (F-37) — rows the book kept because a refund notice has
+   *  not reached Shop+ yet: counted apart, and said, never « pas pu ». */
+  const [enAttente, setEnAttente] = useState(0);
   const sweep = ui.sweep;
   return (
     <View style={{ marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', gap: 8 }}>
@@ -474,11 +487,13 @@ function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
                 let vivant = started.ui;
                 let faits = 0;
                 let echecs = 0;
+                let attente = 0;
                 let cleRefusee = false;
                 // THE CONFIRMED SET, never the current rows (verifier MAJOR).
                 for (const orderId of started.orderIds) {
                   const r = await service.retirerCommande(cle, orderId);
                   if (r.ok) faits += 1;
+                  else if (r.reason === 'refus_en_attente') attente += 1;
                   else {
                     echecs += 1;
                     // A refused key is not N stubborn orders — say the true
@@ -489,6 +504,7 @@ function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
                   setUi(vivant);
                   if (cleRefusee) break;
                 }
+                setEnAttente(attente);
                 setUi(sweepFini(vivant, faits, echecs));
                 if (cleRefusee) onCleRefusee();
                 else onChanged();
@@ -498,13 +514,18 @@ function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
           <BtnSoft label={t('operations.retrait_annuler')} onPress={() => setUi(sweepAnnule(ui))} />
         </>
       ) : sweep.kind === 'fini' ? (
-        <Text style={PETIT}>
-          {sweep.echecs === 0
-            ? t('operations.balayage_fini').replace('{n}', String(sweep.faits))
-            : t('operations.balayage_reste')
-                .replace('{n}', String(sweep.faits))
-                .replace('{e}', String(sweep.echecs))}
-        </Text>
+        <>
+          <Text style={PETIT}>
+            {sweep.echecs === 0
+              ? t('operations.balayage_fini').replace('{n}', String(sweep.faits))
+              : t('operations.balayage_reste')
+                  .replace('{n}', String(sweep.faits))
+                  .replace('{e}', String(sweep.echecs))}
+          </Text>
+          {enAttente > 0 ? (
+            <Text style={PETIT}>{t('operations.balayage_refus_en_attente').replace('{n}', String(enAttente))}</Text>
+          ) : null}
+        </>
       ) : (
         <BtnSoft
           label={t('operations.balayage_action')}
@@ -533,6 +554,7 @@ function RangCommande({
   articlesColis,
   remboursement,
   livraison,
+  cleCRefusee,
   onCleC,
   onCleCRefusee,
   onChanged,
@@ -555,6 +577,8 @@ function RangCommande({
   remboursement: RemboursementOperateur | undefined;
   /** REMBOURSABLE-1 (F-69) — this order's key-C row, from the tab's ONE read. */
   livraison: LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec';
+  /** Shop+ refused the key C this device held (it was cleared). */
+  cleCRefusee: boolean;
   /** Key C typed at a card's door: kept, and the tab reads again. */
   onCleC: (cle: string) => void;
   onCleCRefusee: () => void;
@@ -603,7 +627,7 @@ function RangCommande({
       </Pressable>
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} onCleC={onCleC} onChanged={onChanged} />
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} cleCRefusee={cleCRefusee} onCleC={onCleC} onChanged={onChanged} />
         ) : (
           <>
             <DetailATraiter
@@ -619,6 +643,13 @@ function RangCommande({
                 remboursement === undefined && row.fulfillment?.refusedAt === undefined &&
                 row.fulfillment?.pickupRefusedAt === undefined
               }
+              // REMBOURSABLE-1 (verifier MINOR) — an ENDED order waits for no
+              // one: « En attente depuis… Appelez le fournisseur » on an order
+              // he cancelled, or the rider refused, would be false.
+              ferme={
+                row.fulfillment?.refusedAt !== undefined || row.fulfillment?.pickupRefusedAt !== undefined ||
+                row.fulfillment?.returnedAt !== undefined
+              }
               onChanged={onChanged}
             />
             {/* REMBOURSABLE-1 (F-02) — HIS « Annuler et rembourser », while the
@@ -632,12 +663,20 @@ function RangCommande({
                 or the RIDER refused at pickup: nothing she did caused those, and
                 the ladder would count it against her. */}
             {segment === 'incidents' && row.fulfillment?.refusedAt === undefined && row.fulfillment?.pickupRefusedAt === undefined ? (
-              <SignalerRefus
-                orderId={row.orderId}
-                cleC={readStoredCleC()}
-                aUnNumero={typeof livraison === 'object' && livraison.contact !== null}
-                onCleCRefusee={onCleCRefusee}
-              />
+              livraison === 'cle_c_absente' ? (
+                // Verifier MINOR — never a fold that silently vanishes: without
+                // a key C (never typed, or just refused) the way back is HERE.
+                <View style={{ marginTop: 12 }}>
+                  <PorteCleC refusee={cleCRefusee} onCleC={onCleC} />
+                </View>
+              ) : (
+                <SignalerRefus
+                  orderId={row.orderId}
+                  cleC={readStoredCleC()}
+                  aUnNumero={typeof livraison === 'object' && livraison.contact !== null}
+                  onCleCRefusee={onCleCRefusee}
+                />
+              )
             ) : null}
           </>
         )
@@ -793,6 +832,7 @@ function DetailATraiter({
   service,
   cle,
   relancePossible,
+  ferme,
   onChanged,
 }: {
   row: PaidOrderRow;
@@ -802,6 +842,9 @@ function DetailATraiter({
   service: OperationsServicePort;
   cle: string;
   relancePossible: boolean;
+  /** The order has ended (refused, cancelled, refused at pickup, back home):
+   *  no waiting time, no urgency. */
+  ferme: boolean;
   onChanged: () => void;
 }) {
   const ton = tonAttente(row.paidAt, nowMs);
@@ -813,17 +856,21 @@ function DetailATraiter({
 
   return (
     <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
-      <Text style={PETIT}>{t('commandes.attente_depuis')}</Text>
-      <Text style={[DUREE, { marginTop: 2 }]}>{attenteLabel}</Text>
-      {ton !== 'calme' ? (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone={ton === 'fort' ? 'danger' : 'warn'}>
-            {t(ton === 'fort' ? 'commandes.attente_forte' : 'commandes.attente_appuyee')}
-          </Banner>
-        </View>
-      ) : null}
-      {row.relance !== undefined ? (
-        <Text style={[PETIT, { marginTop: 8 }]}>{t('commandes.deja_relance')}</Text>
+      {!ferme ? (
+        <>
+          <Text style={PETIT}>{t('commandes.attente_depuis')}</Text>
+          <Text style={[DUREE, { marginTop: 2 }]}>{attenteLabel}</Text>
+          {ton !== 'calme' ? (
+            <View style={{ marginTop: 8 }}>
+              <Banner tone={ton === 'fort' ? 'danger' : 'warn'}>
+                {t(ton === 'fort' ? 'commandes.attente_forte' : 'commandes.attente_appuyee')}
+              </Banner>
+            </View>
+          ) : null}
+          {row.relance !== undefined ? (
+            <Text style={[PETIT, { marginTop: 8 }]}>{t('commandes.deja_relance')}</Text>
+          ) : null}
+        </>
       ) : null}
 
       <View style={{ marginTop: 14, gap: 8 }}>
@@ -894,6 +941,7 @@ function DetailTerminee({
   coursier,
   articlesColis,
   buyer,
+  cleCRefusee,
   onCleC,
   onChanged,
 }: {
@@ -907,11 +955,11 @@ function DetailTerminee({
   /** REMBOURSABLE-1 (F-69) — the buyer's row from the tab's ONE key-C read.
    *  This card used to re-read every page of every buyer each time it opened. */
   buyer: LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec';
+  cleCRefusee: boolean;
   onCleC: (cle: string) => void;
   onChanged: () => void;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
-  const [cleCDraft, setCleCDraft] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -952,17 +1000,7 @@ function DetailTerminee({
           // The key C DOOR lives here now — the Livraisons zone that used to
           // hold it retires in this slice. Typed once, kept on his device,
           // cleared if the Shop+ Worker refuses it.
-          <View style={{ marginTop: 6, gap: 8 }}>
-            <Banner tone="info">{t('commandes.cle_c_requise')}</Banner>
-            <Input label={t('commandes.cle_c_placeholder')} value={cleCDraft} onChangeText={setCleCDraft} />
-            <BtnSoft
-              label={t('commandes.cle_entrer')}
-              onPress={() => {
-                if (cleCDraft.trim() === '') return void 0;
-                onCleC(cleCDraft.trim());
-              }}
-            />
-          </View>
+          <PorteCleC refusee={cleCRefusee} onCleC={onCleC} />
         ) : buyer === 'echec' ? (
           <Text style={[CORPS, { marginTop: 6 }]}>{t('commandes.cliente_echec')}</Text>
         ) : (
@@ -1021,6 +1059,28 @@ function DetailTerminee({
           />
         </>
       )}
+    </View>
+  );
+}
+
+/**
+ * The key C door (« Clé Shop+ »), wherever a card needs Shop+: the buyer's
+ * number on « Prêt à livrer », « Signaler » on Incidents. Typed once, kept on
+ * his device; a refused key comes back here, said as refused.
+ */
+function PorteCleC({ refusee, onCleC }: { refusee: boolean; onCleC: (cle: string) => void }) {
+  const [draft, setDraft] = useState('');
+  return (
+    <View style={{ marginTop: 6, gap: 8 }}>
+      <Banner tone={refusee ? 'warn' : 'info'}>{t(refusee ? 'livraisons.cle_refusee' : 'commandes.cle_c_requise')}</Banner>
+      <Input label={t('commandes.cle_c_placeholder')} value={draft} onChangeText={setDraft} />
+      <BtnSoft
+        label={t('commandes.cle_entrer')}
+        onPress={() => {
+          if (draft.trim() === '') return void 0;
+          onCleC(draft.trim());
+        }}
+      />
     </View>
   );
 }

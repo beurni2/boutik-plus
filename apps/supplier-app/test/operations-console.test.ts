@@ -152,6 +152,23 @@ describe('THE 10-MINUTE LINE — the founder’s ruling, at its exact boundary',
     expect(view.recentes.map((r) => r.orderId)).toEqual(['ord-just-under']);
   });
 
+  it('REMBOURSABLE-1 — an order already ENDED (refused, cancelled by him, refused at pickup) waits for no call, however old', () => {
+    const base = rowAt('x', paidAgo(60));
+    const view = operationsView(
+      {
+        kind: 'ok',
+        rows: [
+          rowAt('attend', paidAgo(60)),
+          { ...base, orderId: 'annulee', fulfillment: { refusedAt: paidAgo(30), refusPar: 'fondateur' } },
+          { ...base, orderId: 'refusee', fulfillment: { refusedAt: paidAgo(30) } },
+        ],
+      },
+      NOW,
+    );
+    if (view.kind !== 'board') throw new Error(view.kind);
+    expect(view.relancer.map((r) => r.orderId)).toEqual(['attend']);
+  });
+
   it('relancer is OLDEST FIRST (the longest-waiting supplier is called first); recentes newest first', () => {
     const view = operationsView(
       {
