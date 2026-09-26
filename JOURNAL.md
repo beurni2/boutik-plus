@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-26 · CLE-FONDATEUR-1 (slice 2 of the AUDIT-B+2 plan) — the founder's console works on the keys he types; none is built into the page · ON THE BRANCH, awaiting the founder's word
+## 2026-09-26 · CLE-FONDATEUR-1 (slice 2 of the AUDIT-B+2 plan) — the founder's console works on the keys he types; none is built into the page · MERGED AND DEPLOYED 2026-09-26 on the founder's « go »
+
+**Merged and deployed (founder: « Go », 2026-09-26).** `main` fast-forwarded `8065436 → 776896c` (ancestry verified with `merge-base --is-ancestor` before the push). Offer-deploy and web-deploy dispatched together, offer service first. **ci 364 · expo-preview 242 · offer-deploy 41 · web-deploy 77, all green on `776896c`** — read on the runs list. offer-deploy 41's own assertion, read off its log: « health 200 — live canon=3.20.0 release=776896c… » then « PROVENANCE OK — live Worker is 776896c… speaking canon 3.20.0 ». web-deploy 77 passed the cold-export sentinel (which now also refuses a dist without `_headers`), uploaded 2 new files of 9 plus « ✨ Uploading _headers », and deployed to `boutik-plus-web`. The suppliers' page and the media Worker were not redeployed (the suppliers' page gets `_headers` at its next deploy). **Not verified from here:** the live page's response headers — this session's network refuses `pages.dev` (the proxy's 403, not the site's). **Founder actions still open:** a new value for `MEDIA_REVOKE_SECRET`, typed once into « Clé des photos »; deleting `OFFER_WRITE_SECRET` and the two retired repo secrets; his ruling on `LIVE_CHECK_OPS_KEY`.
 
 **Founder order (2026-09-26).** « Go on for slice 2 » — and with it his yes to the key model proposed with the plan: publishing, deleting and reading suppliers' products only with the key he types; the photo-delete key out of the page; both old keys replaced. It closes F-01, F-34, F-35, F-38, F-66, F-68, F-70, F-76, F-86. (F-01's full write-up stays with him until this is deployed; this entry says what changed, not what the old key allowed.)
 
