@@ -16,15 +16,16 @@ import { inflateRawSync } from 'node:zlib';
  * tracked zip (review packets are committed on purpose; nothing is excluded
  * by path, `_review/` included). It refuses:
  *
- *   1. a literal value assigned to a credential name — anything ending in
- *      _SECRET, _TOKEN, _WRITE_KEY, _REVOKE_KEY, _OPS_KEY or _API_KEY, plus
- *      VERIFIED_SUPPLIERS — in any `NAME=value`, `NAME: value` or
- *      `"NAME": "value"` form. In code files only a QUOTED value counts (an
+ *   1. a literal value assigned to a credential name — SECRET, TOKEN,
+ *      PASSWORD, API_KEY alone or at the end of a name, anything ending in
+ *      _WRITE_KEY, _REVOKE_KEY or _OPS_KEY, plus VERIFIED_SUPPLIERS — in any
+ *      `NAME=value`, `NAME: value`, `"NAME": "value"` form, or as the default
+ *      of a shell `${NAME:-value}`; and a literal after `Bearer `. In code files only a QUOTED value counts (an
  *      unquoted one is a variable); elsewhere an unquoted one counts too. A
  *      `$…`/`${{ … }}` reference, another variable's NAME, or a value shorter
  *      than 8 characters is not a value;
- *   2. a SECRET/TOKEN/KEY name under [vars] in a wrangler.toml, whatever its
- *      value — [vars] is committed and published;
+ *   2. a SECRET/TOKEN/KEY name under [vars] or [env.<name>.vars], whatever
+ *      its value — both are committed and published;
  *   3. a GitHub token (ghp_…, gho_…, ghs_…, github_pat_…);
  *   4. a PRIVATE KEY block.
  *
@@ -37,15 +38,23 @@ import { inflateRawSync } from 'node:zlib';
  * pattern, never a path: a real secret matches none of these. The gate never prints a value it found — only its
  * first four characters and its length — because CI logs are public.
  *
+ * WHAT IT DOES NOT SEE (the verifier's probe, 2026-09-26), so green is never
+ * read as more: a camelCase name (`apiToken: "…"`), a YAML block value
+ * (`KEY: |` then the value on the next line), a credential that happens to
+ * start with test-/gate-/fixture-, or one under a name none of the above
+ * describes. It is E0's baseline, not a guarantee.
+ *
  * Usage: secret-scan.mjs [path…]   (default: every tracked file, git ls-files)
  * Exit 0 clean · 1 a secret-shaped value found · 2 could not run.
  */
 const CODE = /\.(m?[jt]sx?|cjs|json|html)$/;
-const NAME = /\b([A-Z][A-Z0-9_]*(?:_SECRET|_TOKEN|_WRITE_KEY|_REVOKE_KEY|_OPS_KEY|_API_KEY)|VERIFIED_SUPPLIERS)\b/;
+const NAME = /\b((?:[A-Z][A-Z0-9_]*_)?(?:SECRET|TOKEN|PASSWORD|API_KEY)|[A-Z][A-Z0-9_]*(?:_WRITE_KEY|_REVOKE_KEY|_OPS_KEY)|VERIFIED_SUPPLIERS)\b/;
 const ASSIGN = new RegExp(
   String.raw`["']?` + NAME.source + String.raw`["']?\s*(?::|=|\?\?=)\s*(?:(["'\`])([^"'\`\n]*)\2|([^\s"'\`,;)}\]]+))`,
   'g',
 );
+/** A literal after `Bearer ` — a template (`${…}`), a variable or a placeholder is not one. */
+const BEARER = /\bBearer\s+([A-Za-z0-9._~+/=-]{20,})/g;
 const GITHUB = /\b(?:gh[pous]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,})\b/g;
 const PRIVATE = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
 const PLACEHOLDER = /^(?:test|gate|fixture)-/;
@@ -71,16 +80,25 @@ function findings(text, codeFile) {
   let inVars = false;
   lines.forEach((line, i) => {
     const section = line.match(/^\s*\[([^\]]+)\]\s*$/);
-    if (section) inVars = section[1].trim() === 'vars';
+    if (section) inVars = /^(?:env\.[^.\]]+\.)?vars$/.test(section[1].trim());
     if (inVars && /^\s*[A-Za-z0-9_]*(SECRET|TOKEN|KEY)[A-Za-z0-9_]*\s*=/.test(line)) {
       out.push({ line: i + 1, what: `a credential name under [vars] (committed and published): ${line.trim().split('=')[0].trim()}` });
     }
     for (const m of line.matchAll(ASSIGN)) {
-      // `${NAME:?…}` / `${NAME:-…}` is a shell expansion OF the variable, never a value given to it.
-      if (line.slice(Math.max(0, m.index - 2), m.index) === '${') continue;
+      // `${NAME}` / `${NAME:?…}` is a shell expansion OF the variable, never a
+      // value given to it — but the default in `${NAME:-…}` / `${NAME:=…}` IS a
+      // value, and is judged like one.
+      if (line.slice(Math.max(0, m.index - 2), m.index) === '${') {
+        const def = line.slice(m.index + m[1].length).match(/^:?[-=]([^}]*)\}/);
+        if (def !== null && isValue(def[1], false, false)) out.push({ line: i + 1, name: m[1], value: def[1].trim() });
+        continue;
+      }
       const quoted = m[2] !== undefined;
       const value = quoted ? m[3] : m[4];
       if (isValue(value, quoted, codeFile)) out.push({ line: i + 1, name: m[1], value: value.trim() });
+    }
+    for (const m of line.matchAll(BEARER)) {
+      if (isValue(m[1], true, false)) out.push({ line: i + 1, name: 'Authorization Bearer', value: m[1] });
     }
     for (const m of line.matchAll(GITHUB)) out.push({ line: i + 1, name: 'GitHub token', value: m[0] });
     if (PRIVATE.test(line)) out.push({ line: i + 1, what: 'a PRIVATE KEY block' });

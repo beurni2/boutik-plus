@@ -23,6 +23,12 @@ permissions:
 
 jobs:
   publish-preview:
+    # DEPLOI-VERROU-1 (verifier, slice 4) — a publish to the founder's preview
+    # channel is a deploy too: only main may publish, whether by the push to
+    # main or by a dispatch. A dispatch from any other branch is skipped.
+    # (Not the ci-green check the four deploys run: ci is still running when
+    # the push to main fires this.)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # DEPLOI-VERROU-1 (F-17) — EXPO_TOKEN is no longer set for the whole job,
     # where every step (and every action) could read it: only the presence

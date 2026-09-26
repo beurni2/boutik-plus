@@ -84,9 +84,9 @@ const expect = (name, r, code, needle) => {
 const allowed = run(tip, '1');
 expect("main's newest commit, ci green → allowed", allowed, 0, 'deploy allowed');
 const asked = existsSync(argsLog) ? readFileSync(argsLog, 'utf8') : '';
-const wantUrl = `repos/beurni2/boutik-plus/actions/workflows/ci.yml/runs?head_sha=${tip}&status=success`;
+const wantUrl = `repos/beurni2/boutik-plus/actions/workflows/ci.yml/runs?head_sha=${tip}&event=push&branch=main&status=success`;
 if (!asked.includes(wantUrl)) failures.push(`the ci question was not about this commit's successful ci runs — gh was asked: ${asked.trim() || '(nothing)'}`);
-else console.log('  ok — the ci question names this commit, the ci workflow and successful runs only');
+else console.log("  ok — the ci question names this commit, the ci workflow, main's own push run and successful runs only");
 
 expect('a branch commit ahead of main → refused', run(ahead, '1'), 1, "main's newest commit is");
 expect('an older commit of main → refused', run(older, '1'), 1, "main's newest commit is");

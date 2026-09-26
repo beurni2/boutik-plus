@@ -50,7 +50,11 @@ async function precacher() {
   const cache = await caches.open(CACHE);
   await Promise.all(
     PRECACHE.map(async (chemin) => {
-      const url = new URL(chemin, RACINE);
+      // The shell is fetched AT THE ROOT, never as /index.html: Cloudflare
+      // Pages answers /index.html with a redirect to /, and a redirected
+      // answer can never be served to a navigation (the browser refuses it,
+      // net::ERR_FAILED) — the offline open would fail on the real host.
+      const url = chemin === 'index.html' ? RACINE : new URL(chemin, RACINE);
       if (contenuAdresse(chemin)) {
         // A redeploy re-downloads only what changed: an unchanged hashed file
         // is copied from the previous version's cache.
@@ -64,8 +68,12 @@ async function precacher() {
       // seeded from a stale HTTP cache.
       const reponse = await fetch(url.href, contenuAdresse(chemin) ? undefined : { cache: 'no-cache' });
       if (!reponse.ok) throw new Error(`précache ${chemin}: ${reponse.status}`);
-      await cache.put(url.href, reponse.clone());
-      if (chemin === 'index.html') await cache.put(RACINE.href, reponse.clone());
+      // Belt and braces for any host that still redirects: keep the BYTES,
+      // never the redirect flag, so a navigation may use them.
+      const propre = reponse.redirected
+        ? new Response(await reponse.blob(), { status: reponse.status, statusText: reponse.statusText, headers: reponse.headers })
+        : reponse;
+      await cache.put(url.href, propre);
     }),
   );
   await self.skipWaiting();
@@ -102,8 +110,9 @@ async function depuisCacheDabord(requete, url) {
   if (en_cache !== undefined) return en_cache;
   const reponse = await fetch(requete);
   // Only a good answer under a content-addressed name is kept: a 404 or a
-  // proxy page must never be pinned.
-  if (reponse.ok) {
+  // proxy page must never be pinned — nor the app page itself, which Pages
+  // (no 404.html) sends back with a 200 for a missing file.
+  if (reponse.ok && !(reponse.headers.get('content-type') ?? '').includes('text/html')) {
     const cache = await caches.open(CACHE);
     await cache.put(url.href, reponse.clone());
   }

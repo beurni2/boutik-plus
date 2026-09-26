@@ -12,7 +12,15 @@
 #   1. the commit is main's newest commit — merged work, and nothing older
 #      (a stale branch or an old commit of main is refused; roll back by
 #      reverting on main, which is itself reviewed);
-#   2. the `ci` workflow has a SUCCESSFUL run on that exact commit.
+#   2. the `ci` workflow has a SUCCESSFUL run on that exact commit, and it is
+#      the run main's own push started (event=push, branch=main) — not a
+#      pull-request run, whose ci.yml could be the branch's own.
+#
+# ITS LIMIT, stated so green is never read as more: this step runs from the
+# commit being deployed, so it stops an accidental or stale dispatch — not a
+# branch that edits this script or its workflow. The guarantee against that
+# is GitHub's environment protection (the Cloudflare secrets scoped to a
+# `main`-only environment), a repository setting only the founder can turn on.
 #
 # A refusal is not an outage: nothing was uploaded. Wait for ci to go green
 # on main (or merge the work first), then dispatch again.
@@ -38,7 +46,7 @@ if [ "$GITHUB_SHA" != "$MAIN" ]; then
   exit 1
 fi
 
-GREEN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=1" --jq '.total_count' 2>/dev/null)" || GREEN=""
+GREEN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&status=success&per_page=1" --jq '.total_count' 2>/dev/null)" || GREEN=""
 case "$GREEN" in
   ''|*[!0-9]*)
     echo "::error title=Deploy refused::could not read ci's result for $GITHUB_SHA (answer: '$GREEN') — refusing rather than guessing."
