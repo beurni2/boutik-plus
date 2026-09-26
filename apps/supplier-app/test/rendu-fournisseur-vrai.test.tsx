@@ -75,8 +75,14 @@ interface Monde {
  * workerd that the door accepts at least these spellings (capitals or not,
  * any separator) — this stand-in grants nothing the real door refuses.
  */
+function canon(presented: string): string {
+  // The server's own steps, in its order (`codeCanonique`): capitals, 0 → O,
+  // only the minted alphabet, « BF » dropped from eighteen letters.
+  const lettres = presented.toUpperCase().replace(/0/g, 'O').replace(/[^A-Z2-7]/g, '');
+  return lettres.length === 18 && lettres.startsWith('BF') ? lettres.slice(2) : lettres;
+}
 const sonCode = (bearer: string | undefined): boolean =>
-  (bearer ?? '').replace(/^Bearer /, '').toUpperCase().replace(/[^A-Z2-7]/g, '') === CODE.replace(/[^A-Z2-7]/g, '');
+  canon((bearer ?? '').replace(/^Bearer /, '')) === canon(CODE);
 
 function lectures(m: Monde): Route[] {
   const garde = (headers: Record<string, string>): { status: number; json: Record<string, unknown> } | null => {
@@ -174,6 +180,19 @@ describe('F-06 · F-25 · F-80 — the code door: plain words, a keyboard that t
     expect(screen.shows('Pagne wax'), 'his products did not load behind the door').toBe(true);
     expect(store.get('boutik.fournisseur.code')).toBe('Bf-qzhg-xaup-b7ql-ucrk');
     expect(w.calls.some((c) => c.path === '/offers/mine')).toBe(true);
+    screen.unmount();
+  });
+
+  it('a code typed with a phone\'s long dash « – » still goes out as a header the browser can send, and opens his app (verifier minor 5)', async () => {
+    storage();
+    const w = wire(lectures(monde({ produits: [produit('o1')] })));
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.type('BF–QZHG–XAUP–B7QL–UCRK', 'Votre code');
+    await screen.press('Ouvrir');
+    await screen.settle();
+    const envoye = w.calls.find((c) => c.path === '/offers/mine')?.headers['authorization'] ?? '';
+    expect([...envoye].every((ch) => ch.charCodeAt(0) <= 0x7e), `« ${envoye} » cannot travel in a header`).toBe(true);
+    expect(screen.shows('Pagne wax'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     screen.unmount();
   });
 
@@ -366,6 +385,22 @@ describe('F-19 — one failed refresh never wipes his list or what he was typing
     screen.unmount();
   });
 
+  it('a code cut off WHILE his list is on screen still sends him to the door at the next refresh — the kept list never hides a dead code', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    storage({ 'boutik.fournisseur.code': CODE });
+    const m = monde({ commandes: [commande('ord-p', { fulfillment: { acceptedAt: T, readyAt: T } })] });
+    wire(lectures(m));
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    expect(screen.shows('Bazin')).toBe(true);
+    m.codeMort = true;
+    await minute(screen);
+    expect(screen.shows("Ce code n'est pas le bon."), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.canPress('Entrer le code à nouveau')).toBe(true);
+    expect(screen.shows('Bazin')).toBe(false);
+    screen.unmount();
+  });
+
   it('« Mes produits » keeps his products through a failed refresh too', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     storage({ 'boutik.fournisseur.code': CODE });
@@ -410,6 +445,76 @@ describe('F-20 — the code verdict stays in front of him while he hands the par
     await screen.press('En route');
     await screen.press('Commandes');
     expect(screen.shows(verdict), 'the held verdict outlived a tab change').toBe(false);
+    screen.unmount();
+  });
+
+  it('the held verdict is BOUNDED: gone two refreshes after its card left — never sitting, hours later, over another parcel waiting for its own check (verifier BLOCKER)', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    storage({ 'boutik.fournisseur.code': CODE });
+    const a = commande('ord-a', { fulfillment: { acceptedAt: T, readyAt: T } as Record<string, string> });
+    const m = monde({ commandes: [a] });
+    wire([
+      ...lectures(m),
+      (path) => {
+        if (path !== '/fulfillment/ramassage/verify') return null;
+        (a['fulfillment'] as Record<string, string>)['handedOverAt'] = T;
+        return { status: 200, json: { ok: true, verdict: 'confirme' } };
+      },
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.type('KX-42', 'Code du coursier');
+    await screen.press('Vérifier le code');
+    const verdict = 'Code confirmé. Vous pouvez remettre le colis au coursier.';
+    await minute(screen);
+    expect(screen.shows(verdict), 'the verdict left with its card').toBe(true);
+    await minute(screen);
+    await minute(screen);
+    expect(screen.shows(verdict), `the verdict outlived its moment. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+
+    // A NEW parcel of the same product, ready: its own check, and no verdict over it.
+    m.commandes = [a, commande('ord-b', { fulfillment: { acceptedAt: T, readyAt: T } })];
+    await minute(screen);
+    expect(screen.canPress('Vérifier le code'), 'the new parcel lost its own check').toBe(true);
+    expect(screen.shows('Code confirmé'), `a verdict sits over an unchecked parcel. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    screen.unmount();
+  });
+
+  it('« Actualiser la liste » clears a held verdict at once, and a held verdict never sits over the door\'s refusal', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    storage({ 'boutik.fournisseur.code': CODE });
+    const a = commande('ord-a', { fulfillment: { acceptedAt: T, readyAt: T } as Record<string, string> });
+    // a second order stays on the screen, so the list — and its refresh button — stays
+    const m = monde({ commandes: [a, commande('ord-reste', { productName: 'Pagne' })] });
+    wire([
+      ...lectures(m),
+      (path) => {
+        if (path !== '/fulfillment/ramassage/verify') return null;
+        (a['fulfillment'] as Record<string, string>)['handedOverAt'] = T;
+        return { status: 200, json: { ok: true, verdict: 'confirme' } };
+      },
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.type('KX-42', 'Code du coursier');
+    await screen.press('Vérifier le code');
+    const verdict = 'Code confirmé. Vous pouvez remettre le colis au coursier.';
+    await minute(screen);
+    expect(screen.texts().some((t) => t.includes('Bazin') && t.includes(verdict))).toBe(true);
+    await screen.press('Actualiser la liste');
+    expect(screen.shows(verdict), 'a refresh by hand left the verdict up').toBe(false);
+
+    // confirm again, then the code dies: the refusal speaks alone
+    a['fulfillment'] = { acceptedAt: T, readyAt: T };
+    await screen.press('Actualiser la liste');
+    await screen.type('KX-43', 'Code du coursier');
+    await screen.press('Vérifier le code');
+    await minute(screen);
+    expect(screen.shows(verdict)).toBe(true);
+    m.codeMort = true;
+    await minute(screen);
+    expect(screen.shows("Ce code n'est pas le bon.")).toBe(true);
+    expect(screen.shows(verdict), 'a verdict sits over the refused-code wall').toBe(false);
     screen.unmount();
   });
 
@@ -488,6 +593,8 @@ describe('F-21 — a photo the phone cannot open is never a silent dead tap', ()
     await screen.press('Choisir la photo du colis');
     expect(screen.shows("Cette photo ne s'ouvre pas sur ce téléphone. Choisissez-en une autre."),
       `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    // nothing to send: no photo reached his hand, so the send is not offered
+    expect(screen.canPress('Envoyer la preuve')).toBe(false);
     expect(w.calls.some((c) => c.path === '/media')).toBe(false);
     screen.unmount();
   });
@@ -501,6 +608,38 @@ describe('F-21 — a photo the phone cannot open is never a silent dead tap', ()
     const avant = screen.texts();
     await screen.press('Choisir la photo du colis');
     expect(screen.texts()).toEqual(avant);
+    screen.unmount();
+  });
+});
+
+describe('F-22 — a photo that cannot go always leaves a way out (verifier MAJOR 2)', () => {
+  it('the parcel card: the upload fails, the photo stays with « Envoyer la preuve » — and « Choisir une autre photo » opens the sheet again and replaces it', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    const colis = { packageId: 'pkg-p', orderIds: ['ord-p1', 'ord-p2'] };
+    wire(lectures(monde({
+      commandes: [
+        commande('ord-p1', { productName: 'Bazin', colis, fulfillment: { acceptedAt: T } }),
+        commande('ord-p2', { productName: 'Pagne', colis, fulfillment: { acceptedAt: T } }),
+      ],
+    })));
+    // no media write key on this build: every upload is refused, as a
+    // service that refuses the photo for good would refuse it
+    delete process.env['EXPO_PUBLIC_MEDIA_WRITE_KEY'];
+    armerSelecteur([{ uri: 'file:///DCIM/colis.jpg', mimeType: 'image/jpeg', fileName: 'colis.jpg' }]);
+    armerManipulateur({ base64: bytesToBase64(JPEG), width: 16, height: 16 });
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.press('Choisir la photo du colis');
+    await screen.press('Envoyer la preuve');
+    expect(screen.shows("La photo n'a pas pu partir. Réessayez."), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.images().some((u) => u.startsWith('data:image/jpeg;base64,')), 'the photo was thrown away').toBe(true);
+    expect(screen.canPress('Envoyer la preuve')).toBe(true);
+    expect(screen.canPress('Choisir une autre photo'), 'a photo that can never go leaves no way to pick another').toBe(true);
+
+    await screen.press('Choisir une autre photo');
+    expect(ouvertures, 'the sheet did not open again').toHaveLength(2);
+    expect(screen.shows("La photo n'a pas pu partir."), 'the old refusal outlived the new photo').toBe(false);
+    expect(screen.canPress('Envoyer la preuve')).toBe(true);
     screen.unmount();
   });
 });

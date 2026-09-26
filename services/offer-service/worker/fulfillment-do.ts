@@ -1104,12 +1104,16 @@ export class FulfillmentDO {
             offerVersion: r.offerVersion,
             paymentMode: r.paymentMode,
             paidAt: r.paidAt,
-            // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — NO `zoneTo`. The founder
-            // took the buyer's zone off his screen on 2026-09-02; her
-            // whereabouts ride to the delivery organiser and nowhere else, so
-            // they do not ride to his phone either. Deployed AFTER the
-            // supplier page, whose reader no longer requires the field — the
-            // other order would empty every supplier's list.
+            // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — the buyer's zone NEVER
+            // rides to his phone: the founder took it off his screen on
+            // 2026-09-02, and her whereabouts go to the delivery organiser and
+            // nowhere else. The KEY stays, EMPTY, for one reason (verifier
+            // MAJOR 3): a supplier tab opened before the new page runs the old
+            // reader, which drops any row without a `zoneTo` string — his list
+            // would read « aucune commande » while paid orders wait, until he
+            // reloads. An empty string carries nothing and keeps that tab
+            // honest. The key goes once no old page can still be open.
+            zoneTo: '',
             sellerBasePrice: r.sellerBasePrice,
             // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
             ...(r.colis !== undefined ? { colis: r.colis } : {}),

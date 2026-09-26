@@ -64,6 +64,8 @@ import type { ProduitVue } from './view';
  */
 
 const REFRESH_EVERY_MS = 60_000;
+/** How many good reads a confirmed code's verdict outlives its card by (F-20). */
+const TENU_LECTURES = 2;
 
 export function FournisseurApp() {
   // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-28) — the Faso Premium faces on his web
@@ -420,10 +422,15 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
    * moves the card to the next screen — and its verdict used to leave with it
    * while he was still handing the parcel over. Only the verdict is held,
    * never the card's stage.
+   *
+   * ⚠ AND IT IS BOUNDED (verifier BLOCKER): it lasts TENU_LECTURES good reads
+   * — about two minutes, the time of a handover — then goes. Held « until he
+   * refreshes by hand » alone, it sat for hours over the next parcel of the
+   * same product, telling him to hand over a colis nobody had checked.
    */
-  const [tenus, setTenus] = useState<readonly { readonly cle: string; readonly nom: string; readonly phrase: string }[]>([]);
+  const [tenus, setTenus] = useState<readonly { readonly cle: string; readonly nom: string; readonly phrase: string; readonly lectures: number }[]>([]);
   const tenir = (cle: string, nom: string, phrase: string): void =>
-    setTenus((prev) => [...prev.filter((x) => x.cle !== cle), { cle, nom, phrase }]);
+    setTenus((prev) => [...prev.filter((x) => x.cle !== cle), { cle, nom, phrase, lectures: 0 }]);
 
   const load = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
@@ -436,6 +443,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
       if (res.ok) {
         setRead({ kind: 'ok', rows: res.orders });
         setPerimee(false);
+        setTenus((prev) => prev.map((v) => ({ ...v, lectures: v.lectures + 1 })).filter((v) => v.lectures <= TENU_LECTURES));
       } else if (res.reason === 'bad_code') {
         setRead({ kind: 'bad_code' });
       } else {
@@ -688,7 +696,8 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
   // F-20 — a held verdict speaks from the top only once its card has left
   // this screen; while the card is here, the card says it itself.
   const surEcran = new Set(vue.kind === 'liste' ? vue.cartes.map((c) => (c.kind === 'colis' ? c.packageId : c.commande.orderId)) : []);
-  const verdictsTenus = tenus.filter((v) => !surEcran.has(v.cle));
+  // …and never over the door's refusal or the failed-read wall: only over a list.
+  const verdictsTenus = vue.kind === 'liste' || vue.kind === 'empty' ? tenus.filter((v) => !surEcran.has(v.cle)) : [];
 
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
@@ -1040,6 +1049,9 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
               <View style={{ marginTop: 8 }}>
                 <C07BtnPrimary label={t('fournisseur.pret_envoyer')} icon="check" onPress={onEnvoyer} />
               </View>
+              {/* Verifier MAJOR 2 — a photo the service refuses for good must
+                  never trap him in « Réessayez »: another photo is always one tap. */}
+              <BtnGhost label={t('fournisseur.pret_autre_photo')} onPress={onChoisirPhoto} />
             </>
           ) : (
             <BtnSoft label={t('fournisseur.pret_photo')} icon="camera" onPress={onChoisirPhoto} />
@@ -1166,6 +1178,9 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
               <View style={{ marginTop: 8 }}>
                 <C07BtnPrimary label={t('fournisseur.pret_envoyer')} icon="check" onPress={onEnvoyer} />
               </View>
+              {/* Verifier MAJOR 2 — a photo the service refuses for good must
+                  never trap him in « Réessayez »: another photo is always one tap. */}
+              <BtnGhost label={t('fournisseur.pret_autre_photo')} onPress={onChoisirPhoto} />
             </>
           ) : (
             <BtnSoft label={t('fournisseur.colis_photo')} icon="camera" onPress={onChoisirPhoto} />

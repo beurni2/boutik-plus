@@ -172,6 +172,15 @@ const READY_REFUSALS: readonly ReadyRefusal[] = [
   'already_ready', 'not_yours_or_unknown',
 ];
 
+/**
+ * FOURNISSEUR-VRAI-1 (verifier minor 5) — a header carries Latin-1 only. A
+ * phone's long dash « – » in the typed code made `fetch` THROW, so he read
+ * « Impossible de joindre le service » forever and was never sent back to the
+ * door. Anything outside printable ASCII travels as « - »; the server's own
+ * reading of the code (it ignores separators) decides the rest.
+ */
+const enTete = (code: string): string => `Bearer ${code.replace(/[^\x20-\x7E]/g, '-')}`;
+
 export function resolveFournisseurService(): FournisseurServicePort | null {
   const base = process.env.EXPO_PUBLIC_OFFER_BASE;
   if (base === undefined || base === '') return null;
@@ -181,7 +190,7 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
     try {
       const res = await fetch(`${trimmed}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${code}` },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: enTete(code) },
         body: JSON.stringify(body),
       });
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -196,7 +205,7 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       let res: Response;
       try {
         res = await fetch(`${trimmed}/fulfillment/mine`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${code}` },
+          headers: { Accept: 'application/json', Authorization: enTete(code) },
         });
       } catch {
         return { ok: false, reason: 'unreachable' };
@@ -217,7 +226,7 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       let res: Response;
       try {
         res = await fetch(`${trimmed}/offers/mine`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${code}` },
+          headers: { Accept: 'application/json', Authorization: enTete(code) },
         });
       } catch {
         return { ok: false, reason: 'unreachable' };

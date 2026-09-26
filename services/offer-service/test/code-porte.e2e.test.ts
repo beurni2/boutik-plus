@@ -124,6 +124,7 @@ describe('PORTE-CODE — the right code, however his phone typed it, opens his d
   it('a WRONG code stays refused however it is typed — and every refusal is the ONE uniform 401, byte for byte', async () => {
     const autre = code.slice(0, -1) + (code.endsWith('A') ? 'B' : 'A'); // one letter off
     const manquant = await commandes('');
+    const manquantProduits = await produits('');
     const refus: readonly string[] = [
       autre,
       autre.toLowerCase(),
@@ -139,6 +140,7 @@ describe('PORTE-CODE — the right code, however his phone typed it, opens his d
       expect(c.text, `« ${tape} » is not the uniform refusal`).toBe(manquant.text);
       const p = await produits(tape);
       expect(p.status, `« ${tape} » opened his products`).toBe(401);
+      expect(p.text, `« ${tape} » is not the uniform refusal on his products`).toBe(manquantProduits.text);
     }
   });
 

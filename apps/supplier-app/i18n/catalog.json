@@ -2640,6 +2640,12 @@
     "screenClass": "general"
   },
   {
+    "key": "fournisseur.pret_autre_photo",
+    "fr": "Choisir une autre photo",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "fournisseur.pret_envoyer",
     "fr": "Envoyer la preuve",
     "register": "money",
