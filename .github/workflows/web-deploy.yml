@@ -14,12 +14,17 @@ name: web-deploy
 # rather than incidental.
 #
 # SECRETS — all pre-existing, none new:
-#   · EXPO_PUBLIC_OFFER_BASE / _OFFER_WRITE_KEY / _MEDIA_BASE / _MEDIA_WRITE_KEY
-#     — the same four expo-preview.yml already inlines for the native preview.
-#     They bake into the PUBLIC js bundle; the standing key-exposure model
-#     applies unchanged (documented in service-auth: the shared key "stops
-#     scanners, not attackers"; the HARD GATE — no supplier but the founder
-#     authors until per-supplier identity — binds harder once hosted).
+#   · EXPO_PUBLIC_OFFER_BASE / _MEDIA_BASE / _MEDIA_WRITE_KEY — they bake into
+#     the PUBLIC js bundle. The two bases are addresses, not credentials; the
+#     media upload key is the standing founder-accepted exposure (it also
+#     rides every supplier's page).
+#   · CLE-FONDATEUR-1 (AUDIT-B+2 F-01): the offer WRITE key and the photo
+#     REVOKE key are NO LONGER HERE: no founder credential is built into the
+#     page any more. Publishing, listing and deleting products now ride the
+#     founder's operator key, and destroying photographs rides his « clé des
+#     photos » — both typed by him on his own device, never built into
+#     anything. The founder-keys-absent gate proves neither reaches the bundle
+#     even if a repo secret with its old name is still set.
 #   · CLOUDFLARE_API_TOKEN — the worker-deploy token. If it was scoped to
 #     Workers only, the FIRST run fails at the Pages step with a permission
 #     error: extend the token with Pages:Edit in the Cloudflare dashboard and
@@ -62,15 +67,10 @@ jobs:
         env:
           EXPO_PUBLIC_ROOT: v2
           EXPO_PUBLIC_OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
-          EXPO_PUBLIC_OFFER_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
           EXPO_PUBLIC_MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
           EXPO_PUBLIC_MEDIA_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
-          # MEDIA-KEY-SPLIT — the founder-only revoke credential (the value of
-          # media-service's MEDIA_REVOKE_SECRET). ONLY this workflow may carry
-          # it: fournisseur-web-deploy.yml must NEVER receive it — in a
-          # supplier bundle it would be a delete credential for the founder's
-          # product photographs, the exact hole the split closes.
-          EXPO_PUBLIC_MEDIA_REVOKE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}
+          # CLE-FONDATEUR-1 — no offer write key and no photo revoke key: the
+          # founder types both on his own device (see the header).
           # BC-1c — the Shop+ storefront Worker's URL (config, not a
           # credential), for the console's Livraisons section. The KEY that
           # opens that read (CHECKOUT_OPS_SECRET, value C) is NEVER here —
@@ -102,33 +102,20 @@ jobs:
         working-directory: apps/supplier-app
         env:
           OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
-          OFFER_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
           MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
           MEDIA_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_WRITE_KEY }}
-          # env-indirected like its four siblings (verifier: a secret value
-          # interpolated straight into bash can BREAK the script — the exact
-          # accident this warning-only step must never cause)
-          REVOKE_KEY: ${{ secrets.EXPO_PUBLIC_MEDIA_REVOKE_KEY }}
           SERA_LOGISTICS_BASE: ${{ vars.SERA_LOGISTICS_BASE }}
         run: |
           # AN EMPTY SECRET IS THE SENTINEL'S OWN BLIND SPOT (W5 verifier,
           # demonstrated): grep -F "" matches everything, so an unset secret
           # would GREEN this gate while the app ships « non configuré » — the
-          # exact outcome the gate exists to stop. Guard all four first.
-          for v in OFFER_BASE OFFER_KEY MEDIA_BASE MEDIA_KEY; do
+          # exact outcome the gate exists to stop. Guard all three first.
+          for v in OFFER_BASE MEDIA_BASE MEDIA_KEY; do
             if [ -z "${!v}" ]; then
               echo "::error::the secret behind $v is unset or empty — fix the repo secret before deploying"
               exit 1
             fi
           done
-          # MEDIA-KEY-SPLIT — WARNING ONLY, deliberately not a hard guard: the
-          # console's core function never depends on the revoke key, and the
-          # Worker fails closed regardless (no MEDIA_REVOKE_SECRET ⇒ every
-          # revoke 401s). This line just tells the founder WHY photo cleanup
-          # refuses, instead of letting it look like a bug.
-          if [ -z "$REVOKE_KEY" ]; then
-            echo "::warning::EXPO_PUBLIC_MEDIA_REVOKE_KEY is unset — photo revoke will answer 401 until it and media-service's MEDIA_REVOKE_SECRET are both set"
-          fi
           # WARNING, not a hard guard: the « Coursiers » zone already has an
           # honest « pas reliée » state, so an unset base degrades truthfully
           # rather than breaking the console. This exists so the founder can tell
@@ -139,6 +126,12 @@ jobs:
           fi
           if ! grep -rqF "$OFFER_BASE" dist-web/_expo/static/js/web/; then
             echo "::error::EXPO_PUBLIC_OFFER_BASE did not inline into the bundle — the export would ship a « non configuré » app"
+            exit 1
+          fi
+          # CLE-FONDATEUR-1 (F-86) — the page's protective headers ride the
+          # export (public/_headers); a deploy without them is refused.
+          if ! grep -qF "X-Frame-Options: DENY" dist-web/_headers; then
+            echo "::error::dist-web/_headers is missing or has no X-Frame-Options — public/_headers did not reach the export"
             exit 1
           fi
       - name: Ensure the Pages project exists (idempotent — create errors if present)

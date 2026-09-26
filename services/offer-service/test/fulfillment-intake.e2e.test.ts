@@ -152,7 +152,7 @@ async function seedOffer(): Promise<void> {
   if (minted.status !== 200) throw new Error(`mint: ${minted.status} ${await minted.text()}`);
   const res = await mf.dispatchFetch('http://o/offers', {
     method: 'POST',
-    headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(SEED),
   });
   if (res.status !== 200) throw new Error(`seed: ${res.status} ${await res.text()}`);

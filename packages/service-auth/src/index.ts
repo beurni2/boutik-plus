@@ -6,8 +6,9 @@
  * WHY EXTRACTED RATHER THAN COPIED: a second copy of a security primitive is a
  * second thing to get wrong, and the two copies drift silently — one gets a fix
  * the other does not. Each service keeps a THIN adapter that binds these
- * functions to its OWN secret env var (`OFFER_WRITE_SECRET`,
- * `MEDIA_WRITE_SECRET`), so services stay independently revocable — one leaked
+ * functions to its OWN secret env var (`MEDIA_WRITE_SECRET`,
+ * `MEDIA_REVOKE_SECRET`; offer-service's `OFFER_WRITE_SECRET` was retired by
+ * CLE-FONDATEUR-1), so services stay independently revocable — one leaked
  * secret does not open the other service — while the comparison, the fail-closed
  * rule and the 401 exist once.
  *

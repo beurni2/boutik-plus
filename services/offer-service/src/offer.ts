@@ -35,7 +35,7 @@ export interface NetPreview {
 
 export type OfferOutcome =
   | { ok: true; offer: SupplierOffer; preview: NetPreview }
-  | { ok: false; reason: 'below_category_floor' | 'publisher_not_eligible'; floor?: number };
+  | { ok: false; reason: 'below_category_floor' | 'publisher_not_eligible' | 'commission_leaves_no_net'; floor?: number };
 
 export function previewSellerNet(basePrice: number, resellerCommission: number): NetPreview {
   // ALL money via the pinned waterfall (markup/delivery belong to other
@@ -61,6 +61,11 @@ export class OfferBook {
       return { ok: false, reason: 'below_category_floor', floor: CATEGORY_FLOOR_FCFA };
     }
     const preview = previewSellerNet(draft.basePrice, draft.resellerCommission);
+    // CLE-FONDATEUR-1 (AUDIT-B+2 F-35) — a commission that leaves the seller
+    // nothing (or less) would make him pay to sell (B+I-12). The app refused
+    // it; the server did not. Same rule, same name, same franc as the app's
+    // `netLineRefusal`.
+    if (preview.sellerNetFcfa <= 0) return { ok: false, reason: 'commission_leaves_no_net' };
     this.counter += 1;
     const offer = SupplierOfferSchema.parse({
       id: `offer-${this.counter}`,

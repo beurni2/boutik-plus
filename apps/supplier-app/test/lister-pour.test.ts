@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cleEchecHttp, supplierPourPublication } from '../src/v2/lister-pour';
+import { cleEchecHttp, cleRefus, supplierPourPublication } from '../src/v2/lister-pour';
 
 /**
  * LISTER-POUR-1b — the aimed pen's two pure rules.
@@ -32,8 +32,20 @@ describe('LISTER-POUR-1b — whom the publication is for', () => {
     expect(cleEchecHttp('HTTP 400: {"error":"unknown_supplier","supplierId":"supplier-typo"}', MOI)).toBe(
       'publier.err_fournisseur_inconnu',
     );
-    expect(cleEchecHttp('HTTP 401: unauthorized', MOI)).toBe('publier.echec');
     expect(cleEchecHttp('HTTP 500: boom', MOI)).toBe('publier.echec');
+    expect(cleEchecHttp('HTTP 4010: odd', MOI), 'a status that merely STARTS with 401 is not a refused key').toBe('publier.echec');
+  });
+
+  it('CLE-FONDATEUR-1 — a 401 is HIS KEY refused: its own sentence, whatever the body says', () => {
+    expect(cleEchecHttp('HTTP 401: {"error":"unauthorized"}', MOI)).toBe('publier.cle_refusee');
+    expect(cleEchecHttp('HTTP 401: ', MOI)).toBe('publier.cle_refusee');
+  });
+
+  it('CLE-FONDATEUR-1 — the two new server refusals get plain words; an unknown one keeps the service’s own', () => {
+    expect(cleRefus('refused: product_version_taken')).toBe('publier.err_version_prise');
+    expect(cleRefus('refused: commission_leaves_no_net')).toBe('publier.err_commission_net');
+    expect(cleRefus('refused: base_price_below_floor')).toBeNull();
+    expect(cleRefus('collision')).toBeNull();
   });
 
   // FOUNDER REPORT 2026-08-03 — the exact body he was shown, verbatim. He had

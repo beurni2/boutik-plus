@@ -245,7 +245,7 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
  * small » → 560 → « a little more bigger again » → 680. One word changes it. */
 const PHOTO_COLUMN_MAX = 680;
 
-export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }: {
+export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansClePhotos, onConfirmStock }: {
   row: SupplierOfferRow;
   mediaBase: string | null;
   onBack: () => void;
@@ -253,6 +253,10 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }
    * (the parent closes this fiche); false surfaces the designed failure here.
    * Absent (service unconfigured) ⇒ no delete UI at all. */
   onDelete?: (() => Promise<boolean>) | undefined;
+  /** CLE-FONDATEUR-1 — the delete is not offered because this product has photos
+   * and the photo key is not on this device: the fiche SAYS so where the
+   * delete would be, instead of a silently missing action. */
+  suppressionSansClePhotos?: boolean | undefined;
   /** STOCK-JOURNAL-1 (B5.2) — « Confirmer le stock »: the count he typed.
    * Resolves true when the service journaled it (the parent re-reads and this
    * fiche's row refreshes); false surfaces the designed failure here, with the
@@ -421,6 +425,11 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, onConfirmStock }
             </>
           )}
         </View>
+      )}
+      {onDelete === undefined && suppressionSansClePhotos === true && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 18 }]}>
+          {tr('produits.supprimer_cle_photos')}
+        </Text>
       )}
       <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
     </ScrollView>

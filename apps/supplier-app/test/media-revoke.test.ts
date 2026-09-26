@@ -37,7 +37,7 @@ describe('the revoke response boundary — validated, never cast', () => {
 });
 
 describe('the fetch shell [source-text checks — media.ts is expo-bound, unimportable here]', () => {
-  it('POSTs JSON {ref} to /media/revoke with the write key header', () => {
+  it('POSTs JSON {ref} to /media/revoke with the REVOKE key he typed', () => {
     expect(media).toContain("}/media/revoke`");
     expect(media).toContain('JSON.stringify({ ref })');
     // MEDIA-KEY-SPLIT (2026-08-02): revoke carries the REVOKE credential,
@@ -47,9 +47,11 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
     const revokeBlock = bloc(media, 'async revokeImage', 'export function resolveMediaBase');
     expect(revokeBlock).toContain("[MEDIA_WRITE_KEY_HEADER]: this.revokeKey");
     expect(revokeBlock).not.toContain('this.writeKey');
-    // and the resolver reads the founder-only env, defaulting to '' (the wire
-    // then answers its own 401 — fail-closed at the service, never simulated)
-    expect(media).toContain("process.env.EXPO_PUBLIC_MEDIA_REVOKE_KEY ?? ''");
+    // CLE-FONDATEUR-1: the resolver reads the key HE TYPED on this device,
+    // defaulting to '' (the wire then answers its own 401 — fail-closed at the
+    // service, never simulated) — and no build env can put one back.
+    expect(media).toContain("const revokeKey = readStoredClePhotos() ?? '';");
+    expect(media).not.toContain('EXPO_PUBLIC_MEDIA_REVOKE_KEY');
     // and the resolver WIRES that env into the revoke slot — passing the
     // upload key there would 401 the founder's revoke forever while every
     // string pin above stayed green (verifier MINOR-6)
@@ -90,26 +92,31 @@ describe('the delete flow cleans the bytes [source-text checks on produits-real.
   it('revoke fires STRICTLY AFTER the offer delete succeeded — never before, never on failure', () => {
     const deleteCall = deleteBlock.indexOf('service.deleteOffer');
     const failGuard = deleteBlock.indexOf('if (!res.ok) return false;');
-    const revokeCall = deleteBlock.indexOf('revokeImage');
+    const revokeCall = deleteBlock.indexOf('effacerPhotos(');
     expect(deleteCall).toBeGreaterThan(-1);
     expect(failGuard).toBeGreaterThan(deleteCall); // the guard reads the delete's answer
     expect(revokeCall).toBeGreaterThan(failGuard); // and only past it can a byte be destroyed
   });
 
-  it('a failed revoke cannot un-succeed the delete: the result is unread and no false exit follows', () => {
-    // between the revoke loop and `return true` there is no `return false` —
-    // the delete's outcome is already decided when cleanup starts.
-    const afterRevoke = deleteBlock.slice(deleteBlock.indexOf('revokeImage'));
+  it('a failed revoke cannot un-succeed the delete: no false exit follows the cleanup', () => {
+    // between the cleanup and `return true` there is no `return false` — the
+    // delete's outcome is already decided when cleanup starts. (Since F-68 the
+    // photos that did NOT go are read back and kept for the list's retry.)
+    const afterRevoke = deleteBlock.slice(deleteBlock.indexOf('effacerPhotos('));
     const nextReturnFalse = afterRevoke.indexOf('return false');
     const returnTrue = afterRevoke.indexOf('return true');
     expect(returnTrue).toBeGreaterThan(-1);
     expect(nextReturnFalse === -1 || nextReturnFalse > returnTrue).toBe(true);
-    // (the result-unread property is the exact-line assertion in the next test:
-    // `await mediaService.revokeImage(ref);` — awaited, never assigned)
+    expect(deleteBlock).toContain('const restantes = await effacerPhotos(openOffer.assetRefs);');
+    expect(deleteBlock).toContain('if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);');
   });
 
-  it('refs are prefix-filtered to media/ and the whole cleanup is gated on a resolved media service', () => {
-    expect(deleteBlock).toContain("if (ref.startsWith('media/')) await mediaService.revokeImage(ref);");
-    expect(deleteBlock).toContain('if (mediaService !== null) {');
+  it('F-68 — refs are prefix-filtered to media/, and an unresolved service or a refusal leaves the photo COUNTED, never dropped', () => {
+    const helper = bloc(media, 'export async function effacerPhotos', '// referenced so the type-only import');
+    expect(helper).toContain("const nos = refs.filter((r) => r.startsWith('media/'));");
+    expect(helper).toContain('if (media === null) return nos;');
+    expect(helper).toContain('if (!res.ok) restantes.push(ref);');
+    // resolved PER CALL: a retry after he fixes the key uses the new key
+    expect(helper).toContain('const media = resolveMediaService();');
   });
 });

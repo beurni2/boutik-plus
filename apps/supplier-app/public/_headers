@@ -1,0 +1,20 @@
+# CLE-FONDATEUR-1 (AUDIT-B+2 F-86) — response headers for BOTH Boutik+ pages.
+#
+# `expo export` copies public/ into the output folder, so this file lands at
+# the root of dist-web (the founder's console) and dist-fournisseur (the
+# supplier page), where Cloudflare Pages reads it. Measured by the
+# founder-keys-absent gate on every board run.
+#
+# Enforced now, because they cannot break a screen:
+#   · no other site may show these pages inside a frame (clickjacking);
+#   · the browser must not guess a file's type;
+#   · other sites learn only our site name, never a path (OpenStreetMap's
+#     tile rules ask browser apps to send a referrer, so not `no-referrer`).
+# Report-only first: the full content policy. It blocks nothing; violations
+# appear in the browser console until it is enforced in a later slice.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' data: blob: https:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'

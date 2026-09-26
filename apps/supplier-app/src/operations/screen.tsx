@@ -7,8 +7,11 @@ import { t } from '../i18n';
 import { Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipCategory, Input, Overline, PageTitle } from '../v2/components';
 import { formatF } from '../v2/money';
 import {
+  clearStoredClePhotos,
   clearStoredOpsKey,
+  readStoredClePhotos,
   resolveOperationsService,
+  storeClePhotos,
   storeOpsKey,
   type OperationsServicePort,
 } from './service';
@@ -83,7 +86,7 @@ import {
   type ComptesUi,
   type SuiviRead,
 } from './view';
-import { resolveMediaService } from '../supply/media';
+import { effacerPhotos } from '../supply/media';
 import { SZoneFonds } from '../fonds/zone';
 import { SZoneCoursiers } from '../coursiers/zone';
 
@@ -174,10 +177,11 @@ function PilluleEtat({ label, tone }: { label: string; tone: 'ok' | 'attente' | 
 }
 
 /**
- * THE ONE-TIME CODE, DRESSED AS THE CEREMONY IT IS. The plaintext exists
- * exactly once, on this card, while he reads it out — so the card is the most
- * deliberate surface on the console: the house green, the code in large
- * letterspaced figures, the one sentence that matters, one acknowledgement.
+ * THE HANDOVER CODE, DRESSED AS THE CEREMONY IT IS. Since CODE-REVU most codes
+ * can be shown again (the note under each says which), but this card is still
+ * the moment he reads it out — so it is the most deliberate surface on the
+ * console: the house green, the code in large letterspaced figures, the one
+ * sentence that matters, one acknowledgement.
  */
 function CarteCodeUnique({ pour, code, note, vuLabel, onVu }: {
   pour: string; code: string; note: string; vuLabel: string; onVu: () => void;
@@ -218,10 +222,12 @@ export function SOperations({ opsKey, onKeySaved, onKeyCleared }: {
 /* ───────────────────────────── the key screen ────────────────────────────── */
 
 /**
- * Money-register calm: what this key is, where it goes (his device, nowhere
- * else), and one action. The input is a plain field, not a password field —
- * its owner is alone with his screen, and seeing what he pastes beats
- * masking it (he can clear it any time from the board).
+ * Money-register calm: what this key is, where it goes (kept on his device,
+ * sent only to Boutik+ with each act — CLE-FONDATEUR-1 corrected « ne part
+ * nulle part », which was never true), and one action. The input is a plain
+ * field, not a password field — its owner is alone with his screen, and
+ * seeing what he pastes beats masking it (« Oublier la clé sur cet appareil »
+ * at the foot of the board removes it).
  */
 function SCleOperateur({ onKeySaved }: { onKeySaved: (key: string) => void }) {
   const [draft, setDraft] = useState('');
@@ -351,6 +357,11 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
    * one is worse — it takes a whole catalogue and cannot be undone.
    */
   const [aEffacer, setAEffacer] = useState<string | null>(null);
+  /** CLE-FONDATEUR-1 — the photo key, typed here; the erase needs it to arm. */
+  const [clePhotos, setClePhotos] = useState<string | null>(() => readStoredClePhotos());
+  /** F-68 — photographs an erase could not destroy: counted, kept, retried. */
+  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>([]);
+  const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
    *  must read, not a silent no-op. */
   const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'autre' } | null>(null);
@@ -379,23 +390,29 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     }
     /**
      * THE BYTES, DESTROYED HERE — the offer service cannot: the media revoke
-     * credential is the founder's alone and rides only this bundle. Each is
-     * fire-and-forget and BOUNDED by the port's own timeout; a photograph that
-     * fails to revoke orphans in the bucket exactly as a failed product delete
-     * already leaves one, and the records are gone either way.
+     * credential is the founder's alone, typed on this device (CLE-FONDATEUR-1;
+     * it no longer rides any bundle). Each call is BOUNDED by the port's own
+     * timeout, and — F-68 — the photographs that did NOT go are kept and said,
+     * with a retry, instead of orphaning in silence.
      *
      * ⚠ BOUNDED-LATENCY, NEVER INSTANT: a copy already in an edge or browser
      * cache keeps answering for up to its TTL. « Effacé » is true of the
      * origin, not of every cache on earth, and the sentence he reads says
      * « seront effacés » rather than claiming the past tense.
      */
-    const media = resolveMediaService();
-    if (media !== null) {
-      for (const ref of refs) await media.revokeImage(ref);
-    }
+    const restantes = await effacerPhotos(refs);
+    if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);
     // The list is re-read so the row he just erased actually leaves the screen —
     // a destructive act that appears to do nothing is how a founder taps twice.
     await loadCodes();
+  };
+
+  /** Retry on the photo key as it is NOW — he may have just re-typed it. */
+  const reessayerPhotos = async (): Promise<void> => {
+    if (photosEnCours || photosRestantes.length === 0) return;
+    setPhotosEnCours(true);
+    setPhotosRestantes(await effacerPhotos(photosRestantes));
+    setPhotosEnCours(false);
   };
 
   const couperCode = async (supplierId: string): Promise<void> => {
@@ -536,6 +553,22 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             Livraisons zone moved to the app's Commandes TAB — real data, same
             flow. The board READ above stays: the codes zone's mint pre-flight
             still speaks from it. */}
+        {zone === 'fournisseurs' && photosRestantes.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <Banner tone="warn">
+              {photosRestantes.length === 1
+                ? t('photos.restantes_une')
+                : t('photos.restantes_n').replace('{n}', String(photosRestantes.length))}
+            </Banner>
+            <View style={{ marginTop: 10 }}>
+              <BtnSoft
+                label={t(photosEnCours ? 'photos.effacement_encours' : 'photos.reessayer')}
+                icon="retry"
+                onPress={() => { void reessayerPhotos(); }}
+              />
+            </View>
+          </View>
+        )}
         {zone === 'fournisseurs' && (
           <SCodes
             read={codesRead}
@@ -553,6 +586,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             onCreer={() => { void creerCode(codeDraft.trim()); }}
             onRedonner={(supplierId) => { void creerCode(supplierId); }}
             arme={aEffacer}
+            clePhotosPresente={clePhotos !== null}
             onArmer={setAEffacer}
             onEffacer={(supplierId) => { void effacerFournisseur(supplierId); }}
             echecEffacer={effacerEchec}
@@ -560,6 +594,13 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             onVoir={(supplierId) => { void revoirCode(supplierId); }}
             onVu={() => setCodesUi(CODES_IDLE)}
             onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
+          />
+        )}
+        {zone === 'fournisseurs' && (
+          <SClePhotos
+            cle={clePhotos}
+            onEnregistree={(k) => { storeClePhotos(k); setClePhotos(k); }}
+            onOubliee={() => { clearStoredClePhotos(); setClePhotos(null); }}
           />
         )}
 
@@ -589,6 +630,14 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
 
         <SLivraisons zone={zone} />
 
+        {/* F-70 — HIS OPERATOR KEY, SAID AND REMOVABLE, at the foot of every
+            zone: what it is, where it is kept, and the one act that removes it
+            from this device (a borrowed or shared browser must not keep it). */}
+        <TeteSection titre={t('operations.cle_libelle')} sens={t('operations.cle_reste_ici')} marge={36} />
+        <View style={{ marginTop: 10, alignItems: 'flex-start' }}>
+          <BtnGhost label={t('console.oublier_cle')} onPress={onBadKeyReset} />
+        </View>
+
       </Colonne>
     </ScrollView>
   );
@@ -600,7 +649,8 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
 /**
  * The founder's door registry, on the board he already trusts. Calm registers:
  * a fresh code is a HANDOVER moment — it renders big, with the one sentence
- * that matters (« il ne s'affichera plus »), and leaves only when he says so.
+ * that matters (give it now; it can be shown again here), and leaves only when
+ * he says so.
  * One write at a time, nothing shown as done before the book answers.
  */
 /* ─────────── BC-1c — the dispatch section (Shop+ read, key C) ─────────── */
@@ -969,6 +1019,19 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
           />
           )}
+
+          {/* F-70 — key C, removable from this device where it was typed. */}
+          <TeteSection titre={t('livraisons.cle_libelle')} sens={t('livraisons.cle_gardee')} marge={36} />
+          <View style={{ marginTop: 10, alignItems: 'flex-start' }}>
+            <BtnGhost
+              label={t('console.oublier_cle')}
+              onPress={() => {
+                clearStoredCleC();
+                setDraft('');
+                setCleC(null);
+              }}
+            />
+          </View>
         </>
       )}
     </View>
@@ -1395,7 +1458,49 @@ function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null 
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
+/**
+ * CLE-FONDATEUR-1 — « Clé des photos »: the media service's revoke credential,
+ * typed once on this device — it is no longer built into the page (AUDIT-B+2
+ * F-01). Same
+ * shape as every other door on this console: what it is for, where it is kept,
+ * one act — and, once kept, the way to forget it (F-70).
+ */
+function SClePhotos({ cle, onEnregistree, onOubliee }: {
+  cle: string | null;
+  onEnregistree: (cle: string) => void;
+  onOubliee: () => void;
+}) {
+  const [draft, setDraft] = useState('');
+  return (
+    <View>
+      <TeteSection titre={t('operations.photos_titre')} sens={t('operations.photos_sens')} marge={32} />
+      {cle === null ? (
+        <Card variant="Llg" style={{ marginTop: 12 }}>
+          <Input label={t('operations.photos_titre')} value={draft} onChangeText={setDraft} />
+          <View style={{ marginTop: 12 }}>
+            <BtnSoft
+              label={t('operations.photos_enregistrer')}
+              icon="check"
+              onPress={() => {
+                const v = draft.trim();
+                if (v === '') return;
+                setDraft('');
+                onEnregistree(v);
+              }}
+            />
+          </View>
+        </Card>
+      ) : (
+        <View style={{ marginTop: 10, gap: 8, alignItems: 'flex-start' }}>
+          <PilluleEtat label={t('operations.photos_enregistree')} tone="ok" />
+          <BtnGhost label={t('console.oublier_cle')} onPress={onOubliee} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, clePhotosPresente, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
@@ -1411,6 +1516,9 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onA
    *  refusal to show. Held by the screen, not the row, so only ever ONE row is
    *  one tap from a one-way door. */
   arme: string | null;
+  /** CLE-FONDATEUR-1 — the erase destroys photographs, so it arms only when
+   *  the photo key is on this device; otherwise the row says so. */
+  clePhotosPresente: boolean;
   onArmer: (supplierId: string | null) => void;
   onEffacer: (supplierId: string) => void;
   echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'autre' } | null;
@@ -1503,7 +1611,11 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, onA
                           dangerous act must never be the easy one. Only offered
                           on a supplier already cut off: erasing is a second,
                           deliberate step. */}
-                      {arme === c.supplierId ? (
+                      {!clePhotosPresente ? (
+                        <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { maxWidth: 240, textAlign: 'right' }]}>
+                          {t('operations.supprimer_def_cle_photos')}
+                        </Text>
+                      ) : arme === c.supplierId ? (
                         <View style={{ gap: 6, alignItems: 'flex-end' }}>
                           <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { maxWidth: 240, textAlign: 'right' }]}>
                             {t('operations.supprimer_def_avert')}

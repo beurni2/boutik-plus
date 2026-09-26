@@ -6,13 +6,10 @@ import { stockDueMs } from '../src/stock-freeze.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
 import { resolveOfferStore } from '../src/offer-store.js';
 import {
-  keyAuthorized,
+  isWrite,
   rejectUnauthorizedBearer,
   rejectUnauthorizedSupplyRead,
-  rejectUnauthorizedWrite,
-  unauthorized,
   type SupplyReadAuthEnv,
-  type WriteAuthEnv,
 } from './auth.js';
 
 /**
@@ -175,7 +172,7 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
   return Response.json({ ...body, produits }, { status: codeRes.status });
 }
 
-interface Env extends WriteAuthEnv, SupplyReadAuthEnv, AttestedSuppliersEnv {
+interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
   OFFER: DurableObjectNamespace;
   /** ORDER-PAID-WIRE-1c — the paid-order book (one singleton instance). */
   FULFILLMENT: DurableObjectNamespace;
@@ -263,7 +260,8 @@ const CORS_HEADERS: Readonly<Record<string, string>> = {
   // Bearer key. Without it the preflight refuses the header and the board can
   // never load — not as a 401, as a browser-side wall. Granting the HEADER
   // grants nothing: the ops read still 401s anything but the founder's key.
-  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key, Authorization',
+  // CLE-FONDATEUR-1 — no `X-Write-Key` any more: no door here reads it.
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -552,11 +550,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return forwardSupplierAct(request, env, '/retour/verify');
     }
 
-    // SERVICE-WRITE-AUTH — gate EVERY write at the one deployed entry, before any
-    // dispatch or existence lookup (so the 401 is never an existence oracle).
-    // Reads pass straight through; a Worker with no secret configured fails closed.
-    const denied = await rejectUnauthorizedWrite(request, env);
-    if (denied) return denied;
+    // CLE-FONDATEUR-1 (AUDIT-B+2 F-01) — EVERY WRITE below this line (publish,
+    // attach photos, delete) opens to ONE credential: the founder's operations
+    // key, typed on his own device and presented as Bearer — the key that
+    // already guards his orders, stock and supplier codes. It used to be
+    // `X-Write-Key`, a shared key built into his console page (the supplier-#2
+    // credential precondition of LISTER-POUR). Gated before
+    // any dispatch or existence lookup, so the 401 is never an oracle; an unset
+    // secret refuses every write.
+    if (isWrite(request.method)) {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+    }
 
     const { pathname } = new URL(request.url);
     // POST /offers (the founder-seed write path) → the offer DO router.
@@ -597,11 +602,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'POST' && pathname === '/offers/delete') return offerRouter.fetch(request, env);
 
 
-    // GET /offers (the founder's admin list) is a GET, so the write gate above
-    // skipped it — key-gate it EXPLICITLY here with the same key before any
-    // dispatch, then hand to the offer DO router (which enriches with live fields).
+    // GET /offers (the founder's admin list, any supplier by id) is a GET, so
+    // the write gate above skipped it — gated EXPLICITLY here with the same
+    // founder key before any dispatch (CLE-FONDATEUR-1: it used to open to the
+    // retired shared key).
     if (request.method === 'GET' && pathname === '/offers') {
-      if (!(await keyAuthorized(request, env))) return unauthorized();
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
       return offerRouter.fetch(request, env);
     }
 

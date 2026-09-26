@@ -101,7 +101,6 @@ const gele = (): Rangee => ({
 beforeEach(() => {
   wiredEnv();
   process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
-  process.env['EXPO_PUBLIC_OFFER_WRITE_KEY'] = 'cle-de-test';
   storage({ 'boutik.operateur.cle': OPS_KEY });
 });
 
@@ -209,12 +208,13 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
     screen.unmount();
   });
 
-  it('WITHOUT his ops key on the device there is NO act — the state line only (the act is the founder’s, not a supplier’s)', async () => {
+  it('WITHOUT his ops key on the device there is no list and NO act — the screen says where the key goes', async () => {
+    // CLE-FONDATEUR-1: a keyless device used to read the scoped list on the
+    // page's own key and show the fiche without the act. With that key gone
+    // it reads nothing at all — the act stays the founder's, and so does the list.
     storage({});
     const svc = livre([gele()], () => 'ok');
-    // No key ⇒ the inventory read is refused and the screen falls back to the
-    // scoped list, which this fake answers from the same book.
-    wire([
+    const w = wire([
       (path, _b, search) =>
         path === '/offers' && search.get('supplierId') === MOI
           ? { status: 200, json: { asOf: '2026-09-17T09:00:00.000Z', items: svc.state.rangees.map(({ supplierId: _s, ...r }) => r) as never } }
@@ -222,13 +222,10 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
       ...svc.routes,
     ]);
     const screen = await monter();
-    await screen.press('Pagne tissé');
-    expect(screen.shows(`Stock confirmé le ${dateCourte(CONFIRME_LE)}`)).toBe(true);
-    // The cause is stated; the INSTRUCTION is not — he has nothing to press,
-    // so no sentence tells him to (verifier MAJOR: no dead instruction).
-    expect(screen.shows('Les revendeuses ne voient plus cette offre')).toBe(true);
-    expect(screen.shows('Confirmez le stock pour la remettre en ligne')).toBe(false);
+    expect(screen.shows("Vos produits s'affichent ici avec votre clé d'opérateur.")).toBe(true);
+    expect(screen.shows('Pagne tissé')).toBe(false);
     expect(screen.canPress('Confirmer le stock')).toBe(false);
+    expect(w.calls.filter((c) => c.path.startsWith('/offers'))).toEqual([]);
     screen.unmount();
   });
 });

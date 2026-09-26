@@ -830,6 +830,41 @@ export function clearStoredOpsKey(): void {
   }
 }
 
+/* ─────────── the photo-delete key, on HIS device only (CLE-FONDATEUR-1) ─────────── */
+
+/**
+ * The media service's REVOKE credential (MEDIA_REVOKE_SECRET), typed by him
+ * once — never built into the page any more (AUDIT-B+2 F-01). Same
+ * storage law as the operator key above: his browser only, removable by him.
+ */
+const PHOTOS_KEY_STORAGE = 'boutik.photos.cle';
+
+export function readStoredClePhotos(): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const v = localStorage.getItem(PHOTOS_KEY_STORAGE);
+    return v !== null && v !== '' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeClePhotos(key: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(PHOTOS_KEY_STORAGE, key);
+  } catch {
+    // storage refused (private mode) — nothing is kept, and the door stays open.
+  }
+}
+
+export function clearStoredClePhotos(): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(PHOTOS_KEY_STORAGE);
+  } catch {
+    // nothing to clear
+  }
+}
+
 /** The web-only door to the key screen: boutik-plus-web.pages.dev/#operateur */
 export function operateurHashPresent(): boolean {
   try {

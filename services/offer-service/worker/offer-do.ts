@@ -82,6 +82,11 @@ export class OfferDO {
       } catch {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
+      // CLE-FONDATEUR-1 (AUDIT-B+2 F-38) — a create with no draft is malformed
+      // by name, not a TypeError deep in the book.
+      if (cmd === null || typeof cmd !== 'object' || cmd.draft === null || typeof cmd.draft !== 'object') {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
       const current = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       let result: { decision: CreateOfferDecision; next?: OfferEntry };
       try {
@@ -90,6 +95,13 @@ export class OfferDO {
         result = decideCreateOffer(current, cmd, new Date().toISOString());
       } catch (err) {
         if (err instanceof OfferAvailableError) return Response.json({ error: 'malformed' }, { status: 400 });
+        // F-38 — a shape the canon schemas refuse is malformed too: escaping as
+        // an exception it became an unnamed 500 with no CORS header, which the
+        // browser hides and the app read as « réseau », retrying forever.
+        // Nothing broader is caught: a storage fault must never read as malformed.
+        if ((err as { name?: unknown } | null)?.name === 'ZodError') {
+          return Response.json({ error: 'malformed' }, { status: 400 });
+        }
         throw err;
       }
       if (result.next) {
@@ -374,13 +386,21 @@ export class OfferDO {
 
     // ── pv-pointer-instance ops (idFromName('pv:'+productVersionId)) ─────────
     if (request.method === 'PUT' && pathname === '/pointer') {
-      let ptr: PvPointer;
+      let ptr: PvPointer & { remplace?: string };
       try {
-        ptr = (await request.json()) as PvPointer;
+        ptr = (await request.json()) as PvPointer & { remplace?: string };
       } catch {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
-      await this.state.storage.put(POINTER_KEY, ptr);
+      // CLE-FONDATEUR-1 (AUDIT-B+2 F-34) — PUT-IF-ABSENT (or the same offer).
+      // A different offer may take the pointer only when the router has seen
+      // its holder GONE and names it in `remplace` — checked here, inside the
+      // one object that owns the pointer, so two creates cannot both win.
+      const tient = await this.state.storage.get<PvPointer>(POINTER_KEY);
+      if (tient !== undefined && tient.offerId !== ptr.offerId && tient.offerId !== ptr.remplace) {
+        return Response.json({ error: 'product_version_taken' }, { status: 409 });
+      }
+      await this.state.storage.put(POINTER_KEY, { offerId: ptr.offerId } satisfies PvPointer);
       return Response.json({ ok: true });
     }
     if (request.method === 'GET' && pathname === '/pointer') {
@@ -482,6 +502,25 @@ export default {
       ) {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
+      // CLE-FONDATEUR-1 (AUDIT-B+2 F-34) — A PRODUCT VERSION BELONGS TO ONE
+      // OFFER. A new offerId naming a version a LIVE offer already holds used
+      // to take the pointer over: Shop+ then served the new name and price
+      // under the old id, and paid orders went to the new supplier. Refused by
+      // name BEFORE anything is created. A pointer whose offer is gone is
+      // stale, and the create may take it — named in `remplace` so the
+      // pointer's own object can check it atomically.
+      let remplace: string | undefined;
+      const tient = await pvStub(env, cmd.product.id).fetch(new Request('https://do/pointer'));
+      if (tient.ok) {
+        const { offerId: tenant } = (await tient.json()) as PvPointer;
+        if (tenant !== cmd.offerId) {
+          const vivant = await offerStub(env, tenant).fetch(new Request('https://do/entry'));
+          if (vivant.ok) {
+            return Response.json({ status: 'refused', reason: 'product_version_taken' } satisfies CreateOfferDecision);
+          }
+          remplace = tenant;
+        }
+      }
       const res = await offerStub(env, cmd.offerId).fetch(
         new Request('https://do/entry/create', { method: 'POST', body: JSON.stringify(cmd) }),
       );
@@ -498,9 +537,19 @@ export default {
       // `some(offerId)`; the pointer PUT rewrites the same value), so replaying
       // them is free — every idempotent replay is now a repair.
       if (decision.status === 'created' || decision.status === 'idempotent') {
-        await pvStub(env, decision.entry.product.id).fetch(
-          new Request('https://do/pointer', { method: 'PUT', body: JSON.stringify({ offerId: cmd.offerId }) }),
+        const pose = await pvStub(env, decision.entry.product.id).fetch(
+          new Request('https://do/pointer', {
+            method: 'PUT',
+            body: JSON.stringify({ offerId: cmd.offerId, ...(remplace !== undefined ? { remplace } : {}) }),
+          }),
         );
+        // Lost a race to another create for the same version (only possible
+        // with the founder's own key, twice at once): refused by name, and no
+        // index row — this entry stays unreachable rather than a second face
+        // for one product.
+        if (pose.status === 409) {
+          return Response.json({ status: 'refused', reason: 'product_version_taken' } satisfies CreateOfferDecision);
+        }
         await indexStub(env).fetch(
           new Request('https://do/index/add', {
             method: 'PUT',

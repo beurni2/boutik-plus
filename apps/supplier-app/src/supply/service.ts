@@ -19,11 +19,12 @@
  * products under the founder's name. So it returns `null`, and the UI renders an
  * honest « non configuré » state rather than plausible fiction.
  *
- * THE KEY LIMITATION (mirrors shop-plus, founder-accepted): the write key ships
- * inside the published EAS-update bundle — easier to read than decompiling a
- * binary. It stops scanners, not a determined attacker, and being SHARED it is not
- * per-author identity. HARD GATE: no supplier but the founder authors until real
- * per-supplier identity lands.
+ * THE KEY (CLE-FONDATEUR-1, AUDIT-B+2 F-01): every call carries the founder's
+ * OWN operator key — the one he types once on this device (`readStoredOpsKey`),
+ * sent as `Authorization: Bearer`. Nothing about authoring ships in the bundle
+ * any more — the shared write key that used to be inlined here is retired.
+ * No typed key on this device ⇒ no client at all, and the
+ * screens say so (`offerBaseConfigured` tells that apart from « not wired »).
  *
  * RN-safe: NO `@platform/*` runtime import (Metro law — the contracts package is
  * Node-shaped). The command shape is mirrored locally and the SERVICE validates it
@@ -31,8 +32,7 @@
  * product is refused server-side, not merely un-sent.
  */
 
-/** Must equal WRITE_KEY_HEADER in packages/service-auth. */
-export const WRITE_KEY_HEADER = 'X-Write-Key';
+import { readStoredOpsKey } from '../operations/service';
 
 /** Mirrors `ProductVersion` (canon §5.6) — the fields the create command carries. */
 export interface ProductVersionInput {
@@ -346,7 +346,12 @@ export function readOutcome(body: unknown): CreateOfferOutcome | null {
 /** The REAL client. Every failure path returns a reason the device can display —
  * the founder has no terminal, so this string is the only diagnostic he will get. */
 export class HttpSupplyService implements SupplyServicePort {
-  constructor(private readonly base: string, private readonly writeKey: string) {}
+  constructor(private readonly base: string, private readonly opsKey: string) {}
+
+  /** The founder's typed key — the same header shape as every console read. */
+  private cle(): { Authorization: string } {
+    return { Authorization: `Bearer ${this.opsKey}` };
+  }
 
   async createOffer(cmd: CreateOfferInput): Promise<ServiceResult<CreateOfferOutcome>> {
     const url = `${this.base.replace(/\/+$/, '')}/offers`;
@@ -354,7 +359,7 @@ export class HttpSupplyService implements SupplyServicePort {
     try {
       res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: this.writeKey },
+        headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
       });
     } catch (err) {
@@ -396,7 +401,7 @@ export class HttpSupplyService implements SupplyServicePort {
     try {
       res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: this.writeKey },
+        headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
       });
     } catch (err) {
@@ -429,7 +434,7 @@ export class HttpSupplyService implements SupplyServicePort {
     try {
       res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: this.writeKey },
+        headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
       });
     } catch (err) {
@@ -457,8 +462,8 @@ export class HttpSupplyService implements SupplyServicePort {
   }
 
   /**
-   * HIS OWN offers — a READ over the same shared write key, which already ships
-   * in this bundle. The scope is sent explicitly and ENCODED; the route refuses a
+   * HIS OWN offers — a READ on his typed key, like every write here. The scope
+   * is sent explicitly and ENCODED; the route refuses a
    * missing one with a 400 naming the param, so a bug here fails loudly rather
    * than quietly listing every supplier.
    */
@@ -466,7 +471,7 @@ export class HttpSupplyService implements SupplyServicePort {
     const url = `${this.base.replace(/\/+$/, '')}/offers?supplierId=${encodeURIComponent(supplierId)}`;
     let res: Response;
     try {
-      res = await fetch(url, { method: 'GET', headers: { [WRITE_KEY_HEADER]: this.writeKey } });
+      res = await fetch(url, { method: 'GET', headers: this.cle() });
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
@@ -504,19 +509,28 @@ export function readAttachOutcome(body: unknown): AttachAssetsOutcome | null {
 }
 
 /**
- * Resolve the LIVE service, or `null` when it is not configured.
+ * Resolve the LIVE service, or `null` when it cannot be used from here.
  *
- * Dot access on `process.env.EXPO_PUBLIC_*` (member expression) so
- * babel-preset-expo INLINES the values at bundle time — bracket access would
+ * Dot access on `process.env.EXPO_PUBLIC_OFFER_BASE` (member expression) so
+ * babel-preset-expo INLINES the base at bundle time — bracket access would
  * survive to a runtime lookup that is always undefined in a release bundle.
+ * The KEY is not in the bundle at all: it is the one he typed on this device.
  *
  * `null` is the honest answer and the ONLY alternative to the real client. There
  * is deliberately no demo branch: see the module header. A caller that receives
- * `null` must render « non configuré », never invent a product.
+ * `null` must say why — `offerBaseConfigured()` true means « type your key »,
+ * false means « not wired » — and never invent a product.
  */
 export function resolveSupplyService(): SupplyServicePort | null {
   const base = process.env.EXPO_PUBLIC_OFFER_BASE;
-  const key = process.env.EXPO_PUBLIC_OFFER_WRITE_KEY;
-  if (base && key) return new HttpSupplyService(base, key);
+  const key = readStoredOpsKey();
+  if (base && key !== null) return new HttpSupplyService(base, key);
   return null;
+}
+
+/** True when this build can reach the offer service — so a null client means
+ *  only that no key was typed on this device. */
+export function offerBaseConfigured(): boolean {
+  const base = process.env.EXPO_PUBLIC_OFFER_BASE;
+  return typeof base === 'string' && base.trim() !== '';
 }

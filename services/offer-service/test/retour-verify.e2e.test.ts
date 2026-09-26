@@ -181,7 +181,7 @@ async function seedWorld(m: Miniflare): Promise<{ a: string; b: string }> {
     },
     available: 3,
     asOf: T0,
-  }, { 'X-Write-Key': WRITE_SECRET })).status).toBe(200);
+  }, { Authorization: `Bearer ${OPS_SECRET}` })).status).toBe(200);
   const confirmed = await post(m, '/fulfillment/order-confirmed', {
     name: 'order.confirmed.v1',
     envelope: {

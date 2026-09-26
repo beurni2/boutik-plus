@@ -120,10 +120,10 @@ export function storage(seed: Readonly<Record<string, string>> = {}): Map<string
  */
 export function wiredEnv(): void {
   process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
-  // The supply port needs BOTH (`resolveSupplyService`), and the media base is
-  // what turns a photo ref into a url — without it the vignette is null and
-  // the very thing this slice added would be untestable.
-  process.env['EXPO_PUBLIC_OFFER_WRITE_KEY'] = 'cle-de-test';
+  // The supply port needs the base AND his typed key (CLE-FONDATEUR-1: the key
+  // is read from `storage()`, never from the build — a walk that wants the
+  // client seeds `boutik.operateur.cle`). The media base is what turns a photo
+  // ref into a url — without it the vignette is null and untestable.
   process.env['EXPO_PUBLIC_MEDIA_BASE'] = 'http://media.test';
 }
 

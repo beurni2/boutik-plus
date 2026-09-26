@@ -183,7 +183,7 @@ async function seed(): Promise<void> {
   supplierCode = ((await minted.json()) as { code: string }).code;
   const res = await mf.dispatchFetch('http://o/offers', {
     method: 'POST',
-    headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(SEED),
   });
   if (res.status !== 200) throw new Error(`seed: ${res.status} ${await res.text()}`);
@@ -367,7 +367,7 @@ describe('THE FREEZE — unconfirmed past the window, Shop+ stops selling; one c
   it('deleting the offer takes its journal with it (no ghost rows for a record that is gone)', async () => {
     const del = await mf.dispatchFetch('http://o/offers/delete', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ commandId: 'del-sj-1', offerId: OFFER, productVersionId: PV }),
     });
     expect(del.status).toBe(200);

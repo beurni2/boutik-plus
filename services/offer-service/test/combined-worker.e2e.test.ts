@@ -30,7 +30,10 @@ const READ_NOW = '2026-07-15T09:30:00.000Z';
  * rename of the code constant that breaks the contract is caught here). */
 const WRITE_SECRET = 'test-offer-write-secret-0001';
 const WRITE_KEY_HEADER = 'X-Write-Key';
-const authed = { 'Content-Type': 'application/json', [WRITE_KEY_HEADER]: WRITE_SECRET };
+const OPS_SECRET = 'test-fulfillment-ops-secret-cw01';
+/** CLE-FONDATEUR-1 — the product doors open to the founder's TYPED operations
+ *  key (Bearer); the bundled write key above opens nothing any more. */
+const authed = { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` };
 
 /**
  * SUPPLY-READ-AUTH — the SERVICE-TO-SERVICE read credential, stated independently
@@ -77,7 +80,6 @@ const SEED = {
 const persist = mkdtempSync(join(tmpdir(), 'offer-do-'));
 const persistNoSecret = mkdtempSync(join(tmpdir(), 'offer-nosecret-'));
 
-const OPS_SECRET = 'test-fulfillment-ops-secret-cw01';
 
 function mkWorker(persistDir: string, withSecret: boolean): Miniflare {
   return new Miniflare({
@@ -174,16 +176,16 @@ describe('combined Worker — durable offers on real workerd', () => {
 
     // SCOPE IS REQUIRED — on REAL workerd, not a fixture. A key-holder with no
     // scope gets a 400 that NAMES the missing param, never everyone's offers.
-    const unscoped = await mf.dispatchFetch('http://o/offers', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    const unscoped = await mf.dispatchFetch('http://o/offers', { method: 'GET', headers: { Authorization: `Bearer ${OPS_SECRET}` } });
     expect(unscoped.status).toBe(400);
     expect(await unscoped.json()).toEqual({ error: 'missing_supplier_id', param: 'supplierId' });
 
     // and a scope that matches nothing is an honest EMPTY — a different answer
-    const stranger = await mf.dispatchFetch('http://o/offers?supplierId=supplier-nobody-999', { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    const stranger = await mf.dispatchFetch('http://o/offers?supplierId=supplier-nobody-999', { method: 'GET', headers: { Authorization: `Bearer ${OPS_SECRET}` } });
     expect(stranger.status).toBe(200);
     expect(((await stranger.json()) as { items: unknown[] }).items).toEqual([]);
 
-    const res = await mf.dispatchFetch(`http://o/offers?supplierId=${encodeURIComponent('supplier-founder-001')}`, { method: 'GET', headers: { 'X-Write-Key': WRITE_SECRET } });
+    const res = await mf.dispatchFetch(`http://o/offers?supplierId=${encodeURIComponent('supplier-founder-001')}`, { method: 'GET', headers: { Authorization: `Bearer ${OPS_SECRET}` } });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { asOf: string; items: { offerId: string; productVersionId: string; available: number; basePrice: number; resellerCommission: number; name: string; category: string; assetRefs: string[] }[] };
     // the ENVELOPE, with a SERVE clock — seconds old, not the write time
@@ -449,7 +451,9 @@ describe('CORS — the browser can ask, the key still gates (BOUTIK-WEB-W1)', ()
     });
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
-    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-Write-Key');
+    // CLE-FONDATEUR-1 — no door reads X-Write-Key any more, so the preflight
+    // no longer offers it.
+    expect(res.headers.get('Access-Control-Allow-Headers')).not.toContain('X-Write-Key');
     // CONSOLE-1: the founder's board sends `Authorization: Bearer` from a
     // browser — the preflight must grant the HEADER (the key still gates).
     expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization');

@@ -8,9 +8,9 @@ name: fournisseur-web-deploy
 # that capability, their webapp will be only able to accept commandes, upload
 # photo prove of readiness , and see all the follow up until product is
 # delivered ». THIS WORKFLOW IS THAT RULING'S DEPLOY-TIME HALF:
-#   · EXPO_PUBLIC_OFFER_WRITE_KEY IS NEVER IN THIS FILE. The fournisseur
-#     bundle cannot inline a secret this job never receives. Do not add it —
-#     adding it here hands every supplier the authoring credential.
+#   · NO AUTHORING CREDENTIAL IS EVER IN THIS FILE. The fournisseur bundle
+#     cannot inline a secret this job never receives. (Since CLE-FONDATEUR-1
+#     no bundle carries one at all: authoring rides the founder's typed key.)
 #   · The absence scan below runs on the EXACT dist this job deploys: the
 #     offers client's route literals must be ABSENT, the fournisseur's own
 #     literals PRESENT (control), or the deploy fails before wrangler runs.
@@ -111,6 +111,12 @@ jobs:
             exit 1
           fi
           echo "capability ruling holds on the deployed artifact: authoring client absent, fournisseur literals present"
+          # CLE-FONDATEUR-1 (F-86) — the page's protective headers ride the
+          # export (public/_headers); a deploy without them is refused.
+          if ! grep -qF "X-Frame-Options: DENY" dist-fournisseur/_headers; then
+            echo "::error::dist-fournisseur/_headers is missing or has no X-Frame-Options — public/_headers did not reach the export"
+            exit 1
+          fi
       - name: Ensure the Pages project exists (idempotent — create errors if present)
         working-directory: apps/supplier-app
         env:

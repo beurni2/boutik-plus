@@ -154,7 +154,7 @@ async function world(): Promise<{ codeA: string; codeB: string }> {
   for (const seed of [seedFor(PV_A, SUPPLIER_A, '1'), seedFor(PV_B, SUPPLIER_B, '2')]) {
     const res = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(seed),
     });
     if (res.status !== 200) throw new Error(`seed: ${res.status} ${await res.text()}`);
@@ -509,7 +509,7 @@ describe('the record’s bytes and the TTL ceiling', () => {
       });
       const code = ((await minted.json()) as { code: string }).code;
       const seedRes = await hostile.dispatchFetch('http://o/offers', {
-        method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(seedFor(PV_A, SUPPLIER_A, '1')),
       });
       if (seedRes.status !== 200) throw new Error(await seedRes.text());
@@ -673,7 +673,7 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
     // he cannot be listed FOR any more, and rereading answers the honest absence.
     const listing = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...seedFor('pv-tombe-1', INV_B, '77'), commandId: 'seed-tombe-77', offerId: 'offer-tombe-77' }),
     });
     expect(listing.status, 'a cut-off supplier may not be listed FOR').toBe(400);
@@ -886,7 +886,7 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     // 2. His product exists, through the real command path.
     const created = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         commandId: 'seed-orphelin-9001',
         offerId: 'offer-orphelin-9001',
@@ -935,7 +935,7 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     //    through any id the roster now names. Asserted directly: his own scope
     //    does not contain it, and the orphan's scope is an id no chip offers.
     const sien = await mf.dispatchFetch(`http://o/offers?supplierId=${FOUNDER_001_SUPPLIER}`, {
-      headers: { 'X-Write-Key': WRITE_SECRET },
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
     });
     expect(await sien.text()).not.toContain('pv-orphelin-9001');
 
@@ -1021,7 +1021,7 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     expect((await opsPost('/fulfillment/supplier-code', { supplierId: AVEC })).status).toBe(200);
     const created = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...seedFor(PV, AVEC, '93'), commandId: 'seed-avec-9300', offerId: 'offer-avec-9300' }),
     });
     expect(created.status, await created.clone().text()).toBe(200);
@@ -1047,7 +1047,7 @@ describe('RETRAIT-ACCÈS — cutting a supplier off takes his products with him'
     expect((await opsPost('/fulfillment/supplier-code', { supplierId: PARTI })).status).toBe(200);
     const created = await mf.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...seedFor('pv-parti-9200', PARTI, '92'),
         commandId: 'seed-parti-9200',

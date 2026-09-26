@@ -93,17 +93,14 @@ jobs:
           # reachable dispatch-only via root=e1 (index.ts mounts E1 for any
           # value other than 'v2'). App code untouched by this flip.
           EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || 'v2' }}
-          # SUPPLIER-AUTHORING-1 — the LIVE offer-service base + shared write key,
-          # inlined into the bundle by babel-preset-expo exactly as EXPO_PUBLIC_ROOT
-          # is. BOTH must be set for the app to write: `resolveSupplyService()`
-          # returns the real client only when both are present, and **null**
-          # otherwise — never a demo adapter, so a preview published without these
-          # secrets authors nothing rather than publishing invented products.
-          # The key ships inside the published bundle (founder-accepted, mirrors
-          # shop-plus): it stops scanners, not a determined attacker, and being
-          # shared it is not per-supplier identity.
+          # SUPPLIER-AUTHORING-1 — the LIVE offer-service base, inlined into the
+          # bundle by babel-preset-expo exactly as EXPO_PUBLIC_ROOT is.
+          # CLE-FONDATEUR-1 (AUDIT-B+2 F-01): the shared write key that used to
+          # ride here is RETIRED — no credential is built into the bundle any
+          # more. Authoring now needs the founder's operator key,
+          # typed on his own device; the parked native preview has no key door,
+          # so it authors nothing (its screens say so), never invented products.
           EXPO_PUBLIC_OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
-          EXPO_PUBLIC_OFFER_WRITE_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
           # COMBINED SLICE — the media pair, mirroring the offer pair exactly:
           # BASE is the media-service URL, WRITE_KEY is the value of
           # MEDIA_WRITE_SECRET. Both must be set for photographs to upload;

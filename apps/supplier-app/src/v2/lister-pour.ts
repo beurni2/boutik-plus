@@ -45,8 +45,23 @@ export function supplierPourPublication(saisi: string, sien: string): string {
 export function cleEchecHttp(
   reason: string,
   sien: string,
-): 'publier.err_mon_code_absent' | 'publier.err_fournisseur_inconnu' | 'publier.echec' {
+): 'publier.cle_refusee' | 'publier.err_mon_code_absent' | 'publier.err_fournisseur_inconnu' | 'publier.echec' {
+  // CLE-FONDATEUR-1 — the publish rides the key HE typed, so a 401 now means
+  // one thing: that key was refused. It gets its own sentence and its own way
+  // out, never « the service did not accept the send » plus a raw status line.
+  if (/^HTTP 401\b/.test(reason)) return 'publier.cle_refusee';
   if (!reason.includes('unknown_supplier')) return 'publier.echec';
   const nomme = /"supplierId":"([^"]*)"/.exec(reason);
   return nomme !== null && nomme[1] === sien ? 'publier.err_mon_code_absent' : 'publier.err_fournisseur_inconnu';
+}
+
+/**
+ * CLE-FONDATEUR-1 (AUDIT-B+2 F-34, F-35) — the service's two NEW refusals,
+ * in his words. `refused` travels as « status: reason »; a reason this app
+ * does not know keeps the generic frame and the service's own words.
+ */
+export function cleRefus(reason: string): 'publier.err_version_prise' | 'publier.err_commission_net' | null {
+  if (reason.endsWith(': product_version_taken')) return 'publier.err_version_prise';
+  if (reason.endsWith(': commission_leaves_no_net')) return 'publier.err_commission_net';
+  return null;
 }

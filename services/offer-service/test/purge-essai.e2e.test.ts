@@ -168,7 +168,7 @@ describe('PURGE-ESSAI — one named order leaves both consoles, and nothing else
     expect((await ops('/fulfillment/supplier-code', { supplierId: SUPPLIER })).status).toBe(200);
     const minted = await ops('/fulfillment/supplier-code', { supplierId: SUPPLIER });
     code = minted.json['code'] as string;
-    expect((await call('/offers', SEED, { 'X-Write-Key': WRITE_SECRET })).status).toBe(200);
+    expect((await call('/offers', SEED, { Authorization: `Bearer ${OPS_SECRET}` })).status).toBe(200);
 
     await orderComplet(A, code);
     await orderComplet(B, code);

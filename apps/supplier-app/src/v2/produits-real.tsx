@@ -6,13 +6,13 @@ import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
 import { S03Produits, SOffreFiche } from './screens1';
 import { ChipCategory } from './components';
-import { resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
+import { offerBaseConfigured, resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { mintCommandId } from '../offline/commandId';
-import { resolveMediaBase, resolveMediaService } from '../supply/media';
+import { effacerPhotos, resolveMediaBase } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
 import { chipsProduits, fournisseursALire, fusionner, memeEnsemble, montreAttribution, TOUS, type RangeeAttribuee } from './produits-filtre';
 import { lireFournisseurs } from './lister-pour-choix';
-import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
+import { readStoredClePhotos, readStoredOpsKey, resolveOperationsService } from '../operations/service';
 import type { A, S } from './machine';
 
 /**
@@ -54,10 +54,19 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
 }) {
   const service = useMemo<SupplyServicePort | null>(() => resolveSupplyService(), []);
   const mediaBase = useMemo(() => resolveMediaBase(), []);
-  const mediaService = useMemo(() => resolveMediaService(), []);
+  // CLE-FONDATEUR-1: no client means either « not wired » or « no key typed
+  // here » — two different sentences, because only one has a next step.
   const [read, setRead] = useState<ProduitsRead>(() =>
-    service === null ? { kind: 'not_configured' } : { kind: 'loading' },
+    service !== null ? { kind: 'loading' } : offerBaseConfigured() ? { kind: 'sans_cle' } : { kind: 'not_configured' },
   );
+  /**
+   * F-68 — photographs of a deleted product that are STILL THERE (a refused
+   * photo key, a dropped connection). Said on the list with a retry, never
+   * dropped: each one stays readable at its url until it is revoked. In memory
+   * only, like the list itself.
+   */
+  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>([]);
+  const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The open fiche (founder device ruling 2026-07-26: tap a product, see all
    * its photographs and details). Local to the tab: a tab switch unmounts it,
    * and the machine's demo `view: 'product'` route is never involved — a real
@@ -172,9 +181,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
        * A code is a DOOR. The index is the INVENTORY. Asking the inventory is
        * the fix, and it also makes « Tous » true for the first time.
        *
-       * THE FAN-OUT STAYS as the fallback: no ops key on this device (anyone
-       * but him) means no inventory read, and the screen is exactly what it
-       * was — his own products, by the write key alone.
+       * THE FAN-OUT STAYS as the fallback for an UNREACHABLE inventory. Since
+       * CLE-FONDATEUR-1 it rides the same typed key: with no key on this
+       * device there is no client at all, and the screen says so.
        */
       const opsKey = readStoredOpsKey();
       const ops = resolveOperationsService();
@@ -184,6 +193,12 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
         // A failed roster read leaves the held value rather than emptying the
         // chip row — the same fail-soft the inventory branch below uses.
         const [inv] = await Promise.all([ops.listInventaire(opsKey), codesRef.current()]);
+        // A REFUSED KEY IS SAID AS ONE (CLE-FONDATEUR-1): the fallback below
+        // rides the same key and would only fail again, as « réseau ».
+        if (!inv.ok && inv.reason === 'bad_key') {
+          setRead({ kind: 'cle_refusee' });
+          return;
+        }
         if (inv.ok) {
           setInventaireRefuse(false);
           const tous = cible === TOUS;
@@ -225,7 +240,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
         // family this project refuses. He retries and sees everything or a
         // named failure — never a quiet half-truth.
         if (!res.ok) {
-          setRead({ kind: 'failed' });
+          setRead({ kind: res.cause === 'http' && /^HTTP 401\b/.test(res.reason) ? 'cle_refusee' : 'failed' });
           return;
         }
         blocs.push({ supplierId: id, rows: res.value.items });
@@ -299,9 +314,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // after the delete"): once the offer is gone from every wire, the row's
   // photographs are revoked too — origin object destroyed, caches drain within
   // their TTLs (bounded-latency, the standing wording). STRICTLY AFTER the
-  // delete and STRICTLY BEST-EFFORT: a failed revoke never un-deletes the
-  // product; at worst the bytes orphan behind their 122-bit tokens, exactly as
-  // every delete before this slice left them. The refs come from the ROW, not
+  // delete: a failed revoke never un-deletes the product, and since F-68 the
+  // photos that did not go are counted on the list with a retry, instead of
+  // orphaning in silence. The refs come from the ROW, not
   // a server echo, ON PURPOSE — on an idempotent replay (first answer lost in
   // transit) the entry is already gone but the row still names its photos, so
   // the retry still cleans them.
@@ -313,20 +328,10 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       productVersionId: openOffer.productVersionId,
     });
     if (!res.ok) return false;
-    if (mediaService !== null) {
-      try {
-        for (const ref of openOffer.assetRefs) {
-          // belt-and-braces prefix filter (the wire only carries media/ refs);
-          // the result is deliberately unread — see BEST-EFFORT above.
-          if (ref.startsWith('media/')) await mediaService.revokeImage(ref);
-        }
-      } catch {
-        // revokeImage returns typed results and should never throw — but a
-        // cleanup that DID throw must never strand the fiche on 'pending'
-        // after a delete that already succeeded (verifier finding 2026-07-27).
-        // The remaining bytes orphan, same as any failed revoke.
-      }
-    }
+    // F-68 — the photos that did not go are KEPT and SAID (see `photosRestantes`),
+    // never silently orphaned. A failed revoke still never un-deletes the product.
+    const restantes = await effacerPhotos(openOffer.assetRefs);
+    if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);
     setOpenOffer(null);
     cache.current = { rows: null, asOf: null };
     void load();
@@ -366,16 +371,48 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   }, [read]);
 
   if (openOffer !== null) {
+    // CLE-FONDATEUR-1 — a product WITH photographs is deleted only when the
+    // photo key is on this device: deleting it without the key would leave
+    // every photo readable at its url with no way left to reach it.
+    const aDesPhotos = openOffer.assetRefs.some((r) => r.startsWith('media/'));
+    const clePhotosManquante = aDesPhotos && readStoredClePhotos() === null;
     return (
       <SOffreFiche
         row={openOffer}
         mediaBase={mediaBase}
         onBack={() => setOpenOffer(null)}
-        {...(service === null ? {} : { onDelete: deleteOpen })}
+        {...(service === null || clePhotosManquante ? {} : { onDelete: deleteOpen })}
+        {...(service !== null && clePhotosManquante ? { suppressionSansClePhotos: true } : {})}
         {...(opsIci ? { onConfirmStock: confirmOpen } : {})}
       />
     );
   }
+
+  /** Retry on the key as it is NOW — he may have just fixed it in Opérations. */
+  const reessayerPhotos = async (): Promise<void> => {
+    if (photosEnCours || photosRestantes.length === 0) return;
+    setPhotosEnCours(true);
+    const reste = await effacerPhotos(photosRestantes);
+    setPhotosRestantes(reste);
+    setPhotosEnCours(false);
+  };
+  const photosBanniere =
+    photosRestantes.length === 0 ? null : (
+      <View style={{ marginTop: 12 }}>
+        <Banner tone="warn">
+          {photosRestantes.length === 1
+            ? t('photos.restantes_une')
+            : t('photos.restantes_n').replace('{n}', String(photosRestantes.length))}
+        </Banner>
+        <View style={{ marginTop: 10 }}>
+          <BtnSoft
+            label={t(photosEnCours ? 'photos.effacement_encours' : 'photos.reessayer')}
+            icon="retry"
+            onPress={() => { void reessayerPhotos(); }}
+          />
+        </View>
+      </View>
+    );
 
   // PRODUITS-PAR-FOURNISSEUR — the chip row, ABOVE the list. `chipsProduits`
   // answers [] when he is the only supplier, and then nothing renders: a filter
@@ -393,6 +430,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
    */
   const filtre = (
     <>
+      {photosBanniere}
       {inventaireRefuse ? (
         <Banner tone="warn" style={{ marginTop: 12 }}>{t('produits.inventaire_refuse')}</Banner>
       ) : null}
@@ -459,11 +497,24 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     );
   }
 
+  if (view.kind === 'sans_cle' || view.kind === 'cle_refusee') {
+    // CLE-FONDATEUR-1 — one step from working, and the step is one tap away.
+    return (
+      <Shell d={d}>
+        <Banner tone={view.kind === 'sans_cle' ? 'info' : 'warn'}>{t(view.message)}</Banner>
+        <View style={{ marginTop: 14 }}>
+          <C07BtnPrimary label={t('console.ouvrir_operations')} onPress={() => d({ t: 'TAB', tab: 'operations' })} />
+        </View>
+      </Shell>
+    );
+  }
+
   // `empty` and `not_configured` — both honest states, neither an error, and
   // NEITHER reachable from a failed read (that is `produitsView`'s job).
   return (
     <Shell d={d}>
       <Banner tone="info">{t(view.message)}</Banner>
+      {photosBanniere}
     </Shell>
   );
 }

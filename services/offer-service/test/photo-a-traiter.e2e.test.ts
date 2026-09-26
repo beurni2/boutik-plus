@@ -142,7 +142,7 @@ describe('PHOTO-À-TRAITER — the product photograph reaches his board', () => 
     expect((await post('/fulfillment/supplier-code', { supplierId: SUPPLIER }, ops)).status).toBe(200);
 
     // ── seed two real offers through the real command path ────────────────
-    const write = { 'X-Write-Key': WRITE_SECRET };
+    const write = { Authorization: `Bearer ${OPS_SECRET}` };
     for (const [offerId, pv, name] of [
       ['offer-photo-avec', PV_AVEC, 'Bazin riche'],
       ['offer-photo-sans', PV_SANS, 'Sac en cuir'],
@@ -250,7 +250,7 @@ describe('PHOTO-À-TRAITER — the product photograph reaches his board', () => 
       },
     });
     try {
-    const write = { 'X-Write-Key': WRITE_SECRET };
+    const write = { Authorization: `Bearer ${OPS_SECRET}` };
     const fulfil = { Authorization: `Bearer ${FULFILL_SECRET}` };
     expect((await post('/fulfillment/supplier-code', { supplierId: SUPPLIER }, { Authorization: `Bearer ${OPS_SECRET}` }, mfCap)).status).toBe(200);
     const N = 21;

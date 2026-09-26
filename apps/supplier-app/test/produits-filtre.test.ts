@@ -104,7 +104,11 @@ describe('the Produits screen wires the decisions, not a second copy of them', (
   });
 
   it('ONE FAILED READ FAILS THE SCREEN — no partial list silently omitting a supplier', () => {
-    expect(wrapper).toMatch(/if \(!res\.ok\) \{[\s\S]{0,120}setRead\(\{ kind: 'failed' \}\);[\s\S]{0,40}return;/);
+    // CLE-FONDATEUR-1: a 401 in the fan-out is the KEY refused, named as such;
+    // every other failed read still fails the whole screen.
+    expect(wrapper).toMatch(
+      /if \(!res\.ok\) \{[\s\S]{0,40}setRead\(\{ kind: res\.cause === 'http' && \/\^HTTP 401\\b\/\.test\(res\.reason\) \? 'cle_refusee' : 'failed' \}\);[\s\S]{0,40}return;/,
+    );
   });
 
   it('tapping a chip RE-READS with the new scope, never slices a stale merge', () => {

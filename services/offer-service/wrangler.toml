@@ -63,11 +63,12 @@ new_sqlite_classes = ["FulfillmentDO"]
 # published. Both gates fail CLOSED — until each secret is set, the route it
 # guards returns 401 by design.
 #
-#   OFFER_WRITE_SECRET   — SERVICE-WRITE-AUTH. Guards POST /offers (and the
-#                          GET /offers admin list). Set it before or right after
-#                          deploying, or seeds and the supplier app look broken.
-#                          NOTE: this one SHIPS INSIDE THE SUPPLIER APP BUNDLE, so
-#                          it stops scanners, not attackers, and is not identity.
+#   (OFFER_WRITE_SECRET  — RETIRED by CLE-FONDATEUR-1, 2026-09-26. It guarded
+#                          POST /offers and the GET /offers admin list, and it
+#                          shipped inside the founder's public console page.
+#                          Those doors now read FULFILLMENT_OPS_SECRET, the key
+#                          he types on his own device. Nothing reads this secret
+#                          any more; it can be deleted from the Worker.)
 #
 #   SUPPLY_READ_SECRET   — SUPPLY-READ-AUTH. Guards GET /supply-projection/:pv.
 #                          A REAL credential: it never leaves two Workers. The

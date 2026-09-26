@@ -10,6 +10,12 @@
 #     leak. Only the first 8 characters of the uuid are printed.
 #   · Ids (offerId / productVersionId) are printed truncated for the same
 #     caution, though they are not capabilities.
+# THE KEY (CLE-FONDATEUR-1, 2026-09-26): this read used to ride the shared
+# write key baked into the console page. That key is RETIRED — the live
+# service refuses it — and the list now opens only to the founder's operator
+# key. Whether that key may live in this repo's Actions secrets is HIS call,
+# not a default: until he sets LIVE_CHECK_OPS_KEY the job stops at once and
+# says so, instead of failing on a 401 that reads like an outage.
 # WHAT IT CANNOT CHECK, stated so silence is never mistaken for coverage: the
 # Bearer-gated supply projections (SUPPLY_READ_SECRET is a worker secret, not
 # a repo secret). The admin list reads the same index the collection
@@ -27,14 +33,18 @@ jobs:
       - name: Read the live supplier list and probe each photo
         env:
           OFFER_BASE: ${{ secrets.EXPO_PUBLIC_OFFER_BASE }}
-          OFFER_KEY: ${{ secrets.EXPO_PUBLIC_OFFER_WRITE_KEY }}
+          OPS_KEY: ${{ secrets.LIVE_CHECK_OPS_KEY }}
           MEDIA_BASE: ${{ secrets.EXPO_PUBLIC_MEDIA_BASE }}
         run: |
           set -euo pipefail
-          for v in OFFER_BASE OFFER_KEY MEDIA_BASE; do
+          for v in OFFER_BASE MEDIA_BASE; do
             if [ -z "${!v}" ]; then echo "::error::secret $v is empty"; exit 1; fi
           done
-          body=$(curl -sS --fail-with-body -H "X-Write-Key: $OFFER_KEY" \
+          if [ -z "$OPS_KEY" ]; then
+            echo "::error::live-check needs the founder's operator key (repo secret LIVE_CHECK_OPS_KEY), and storing it in Actions is his decision. Until then, read the live list from the console's Produits tab."
+            exit 1
+          fi
+          body=$(curl -sS --fail-with-body -H "Authorization: Bearer $OPS_KEY" \
             "${OFFER_BASE%/}/offers?supplierId=supplier-founder-001")
           count=$(jq '.items | length' <<<"$body")
           echo "LIVE OFFERS: $count"

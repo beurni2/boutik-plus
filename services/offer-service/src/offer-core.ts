@@ -289,7 +289,13 @@ export type CreateOfferDecision =
   | { readonly status: 'collision'; readonly existing: OfferEntry }
   | {
       readonly status: 'refused';
-      readonly reason: 'below_category_floor' | 'publisher_not_eligible' | 'too_many_asset_refs';
+      readonly reason:
+        | 'below_category_floor'
+        | 'publisher_not_eligible'
+        | 'too_many_asset_refs'
+        | 'commission_leaves_no_net'
+        /** CLE-FONDATEUR-1 (F-34) — the product version is already a LIVE offer's. */
+        | 'product_version_taken';
       readonly floor?: number;
       /** On `too_many_asset_refs`: the cap and what was actually presented — the caller can read why. */
       readonly max?: number;
@@ -405,6 +411,9 @@ export function decideCreateOffer(
       return {
         decision: { status: 'refused', reason: 'below_category_floor', ...(outcome.floor !== undefined ? { floor: outcome.floor } : {}) },
       };
+    }
+    if (outcome.reason === 'commission_leaves_no_net') {
+      return { decision: { status: 'refused', reason: 'commission_leaves_no_net' } };
     }
     return { decision: { status: 'refused', reason: 'publisher_not_eligible' } };
   }

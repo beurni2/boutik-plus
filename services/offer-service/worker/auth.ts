@@ -1,66 +1,33 @@
 import {
   BEARER_HEADER,
   BEARER_PREFIX,
-  WRITE_KEY_HEADER,
   isWrite,
-  keyAuthorizedAgainst,
   rejectUnauthorizedBearer,
-  rejectUnauthorizedWriteAgainst,
   unauthorized,
 } from '@boutik/service-auth';
 
 /**
- * SERVICE-WRITE-AUTH — offer-service's binding of THE shared write gate.
+ * The Worker's credential adapters, bound to THIS service's secrets over the
+ * one shared implementation in `@boutik/service-auth` (one constant-time
+ * compare, one fail-closed rule, one identical 401).
  *
- * The implementation moved to `@boutik/service-auth` (MEDIA-UPLOAD-ROUTE-1,
- * founder ruling: reuse the module rather than write a second one). This file is
- * now a THIN ADAPTER that binds it to THIS service's own secret,
- * `OFFER_WRITE_SECRET` — so the two services stay independently revocable (one
- * leaked secret does not open the other) while the constant-time comparison, the
- * fail-closed rule and the single identical 401 exist exactly once.
- *
- * The exported surface is UNCHANGED, deliberately: `worker/index.ts` and the
- * combined-Worker e2e import the same names with the same signatures, so this
- * extraction is a no-op at every call site — which is what makes it safe to do to
- * a live, deployed gate.
- *
- * THE FINDING it closes (unchanged): the one write endpoint on the live Worker
- * (POST /offers) would otherwise be reachable with NO credential. The gate sits at
- * the ONE deployed entry BEFORE any dispatch, so a rejected write never reaches a
- * Durable Object or an existence lookup.
+ * CLE-FONDATEUR-1 (AUDIT-B+2 F-01) retired the product WRITE key
+ * (`OFFER_WRITE_SECRET`, sent as `X-Write-Key`), which was built into the
+ * founder's console page. Those doors now read his typed operations key (`FULFILLMENT_OPS_SECRET`,
+ * Bearer) at the composition root.
  */
-
-/** The env the gate reads its configured secret from — a wrangler SECRET, NEVER a
- * `[vars]` entry (all five repos are public; a var there would be published). */
-export interface WriteAuthEnv {
-  readonly OFFER_WRITE_SECRET?: string;
-}
 
 /**
  * SUPPLY-READ-AUTH — the SERVICE-TO-SERVICE credential the supply read requires,
- * a wrangler SECRET on both Workers and never a `[vars]` entry.
- *
- * A DIFFERENT KIND OF THING FROM `OFFER_WRITE_SECRET`, and the two must never be
- * reused as one another: the write key ships inside the supplier app's bundle
- * (readable by anyone who downloads it — it stops scanners, not attackers); this
- * one never leaves two Workers, so it is a real credential. Naming them
+ * a wrangler SECRET on both Workers and never a `[vars]` entry. It never leaves
+ * two Workers, and it must never be reused as any other credential: naming each
  * separately is what keeps them independently rotatable.
  */
 export interface SupplyReadAuthEnv {
   readonly SUPPLY_READ_SECRET?: string;
 }
 
-export { WRITE_KEY_HEADER, BEARER_HEADER, BEARER_PREFIX, isWrite, unauthorized, rejectUnauthorizedBearer };
-
-/** Fail-closed shared-key check against offer-service's secret. */
-export async function keyAuthorized(request: Request, env: WriteAuthEnv): Promise<boolean> {
-  return keyAuthorizedAgainst(request, env.OFFER_WRITE_SECRET);
-}
-
-/** WRITE gate for offer-service. `null` iff authorised; else the one identical 401. */
-export async function rejectUnauthorizedWrite(request: Request, env: WriteAuthEnv): Promise<Response | null> {
-  return rejectUnauthorizedWriteAgainst(request, env.OFFER_WRITE_SECRET);
-}
+export { BEARER_HEADER, BEARER_PREFIX, isWrite, unauthorized, rejectUnauthorizedBearer };
 
 /**
  * SUPPLY READ gate for offer-service. `null` iff authorised; else the one

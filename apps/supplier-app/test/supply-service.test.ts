@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HttpSupplyService,
-  WRITE_KEY_HEADER,
+  offerBaseConfigured,
   readDeleteOutcome,
   readOutcome,
   resolveSupplyService,
@@ -36,39 +36,60 @@ const CMD: CreateOfferInput = {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
+/** His browser storage, where the typed operator key lives (a host boundary). */
+function cleTapee(cle: string | null): void {
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => (k === 'boutik.operateur.cle' ? cle : null),
+    setItem: () => undefined,
+    removeItem: () => undefined,
+  });
+}
+
 describe('the resolver — unset means NOTHING, never fabricated data', () => {
-  it('returns null when BOTH values are unset — the honest « non configuré »', () => {
+  it('returns null when the base is unset — the honest « non configuré », even with a key typed', () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', '');
-    vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', '');
+    cleTapee('k');
+    expect(resolveSupplyService()).toBeNull();
+    expect(offerBaseConfigured()).toBe(false);
+  });
+
+  it('CLE-FONDATEUR-1 — returns null when NO key was typed on this device, and says the base IS wired', () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    cleTapee(null);
+    expect(resolveSupplyService()).toBeNull();
+    expect(offerBaseConfigured(), 'so the screen says « entrez votre clé », not « pas relié »').toBe(true);
+  });
+
+  it('a key left in the BUILD env can never revive the client — only the typed key counts', () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', 'une-cle-du-bundle');
+    cleTapee(null);
     expect(resolveSupplyService()).toBeNull();
   });
 
-  it('returns null when EITHER is missing — a half-configured app writes nowhere', () => {
+  it('returns the REAL client only when the base is wired AND his key is typed here', () => {
     vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
-    vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', '');
-    expect(resolveSupplyService()).toBeNull();
-    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', '');
-    vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', 'k');
-    expect(resolveSupplyService()).toBeNull();
-  });
-
-  it('returns the REAL client only when both are present', () => {
-    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
-    vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', 'k');
+    cleTapee('k');
     expect(resolveSupplyService()).toBeInstanceOf(HttpSupplyService);
   });
 
-  it('NEVER returns the demo adapter, under any env combination', () => {
-    for (const [b, k] of [['', ''], ['https://x', ''], ['', 'k'], ['https://x', 'k']]) {
+  it('NEVER returns the demo adapter, under any combination', () => {
+    for (const [b, k] of [['', null], ['https://x', null], ['', 'k'], ['https://x', 'k']] as const) {
       vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', b);
-      vi.stubEnv('EXPO_PUBLIC_OFFER_WRITE_KEY', k);
+      cleTapee(k);
       expect(resolveSupplyService()).not.toBeInstanceOf(DemoSupplyService);
     }
   });
 });
 
+/** The credential a call carried: his Bearer, and never the retired header. */
+function credentiel(init: RequestInit): { bearer: string | undefined; ancienne: string | undefined } {
+  const h = init.headers as Record<string, string>;
+  return { bearer: h['Authorization'], ancienne: h['X-Write-Key'] };
+}
+
 describe('the real client sends what the service expects', () => {
-  it('POSTs the command to /offers with the write key header', async () => {
+  it('POSTs the command to /offers with HIS key as Bearer', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, init });
@@ -78,11 +99,11 @@ describe('the real client sends what the service expects', () => {
     const out = await svc.createOffer(CMD);
     expect(out).toEqual({ ok: true, value: { status: 'created' } });
     expect(calls[0]!.url).toBe('https://offer.example/offers'); // no double slash
-    expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
+    expect(credentiel(calls[0]!.init)).toEqual({ bearer: 'Bearer the-key', ancienne: undefined });
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual(CMD); // the command, verbatim
   });
 
-  it('LISTS with the scope IN THE URL and the write key header — the one thing ruling 1 turns on', async () => {
+  it('LISTS with the scope IN THE URL and HIS Bearer — the one thing ruling 1 turns on', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, init });
@@ -93,7 +114,20 @@ describe('the real client sends what the service expects', () => {
     expect(out).toEqual({ ok: true, value: { asOf: '2026-07-25T08:00:00.000Z', items: [] } });
     expect(calls[0]!.url).toBe(`https://offer.example/offers?supplierId=${SUPPLIER_ID}`); // no double slash
     expect(calls[0]!.init.method).toBe('GET');
-    expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
+    expect(credentiel(calls[0]!.init)).toEqual({ bearer: 'Bearer the-key', ancienne: undefined });
+  });
+
+  it('ATTACHES photos on HIS Bearer too — the fourth door, same credential', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ status: 'attached' }), { status: 200 });
+    });
+    const out = await new HttpSupplyService('https://offer.example', 'the-key')
+      .attachAssets({ commandId: 'c-1', offerId: 'offer-1', assets: {} as never });
+    expect(out).toEqual({ ok: true, value: { status: 'attached' } });
+    expect(calls[0]!.url).toBe('https://offer.example/offers/assets');
+    expect(credentiel(calls[0]!.init)).toEqual({ bearer: 'Bearer the-key', ancienne: undefined });
   });
 
   it('ENCODES the scope — an id with URL-special characters cannot forge a second parameter', async () => {
@@ -257,7 +291,7 @@ describe('OFFER-DELETE-1 — the DESTRUCTIVE write held to the same boundary law
     expect(readDeleteOutcome({ status: 'idempotent', offerId: 'offer-1' })).toEqual({ status: 'idempotent' });
   });
 
-  it('POSTs the command to /offers/delete with the write key header, verbatim', async () => {
+  it('POSTs the command to /offers/delete with HIS Bearer, verbatim', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, init });
@@ -266,7 +300,7 @@ describe('OFFER-DELETE-1 — the DESTRUCTIVE write held to the same boundary law
     const out = await new HttpSupplyService('https://offer.example/', 'the-key').deleteOffer(DEL); // trailing slash on purpose
     expect(out).toEqual({ ok: true, value: { status: 'deleted' } });
     expect(calls[0]!.url).toBe('https://offer.example/offers/delete'); // no double slash
-    expect((calls[0]!.init.headers as Record<string, string>)[WRITE_KEY_HEADER]).toBe('the-key');
+    expect(credentiel(calls[0]!.init)).toEqual({ bearer: 'Bearer the-key', ancienne: undefined });
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual(DEL);
   });
 

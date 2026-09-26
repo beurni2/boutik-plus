@@ -230,8 +230,8 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
         <Text style={TITRE}>{t('coursiers.zone')}</Text>
         <Card variant="Llg" style={{ marginTop: 16 }}>
           {/* CODE-REVU: a REREAD code keeps the same whole-screen treatment
-              but its own true sentence — he can come back; a fresh mint
-              stays « il ne s'affiche qu'une fois ». */}
+              but its own sentence; a fresh mint says he can see it again too
+              (CLE-FONDATEUR-1 corrected « il ne s'affiche qu'une fois »). */}
           <Text style={TITRE}>{t(ui.nouveau.revele === true ? 'coursiers.revu_titre' : 'coursiers.nouveau_titre')}</Text>
           <Text style={[PETIT, { marginTop: 4 }]}>{ui.nouveau.riderId}</Text>
           <Text style={[CODE, { marginTop: 10 }]}>{ui.nouveau.code}</Text>
@@ -532,6 +532,13 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
           />
         </View>
       </Card>
+
+      {/* F-70 — the Séra key, removable from this device where it was typed. */}
+      <Text style={[TITRE, { marginTop: 32 }]}>{t('coursiers.cle_titre')}</Text>
+      <Text style={[CORPS, { marginTop: 6 }]}>{t('coursiers.cle_aide')}</Text>
+      <View style={{ marginTop: 10, alignItems: 'flex-start' }}>
+        <BtnGhost label={t('console.oublier_cle')} onPress={onCleRefusee} />
+      </View>
     </View>
   );
 }

@@ -358,7 +358,12 @@ describe('every user-facing string on the new surfaces is catalog-backed', () =>
   });
 
   it('« non configuré » is a CONDITION shown before he types, tone info, with a way back', () => {
-    expect(lister).toMatch(/if \(offerService === null\) \{[\s\S]{0,700}<Banner tone="info">\{t\('publier\.non_configure'\)\}<\/Banner>/);
+    // CLE-FONDATEUR-1: the same condition now has TWO true sentences — « no key
+    // typed here » (with its one-tap way to Opérations) or « not wired » — and
+    // the walk in rendu-cle-fondateur.test.tsx proves which one he reads.
+    expect(lister).toMatch(
+      /if \(offerService === null\) \{[\s\S]{0,900}<Banner tone="info">\{t\(sansCle \? 'publier\.sans_cle' : 'publier\.non_configure'\)\}<\/Banner>/,
+    );
   });
 });
 

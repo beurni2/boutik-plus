@@ -2089,7 +2089,7 @@
   },
   {
     "key": "operations.cle_explication",
-    "fr": "Cet espace montre toutes les ventes payées de la plateforme. Il s'ouvre avec votre clé d'opérateur — elle reste sur cet appareil et ne part nulle part.",
+    "fr": "Cet espace s'ouvre avec votre clé d'opérateur. La même clé publie et supprime vos produits.",
     "register": "money",
     "screenClass": "general"
   },
@@ -2107,7 +2107,7 @@
   },
   {
     "key": "operations.cle_reste_ici",
-    "fr": "La clé est gardée sur cet appareil seulement. Vous pouvez la retirer à tout moment.",
+    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Boutik+, quand vous agissez. Vous pouvez l'oublier ici quand vous voulez.",
     "register": "money",
     "screenClass": "general"
   },
@@ -2377,7 +2377,7 @@
   },
   {
     "key": "operations.code_nouveau_note",
-    "fr": "Notez-le et remettez-le en main propre. Il ne s'affichera plus.",
+    "fr": "Donnez-le-lui maintenant. Vous pourrez le revoir ici.",
     "register": "money",
     "screenClass": "general"
   },
@@ -3181,7 +3181,7 @@
   },
   {
     "key": "acces.nouveau_note",
-    "fr": "Notez-le maintenant : il ne s'affichera plus. En créer un autre remplace celui-ci.",
+    "fr": "Donnez-le-lui maintenant. Vous pourrez le revoir ici. En créer un autre remplace celui-ci.",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -3325,7 +3325,7 @@
   },
   {
     "key": "comptes.code_note",
-    "fr": "Notez-le maintenant : il ne s'affichera plus, et il ne sert qu'une fois.",
+    "fr": "Donnez-le-lui maintenant. Il ne sert qu'une fois. Vous pourrez le revoir ici tant qu'il n'est pas utilisé.",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -3930,12 +3930,6 @@
     "screenClass": "status"
   },
   {
-    "key": "fonds.oublier_cle",
-    "fr": "Oublier la clé",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
     "key": "fonds.montant_invalide",
     "fr": "Le montant doit être un nombre entier de francs — chiffres seulement.",
     "register": "money",
@@ -4165,7 +4159,7 @@
   },
   {
     "key": "coursiers.nouveau_aide",
-    "fr": "Il ne s'affiche qu'une fois. Notez-le, puis donnez-le au coursier de vive voix.",
+    "fr": "Donnez-le au coursier de vive voix. Vous pourrez le revoir ici.",
     "register": "neutral",
     "screenClass": "instruction"
   },
@@ -5305,7 +5299,7 @@
   },
   {
     "key": "operations.supprimer_def_partiel",
-    "fr": "Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
+    "fr": "Les produits sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5486,6 +5480,114 @@
   {
     "key": "clientes.echec",
     "fr": "Le code n’a pas pu être créé. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "console.ouvrir_operations",
+    "fr": "Ouvrir Opérations",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "console.oublier_cle",
+    "fr": "Oublier la clé sur cet appareil",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.sans_cle",
+    "fr": "Pour publier, entrez d'abord votre clé d'opérateur dans l'onglet Opérations. Elle reste sur cet appareil.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.cle_refusee",
+    "fr": "Votre clé d'opérateur n'a pas été acceptée. Rien n'a été publié. Entrez-la à nouveau dans l'onglet Opérations.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.err_version_prise",
+    "fr": "Ce produit est déjà en ligne sous une autre référence. Rien n'a été publié.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.sans_cle",
+    "fr": "Vos produits s'affichent ici avec votre clé d'opérateur. Entrez-la une fois dans l'onglet Opérations.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.cle_refusee",
+    "fr": "Votre clé d'opérateur n'a pas été acceptée. Entrez-la à nouveau dans l'onglet Opérations.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.supprimer_cle_photos",
+    "fr": "Pour supprimer ce produit et ses photos, enregistrez d'abord la clé des photos dans Opérations.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "photos.restantes_une",
+    "fr": "1 photo n'a pas pu être effacée. Vérifiez la clé des photos dans Opérations, puis réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "photos.restantes_n",
+    "fr": "{n} photos n'ont pas pu être effacées. Vérifiez la clé des photos dans Opérations, puis réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "photos.reessayer",
+    "fr": "Réessayer d'effacer les photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "photos.effacement_encours",
+    "fr": "Effacement des photos…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.photos_titre",
+    "fr": "Clé des photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.photos_sens",
+    "fr": "Elle sert à effacer les photos quand vous supprimez un produit ou un fournisseur. Elle reste sur cet appareil.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "operations.photos_enregistrer",
+    "fr": "Enregistrer la clé",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "operations.photos_enregistree",
+    "fr": "Enregistrée sur cet appareil.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_cle_photos",
+    "fr": "Pour supprimer, enregistrez d'abord la clé des photos, plus bas.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "livraisons.cle_gardee",
+    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Shop+, quand vous agissez.",
     "register": "neutral",
     "screenClass": "status"
   }

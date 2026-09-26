@@ -165,7 +165,7 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
     codeA = (await post('/fulfillment/supplier-code', { supplierId: SUPPLIER_A }, { Authorization: `Bearer ${OPS_SECRET}` })).json['code'] as string;
     await post('/fulfillment/supplier-code', { supplierId: SUPPLIER_B }, { Authorization: `Bearer ${OPS_SECRET}` });
     for (const [pv, s, n, name] of [[PV1, SUPPLIER_A, '1', 'Pagne wax'], [PV2, SUPPLIER_A, '2', 'Sandales cuir'], [PV3, SUPPLIER_B, '3', 'Panier tressé']] as const) {
-      const seeded = await post('/offers', offre(pv, s, n, name), { 'X-Write-Key': WRITE_SECRET });
+      const seeded = await post('/offers', offre(pv, s, n, name), { Authorization: `Bearer ${OPS_SECRET}` });
       expect(seeded.status, seeded.text).toBe(200);
     }
 

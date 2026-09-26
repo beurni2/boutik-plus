@@ -106,7 +106,7 @@ async function seed(inst: Miniflare, pv: string, offerId: string, available: num
   }
   const res = await inst.dispatchFetch('http://o/offers', {
     method: 'POST',
-    headers: { 'X-Write-Key': WRITE_SECRET, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${OPS_SECRET}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(seedFor(pv, offerId, available)),
   });
   if (res.status !== 200) throw new Error(`seed: ${res.status} ${await res.text()}`);

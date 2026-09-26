@@ -123,7 +123,6 @@ function livre(bySupplier: Record<string, ReturnType<typeof row>[]>): {
 beforeEach(() => {
   wiredEnv();
   process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
-  process.env['EXPO_PUBLIC_OFFER_WRITE_KEY'] = 'cle-de-test';
   storage({ 'boutik.operateur.cle': OPS_KEY });
 });
 
@@ -290,8 +289,9 @@ describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable'
     screen.unmount();
   });
 
-  it('with NO ops key on the device the screen is exactly what it was — his own products', async () => {
-    // Anyone but him: no inventory read, no orphan, no change in behaviour.
+  it('with NO ops key on the device NOTHING is read — no inventory, no scoped list — and the screen says where the key goes', async () => {
+    // CLE-FONDATEUR-1: the scoped list used to run on the key baked into the
+    // page, so a keyless browser still read his products. It no longer can.
     storage({});
     const svc = livreAvecOrphelin();
     const w = wire(svc.routes);
@@ -300,11 +300,9 @@ describe('INVENTAIRE-COMPLET — an ORPHANED product is reachable and deletable'
       <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,
     );
 
-    expect(w.calls.map((c) => c.path)).not.toContain('/offers/inventaire');
-    expect(screen.shows('Bazin du fondateur')).toBe(true);
-    // …AND THE ORPHAN IS ABSENT, which is what « exactly what it was » means.
-    // Asserting only that his own product renders would pass even if the
-    // inventory had leaked into a keyless device.
+    expect(w.calls.filter((c) => c.path.startsWith('/offers')), 'a keyless device reads nothing').toEqual([]);
+    expect(screen.shows("Vos produits s'affichent ici avec votre clé d'opérateur.")).toBe(true);
+    expect(screen.texts().join(' ')).not.toContain('Bazin du fondateur');
     expect(screen.texts().join(' ')).not.toContain('CHOIN');
     screen.unmount();
   });
@@ -333,13 +331,15 @@ describe('L’INVENTAIRE EST SA LECTURE — the credential on the wire', () => {
     screen.unmount();
   });
 
-  it('a REFUSED inventory says the list is partial instead of quietly showing less', async () => {
+  it('an UNREACHABLE inventory says the list is partial instead of quietly showing less', async () => {
     const svc = livre({
       [MOI]: [row('offer-moi', 'pv-moi', 'Bazin du fondateur')],
       [AUTRE]: [row('offer-autre', 'pv-autre', 'Sac de Aïcha')],
     });
-    // A stale ops key, or an app deployed ahead of the Worker.
-    wire([(path) => (path === '/offers/inventaire' ? { status: 401, json: { error: 'unauthorized' } } : null), ...svc.routes]);
+    // A Worker that answers the scoped read but not the inventory. (A REFUSED
+    // key — 401 — is its own sentence since CLE-FONDATEUR-1, walked in
+    // rendu-cle-fondateur.test.tsx: the fallback rides the same key.)
+    wire([(path) => (path === '/offers/inventaire' ? { status: 503, json: { error: 'unavailable' } } : null), ...svc.routes]);
     const cache = { current: { rows: null, asOf: null } };
     const screen = await mountEcran(
       <SProduitsReal st={initialState()} d={() => {}} supplierId={MOI} cache={cache} />,

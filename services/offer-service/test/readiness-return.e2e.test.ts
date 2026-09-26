@@ -112,7 +112,7 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
     expect(minted.status, minted.text).toBe(200);
     code = minted.json['code'] as string;
     expect(code.startsWith('BF-')).toBe(true);
-    expect((await post('/offers', seed, { 'X-Write-Key': WRITE_SECRET })).status).toBe(200);
+    expect((await post('/offers', seed, { Authorization: `Bearer ${OPS_SECRET}` })).status).toBe(200);
     const confirmed = await post(
       '/fulfillment/order-confirmed',
       {
@@ -426,7 +426,7 @@ describe('READINESS-RETURN-1b — with no progress secret, the act succeeds and 
     expect(preMint.status).toBe(200);
     const pub = await blind.dispatchFetch('http://o/offers', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
       body: JSON.stringify({ ...seed, commandId: 'seed-return-2', offerId: 'offer-return-2' }),
     });
     expect(pub.status).toBe(200);
@@ -564,7 +564,7 @@ describe('READINESS-RETURN-1b — a refusal keeps the fact alive until it truly 
       });
       await world.dispatchFetch('http://o/offers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
         body: JSON.stringify({ ...seed, commandId: 'seed-return-3', offerId: 'offer-return-3' }),
       });
       await world.dispatchFetch('http://o/fulfillment/order-confirmed', {
@@ -662,7 +662,7 @@ describe('REMBOURSEMENT-2 — a supplier refusal Shop+ refuses today is still de
       await code();
       await world.dispatchFetch('http://o/offers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Write-Key': WRITE_SECRET },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPS_SECRET}` },
         body: JSON.stringify({ ...seed, commandId: 'seed-return-904', offerId: 'offer-return-904' }),
       });
       await world.dispatchFetch('http://o/fulfillment/order-confirmed', {

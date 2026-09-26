@@ -300,14 +300,12 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
   beforeEach(() => {
     wiredEnv();
     process.env['EXPO_PUBLIC_OFFER_BASE'] = 'http://offer.test';
-    // ⚠ THE MEDIA WRITE + REVOKE KEYS, because the erase destroys BYTES and the
-    // offer service cannot. `resolveMediaService()` answers null without them,
-    // and a console deployed without them would erase every record while
-    // leaving every photograph readable at its url — silently. This env is what
-    // the founder's own bundle carries (web-deploy sets both).
+    // ⚠ THE MEDIA KEYS, because the erase destroys BYTES and the offer service
+    // cannot. The upload key rides the build; the REVOKE key is the one he
+    // typed on this device (CLE-FONDATEUR-1 — the erase does not even arm
+    // without it, see rendu-cle-fondateur.test.tsx).
     process.env['EXPO_PUBLIC_MEDIA_WRITE_KEY'] = 'cle-media';
-    process.env['EXPO_PUBLIC_MEDIA_REVOKE_KEY'] = 'cle-revoke';
-    storage({ 'boutik.operateur.cle': OPS });
+    storage({ 'boutik.operateur.cle': OPS, 'boutik.photos.cle': 'cle-revoke' });
   });
 
   it('stays on screen, MARKED, and its one control is the way back', async () => {
@@ -391,7 +389,7 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
             ? { status: 200, json: { ok: true, supplierId: COUPE, supprimes: 1, refs: ['media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'] } }
             : { status: 401, json: { error: 'unauthorized' } }
           : null,
-      (path) => (path === '/media/revoke' ? { status: 200, json: { status: 'revoked', ref: 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } } : null),
+      (path, _b, _s, headers) => (path === '/media/revoke' ? (headers['x-write-key'] === 'cle-revoke' ? { status: 200, json: { status: 'revoked', ref: 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } } : { status: 401, json: { error: 'unauthorized' } }) : null),
       ...console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
     ]);
     const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
@@ -466,7 +464,7 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
         path === '/fulfillment/supplier/effacer'
           ? { status: 502, json: { ok: false, reason: 'registre_echoue', supprimes: 1, refs: [REF] } }
           : null,
-      (path) => (path === '/media/revoke' ? { status: 200, json: { status: 'revoked', ref: REF } } : null),
+      (path, _b, _s, headers) => (path === '/media/revoke' ? (headers['x-write-key'] === 'cle-revoke' ? { status: 200, json: { status: 'revoked', ref: REF } } : { status: 401, json: { error: 'unauthorized' } }) : null),
       ...console_([{ supplierId: COUPE, mintedAt: '2026-07-02T08:00:00.000Z', revelable: true, revokedAt: '2026-08-11T15:00:00.000Z' }]),
     ]);
     const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
@@ -480,10 +478,13 @@ describe('OPÉRATIONS — the supplier whose access was cut', () => {
     const revoke = w.calls.find((c) => c.path === '/media/revoke');
     expect(revoke, 'the only chance to destroy these photographs must not be missed').toBeDefined();
     expect(revoke?.body?.['ref']).toBe(REF);
-    // …and he is told the TRUTH: the products are gone, the supplier is not.
+    // …and he is told the TRUTH: the products are gone, the supplier is not —
+    // and nothing is claimed about the photos before they are (F-68: a photo
+    // that did not go is counted separately, see rendu-cle-fondateur).
     expect(
-      screen.shows("Les produits et les photos sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever."),
+      screen.shows("Les produits sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever."),
     ).toBe(true);
+    expect(screen.shows("n'a pas pu être effacée"), 'this photo WENT — no leftover sentence').toBe(false);
     // Never the generic « réessayez », which would be false here.
     expect(screen.shows("La suppression n'a pas abouti. Réessayez.")).toBe(false);
     // The tree survived, and the row can still be acted on.

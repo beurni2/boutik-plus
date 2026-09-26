@@ -22,10 +22,11 @@ name: media-deploy
 #   · MEDIA_WRITE_SECRET  — uploads (POST /media); its value also lives in the
 #     app bundles as EXPO_PUBLIC_MEDIA_WRITE_KEY.
 #   · MEDIA_REVOKE_SECRET — MEDIA-KEY-SPLIT (2026-08-02): destruction
-#     (POST /media/revoke) answers ONLY to this one; its value rides ONLY the
-#     founder's web bundle (EXPO_PUBLIC_MEDIA_REVOKE_KEY in web-deploy.yml,
-#     NEVER fournisseur-web-deploy.yml). Unset ⇒ every revoke 401s —
-#     fail-closed, not broken.
+#     (POST /media/revoke) answers ONLY to this one. Since CLE-FONDATEUR-1 its
+#     value rides NO bundle: the founder types it once in his console
+#     (Opérations › Fournisseurs › « Clé des photos »). Unset ⇒ every revoke
+#     401s — fail-closed, not broken — and the console counts the photos that
+#     did not go, with a retry.
 
 on:
   workflow_dispatch:

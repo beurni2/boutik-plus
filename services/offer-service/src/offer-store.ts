@@ -72,6 +72,12 @@ export class InMemoryOfferStore implements OfferStore {
 
   async create(cmd: CreateOfferCommand): Promise<CreateOfferDecision> {
     const current = this.offers.get(cmd.offerId);
+    // CLE-FONDATEUR-1 (F-34) — mirrors the router: a product version a LIVE
+    // offer already holds is never taken over by another offer.
+    const tenant = this.pvToOffer.get(cmd.product.id);
+    if (tenant !== undefined && tenant !== cmd.offerId && this.offers.has(tenant)) {
+      return { status: 'refused', reason: 'product_version_taken' };
+    }
     const { decision, next } = decideCreateOffer(current, cmd);
     if (next) {
       this.offers.set(next.offerId, next);

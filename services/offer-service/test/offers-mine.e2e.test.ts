@@ -114,7 +114,7 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
       seedFor(SUPPLIER_A, 'pv-mine-a2', 'offer-mine-a2', 'Panier tressé', 5_500, 550),
       seedFor(SUPPLIER_B, 'pv-mine-b1', 'offer-mine-b1', NAME_B, PRICE_B, COMMISSION_B),
     ]) {
-      const res = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: seed });
+      const res = await call('/offers', { method: 'POST', headers: { Authorization: `Bearer ${OPS_SECRET}` }, body: seed });
       // A 200 IS NOT A CREATION: the command path answers 200 for its own
       // refusals too (status in the body). Asserting the decision is what
       // caught this suite's first ghost fixture pricing below the category
@@ -129,7 +129,7 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
     // and the product would land where `/offers/mine` can never show it — a
     // paid-for listing invisible to the very supplier it was meant for.
     const ghost = seedFor('supplier-mine-ghost', 'pv-mine-g1', 'offer-mine-g1', 'Produit fantôme', 6_000, 600);
-    const refused = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: ghost });
+    const refused = await call('/offers', { method: 'POST', headers: { Authorization: `Bearer ${OPS_SECRET}` }, body: ghost });
     expect(refused.status, refused.text).toBe(400);
     expect(refused.json['error']).toBe('unknown_supplier');
     expect(refused.json['supplierId']).toBe('supplier-mine-ghost');
@@ -140,7 +140,7 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
     expect((empty.json['items'] as unknown[]).length).toBe(0);
     // The SAME create, after the mint: the gate keys on the registry, not
     // on anything about the body.
-    const accepted = await call('/offers', { method: 'POST', headers: { 'X-Write-Key': WRITE_SECRET }, body: ghost });
+    const accepted = await call('/offers', { method: 'POST', headers: { Authorization: `Bearer ${OPS_SECRET}` }, body: ghost });
     expect(accepted.status, accepted.text).toBe(200);
     expect(accepted.json['status'], accepted.text).toBe('created');
     const now = await call('/offers/mine', { headers: { Authorization: `Bearer ${ghostCode}` } });
@@ -157,7 +157,7 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
     expect(revoke.status, revoke.text).toBe(200);
     const res = await call('/offers', {
       method: 'POST',
-      headers: { 'X-Write-Key': WRITE_SECRET },
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
       body: seedFor('supplier-mine-delta', 'pv-mine-d1', 'offer-mine-d1', 'Après révocation', 6_500, 650),
     });
     expect(res.status).toBe(400);
@@ -240,7 +240,7 @@ describe('LISTER-POUR-1a — his own products, through his own door, and no pen'
 
   it('the founder’s admin list is untouched by this slice — same key, same scoped answer', async () => {
     const res = await call(`/offers?supplierId=${encodeURIComponent(SUPPLIER_A)}`, {
-      headers: { 'X-Write-Key': WRITE_SECRET },
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
     });
     expect(res.status, res.text).toBe(200);
     expect((res.json['items'] as Array<Record<string, unknown>>).length).toBe(2);

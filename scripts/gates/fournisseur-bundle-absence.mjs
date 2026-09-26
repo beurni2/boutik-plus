@@ -23,7 +23,7 @@
 //     pass vacuously.
 //
 // THE NEGATIVE FIXTURE IS THE OTHER ROOT: run with `--root v2` the same scan
-// must FAIL (the founder's own export legitimately carries X-Write-Key), with
+// must FAIL (the founder's own export legitimately carries the offers client), with
 // v2's controls swapped in so the failure is the FORBIDDEN hit, never a
 // vacuous control miss. A gate whose negative cannot fire is not a gate.
 //
@@ -78,15 +78,9 @@ try {
     EXPO_PUBLIC_MEDIA_BASE: 'https://media.gate.invalid',
     EXPO_PUBLIC_MEDIA_WRITE_KEY: 'gate-media-key',
   };
-  if (rootArg === 'fournisseur') {
-    // The fournisseur build NEVER receives the offers write key — mirroring
-    // the deploy workflow, which simply does not pass it.
-    delete env.EXPO_PUBLIC_OFFER_WRITE_KEY;
-  } else {
-    // The v2 negative must carry it, as the founder's real deploy does — or
-    // the authoring client is eliminated and the negative cannot fire.
-    env.EXPO_PUBLIC_OFFER_WRITE_KEY = 'gate-offer-key';
-  }
+  // CLE-FONDATEUR-1: no offer write key in either root any more — the v2
+  // client is kept by the inlined BASE alone (its key is read at run time from
+  // the founder's device), which is exactly what the v2 negative still needs.
   execFileSync(
     'npx',
     // COLD, ALWAYS (--clear): Metro's transform cache is not keyed on

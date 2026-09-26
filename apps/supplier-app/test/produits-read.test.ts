@@ -418,9 +418,10 @@ describe('OFFER-DELETE-1 — the fiche’s confirm walk [source-text checks; hou
    * the rest of this file uses — each asserts a guard EXISTS in the code, not
    * that a renderer walked it.
    */
-  it('every supprimer key the fiche cites exists in the catalog — six, both ways', () => {
+  it('every supprimer key the fiche cites exists in the catalog — seven, both ways', () => {
     const cited = [...screens1.matchAll(/'(produits\.supprimer[a-z_]*)'/g)].map((m) => m[1]!);
-    expect(new Set(cited).size).toBe(6);
+    // the seventh (CLE-FONDATEUR-1): why the delete is not offered without the photo key
+    expect(new Set(cited).size).toBe(7);
     for (const k of cited) expect(keys.has(k), k).toBe(true);
     // and no orphan supprimer key sits in the catalog waiting to drift
     const inCatalog = [...keys].filter((k) => k.startsWith('produits.supprimer'));
@@ -442,7 +443,9 @@ describe('OFFER-DELETE-1 — the fiche’s confirm walk [source-text checks; hou
 
   it('no service ⇒ NO delete UI: the fiche gates the whole block on onDelete presence', () => {
     expect(screens1).toContain('{onDelete !== undefined && (');
-    expect(produits).toContain("{...(service === null ? {} : { onDelete: deleteOpen })}");
+    // CLE-FONDATEUR-1 — and no photo key for a product WITH photos ⇒ no delete
+    // either, with the sentence saying why (walked in rendu-cle-fondateur).
+    expect(produits).toContain("{...(service === null || clePhotosManquante ? {} : { onDelete: deleteOpen })}");
   });
 
   it('success DROPS the cache before the re-read — a deleted row never renders from memory', () => {

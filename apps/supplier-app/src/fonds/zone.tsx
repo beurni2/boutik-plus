@@ -276,7 +276,7 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
 
       <View style={{ marginTop: 20, flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
         <BtnGhost label={t('operations.actualiser')} onPress={() => void charger()} />
-        <BtnGhost label={t('fonds.oublier_cle')} onPress={onCleRefusee} />
+        <BtnGhost label={t('console.oublier_cle')} onPress={onCleRefusee} />
       </View>
     </>
   );

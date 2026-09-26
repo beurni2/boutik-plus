@@ -20,12 +20,18 @@ export type ProduitsRead =
   | { readonly kind: 'loading' }
   | { readonly kind: 'ok'; readonly rows: readonly SupplierOfferRow[] }
   | { readonly kind: 'failed' }
-  | { readonly kind: 'not_configured' };
+  | { readonly kind: 'not_configured' }
+  /** CLE-FONDATEUR-1 — wired, but no operator key typed on this device. */
+  | { readonly kind: 'sans_cle' }
+  /** The service refused the key on this device (401) — never « réseau ». */
+  | { readonly kind: 'cle_refusee' };
 
 /** What the screen renders. `message` is a catalog KEY — never a literal. */
 export type ProduitsView =
   | { readonly kind: 'loading'; readonly message: 'produits.chargement' }
   | { readonly kind: 'not_configured'; readonly message: 'produits.non_configure' }
+  | { readonly kind: 'sans_cle'; readonly message: 'produits.sans_cle' }
+  | { readonly kind: 'cle_refusee'; readonly message: 'produits.cle_refusee' }
   | {
       readonly kind: 'failed';
       readonly message: 'produits.lecture_echec';
@@ -46,6 +52,12 @@ export function produitsView(read: ProduitsRead, cached: readonly SupplierOfferR
   switch (read.kind) {
     case 'not_configured':
       return { kind: 'not_configured', message: 'produits.non_configure' };
+    case 'sans_cle':
+      return { kind: 'sans_cle', message: 'produits.sans_cle' };
+    case 'cle_refusee':
+      // A refused key is a fact about the KEY: it never says « vide », and a
+      // cached list is not offered as if the key had worked.
+      return { kind: 'cle_refusee', message: 'produits.cle_refusee' };
     case 'loading':
       return { kind: 'loading', message: 'produits.chargement' };
     case 'failed':

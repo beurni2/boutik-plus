@@ -217,8 +217,19 @@ capture bundle-absence-positive pass node scripts/gates/bundle-absence.mjs
 log "gate: fournisseur-bundle-absence — the fournisseur artifact carries NO offers client (founder capability ruling 2026-08-02, measured, must pass)"
 capture fournisseur-bundle-absence-positive pass node scripts/gates/fournisseur-bundle-absence.mjs
 
-log "gate: fournisseur-bundle-absence — NEGATIVE (the v2 root legitimately carries X-Write-Key; the same scan must FAIL on it)"
+log "gate: fournisseur-bundle-absence — NEGATIVE (the v2 root legitimately carries the offers client; the same scan must FAIL on it)"
 capture fournisseur-bundle-absence-negative fail node scripts/gates/fournisseur-bundle-absence.mjs --root v2
+
+# CLE-FONDATEUR-1 (AUDIT-B+2 F-01, F-86) — the founder's offer write key and
+# photo revoke key are NOT in his console page, even with secrets of those old
+# names still set; the retired names are wired nowhere; the page headers ride
+# the export. Red-proven: the pre-slice code exported both planted keys into
+# the page (measured 2026-09-26, JOURNAL).
+log "gate: founder-keys-absent — no founder key in the REAL exported console page, headers present (measured, must pass)"
+capture founder-keys-absent-positive pass node scripts/gates/founder-keys-absent.mjs
+
+log "gate: founder-keys-absent — NEGATIVE (a planted key that IS inlined must be caught; the same scan must FAIL)"
+capture founder-keys-absent-negative fail node scripts/gates/founder-keys-absent.mjs --negatif
 
 log "gate: no-consumer-storefront — services/ + apps/ (must pass)"
 capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-storefront.mjs

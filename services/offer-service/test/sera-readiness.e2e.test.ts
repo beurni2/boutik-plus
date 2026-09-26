@@ -153,7 +153,7 @@ async function driveToReady(m: Miniflare, orderId: string): Promise<{ confirmedA
   });
   expect(minted.status, minted.text).toBe(200);
   const code = minted.json['code'] as string;
-  expect((await post(m, '/offers', seed, { 'X-Write-Key': WRITE_SECRET })).status).toBe(200);
+  expect((await post(m, '/offers', seed, { Authorization: `Bearer ${OPS_SECRET}` })).status).toBe(200);
   const confirmed = await post(
     m,
     '/fulfillment/order-confirmed',

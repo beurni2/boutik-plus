@@ -39,6 +39,7 @@ import {
   type StoredThumb,
 } from './media-wire';
 import type { FailureCause, ServiceResult } from './service';
+import { readStoredClePhotos } from '../operations/service';
 import type { MediaRefInput } from './assets';
 
 export interface MediaServicePort {
@@ -95,13 +96,13 @@ const THUMB_TIMEOUT_MS = 8_000;
 
 export class HttpMediaService implements MediaServicePort {
   /**
-   * MEDIA-KEY-SPLIT (2026-08-02): upload and revoke are now DIFFERENT
-   * credentials on the service — the upload key ships in bundles (including
-   * every supplier's), the revoke key rides ONLY this founder surface. An
-   * unset revoke key travels as '' and the service answers its one identical
-   * 401 — a typed `http` failure, the wire's own truth, never a fake locally
-   * minted one; the delete flow already absorbs a failed revoke (bytes
-   * orphan, journalled behaviour).
+   * MEDIA-KEY-SPLIT (2026-08-02): upload and revoke are DIFFERENT credentials
+   * on the service — the upload key ships in bundles (including every
+   * supplier's); the revoke key is the one the founder TYPED on this device
+   * (CLE-FONDATEUR-1 — it no longer rides any bundle). An absent revoke key
+   * travels as '' and the service answers its one identical 401 — a typed
+   * `http` failure, the wire's own truth, never a fake locally minted one.
+   * Every caller counts the refusals and says how many photos remain.
    */
   constructor(private readonly base: string, private readonly writeKey: string, private readonly revokeKey: string = '') {}
 
@@ -316,9 +317,37 @@ export function resolveMediaService(): MediaServicePort | null {
   // The revoke key is OPTIONAL by design: uploads (the app's core function)
   // never wait on it, and without it the service refuses each revoke with the
   // same 401 it gives everyone — fail-closed on the WIRE, not simulated here.
-  const revokeKey = process.env.EXPO_PUBLIC_MEDIA_REVOKE_KEY ?? '';
+  // Read at resolve time, so a key he typed a moment ago is the one used.
+  const revokeKey = readStoredClePhotos() ?? '';
   if (base && key) return new HttpMediaService(base, key, revokeKey);
   return null;
+}
+
+/**
+ * F-68 — destroy these photographs and answer the ones that are STILL THERE.
+ *
+ * Every screen that deletes photos used to fire the revokes and read none of
+ * the answers, so a refused key left every photograph readable at its url
+ * while the screen said nothing. Now the refs that did not go come back, so
+ * the screen can say how many remain and offer to try again. The service is
+ * resolved HERE, per call: a retry after he fixes the key uses the new key.
+ * Only `media/` refs are this system's to revoke; anything else is ignored.
+ */
+export async function effacerPhotos(refs: readonly string[]): Promise<string[]> {
+  const nos = refs.filter((r) => r.startsWith('media/'));
+  if (nos.length === 0) return [];
+  const media = resolveMediaService();
+  if (media === null) return nos;
+  const restantes: string[] = [];
+  for (const ref of nos) {
+    try {
+      const res = await media.revokeImage(ref);
+      if (!res.ok) restantes.push(ref);
+    } catch {
+      restantes.push(ref);
+    }
+  }
+  return restantes;
 }
 
 // referenced so the type-only import is load-bearing for the cause taxonomy

@@ -42,7 +42,7 @@ import { formatF } from './money';
 import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, Overline } from './components';
 import { S20Wizard } from './screens2';
 import { mintCommandId } from '../offline/commandId';
-import { resolveSupplyService, SUPPLIER_ID, SUPPLIER_ZONE, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
+import { offerBaseConfigured, resolveSupplyService, SUPPLIER_ID, SUPPLIER_ZONE, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
 import { resolveMediaService, sha256Hex, type MediaServicePort } from '../supply/media';
 import { assembleAssets, type AssemblyInput, type ProductAssetsInput, type RoleUpload } from '../supply/assets';
 import {
@@ -65,7 +65,7 @@ import { defaultRoles, publishOrder, roleChipKey, swapToNext, type PhotoRole } f
 import type { CaptureSet } from './studio-real';
 import type { A, S } from './machine';
 import { composeVariantes } from './categorie-details';
-import { cleEchecHttp, supplierPourPublication } from './lister-pour';
+import { cleEchecHttp, cleRefus, supplierPourPublication } from './lister-pour';
 import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './lister-pour-choix';
 import { avecVideo, decideVideoChoisie, videoEchecKey, videoRefusKey } from '../supply/video';
 import { pickVideo } from '../studio/pick-video';
@@ -506,16 +506,27 @@ export function SListerReal({ st, d, captures, session }: {
     }
   };
 
-  // ── NON CONFIGURÉ — a condition, stated BEFORE he types, never an error ─────
+  /** The key lives in Opérations — one tap there, from every state that needs it. */
+  const versOperations = (): void => d({ t: 'TAB', tab: 'operations' });
+
+  // ── NON CONFIGURÉ / SANS CLÉ — a condition, stated BEFORE he types ──────────
+  // CLE-FONDATEUR-1: a wired build with no key typed on this device is not
+  // « pas encore relié » — it is one step from working, and says which step.
   if (offerService === null) {
+    const sansCle = offerBaseConfigured();
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
           <HeaderStacked title="Nouveau produit" onBack={() => d({ t: 'BACK' })} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-          <Banner tone="info">{t('publier.non_configure')}</Banner>
-          <View style={{ marginTop: 22 }}>
+          <Banner tone="info">{t(sansCle ? 'publier.sans_cle' : 'publier.non_configure')}</Banner>
+          {sansCle && (
+            <View style={{ marginTop: 22 }}>
+              <C07BtnPrimary label={t('console.ouvrir_operations')} onPress={versOperations} />
+            </View>
+          )}
+          <View style={{ marginTop: 14 }}>
             <BtnGhost label={t('publier.retour')} onPress={() => d({ t: 'BACK' })} />
           </View>
         </ScrollView>
@@ -525,6 +536,7 @@ export function SListerReal({ st, d, captures, session }: {
 
   // ── the outcome pane (his components, the publier.* strings) ────────────────
   if (pub !== null && pub.kind !== 'sending') {
+    const cleRefusee = pub.kind === 'failed' && pub.cause === 'http' && cleEchecHttp(pub.reason, SUPPLIER_ID) === 'publier.cle_refusee';
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
@@ -601,7 +613,9 @@ export function SListerReal({ st, d, captures, session }: {
 
           {pub.kind === 'refused' && (
             <>
-              <Banner tone="warn">{`${t('publier.refuse')}\n${pub.reason}`}</Banner>
+              <Banner tone="warn">
+                {cleRefus(pub.reason) !== null ? t(cleRefus(pub.reason)!) : `${t('publier.refuse')}\n${pub.reason}`}
+              </Banner>
               <View style={{ marginTop: 22 }}>
                 <C07BtnPrimary label={t('publier.corriger')} onPress={() => setPub(null)} />
               </View>
@@ -614,6 +628,8 @@ export function SListerReal({ st, d, captures, session }: {
                 <Banner tone="warn">{t('publier.echec_reseau')}</Banner>
               ) : pub.cause === 'device' ? (
                 <Banner tone="warn">{t('publier.echec_appareil')}</Banner>
+              ) : cleRefusee ? (
+                <Banner tone="warn">{t('publier.cle_refusee')}</Banner>
               ) : (
                 <Banner tone="danger">
                   {`${t(pub.cause === 'http' ? cleEchecHttp(pub.reason, SUPPLIER_ID) : 'publier.echec_illisible')}\n${pub.reason}`}
@@ -622,6 +638,11 @@ export function SListerReal({ st, d, captures, session }: {
               <View style={{ marginTop: 22 }}>
                 <C07BtnPrimary label={t('publier.reessayer')} icon="retry" onPress={() => { void onPublish(); }} />
               </View>
+              {cleRefusee && (
+                <View style={{ marginTop: 14 }}>
+                  <BtnGhost label={t('console.ouvrir_operations')} onPress={versOperations} />
+                </View>
+              )}
             </>
           )}
 
