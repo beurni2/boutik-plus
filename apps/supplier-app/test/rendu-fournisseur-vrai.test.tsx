@@ -663,6 +663,7 @@ describe('F-22 — a failed send keeps his photo and the button that sends it ag
     expect(screen.shows("L'envoi n'a pas marché. Réessayez."), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.images(), 'the chosen photo was thrown away').toContain(photo);
     expect(screen.canPress('Envoyer la preuve'), 'the sentence says « réessayez » and nothing on screen does it').toBe(true);
+    expect(screen.canPress('Choisir une autre photo'), 'no way to pick another photo on the single-order card').toBe(true);
 
     const avant = w.calls.filter((c) => c.path === '/fulfillment/ready/challenge').length;
     await screen.press('Envoyer la preuve');
