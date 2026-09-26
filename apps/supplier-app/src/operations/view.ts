@@ -737,3 +737,17 @@ export function suiviReadOf(result: SuiviResult): SuiviRead {
   if (result.ok) return { kind: 'ok', lignes: result.lignes };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }
+
+/**
+ * CLE-FONDATEUR-1 (verifier MINOR) — WHEN THE « OPÉRATIONS » TAB SHOWS.
+ *
+ * It used to be decided once, at load: a keyless device sent to Opérations by
+ * « Ouvrir Opérations » could save its key there and still see no tab, so the
+ * photo key, the codes and « Oublier la clé » were out of reach after he left.
+ * Now it opens with a stored key or the #operateur hash at load, with a key
+ * saved this session, or while he stands on it — and, once open, stays open
+ * (the shell remembers it), so a forgotten key never makes the tab vanish.
+ */
+export function porteOperateurOuverte(dejaOuverte: boolean, opsKey: string | null, surOperations: boolean): boolean {
+  return dejaOuverte || opsKey !== null || surOperations;
+}

@@ -184,7 +184,14 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
     expect(screen.shows('Vos ventes arrivent ici avec votre clé')).toBe(true);
     // UNSET RESOLVES TO NOTHING, NEVER TO DEMO — no order call, no invented row.
     expect(w.calls.map((c) => c.path)).not.toContain('/fulfillment/orders');
+    // …and no product read either (CLE-FONDATEUR-1): the list opens only on a
+    // key typed on this device, and this storage holds the key — so drop it.
     screen.unmount();
+    storage({});
+    const sans = wire([offresVides]);
+    const nue = await mountEcran(<SAccueilReel d={() => {}} opsKey={null} />);
+    expect(sans.calls.filter((c) => c.path.startsWith('/offers')), 'a keyless device reads no product').toEqual([]);
+    nue.unmount();
   });
 });
 

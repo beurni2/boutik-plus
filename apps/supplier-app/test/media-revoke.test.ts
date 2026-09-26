@@ -108,7 +108,8 @@ describe('the delete flow cleans the bytes [source-text checks on produits-real.
     expect(returnTrue).toBeGreaterThan(-1);
     expect(nextReturnFalse === -1 || nextReturnFalse > returnTrue).toBe(true);
     expect(deleteBlock).toContain('const restantes = await effacerPhotos(openOffer.assetRefs);');
-    expect(deleteBlock).toContain('if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);');
+    // kept by the DEVICE (verifier BLOCKER), not by the screen that dies on a tab switch
+    expect(deleteBlock).toContain('if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));');
   });
 
   it('F-68 — refs are prefix-filtered to media/, and an unresolved service or a refusal leaves the photo COUNTED, never dropped', () => {

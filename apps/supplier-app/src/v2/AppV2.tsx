@@ -36,6 +36,7 @@ import { SListerReal, type ListingSession } from './lister-real';
 import { SProduitsReal, type ProduitsCache } from './produits-real';
 import { SOperations } from '../operations/screen';
 import { operateurHashPresent, readStoredOpsKey } from '../operations/service';
+import { porteOperateurOuverte } from '../operations/view';
 import { SUPPLIER_ID } from '../supply/service';
 import { useWebFonts } from '../ui/web-fonts';
 import { S26StudioReal, type CaptureSet } from './studio-real';
@@ -118,9 +119,15 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   const [opsKey, setOpsKey] = useState<string | null>(() => readStoredOpsKey());
   // The door, ONCE OPEN THIS SESSION, STAYS OPEN: a refused key clears back to
   // the key screen — the tab must not vanish under the founder mid-recovery,
-  // and the bad-key moment IS the key-rotation moment. A fresh browser without
-  // the stored key or the hash never opens it at all.
-  const [operateurDoor] = useState(() => readStoredOpsKey() !== null || operateurHashPresent());
+  // and the bad-key moment IS the key-rotation moment. A fresh browser opens it
+  // only by the hash, or when a screen sends him there to type his key.
+  const [porteDejaOuverte, setPorteDejaOuverte] = useState(() => readStoredOpsKey() !== null || operateurHashPresent());
+  // CLE-FONDATEUR-1 — a key saved this session, or standing on the tab, opens
+  // the door too; `porteOperateurOuverte` decides, the effect makes it stick.
+  const operateurDoor = porteOperateurOuverte(porteDejaOuverte, opsKey, st.tab === 'operations');
+  useEffect(() => {
+    if (operateurDoor && !porteDejaOuverte) setPorteDejaOuverte(true);
+  }, [operateurDoor, porteDejaOuverte]);
 
   // BOUTIK-WEB — THE 430px PHONE FRAME WAS REVERTED BY FOUNDER RULING
   // (2026-07-27, verbatim: *"the whole webapp the way it was, was good and my
@@ -172,7 +179,7 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           // wraps the untouched S20Wizard with the real plumbing (uploads,
           // publish, outcome states); publier.tsx is DELETED — one path, his.
           // The machine action and the view id are unchanged.
-          <SListerReal st={st} d={d} captures={captures} session={listing} />
+          <SListerReal st={st} d={d} captures={captures} session={listing} onKeySaved={setOpsKey} />
         ) : v.s === 'studio' ? (
           // Studio is REAL: his S26 design over expo-camera + the proven strip
           // pipeline. The demo S26Studio stays in screens2.tsx, unrouted. The

@@ -2107,7 +2107,7 @@
   },
   {
     "key": "operations.cle_reste_ici",
-    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Boutik+, quand vous agissez. Vous pouvez l'oublier ici quand vous voulez.",
+    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Boutik+, à chaque échange. Vous pouvez l'oublier ici quand vous voulez.",
     "register": "money",
     "screenClass": "general"
   },
@@ -3595,7 +3595,7 @@
   },
   {
     "key": "fonds.cle_reste_ici",
-    "fr": "La clé reste sur cet appareil, dans ce navigateur.",
+    "fr": "La clé est gardée dans ce navigateur et envoyée seulement au registre du fonds.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3967,7 +3967,7 @@
   },
   {
     "key": "coursiers.cle_aide",
-    "fr": "Elle reste sur cet appareil. Elle ouvre la liste des coursiers.",
+    "fr": "Elle est gardée sur cet appareil et envoyée seulement à Séra. Elle ouvre la liste des coursiers.",
     "register": "neutral",
     "screenClass": "instruction"
   },
@@ -4285,7 +4285,7 @@
   },
   {
     "key": "commandes.cle_aide",
-    "fr": "Elle reste sur cet appareil. Elle ouvre le livre des commandes payées.",
+    "fr": "Elle est gardée sur cet appareil et envoyée seulement à Boutik+. Elle ouvre le livre des commandes payées.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4663,7 +4663,7 @@
   },
   {
     "key": "confier.cle_aide",
-    "fr": "Entrez votre clé Séra. Elle reste sur cet appareil.",
+    "fr": "Entrez votre clé Séra. Elle est gardée sur cet appareil et envoyée seulement à Séra.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5497,13 +5497,13 @@
   },
   {
     "key": "publier.sans_cle",
-    "fr": "Pour publier, entrez d'abord votre clé d'opérateur dans l'onglet Opérations. Elle reste sur cet appareil.",
+    "fr": "Pour publier, entrez d'abord votre clé d'opérateur dans l'onglet Opérations.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "publier.cle_refusee",
-    "fr": "Votre clé d'opérateur n'a pas été acceptée. Rien n'a été publié. Entrez-la à nouveau dans l'onglet Opérations.",
+    "fr": "Votre clé d'opérateur n'a pas été acceptée. Rien n'a été publié. Entrez la bonne clé ici : votre produit est gardé tel quel.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5533,13 +5533,13 @@
   },
   {
     "key": "photos.restantes_une",
-    "fr": "1 photo n'a pas pu être effacée. Vérifiez la clé des photos dans Opérations, puis réessayez.",
+    "fr": "1 photo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "photos.restantes_n",
-    "fr": "{n} photos n'ont pas pu être effacées. Vérifiez la clé des photos dans Opérations, puis réessayez.",
+    "fr": "{n} photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5563,7 +5563,7 @@
   },
   {
     "key": "operations.photos_sens",
-    "fr": "Elle sert à effacer les photos quand vous supprimez un produit ou un fournisseur. Elle reste sur cet appareil.",
+    "fr": "Elle sert à effacer les photos quand vous supprimez un produit ou un fournisseur. Elle est gardée sur cet appareil et envoyée seulement au service des photos.",
     "register": "neutral",
     "screenClass": "instruction"
   },
@@ -5587,8 +5587,14 @@
   },
   {
     "key": "livraisons.cle_gardee",
-    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Shop+, quand vous agissez.",
+    "fr": "Elle est gardée sur cet appareil. Elle est envoyée seulement à Shop+, à chaque échange.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "publier.cle_enregistrer_publier",
+    "fr": "Enregistrer la clé et publier",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

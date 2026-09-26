@@ -9,6 +9,8 @@ import { SAccueilReel } from '../src/accueil/screen';
 import { SZoneCoursiers } from '../src/coursiers/zone';
 import { SZoneFonds } from '../src/fonds/zone';
 import { initialState, reduce, type A, type S } from '../src/v2/machine';
+import { garderPhotosRestantes, reessayerPhotosRestantes } from '../src/supply/media';
+import { porteOperateurOuverte } from '../src/operations/view';
 
 /**
  * ═══ RENDU-RÉEL — CLE-FONDATEUR-1: HIS CONSOLE WORKS ON THE KEYS HE TYPES ═══
@@ -173,9 +175,9 @@ describe('LISTER UN PRODUIT — the publish rides the key he typed', () => {
     screen.unmount();
   });
 
-  it('a refused key: the pane says so and that nothing was published, with a retry and the way to Opérations', async () => {
-    storage({ [OPS_SLOT]: 'une-ancienne-cle' });
-    wire([publie({ status: 'created' }), roster]);
+  it('a refused key: he types the right one ON THE PANE and the SAME product goes out — his form is never lost', async () => {
+    const store = storage({ [OPS_SLOT]: 'une-ancienne-cle' });
+    const w = wire([publie({ status: 'created' }), roster]);
     const actions: A[] = [];
     const screen = await mountEcran(<Lister actions={actions} />);
     await screen.press("Publier — c'est gratuit");
@@ -184,9 +186,21 @@ describe('LISTER UN PRODUIT — the publish rides the key he typed', () => {
     expect(screen.shows("Votre clé d'opérateur n'a pas été acceptée. Rien n'a été publié.")).toBe(true);
     // Never the raw wire answer as the thing he reads.
     expect(screen.texts().join(' ')).not.toContain('HTTP 401');
-    expect(screen.canPress('Réessayer')).toBe(true);
-    await screen.press('Ouvrir Opérations');
-    expect(actions.some((a) => a.t === 'TAB' && a.tab === 'operations')).toBe(true);
+    // A retry on the refused key could only fail again (verifier MINOR): not offered.
+    expect(screen.shows('Réessayer')).toBe(false);
+
+    await screen.type(OPS, "Votre clé d'opérateur");
+    await screen.press('Enregistrer la clé et publier');
+    await screen.settle();
+    const posts = w.calls.filter((c) => c.path === '/offers' && c.method === 'POST');
+    expect(posts).toHaveLength(2);
+    expect(posts[1]?.headers['authorization']).toBe(`Bearer ${OPS}`);
+    // THE SAME PRODUCT: same identity, same name — nothing he typed was lost.
+    expect(posts[1]?.body?.['offerId']).toBe(posts[0]?.body?.['offerId']);
+    expect((posts[1]?.body?.['product'] as { name?: string } | undefined)?.name).toBe('Sac en raphia');
+    expect(screen.shows("C'est publié. Votre produit est en ligne.")).toBe(true);
+    expect(store.get(OPS_SLOT), 'and the key is kept for the other screens').toBe(OPS);
+    expect(actions.some((a) => a.t === 'TAB' || a.t === 'OPEN_WIZ'), 'he never had to leave the wizard').toBe(false);
     screen.unmount();
   });
 
@@ -280,19 +294,24 @@ describe('PRODUITS — his list and his delete on his key', () => {
     expect(revokes.every((c) => c.headers['x-write-key'] === 'mauvaise-cle-photos'), 'the TYPED key, not a bundled one').toBe(true);
     // The product is gone — and the two photos that were not are SAID, with a way out.
     expect(screen.texts().join(' ')).not.toContain('Pagne wax');
-    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
     expect(screen.canPress("Réessayer d'effacer les photos")).toBe(true);
 
-    // He fixes the key (in Opérations), comes back, retries: the retry reads the key NOW.
+    // He does what the sentence says (verifier BLOCKER): he LEAVES for
+    // Opérations — Produits unmounts — fixes the key there, and comes back.
+    screen.unmount();
     store.set(PHOTOS_SLOT, PHOTOS);
-    await screen.press("Réessayer d'effacer les photos");
-    await screen.settle();
+    const retour = await monterProduits();
+    expect(retour.shows("2 photos n'ont pas pu être effacées"), 'the photos are still remembered').toBe(true);
+    await retour.press("Réessayer d'effacer les photos");
+    await retour.settle();
     const apres = w.calls.filter((c) => c.path === '/media/revoke').slice(2);
     expect(apres.map((c) => c.body?.['ref'])).toEqual([REF, REF2]);
-    expect(apres.every((c) => c.headers['x-write-key'] === PHOTOS)).toBe(true);
-    expect(screen.shows("n'ont pas pu être effacées")).toBe(false);
-    expect(screen.shows('Bazin'), 'the rest of his list is untouched').toBe(true);
-    screen.unmount();
+    expect(apres.every((c) => c.headers['x-write-key'] === PHOTOS), 'the retry reads the key NOW').toBe(true);
+    expect(retour.shows("n'ont pas pu être effacées")).toBe(false);
+    expect(store.has('boutik.photos.restantes'), 'nothing left to remember').toBe(false);
+    expect(retour.shows('Bazin'), 'the rest of his list is untouched').toBe(true);
+    retour.unmount();
   });
 });
 
@@ -372,15 +391,19 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     await screen.settle();
 
     expect(w.calls.filter((c) => c.path === '/media/revoke')).toHaveLength(2);
-    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
 
+    // Leaving the board and coming back loses nothing (the device remembers).
+    screen.unmount();
     store.set(PHOTOS_SLOT, PHOTOS);
-    await screen.press("Réessayer d'effacer les photos");
-    await screen.settle();
+    const retour = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    expect(retour.shows("2 photos n'ont pas pu être effacées")).toBe(true);
+    await retour.press("Réessayer d'effacer les photos");
+    await retour.settle();
     const apres = w.calls.filter((c) => c.path === '/media/revoke').slice(2);
     expect(apres.map((c) => c.body?.['ref'])).toEqual([REF, REF2]);
-    expect(screen.shows("n'ont pas pu être effacées")).toBe(false);
-    screen.unmount();
+    expect(retour.shows("n'ont pas pu être effacées")).toBe(false);
+    retour.unmount();
   });
 
   it('a HALF-DONE erase no longer claims the photos are gone before they are', async () => {
@@ -398,7 +421,7 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     await screen.press('Oui, tout effacer');
     await screen.settle();
     expect(screen.shows("Les produits sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.")).toBe(true);
-    expect(screen.shows("1 photo n'a pas pu être effacée. Vérifiez la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("1 photo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
     screen.unmount();
   });
 
@@ -420,7 +443,7 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     wire([]);
     const screen = await mountEcran(<SOperations opsKey={null} onKeySaved={() => {}} onKeyCleared={() => {}} />);
     expect(screen.shows('ne part nulle part')).toBe(false);
-    expect(screen.shows('Elle est envoyée seulement à Boutik+, quand vous agissez.')).toBe(true);
+    expect(screen.shows('Elle est envoyée seulement à Boutik+, à chaque échange.')).toBe(true);
     screen.unmount();
   });
 
@@ -491,5 +514,31 @@ describe('THE OTHER DOORS — Séra and the fund can be forgotten too', () => {
     expect(store.has('boutik.fonds.cle')).toBe(false);
     expect(screen.canPress('Ouvrir le registre')).toBe(true);
     screen.unmount();
+  });
+});
+
+describe('THE PHOTOS STILL TO DESTROY — remembered by the device, updated in place', () => {
+  it('a retry still running never drops photos a delete adds meanwhile (verifier MAJOR)', async () => {
+    const store = storage({ [PHOTOS_SLOT]: PHOTOS, 'boutik.photos.restantes': JSON.stringify([REF]) });
+    wire([porteRevoke({ valeur: PHOTOS })]);
+    const enCours = reessayerPhotosRestantes(); // REF is being destroyed…
+    garderPhotosRestantes([REF2]); // …while another delete leaves REF2 behind
+    expect(await enCours, 'the retry removes only what IT destroyed').toEqual([REF2]);
+    expect(JSON.parse(store.get('boutik.photos.restantes') ?? '[]')).toEqual([REF2]);
+  });
+
+  it('only this system’s photos are kept, and never twice', () => {
+    storage({});
+    expect(garderPhotosRestantes([REF, 'https://ailleurs.example/x', REF, 'private/device/abc'])).toEqual([REF]);
+    expect(garderPhotosRestantes([REF, REF2])).toEqual([REF, REF2]);
+  });
+});
+
+describe('THE « OPÉRATIONS » TAB — reachable once he is sent there or saves a key', () => {
+  it('opens with a key saved this session or while he stands on it, and stays open once open', () => {
+    expect(porteOperateurOuverte(false, null, false), 'a keyless device, elsewhere: no tab').toBe(false);
+    expect(porteOperateurOuverte(false, null, true), 'sent there by « Ouvrir Opérations »').toBe(true);
+    expect(porteOperateurOuverte(false, OPS, false), 'a key saved this session').toBe(true);
+    expect(porteOperateurOuverte(true, null, false), 'once open, a forgotten key never hides it').toBe(true);
   });
 });

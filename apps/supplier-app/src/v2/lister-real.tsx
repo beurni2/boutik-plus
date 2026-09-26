@@ -39,7 +39,7 @@ import { GEO } from '../ui/v2/tokens';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { formatF } from './money';
-import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, Overline } from './components';
+import { Banner, BtnGhost, C07BtnPrimary, HeaderStacked, Input, Overline } from './components';
 import { S20Wizard } from './screens2';
 import { mintCommandId } from '../offline/commandId';
 import { offerBaseConfigured, resolveSupplyService, SUPPLIER_ID, SUPPLIER_ZONE, type AttachAssetsOutcome, type ServiceResult, type SupplyServicePort } from '../supply/service';
@@ -70,7 +70,7 @@ import { chipsFournisseurs, lireFournisseurs, type FournisseursRead } from './li
 import { avecVideo, decideVideoChoisie, videoEchecKey, videoRefusKey } from '../supply/video';
 import { pickVideo } from '../studio/pick-video';
 import type { VideoEtat } from './screens2';
-import { readStoredOpsKey, resolveOperationsService } from '../operations/service';
+import { readStoredOpsKey, resolveOperationsService, storeOpsKey } from '../operations/service';
 
 
 /** Set at authoring — the founder is the only supplier. HARD GATE in authoring.ts. */
@@ -173,16 +173,23 @@ export interface ListingSession {
   video: { bytes: Uint8Array; durationSec: number } | null;
 }
 
-export function SListerReal({ st, d, captures, session }: {
+export function SListerReal({ st, d, captures, session, onKeySaved }: {
   st: S;
   d: (a: A) => void;
+  /** CLE-FONDATEUR-1 — a key re-typed on the refused-key pane reaches the
+   *  shell too, so the other tabs and the Opérations door use it at once. */
+  onKeySaved?: (key: string) => void;
   /** Owned by the SHELL: studio and wizard are sibling views, so the approved
    * set must survive the view switch. Written by S26StudioReal's onApproved. */
   captures: { current: CaptureSet | null };
   /** Owned by the SHELL for the same reason — see ListingSession. */
   session: { current: ListingSession };
 }) {
-  const offerService = useMemo(() => resolveSupplyService(), []);
+  // STATE, not a memo (CLE-FONDATEUR-1, verifier MINOR): a key re-typed after a
+  // refusal must reach the client without leaving the wizard — leaving costs
+  // him the whole form (a new wizard starts blank).
+  const [offerService, setOfferService] = useState<SupplyServicePort | null>(() => resolveSupplyService());
+  const [cleDraft, setCleDraft] = useState('');
   const mediaService = useMemo(() => resolveMediaService(), []);
   const [pub, setPub] = useState<PublishState | null>(null);
   const [pending, setPending] = useState<PendingPhotos | null>(null);
@@ -336,7 +343,7 @@ export function SListerReal({ st, d, captures, session }: {
   const uploadRole = async (media: MediaServicePort, source: RoleSource): Promise<RoleUpload> =>
     (await roleUpload(media, source, renderThumbDerivative)).upload;
 
-  const onPublish = async (): Promise<void> => {
+  const onPublish = async (service: SupplyServicePort | null = offerService): Promise<void> => {
     if (inFlight.current) return;
     inFlight.current = true;
     setPub({ kind: 'sending' });
@@ -437,7 +444,7 @@ export function SListerReal({ st, d, captures, session }: {
         setVideoNote('publier.video_sans_photos');
       }
 
-      const outcome = await publish(offerService, formFromWiz(st.wiz), ctx, assets);
+      const outcome = await publish(service, formFromWiz(st.wiz), ctx, assets);
       setPending(outcome.kind === 'published' && leftover !== null ? leftover : null);
       setPub(outcome);
     } catch (err) {
@@ -508,6 +515,19 @@ export function SListerReal({ st, d, captures, session }: {
 
   /** The key lives in Opérations — one tap there, from every state that needs it. */
   const versOperations = (): void => d({ t: 'TAB', tab: 'operations' });
+
+  /** The refused-key pane's one act: keep the new key, publish the SAME
+   *  product again (same identity, so a replay can never publish it twice). */
+  const reprendreAvecCle = (): void => {
+    const v = cleDraft.trim();
+    if (v === '') return;
+    storeOpsKey(v);
+    onKeySaved?.(v);
+    const service = resolveSupplyService();
+    setOfferService(service);
+    setCleDraft('');
+    void onPublish(service);
+  };
 
   // ── NON CONFIGURÉ / SANS CLÉ — a condition, stated BEFORE he types ──────────
   // CLE-FONDATEUR-1: a wired build with no key typed on this device is not
@@ -635,12 +655,21 @@ export function SListerReal({ st, d, captures, session }: {
                   {`${t(pub.cause === 'http' ? cleEchecHttp(pub.reason, SUPPLIER_ID) : 'publier.echec_illisible')}\n${pub.reason}`}
                 </Banner>
               )}
-              <View style={{ marginTop: 22 }}>
-                <C07BtnPrimary label={t('publier.reessayer')} icon="retry" onPress={() => { void onPublish(); }} />
-              </View>
-              {cleRefusee && (
-                <View style={{ marginTop: 14 }}>
-                  <BtnGhost label={t('console.ouvrir_operations')} onPress={versOperations} />
+              {cleRefusee ? (
+                // A retry on the refused key can only fail again, and leaving
+                // for Opérations would cost him the form — so the key is
+                // re-typed HERE, and the same product goes out on it.
+                <>
+                  <View style={{ marginTop: 18 }}>
+                    <Input label={t('operations.cle_libelle')} value={cleDraft} onChangeText={setCleDraft} />
+                  </View>
+                  <View style={{ marginTop: 16 }}>
+                    <C07BtnPrimary label={t('publier.cle_enregistrer_publier')} icon="check" onPress={reprendreAvecCle} />
+                  </View>
+                </>
+              ) : (
+                <View style={{ marginTop: 22 }}>
+                  <C07BtnPrimary label={t('publier.reessayer')} icon="retry" onPress={() => { void onPublish(); }} />
                 </View>
               )}
             </>

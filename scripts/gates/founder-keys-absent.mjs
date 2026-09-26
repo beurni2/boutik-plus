@@ -49,7 +49,12 @@ const REQUIRED = [
   'boutik.photos.cle', // the typed photo key's own storage slot
 ];
 const FORBIDDEN = [OFFER_KEY_SENTINEL, REVOKE_KEY_SENTINEL];
-const HEADERS_REQUIRED = ['X-Frame-Options: DENY', "frame-ancestors 'none'", 'X-Content-Type-Options: nosniff'];
+const HEADERS_REQUIRED = [
+  'X-Frame-Options: DENY',
+  "frame-ancestors 'none'",
+  'X-Content-Type-Options: nosniff',
+  'Referrer-Policy: strict-origin',
+];
 
 let failed = false;
 

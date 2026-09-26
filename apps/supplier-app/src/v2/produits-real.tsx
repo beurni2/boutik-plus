@@ -8,7 +8,7 @@ import { S03Produits, SOffreFiche } from './screens1';
 import { ChipCategory } from './components';
 import { offerBaseConfigured, resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { mintCommandId } from '../offline/commandId';
-import { effacerPhotos, resolveMediaBase } from '../supply/media';
+import { effacerPhotos, garderPhotosRestantes, photosRestantes as photosRestantesTenues, reessayerPhotosRestantes, resolveMediaBase } from '../supply/media';
 import { produitsView, type ProduitsRead } from '../supply/produits-view';
 import { chipsProduits, fournisseursALire, fusionner, memeEnsemble, montreAttribution, TOUS, type RangeeAttribuee } from './produits-filtre';
 import { lireFournisseurs } from './lister-pour-choix';
@@ -62,10 +62,11 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   /**
    * F-68 — photographs of a deleted product that are STILL THERE (a refused
    * photo key, a dropped connection). Said on the list with a retry, never
-   * dropped: each one stays readable at its url until it is revoked. In memory
-   * only, like the list itself.
+   * dropped: each one stays readable at its url until it is revoked. The
+   * DEVICE remembers them (`supply/media.ts`), so leaving for Opérations to fix
+   * the key — what the sentence tells him to do — loses nothing.
    */
-  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>([]);
+  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>(() => photosRestantesTenues());
   const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The open fiche (founder device ruling 2026-07-26: tap a product, see all
    * its photographs and details). Local to the tab: a tab switch unmounts it,
@@ -331,7 +332,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     // F-68 — the photos that did not go are KEPT and SAID (see `photosRestantes`),
     // never silently orphaned. A failed revoke still never un-deletes the product.
     const restantes = await effacerPhotos(openOffer.assetRefs);
-    if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);
+    if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));
     setOpenOffer(null);
     cache.current = { rows: null, asOf: null };
     void load();
@@ -392,8 +393,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   const reessayerPhotos = async (): Promise<void> => {
     if (photosEnCours || photosRestantes.length === 0) return;
     setPhotosEnCours(true);
-    const reste = await effacerPhotos(photosRestantes);
-    setPhotosRestantes(reste);
+    setPhotosRestantes(await reessayerPhotosRestantes());
     setPhotosEnCours(false);
   };
   const photosBanniere =

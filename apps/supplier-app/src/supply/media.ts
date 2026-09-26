@@ -350,5 +350,70 @@ export async function effacerPhotos(refs: readonly string[]): Promise<string[]> 
   return restantes;
 }
 
+/**
+ * F-68 (verifier BLOCKER + MAJOR) — THE PHOTOS STILL TO DESTROY, remembered by
+ * the DEVICE, not by a screen.
+ *
+ * Held in a screen's state, the list died the moment he followed its own
+ * advice (« Vérifiez la clé des photos dans Opérations »): the tab switch
+ * unmounted Produits and the photos stayed readable with nothing remembering
+ * them. So the list lives in his browser storage (a page-lifetime copy where
+ * the browser refuses storage), shared by every screen that deletes photos.
+ *
+ * AND IT IS UPDATED IN PLACE: a retry removes only the photos IT destroyed, and
+ * an append only adds — so a retry still running can never overwrite photos a
+ * delete added meanwhile. Each read-modify-write runs with no await inside it.
+ */
+const PHOTOS_RESTANTES_STORAGE = 'boutik.photos.restantes';
+let photosSecours: readonly string[] = [];
+
+function lirePhotos(): readonly string[] {
+  try {
+    if (typeof localStorage === 'undefined') return photosSecours;
+    const brut = localStorage.getItem(PHOTOS_RESTANTES_STORAGE);
+    if (brut === null) return [];
+    const lu: unknown = JSON.parse(brut);
+    return Array.isArray(lu) ? lu.filter((r): r is string => typeof r === 'string' && r.startsWith('media/')) : [];
+  } catch {
+    return photosSecours;
+  }
+}
+
+function ecrirePhotos(liste: readonly string[]): readonly string[] {
+  photosSecours = liste;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (liste.length === 0) localStorage.removeItem(PHOTOS_RESTANTES_STORAGE);
+      else localStorage.setItem(PHOTOS_RESTANTES_STORAGE, JSON.stringify(liste));
+    }
+  } catch {
+    // storage refused — the page-lifetime copy above still holds them
+  }
+  return liste;
+}
+
+/** The photos still to destroy, as this device remembers them. */
+export function photosRestantes(): readonly string[] {
+  return lirePhotos();
+}
+
+/** Remember photos that did not go (no duplicates). Returns the whole list. */
+export function garderPhotosRestantes(refs: readonly string[]): readonly string[] {
+  const tenues = lirePhotos();
+  return ecrirePhotos([...tenues, ...refs.filter((r, i) => r.startsWith('media/') && !tenues.includes(r) && refs.indexOf(r) === i)]);
+}
+
+/**
+ * Try again, on the photo key as it is NOW. Only the photos this attempt
+ * actually destroyed leave the list; anything added while it ran stays.
+ */
+export async function reessayerPhotosRestantes(): Promise<readonly string[]> {
+  const tentees = lirePhotos();
+  if (tentees.length === 0) return tentees;
+  const reste = await effacerPhotos(tentees);
+  const detruites = tentees.filter((r) => !reste.includes(r));
+  return ecrirePhotos(lirePhotos().filter((r) => !detruites.includes(r)));
+}
+
 // referenced so the type-only import is load-bearing for the cause taxonomy
 export type { FailureCause };

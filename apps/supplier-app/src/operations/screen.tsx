@@ -86,7 +86,7 @@ import {
   type ComptesUi,
   type SuiviRead,
 } from './view';
-import { effacerPhotos } from '../supply/media';
+import { effacerPhotos, garderPhotosRestantes, photosRestantes as photosRestantesTenues, reessayerPhotosRestantes } from '../supply/media';
 import { SZoneFonds } from '../fonds/zone';
 import { SZoneCoursiers } from '../coursiers/zone';
 
@@ -359,8 +359,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const [aEffacer, setAEffacer] = useState<string | null>(null);
   /** CLE-FONDATEUR-1 — the photo key, typed here; the erase needs it to arm. */
   const [clePhotos, setClePhotos] = useState<string | null>(() => readStoredClePhotos());
-  /** F-68 — photographs an erase could not destroy: counted, kept, retried. */
-  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>([]);
+  /** F-68 — photographs an erase could not destroy: counted, kept by the
+   *  device (`supply/media.ts`), retried — shared with Produits' deletes. */
+  const [photosRestantes, setPhotosRestantes] = useState<readonly string[]>(() => photosRestantesTenues());
   const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
    *  must read, not a silent no-op. */
@@ -401,7 +402,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
      * « seront effacés » rather than claiming the past tense.
      */
     const restantes = await effacerPhotos(refs);
-    if (restantes.length > 0) setPhotosRestantes((tenues) => [...tenues, ...restantes]);
+    if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));
     // The list is re-read so the row he just erased actually leaves the screen —
     // a destructive act that appears to do nothing is how a founder taps twice.
     await loadCodes();
@@ -411,7 +412,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const reessayerPhotos = async (): Promise<void> => {
     if (photosEnCours || photosRestantes.length === 0) return;
     setPhotosEnCours(true);
-    setPhotosRestantes(await effacerPhotos(photosRestantes));
+    setPhotosRestantes(await reessayerPhotosRestantes());
     setPhotosEnCours(false);
   };
 

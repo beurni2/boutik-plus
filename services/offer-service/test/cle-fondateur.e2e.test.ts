@@ -220,6 +220,26 @@ describe('F-34 — a new product cannot take over another product\'s identity', 
     expect(((await lu.json()) as { offerId: string }).offerId).toBe('offer-ptr-b');
   });
 
+  it('a STALE pointer (its offer gone, the pointer left behind) may be taken by a new offer — through the public door', async () => {
+    // A delete that names the wrong version drops the entry but not the
+    // pointer: exactly the stale holder `remplace` exists for (verifier MINOR —
+    // this path had no end-to-end proof).
+    const pv = 'pv-cle-stale-01';
+    const un = await call('/offers', { method: 'POST', headers: cle, body: seed('offer-stale-a', pv, { name: 'Ancien' }) });
+    expect(un.json['status'], un.text).toBe('created');
+    const efface = await call('/offers/delete', {
+      method: 'POST',
+      headers: cle,
+      body: { commandId: 'del-stale-a', offerId: 'offer-stale-a', productVersionId: 'pv-cle-pas-le-bon' },
+    });
+    expect(efface.status, efface.text).toBe(200);
+    const deux = await call('/offers', { method: 'POST', headers: cle, body: seed('offer-stale-b', pv, { name: 'Nouveau' }) });
+    expect(deux.json['status'], deux.text).toBe('created');
+    const liste = await call(`/offers?supplierId=${SUPPLIER}`, { headers: cle });
+    const rangs = (liste.json['items'] as { offerId: string; productVersionId: string }[]).filter((i) => i.productVersionId === pv);
+    expect(rangs.map((r) => r.offerId)).toEqual(['offer-stale-b']);
+  });
+
   it('two creates for ONE version at the SAME instant: exactly one wins, the other is refused by name — never two faces', async () => {
     // The router's look-first check cannot see a create still in flight; the
     // pointer's own object decides (put-if-absent), so both racing creates
@@ -272,5 +292,22 @@ describe('F-38 — a malformed create is a named 400 the browser can read', () =
     expect(b.status, b.text).toBe(400);
     expect(b.json['error']).toBe('malformed');
     expect(b.cors).toBe('*');
+  });
+
+  it('an EMPTY draft, and a price sent as text, are 400 « malformed » with CORS too — never the kernel\'s 500', async () => {
+    const vide = seed('offer-38-c', 'pv-cle-038c') as unknown as Record<string, unknown>;
+    vide['draft'] = {};
+    const texte = seed('offer-38-d', 'pv-cle-038d') as unknown as { draft: Record<string, unknown> };
+    texte.draft['basePrice'] = '9000';
+    for (const corps of [vide, texte]) {
+      const r = await call('/offers', { method: 'POST', headers: cle, body: corps });
+      expect(r.status, r.text).toBe(400);
+      expect(r.json['error']).toBe('malformed');
+      expect(r.cors).toBe('*');
+    }
+    const liste = await call(`/offers?supplierId=${SUPPLIER}`, { headers: cle });
+    const ids = (liste.json['items'] as { offerId: string }[]).map((i) => i.offerId);
+    expect(ids).not.toContain('offer-38-c');
+    expect(ids).not.toContain('offer-38-d');
   });
 });

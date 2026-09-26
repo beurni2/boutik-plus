@@ -87,6 +87,13 @@ export class OfferDO {
       if (cmd === null || typeof cmd !== 'object' || cmd.draft === null || typeof cmd.draft !== 'object') {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
+      // …and prices that are not whole francs are malformed here too (verifier
+      // MINOR): past this door the money kernel throws a RangeError, which must
+      // stay an error — so the shape is refused BEFORE it, never caught after.
+      const prix = cmd.draft as { basePrice?: unknown; resellerCommission?: unknown };
+      if (!Number.isSafeInteger(prix.basePrice) || !Number.isSafeInteger(prix.resellerCommission)) {
+        return Response.json({ error: 'malformed' }, { status: 400 });
+      }
       const current = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       let result: { decision: CreateOfferDecision; next?: OfferEntry };
       try {
