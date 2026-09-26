@@ -25,6 +25,10 @@ name: live-check
 on:
   workflow_dispatch: {}
 
+# DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — this job reads the live services with its
+# own secrets and never touches the repository: its token gets nothing.
+permissions: {}
+
 jobs:
   live-check:
     runs-on: ubuntu-latest

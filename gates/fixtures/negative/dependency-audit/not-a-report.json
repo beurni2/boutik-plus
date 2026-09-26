@@ -1,0 +1,3 @@
+{
+  "note": "NEGATIVE FIXTURE — not an audit report (no metadata, no advisories). The dependency-audit gate must answer exit 2 (could not run), never 0: silence is not a pass."
+}

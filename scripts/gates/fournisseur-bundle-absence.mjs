@@ -33,6 +33,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifierPageWeb } from './web-artifact-checks.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const APP = join(root, 'apps', 'supplier-app');
@@ -140,6 +141,19 @@ for (const needle of SECONDARY) {
   const hits = anyHas(needle);
   if (hits.length > 0) console.error(`  ⚠ [secondary] ${JSON.stringify(needle)} present (reported, not sole basis): ${hits.length} artifact(s)`);
   else console.log(`  ✔ [secondary] ${JSON.stringify(needle)} absent`);
+}
+
+// DEMO-TRACE-1 + POIDS-WEB-1 + COQUILLE-WEB-1 (AUDIT-B+2 F-85, F-88) — the
+// supplier page this gate already built, checked for what must never ship,
+// measured, and given its offline shell. The v2 negative keeps its one reason.
+if (rootArg === 'fournisseur') {
+  const page = verifierPageWeb(out, 'fournisseur');
+  for (const l of page.lines) (l.includes('✘') ? console.error : console.log)(l);
+  if (page.failed) failed = true;
+  if (page.errored) {
+    rmSync(out, { recursive: true, force: true });
+    process.exit(2);
+  }
 }
 
 rmSync(out, { recursive: true, force: true });

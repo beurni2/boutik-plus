@@ -32,6 +32,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifierPageWeb } from './web-artifact-checks.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const APP = join(root, 'apps', 'supplier-app');
@@ -173,6 +174,19 @@ if (!existsSync(headersPath)) {
       failed = true;
       console.error(`  ✘ [HEADERS] ${JSON.stringify(want)} missing from the exported _headers`);
     }
+  }
+}
+
+// DEMO-TRACE-1 + POIDS-WEB-1 + COQUILLE-WEB-1 (AUDIT-B+2 F-85, F-88) — the
+// console export this gate already built, checked for what must never ship,
+// measured, and given its offline shell. The negative run keeps its one reason.
+if (!negatif) {
+  const page = verifierPageWeb(out, 'console');
+  for (const l of page.lines) (l.includes('✘') ? console.error : console.log)(l);
+  if (page.failed) failed = true;
+  if (page.errored) {
+    rmSync(out, { recursive: true, force: true });
+    process.exit(2);
   }
 }
 

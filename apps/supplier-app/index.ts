@@ -1,4 +1,5 @@
 import { registerRootComponent } from 'expo';
+import { enregistrerCoquille } from './src/offline/coquille';
 import type { AppV2 } from './src/v2/AppV2';
 
 // WO-FP-PIXEL device walk (founder order 2026-07-17): a preview published with
@@ -21,6 +22,9 @@ declare const require: (id: string) => {
   AppV2: typeof AppV2;
   FournisseurApp: typeof AppV2;
 };
+// COQUILLE-WEB-1 — the offline shell, web production builds only (no-op on
+// a phone and in development).
+enregistrerCoquille();
 registerRootComponent(
   process.env.EXPO_PUBLIC_ROOT === 'fournisseur'
     ? require('./src/fournisseur/FournisseurApp').FournisseurApp

@@ -1,0 +1,7 @@
+# NEGATIVE FIXTURE (secret-scan) — a credential NAME under [vars], which is
+# committed and published. Its value is short on purpose: the [vars] rule
+# alone must refuse it.
+name = "fixture"
+
+[vars]
+MEDIA_WRITE_SECRET = "short"

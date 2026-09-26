@@ -211,6 +211,12 @@ capture no-demo-in-app-graph-positive pass node scripts/gates/no-demo-in-app-gra
 # it, so bundle absence stops being an argument about reachability. ~9s warm,
 # ~20s cold. Red-proven: planting the demo fallback back into the resolver makes
 # it exit 1 naming the data fingerprint.
+# DEMO-TRACE-1 (AUDIT-B+2 F-88) — imports are RESOLVED from the importing file:
+# the audit's escape (a file inside src/supply/ importing its sibling as
+# './demo', `from` on its own line) passed the old text match.
+log "gate: no-demo-in-app-graph — NEGATIVE FIXTURE (a sibling './demo' import across lines, must fail)"
+capture no-demo-in-app-graph-negative fail node scripts/gates/no-demo-in-app-graph.mjs --app gates/fixtures/negative/no-demo-in-app-graph
+
 log "gate: bundle-absence — the demo adapter is absent from the REAL exported bundle (measured, must pass)"
 capture bundle-absence-positive pass node scripts/gates/bundle-absence.mjs
 
@@ -230,6 +236,28 @@ capture founder-keys-absent-positive pass node scripts/gates/founder-keys-absent
 
 log "gate: founder-keys-absent — NEGATIVE (a planted key that IS inlined must be caught; the same scan must FAIL)"
 capture founder-keys-absent-negative fail node scripts/gates/founder-keys-absent.mjs --negatif
+
+# ═══ POIDS-WEB-1 + COQUILLE-WEB-1 + DEMO-TRACE-1 (AUDIT-B+2 F-85, F-88) ═══
+# The REAL pages are measured, scanned for what never ships and given their
+# offline shell inside founder-keys-absent (console) and
+# fournisseur-bundle-absence (supplier page) above, on the exports those gates
+# already build. Below: every branch of those checks shown firing on fixtures.
+# The checks write sw.js into the page they are given, so each run gets a copy.
+PAGE_TMP="$(mktemp -d)"
+cp -r gates/fixtures/web-size-dist "$PAGE_TMP/ok" && cp -r gates/fixtures/negative/web-page "$PAGE_TMP/e1"
+log "gate: web-size — no signed ceiling (⏳ W-D3): measured and printed, never failed (must pass)"
+capture web-size-unsigned pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur
+log "gate: web-size — a SIGNED ceiling the page is within (must pass)"
+capture web-size-signed-within pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur --budgets gates/fixtures/web-size-budgets.signed-generous.json
+log "gate: web-size — NEGATIVE FIXTURE (a SIGNED ceiling the page is over, must fail)"
+capture web-size-negative fail node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur --budgets gates/fixtures/negative/web-size/budgets.signed-tiny.json
+log "gate: web-artifact-checks — a clean page: nothing that never ships, measured, shell written (must pass)"
+capture web-artifact-checks-positive pass node scripts/gates/web-artifact-checks.mjs "$PAGE_TMP/ok" fournisseur
+log "gate: web-artifact-checks — NEGATIVE FIXTURE (a page carrying the retired E1 root's demo data, must fail)"
+capture web-artifact-checks-negative fail node scripts/gates/web-artifact-checks.mjs "$PAGE_TMP/e1" fournisseur
+rm -rf "$PAGE_TMP"
+log "gate: web-offline-shell — proof of the shell writer (exact precache, versions by bytes, refusals; must pass)"
+capture web-offline-shell-proof pass node scripts/gates/web-offline-shell-proof.mjs
 
 log "gate: no-consumer-storefront — services/ + apps/ (must pass)"
 capture no-consumer-storefront-positive pass node scripts/gates/no-consumer-storefront.mjs
@@ -266,6 +294,62 @@ capture no-ssh-lockfile-positive pass node scripts/gates/no-ssh-lockfile.mjs pnp
 
 log "gate: no-ssh-lockfile — NEGATIVE FIXTURE (ssh-form git URL, must fail)"
 capture no-ssh-lockfile-negative fail node scripts/gates/no-ssh-lockfile.mjs gates/fixtures/negative/lockfile/pnpm-lock.ssh.yaml
+
+# ═══ DEPLOI-VERROU-1 (AUDIT-B+2 F-17, F-84) — THE DEPLOY CHAIN STAYS LOCKED ═══
+# Actions pinned to SHAs, no npx beside a token, permissions declared, no
+# secret pasted into a script, every deploy starts with the main-only check,
+# wrangler/eas-cli pinned exactly. Each negative fixture breaks ONE rule and
+# is scanned alone, so every rule is shown failing by itself.
+log "gate: deploy-chain-locked — the repo's workflows (must pass)"
+capture deploy-chain-locked-positive pass node scripts/gates/deploy-chain-locked.mjs
+
+log "gate: deploy-chain-locked — POSITIVE FIXTURE (a legal deploy workflow, must pass)"
+capture deploy-chain-locked-legal pass node scripts/gates/deploy-chain-locked.mjs gates/fixtures/deploy-chain-legal.yml
+
+for fx in gates/fixtures/negative/deploy-chain/*.yml; do
+  n="$(basename "$fx" .yml)"
+  log "gate: deploy-chain-locked — NEGATIVE FIXTURE ALONE ($n, must fail)"
+  capture "deploy-chain-locked-negative-$n" fail node scripts/gates/deploy-chain-locked.mjs "$fx"
+done
+
+# The main-only step runs only on GitHub; this drives the REAL script against a
+# local repository and a `gh` stand-in, and asserts it allows main's newest
+# commit green in ci and refuses every other case, each with its reason.
+log "gate: deploy-only-main — proof of the first step of every deploy (must pass)"
+capture deploy-only-main-proof pass node scripts/gates/deploy-only-main-proof.mjs
+
+# ═══ SCAN-SECRETS-1 (AUDIT-B+2 F-18) — DEPENDENCY + SECRET SCANNING ═══
+log "gate: dependency-audit — pnpm audit --prod, high/critical outside the build-tooling allow-list (must pass)"
+capture dependency-audit-positive pass node scripts/gates/dependency-audit.mjs
+
+log "gate: dependency-audit — NEGATIVE FIXTURE (a high advisory on the offer Worker's zod — a runtime path — beside an allow-listed Expo one, must fail)"
+capture dependency-audit-negative fail node scripts/gates/dependency-audit.mjs --fixture gates/fixtures/negative/dependency-audit/audit.runtime-high.json
+
+log "gate: dependency-audit — NOT A REPORT (the gate could not run and must say so with exit 2, never pass)"
+capture dependency-audit-not-a-report 2 node scripts/gates/dependency-audit.mjs --fixture gates/fixtures/negative/dependency-audit/not-a-report.json
+
+log "gate: secret-scan — every tracked text file and zip member (must pass)"
+capture secret-scan-positive pass node scripts/gates/secret-scan.mjs
+
+log "gate: secret-scan — POSITIVE FIXTURE (names, references and placeholders only, must pass)"
+capture secret-scan-legal pass node scripts/gates/secret-scan.mjs gates/fixtures/secret-scan-legal
+
+for fx in gates/fixtures/negative/secret-scan/*; do
+  n="$(basename "$fx")"
+  log "gate: secret-scan — NEGATIVE FIXTURE ALONE ($n, must fail)"
+  capture "secret-scan-negative-$n" fail node scripts/gates/secret-scan.mjs "$fx"
+done
+
+# A GitHub token and a private-key block are never committed, not even as
+# fixtures (GitHub's own push protection reads them): they are written at run
+# time from split literals, scanned alone, and deleted.
+SECRET_TMP="$(mktemp -d)"
+node -e 'const fs=require("fs");const d=process.argv[1];fs.writeFileSync(d+"/notes.md","token: gh"+"p_"+"A1b2C3d4E5".repeat(4)+"\n");fs.writeFileSync(d+"/deploy.pem","-----BEGIN "+"RSA PRIVATE KEY-----\nMIIB\n-----END "+"RSA PRIVATE KEY-----\n");' "$SECRET_TMP"
+log "gate: secret-scan — NEGATIVE (a GitHub token, written at run time, must fail)"
+capture secret-scan-negative-github-token fail node scripts/gates/secret-scan.mjs "$SECRET_TMP/notes.md"
+log "gate: secret-scan — NEGATIVE (a private-key block, written at run time, must fail)"
+capture secret-scan-negative-private-key fail node scripts/gates/secret-scan.mjs "$SECRET_TMP/deploy.pem"
+rm -rf "$SECRET_TMP"
 
 log "gate: mint-path entropy — command_id mint paths draw from the OS CSPRNG, zero Math.random (WO-6.10, inherited from canon; must pass)"
 capture mint-path-entropy-positive pass node scripts/gates/check-mint-path-entropy.mjs

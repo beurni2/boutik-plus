@@ -1,0 +1,4 @@
+NEGATIVE FIXTURE (secret-scan) — a build log that echoed a real-looking Expo
+token in prose form. Not a real token. The gate must refuse this file alone.
+$ env | grep EXPO
+EXPO_TOKEN=Zq8f3Kp2Lm9Xv4Rt7Wn1

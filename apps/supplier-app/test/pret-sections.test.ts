@@ -8,7 +8,7 @@ import { telEnPaires } from '../src/commandes/telephone';
  * livrer screen … put each one in its section instead of leaving repère
  * section empty from repère information buyer gave and do not make them
  * editable. And also on the phone make spaced after 2 numbers like this
- * 76 16 02 55. »
+ * [numéro retiré, F-92]. »
  *
  * The DEFECT these pins hold shut: the compose fold used to seed zone/repère
  * with `useState(buyer?.contact?.… )` — but it mounts while the buyer row is
@@ -22,16 +22,16 @@ const appDir = join(import.meta.dirname, '..');
 const read = (f: string): string => readFileSync(join(appDir, f), 'utf8');
 
 describe('TEL-PAIRES — the founder’s exact example, displayed', () => {
-  it('formats his example verbatim, and pairs partials the same way', () => {
-    expect(telEnPaires('76160255')).toBe('76 16 02 55');
-    expect(telEnPaires('761602')).toBe('76 16 02');
-    expect(telEnPaires('7616025')).toBe('76 16 02 5');
+  it('formats a full number (his example, with the repos’ synthetic digits — F-92), and pairs partials the same way', () => {
+    expect(telEnPaires('70123456')).toBe('70 12 34 56');
+    expect(telEnPaires('701234')).toBe('70 12 34');
+    expect(telEnPaires('7012345')).toBe('70 12 34 5');
   });
 
   it('is idempotent and normalizing — an already-spaced number (the PWA now sends them) renders identically', () => {
-    expect(telEnPaires('76 16 02 55')).toBe('76 16 02 55');
-    expect(telEnPaires('76-16-02-55')).toBe('76 16 02 55');
-    expect(telEnPaires('+22676160255').startsWith('+')).toBe(true);
+    expect(telEnPaires('70 12 34 56')).toBe('70 12 34 56');
+    expect(telEnPaires('70-12-34-56')).toBe('70 12 34 56');
+    expect(telEnPaires('+22670123456').startsWith('+')).toBe(true);
   });
 });
 

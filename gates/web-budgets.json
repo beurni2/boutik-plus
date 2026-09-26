@@ -1,0 +1,5 @@
+{
+  "_law": "POIDS-WEB-1 (AUDIT-B+2 F-85). PERF-BUDGETS.md: the web numbers are ⏳ W-D3, proposed for the founder's signature. null = not signed: the first-load size is measured and printed on every board and deploy, never enforced. A number here (bytes, gzip -9, first load) is enforced by scripts/gates/web-size.mjs. Only the founder's signature puts one here.",
+  "fournisseur": { "firstLoadGzipBytes": null },
+  "console": { "firstLoadGzipBytes": null }
+}

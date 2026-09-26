@@ -1,6 +1,6 @@
 /**
  * TEL-PAIRES (founder order 2026-08-09) — « on the phone make spaced after 2
- * numbers like this 76 16 02 55 », displayed where the founder reads the
+ * numbers like this [numéro retiré, F-92] », displayed where the founder reads the
  * buyer's contact on « Prêt à livrer ». DISPLAY-ONLY here: the stored contact
  * travels untouched; old orders arrive unspaced and new ones may arrive
  * spaced (the buyer PWA now formats as she types) — this renders both

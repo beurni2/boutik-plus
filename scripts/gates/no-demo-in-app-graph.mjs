@@ -14,14 +14,26 @@
 // proves no app-reachable file imports the demo module. Test files may import it
 // freely — they are not in the app graph.
 //
+// DEMO-TRACE-1 (AUDIT-B+2 F-88) — IMPORTS ARE RESOLVED, NOT READ AS TEXT. The
+// first cut matched the words `supply/demo` on an import line, so a file INSIDE
+// src/supply/ importing its sibling as './demo' — or any import whose `from`
+// sat on the line after `import` — passed (measured: a scratch
+// `uri-bytes.web.ts` importing './demo' went green). Every static import,
+// export-from, dynamic import() and require() is now resolved from the file
+// that makes it, and the gate fails when it lands on src/supply/demo.ts.
+// src/demo/* is a different, legitimate module and never matches.
+//
+// `--app <dir>` scans a fixture app folder instead of apps/supplier-app (the
+// negative fixture).
+//
 // Exit 1 = violation. Exit 2 = unusable input.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const APP_SRC = join(root, 'apps', 'supplier-app');
-const DEMO_MODULE = /['"][./\w-]*\/demo(\.js)?['"]/;
+const appAt = process.argv.indexOf('--app');
+const APP_SRC = appAt === -1 ? join(root, 'apps', 'supplier-app') : resolve(process.argv[appAt + 1] ?? '');
 const SENTINEL = 'BOUTIK_DEMO_SUPPLY_ADAPTER_MUST_NOT_SHIP';
 
 /** Files the APP can reach: everything under the app except test/ and the demo module itself. */
@@ -51,15 +63,34 @@ if (!existsSync(demoModulePath)) {
   process.exit(2);
 }
 
+/** import … from 'x' · export … from 'x' · import 'x' · import('x') · require('x') — across lines. */
+const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]/gm;
+const EXTENSIONS = ['', '.ts', '.tsx', '.js', '.jsx', '.web.ts', '.web.tsx', '.native.ts', '.native.tsx'];
+
+/** The file Metro would load for a relative specifier, or null. */
+function resolveFrom(dir, spec) {
+  const base = resolve(dir, spec.replace(/\.js$/, ''));
+  for (const ext of EXTENSIONS) {
+    if (existsSync(base + ext) && statSync(base + ext).isFile()) return base + ext;
+  }
+  for (const ext of EXTENSIONS.slice(1)) {
+    const index = join(base, `index${ext}`);
+    if (existsSync(index)) return index;
+  }
+  return null;
+}
+
 const problems = [];
 for (const f of files) {
   if (f === demoModulePath) continue; // the module itself, obviously, carries the sentinel
   const src = readFileSync(f, 'utf8');
   const rel = relative(root, f);
-  // 1 — no app file may IMPORT the supply demo module.
-  for (const line of src.split('\n')) {
-    if (/^\s*(import|export)\b/.test(line) && /supply\/demo/.test(line)) {
-      problems.push(`${rel}: imports the demo supply adapter — it must stay out of the app graph`);
+  // 1 — no app file may IMPORT the supply demo module, however it spells it.
+  for (const m of src.matchAll(SPECIFIER)) {
+    const spec = m[1];
+    if (!spec.startsWith('.')) continue; // a package, never this module
+    if (resolveFrom(dirname(f), spec) === demoModulePath) {
+      problems.push(`${rel}: imports the demo supply adapter ('${spec}') — it must stay out of the app graph`);
     }
   }
   // 2 — the sentinel may not appear anywhere in app source (it would mean the

@@ -6,25 +6,50 @@ on:
   pull_request:
   workflow_dispatch:
 
+# DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — this job READS the tree and nothing
+# else; the default token could write.
+permissions:
+  contents: read
+
 jobs:
   gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # DEPLOI-VERROU-1 (F-17) — every action pinned to a commit SHA, the tag it
+      # resolves from kept beside it (the moving v4 tags resolved to exactly
+      # these on 2026-09-26): a moving tag is code nobody here reviewed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0 (what the moving v4 resolves to)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
-      - name: Authorize read access to platform-contracts (CI-only)
-        # Three URL forms, one tokened rewrite: pnpm records git deps in
-        # ssh/scp form on some resolve paths, and the runner has no SSH
-        # identity — every form must land on tokened https.
+      # DEPLOI-VERROU-1 (F-17) — THE PLATFORM-CONTRACTS GRANT IS SCOPED. It used
+      # to be written in plaintext to ~/.gitconfig for the whole job. Now it
+      # lives in a gitconfig under the runner's temp dir that only this step
+      # reads (GIT_CONFIG_GLOBAL), arrives as env rather than in the script
+      # text, and is deleted the moment the install ends, whatever it did.
+      #
+      # Three URL forms, one tokened rewrite: pnpm records git deps in ssh/scp
+      # form on some resolve paths and the runner has no SSH identity. It MUST
+      # use --add: url.<base>.insteadOf is single-valued, so a plain set would
+      # silently overwrite the https rewrite. With the secret unset nothing is
+      # written and the public fetch stands (platform-contracts is public; the
+      # lockfile resolves every @platform/* to a codeload tarball).
+      - name: Install (frozen lockfile) with a scoped platform-contracts grant, discarded after
+        env:
+          GIT_CONFIG_GLOBAL: ${{ runner.temp }}/platform-contracts.gitconfig
+          PLATFORM_CONTRACTS_READ_TOKEN: ${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}
         run: |
-          git config --global url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "https://github.com/beurni2/platform-contracts"
-          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
-          git config --global --add url."https://x-access-token:${{ secrets.PLATFORM_CONTRACTS_READ_TOKEN }}@github.com/beurni2/platform-contracts".insteadOf "git@github.com:beurni2/platform-contracts"
-      - run: pnpm install --frozen-lockfile
+          set -euo pipefail
+          if [ -n "${PLATFORM_CONTRACTS_READ_TOKEN}" ]; then
+            B="https://x-access-token:${PLATFORM_CONTRACTS_READ_TOKEN}@github.com/beurni2/platform-contracts"
+            git config --global url."$B".insteadOf "https://github.com/beurni2/platform-contracts"
+            git config --global --add url."$B".insteadOf "git@github.com:beurni2/platform-contracts"
+            git config --global --add url."$B".insteadOf "ssh://git@github.com/beurni2/platform-contracts"
+          fi
+          trap 'rm -f "$GIT_CONFIG_GLOBAL"' EXIT
+          pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Run every invariant gate (positives + negative fixtures)
         run: bash scripts/run-gates.sh

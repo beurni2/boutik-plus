@@ -1007,7 +1007,7 @@ function DetailTerminee({
           <View style={{ marginTop: 6 }}>
             {buyer.contact !== null ? (
               <>
-                {/* TEL-PAIRES (founder 2026-08-09): « 76 16 02 55 » — pairs,
+                {/* TEL-PAIRES (founder 2026-08-09): « 70 12 34 56 » — pairs,
                     exactly as he reads a number to a rider over the phone.
                     PRET-SECTIONS-2 (founder 2026-08-09): the phone and her
                     voice note stay; quartier/repère/zone left this block —
