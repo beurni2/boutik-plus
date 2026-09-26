@@ -321,13 +321,19 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   // a server echo, ON PURPOSE — on an idempotent replay (first answer lost in
   // transit) the entry is already gone but the row still names its photos, so
   // the retry still cleans them.
-  const deleteOpen = async (): Promise<boolean> => {
+  const deleteOpen = async (): Promise<boolean | 'reservee'> => {
     if (service === null || openOffer === null) return false;
     const res = await service.deleteOffer({
       commandId: mintCommandId(),
       offerId: openOffer.offerId,
       productVersionId: openOffer.productVersionId,
     });
+    // REMBOURSABLE-1 (AUDIT-B+2 F-33) — a buyer holds a unit while she pays:
+    // the service refuses by name, and the fiche says so instead of blaming
+    // the network. The hold lapses on its own within a quarter of an hour.
+    if (!res.ok && res.cause === 'http' && /^HTTP 409\b/.test(res.reason) && res.reason.includes('"unite_reservee"')) {
+      return 'reservee';
+    }
     if (!res.ok) return false;
     // F-68 — the photos that did not go are KEPT and SAID (see `photosRestantes`),
     // never silently orphaned. A failed revoke still never un-deletes the product.

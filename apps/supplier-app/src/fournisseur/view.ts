@@ -46,7 +46,19 @@ export type EtapeCommande =
    * nothing to do, the buyer is refunded. In the archive with its own
    * sentence, like a return.
    */
-  | 'refusee';
+  | 'refusee'
+  /**
+   * REMBOURSABLE-1 (AUDIT-B+2 F-02) — the FOUNDER cancelled it (« Annuler et
+   * rembourser »). Terminal like his own refusal, with its own sentence: he
+   * never reads « vous avez refusé » about an act he did not do.
+   */
+  | 'annulee'
+  /**
+   * REMBOURSABLE-1 (AUDIT-B+2 F-08) — the rider REFUSED the colis at pickup.
+   * Terminal: the order is cancelled, the buyer refunded, the colis stays with
+   * him — so no « en route », and no return code to type (it never left).
+   */
+  | 'ramassage_refuse';
 
 /**
  * BOUTIK-SUIVI — the three screens the founder asked for, as data. A zone is
@@ -64,6 +76,8 @@ const ZONE_DE: Record<EtapeCommande, ZoneCommandes> = {
   livree: 'livrees',
   retournee: 'livrees',
   refusee: 'livrees',
+  annulee: 'livrees',
+  ramassage_refuse: 'livrees',
 };
 
 /** Each zone's own empty sentence — « rien à faire » and « rien en route »
@@ -132,8 +146,12 @@ export type FournisseurVue =
  * delivered beats handed-over beats ready beats accepted.
  */
 export function etapeOf(row: CommandeRow): EtapeCommande {
-  // His refusal ends the order before any road began (it closes at « prêt »).
-  if (row.fulfillment?.refusedAt !== undefined) return 'refusee';
+  // His refusal — or the founder's cancel — ends the order before any road
+  // began (both close at « prêt »).
+  if (row.fulfillment?.refusedAt !== undefined) return row.fulfillment.refusPar === 'fondateur' ? 'annulee' : 'refusee';
+  // The rider's refusal at pickup ends it AFTER his handover check: it outranks
+  // the handover, or the card would say the rider has the colis forever.
+  if (row.fulfillment?.pickupRefusedAt !== undefined) return 'ramassage_refuse';
   if (row.fulfillment?.deliveredAt !== undefined) return 'livree';
   // A return ends the road after the handover, as a delivery does: the
   // colis is back in his hands, and « en route » would be a lie.
@@ -156,17 +174,28 @@ export function modeVisible(etape: EtapeCommande): boolean {
 }
 
 const ETAPE_RANK: Record<EtapeCommande, number> = {
-  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4, refusee: 4,
+  a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4, refusee: 4, annulee: 4, ramassage_refuse: 4,
 };
 
 /** Rows that need no act read as an archive — newest first. */
-const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee', 'refusee'];
+const ARCHIVE: readonly EtapeCommande[] = ['prete', 'en_route', 'livree', 'retournee', 'refusee', 'annulee', 'ramassage_refuse'];
+
+/** REMBOURSABLE-1 — the steps that end an article OFF the road (his refusal,
+ *  the founder's cancel, the rider's refusal at pickup): a colis's step is read
+ *  from its other articles, and each of these keeps its own line on the card. */
+export const HORS_ROUTE: readonly EtapeCommande[] = ['refusee', 'annulee', 'ramassage_refuse'];
 
 /** COLIS-FOURNISSEUR-1 — the colis's one step: its least advanced article he
  *  did not refuse (a delivered bag with one article home reads « revenu »). */
 export function etapeDuColis(articles: readonly CommandeVue[]): EtapeCommande {
-  const vivants = articles.filter((a) => a.etape !== 'refusee');
-  if (vivants.length === 0) return 'refusee';
+  const vivants = articles.filter((a) => !HORS_ROUTE.includes(a.etape));
+  if (vivants.length === 0) {
+    // Nothing left on the road: the bag says how it ended — the rider's
+    // refusal first (it is the one that happened to the colis itself).
+    if (articles.some((a) => a.etape === 'ramassage_refuse')) return 'ramassage_refuse';
+    if (articles.some((a) => a.etape === 'annulee')) return 'annulee';
+    return 'refusee';
+  }
   const min = Math.min(...vivants.map((a) => ETAPE_RANK[a.etape]));
   const au = vivants.filter((a) => ETAPE_RANK[a.etape] === min).map((a) => a.etape);
   if (min === ETAPE_RANK.livree) return vivants.some((a) => a.etape === 'retournee') ? 'retournee' : 'livree';

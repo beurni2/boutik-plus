@@ -252,7 +252,7 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
   /** OFFER-DELETE-1 (founder 2026-07-27). Resolves true when the offer is gone
    * (the parent closes this fiche); false surfaces the designed failure here.
    * Absent (service unconfigured) ⇒ no delete UI at all. */
-  onDelete?: (() => Promise<boolean>) | undefined;
+  onDelete?: (() => Promise<boolean | 'reservee'>) | undefined;
   /** CLE-FONDATEUR-1 — the delete is not offered because this product has photos
    * and the photo key is not on this device: the fiche SAYS so where the
    * delete would be, instead of a silently missing action. */
@@ -267,12 +267,13 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   // The delete walk: idle → confirm (the warning states what happens, in
   // words) → pending → failed (retryable). NEVER a one-tap destruction.
-  const [del, setDel] = useState<'idle' | 'confirm' | 'pending' | 'failed'>('idle');
+  const [del, setDel] = useState<'idle' | 'confirm' | 'pending' | 'failed' | 'reservee'>('idle');
   const runDelete = async () => {
     if (onDelete === undefined || del === 'pending') return;
     setDel('pending');
     const gone = await onDelete();
-    if (!gone) setDel('failed');
+    if (gone === 'reservee') setDel('reservee');
+    else if (!gone) setDel('failed');
     // on success the parent unmounts this fiche — no state to set here.
   };
   // The confirm walk: idle → saisie (he TYPES the count — the challenge
@@ -407,7 +408,10 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
           {del === 'failed' && (
             <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.supprimer_echec')}</Banner>
           )}
-          {del === 'idle' || del === 'failed' ? (
+          {del === 'reservee' && (
+            <Banner tone="info" style={{ marginBottom: 10 }}>{tr('produits.supprimer_reservee')}</Banner>
+          )}
+          {del === 'idle' || del === 'failed' || del === 'reservee' ? (
             <BtnGhost label={tr('produits.supprimer')} onPress={() => setDel('confirm')} />
           ) : (
             <>

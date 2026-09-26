@@ -48,6 +48,16 @@ export interface FulfillmentMark {
   /** REMBOURSEMENT-2 — the supplier refused the order (« je ne peux pas
    *  fournir »); the buyer is refunded. */
   readonly refusedAt?: string;
+  /** REMBOURSABLE-1 (F-02) — present when the refusal was HIS « Annuler et
+   *  rembourser », never the supplier's. */
+  readonly refusPar?: 'fondateur';
+  /** REMBOURSABLE-1 (F-61) — the book's own road marks, so a finished order is
+   *  classed without any other Worker's read: the supplier's confirmed handover,
+   *  Séra's delivery, the colis back home, the rider's refusal at pickup. */
+  readonly handedOverAt?: string;
+  readonly deliveredAt?: string;
+  readonly returnedAt?: string;
+  readonly pickupRefusedAt?: string;
 }
 
 /** Mirrors `PaidOrderRecord` (offer-service `worker/fulfillment-do.ts`). */
@@ -115,7 +125,21 @@ export type RelanceResult =
  */
 export type RetraitResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+  /** REMBOURSABLE-1 (F-37) — `refus_en_attente`: a refund notice for this
+   *  order has not reached Shop+ yet, and retiring it now would lose it. The
+   *  book refuses by name; the row stays and he can try again shortly. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'refus_en_attente' };
+
+/**
+ * REMBOURSABLE-1 (AUDIT-B+2 F-02) — « Annuler et rembourser ».
+ * `already_refused` is a SUCCESS for him: the order was already refunding (his
+ * earlier tap, or the supplier's own refusal), and the book said so.
+ * `deja_prete`: the colis is on Séra's road — the rider's check is the refusal
+ * there. `inconnue`: the book no longer holds this order (retired meanwhile).
+ */
+export type AnnulerResult =
+  | { readonly ok: true; readonly status: 'annulee' | 'already_refused' }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'deja_prete' | 'inconnue' | 'unreachable' };
 
 /**
  * CONSOLE-3 — one active door per supplier, as the book holds it. Mirrors the
@@ -140,6 +164,13 @@ export interface CodeRow {
    * drops him — and none may treat it as a live door.
    */
   readonly revokedAt?: string;
+  /**
+   * REMBOURSABLE-1 (AUDIT-B+2 F-02) — how many of his PAID orders are still
+   * open (not refused or cancelled, delivered, returned, or refused at pickup),
+   * so « Couper l'accès » is never blind to them. Absent when the Worker did not
+   * say (one built before the count) — never a zero nobody measured.
+   */
+  readonly commandesOuvertes?: number;
 }
 
 /**
@@ -214,7 +245,10 @@ export type EffacerResult =
    * one branch the design claims to cover.
    */
   | { readonly ok: false; readonly reason: 'registre_echoue'; readonly supprimes: number; readonly refs: readonly string[] }
-  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' | 'purge_echouee' };
+  /** REMBOURSABLE-1 (F-33) — `paiement_en_cours`: a buyer holds one of his
+   *  units while she pays; nothing was erased, and the hold lapses within a
+   *  quarter of an hour. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' | 'purge_echouee' | 'paiement_en_cours' };
 
 export type RevokeResult =
   | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
@@ -266,6 +300,10 @@ export interface OperationsServicePort {
   /** PURGE-ESSAI — retire ONE test order from the book. One id per call: the
    *  Worker has no « retirer tout » and must never grow one. */
   retirerCommande(opsKey: string, orderId: string): Promise<RetraitResult>;
+  /** REMBOURSABLE-1 (F-02) — « Annuler et rembourser »: HIS cancellation of a
+   *  paid order not yet ready. One id; the Worker stamps the clock and names the
+   *  act as his. */
+  annulerCommande(opsKey: string, orderId: string): Promise<AnnulerResult>;
   /** CONSOLE-3 — the code inventory (who holds a door, since when). */
   listCodes(opsKey: string): Promise<CodesResult>;
   /** Mint (or re-mint — the book replaces atomically) one supplier's code. */
@@ -545,10 +583,40 @@ export function resolveOperationsService(): OperationsServicePort | null {
         return { ok: false, reason: 'unreachable' };
       }
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 409) {
+        const b = (await res.json().catch(() => null)) as { reason?: unknown } | null;
+        if (b?.reason === 'refus_en_attente') return { ok: false, reason: 'refus_en_attente' };
+      }
       // Anything else non-2xx is « we do not know that it happened » — the row
       // stays on the board and he can ask again. Never a cheerful default.
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       return { ok: true };
+    },
+
+    async annulerCommande(opsKey: string, orderId: string): Promise<AnnulerResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/fulfillment/order/annuler`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${opsKey}`,
+          },
+          // ONLY the id: the book refuses any other field by name.
+          body: JSON.stringify({ orderId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      const body = (await res.json().catch(() => null)) as { ok?: unknown; status?: unknown; reason?: unknown } | null;
+      if (res.status === 409 && body?.reason === 'already_ready') return { ok: false, reason: 'deja_prete' };
+      if (res.status === 404 && body?.reason === 'unknown_order') return { ok: false, reason: 'inconnue' };
+      if (!res.ok || body?.ok !== true || (body.status !== 'annulee' && body.status !== 'already_refused')) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, status: body.status };
     },
 
     async listCodes(opsKey: string): Promise<CodesResult> {
@@ -644,7 +712,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
         // and « he has orders » are answers, not errors, and the screen says
         // each in its own words.
         const r = body?.reason;
-        if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu') return { ok: false, reason: r };
+        if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu' || r === 'paiement_en_cours') return { ok: false, reason: r };
         // THE PARTIAL — the catalogue is already gone and the refs came with
         // the failure. They are carried out so the caller can still destroy the
         // bytes; dropping them here is unrecoverable (see the type above).
@@ -705,6 +773,9 @@ function readCodeRow(value: unknown): CodeRow | null {
     // A non-string reads ABSENT — « active » — because inventing a revocation
     // from a malformed field would hide a real supplier from his own console.
     ...(typeof r['revokedAt'] === 'string' && r['revokedAt'] !== '' ? { revokedAt: r['revokedAt'] } : {}),
+    ...(Number.isSafeInteger(r['commandesOuvertes']) && (r['commandesOuvertes'] as number) >= 0
+      ? { commandesOuvertes: r['commandesOuvertes'] as number }
+      : {}),
   };
 }
 
@@ -787,15 +858,16 @@ function readFulfillment(value: unknown): FulfillmentMark | null {
   const r = value as Record<string, unknown>;
   const validIso = (v: unknown): v is string =>
     typeof v === 'string' && v !== '' && !Number.isNaN(Date.parse(v));
-  const acceptedAt = validIso(r['acceptedAt']) ? r['acceptedAt'] : undefined;
-  const readyAt = validIso(r['readyAt']) ? r['readyAt'] : undefined;
-  const refusedAt = validIso(r['refusedAt']) ? r['refusedAt'] : undefined;
-  if (acceptedAt === undefined && readyAt === undefined && refusedAt === undefined) return null;
-  return {
-    ...(acceptedAt !== undefined ? { acceptedAt } : {}),
-    ...(readyAt !== undefined ? { readyAt } : {}),
-    ...(refusedAt !== undefined ? { refusedAt } : {}),
-  };
+  const marks = ['acceptedAt', 'readyAt', 'refusedAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'pickupRefusedAt'] as const;
+  const lus: { -readonly [K in (typeof marks)[number]]?: string } = {};
+  for (const m of marks) {
+    const v = r[m];
+    if (validIso(v)) lus[m] = v;
+  }
+  if (Object.keys(lus).length === 0) return null;
+  // Who refused is read only BESIDE a readable refusal: « vous avez annulé »
+  // must be true or absent, like every other mark here.
+  return { ...lus, ...(lus.refusedAt !== undefined && r['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}) };
 }
 
 /* ─────────────────── the founder's key, on HIS device only ─────────────────── */

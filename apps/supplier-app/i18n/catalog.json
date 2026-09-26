@@ -1644,6 +1644,12 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.supprimer_reservee",
+    "fr": "Une cliente est en train de payer ce produit. Réessayez dans un quart d’heure.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "produits.stock_gele",
     "fr": "Le stock n’a pas été confirmé depuis trop longtemps. Les revendeuses ne voient plus cette offre.",
     "register": "neutral",
@@ -2190,68 +2196,14 @@
     "screenClass": "label"
   },
   {
-    "key": "operations.fournisseur_inconnu",
-    "fr": "Fournisseur introuvable",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.age_min",
-    "fr": "il y a {n} min",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "operations.age_long",
-    "fr": "plus d'une heure",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "operations.appeler",
-    "fr": "Appelez le fournisseur",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
     "key": "operations.relance_action",
     "fr": "J'ai appelé le fournisseur",
     "register": "neutral",
     "screenClass": "general"
   },
   {
-    "key": "operations.relance_encours",
-    "fr": "Enregistrement…",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "operations.relance_echec",
-    "fr": "L'appel n'a pas été enregistré. Réessayez.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
     "key": "operations.relances_titre",
     "fr": "Fournisseurs déjà appelés",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.relance_faite",
-    "fr": "Appelé il y a {n} min",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.relance_faite_long",
-    "fr": "Appelé, il y a plus d'une heure",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.relance_fois",
-    "fr": "Appelé {n} fois",
     "register": "money",
     "screenClass": "label"
   },
@@ -2268,51 +2220,9 @@
     "screenClass": "general"
   },
   {
-    "key": "operations.relance_attendre",
-    "fr": "Un instant, un appel est en cours…",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "operations.relance_faite_maintenant",
-    "fr": "Appelé à l'instant",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
     "key": "operations.preparation_titre",
     "fr": "En préparation chez le fournisseur",
     "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.prep_accepte",
-    "fr": "Commande acceptée",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.prep_pret",
-    "fr": "Colis prêt, photo à l'appui",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.prep_maintenant",
-    "fr": "à l'instant",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.prep_depuis",
-    "fr": "il y a {n} min",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "operations.prep_depuis_long",
-    "fr": "il y a plus d'une heure",
-    "register": "neutral",
     "screenClass": "label"
   },
   {
@@ -2622,6 +2532,18 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.etape_annulee",
+    "fr": "Boutik+ a annulé cette commande. Le client sera remboursé. Ne la préparez pas.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.etape_ramassage_refuse",
+    "fr": "Le coursier n'a pas pris le colis. La commande est annulée. Le client sera remboursé. Le colis reste chez vous.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.etape_preparer",
     "fr": "Colis prêt — envoyer la photo",
     "register": "money",
@@ -2857,25 +2779,25 @@
   },
   {
     "key": "livraisons.titre",
-    "fr": "Livraisons",
+    "fr": "Clé Shop+",
     "register": "neutral",
     "screenClass": "label"
   },
   {
     "key": "livraisons.cle_explication",
-    "fr": "Cette liste vient de Shop+. Elle a sa propre clé — pas la même que la console.",
+    "fr": "Les revendeuses et les clientes sont chez Shop+. Shop+ a sa propre clé, pas la même que la console.",
     "register": "money",
     "screenClass": "general"
   },
   {
     "key": "livraisons.cle_libelle",
-    "fr": "Clé des livraisons",
+    "fr": "Clé Shop+",
     "register": "neutral",
     "screenClass": "label"
   },
   {
     "key": "livraisons.cle_ouvrir",
-    "fr": "Ouvrir les livraisons",
+    "fr": "Ouvrir avec la clé Shop+",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -2889,30 +2811,6 @@
     "key": "livraisons.cle_refusee",
     "fr": "Cette clé n'est pas la bonne. Vérifiez ce que vous avez tapé.",
     "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "livraisons.chargement",
-    "fr": "Lecture des livraisons…",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "livraisons.echec",
-    "fr": "Impossible de lire les livraisons. Réessayez.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "livraisons.non_configure",
-    "fr": "L'adresse de Shop+ n'est pas configurée sur cette version.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "livraisons.vide",
-    "fr": "Aucune commande pour l'instant.",
-    "register": "neutral",
     "screenClass": "status"
   },
   {
@@ -4596,8 +4494,86 @@
     "screenClass": "label"
   },
   {
+    "key": "commandes.pill_annulee",
+    "fr": "Annulée",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.pill_ramassage_refuse",
+    "fr": "Refusé au ramassage",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "commandes.refusee_ligne",
     "fr": "Le fournisseur a refusé cette commande.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annulee_ligne",
+    "fr": "Vous avez annulé cette commande. La cliente sera remboursée.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.ramassage_refuse_ligne",
+    "fr": "Le coursier n'a pas pris le colis. La commande est annulée. La cliente sera remboursée.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.lecture_partielle",
+    "fr": "Une partie des informations n’a pas pu être lue. Chaque commande est rangée d’après votre carnet.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annuler_action",
+    "fr": "Annuler et rembourser",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.annuler_question",
+    "fr": "La cliente sera remboursée en entier. Le fournisseur verra que vous avez annulé. On ne peut pas revenir en arrière.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annuler_garder",
+    "fr": "Garder la commande",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.annuler_oui",
+    "fr": "Oui, annuler et rembourser",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.annuler_encours",
+    "fr": "Annulation en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annuler_echec",
+    "fr": "L'annulation n'a pas abouti. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annuler_deja_prete",
+    "fr": "Le colis est déjà prêt : il ne peut plus être annulé ici.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.annuler_inconnue",
+    "fr": "Cette commande n'est plus dans le carnet.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5094,6 +5070,12 @@
     "screenClass": "status"
   },
   {
+    "key": "operations.retrait_refus_en_attente",
+    "fr": "Le remboursement de la cliente n’est pas encore parti. Réessayez dans quelques minutes.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "operations.balayage_action",
     "fr": "Retirer les commandes d'essai",
     "register": "neutral",
@@ -5250,6 +5232,18 @@
     "screenClass": "general"
   },
   {
+    "key": "operations.code_ouvertes_une",
+    "fr": "1 commande payée n’est pas terminée. Couper l’accès ne l’annule pas : voyez-la dans Commandes.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.code_ouvertes_n",
+    "fr": "{n} commandes payées ne sont pas terminées. Couper l’accès ne les annule pas : voyez-les dans Commandes.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "operations.code_coupe_le",
     "fr": "Accès coupé le {d}. Ses produits ne sont plus en vente.",
     "register": "neutral",
@@ -5288,6 +5282,12 @@
   {
     "key": "operations.supprimer_def_commandes",
     "fr": "Ce fournisseur a des commandes. Ses produits restent, pour que les commandes gardent leur sens.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_paiement",
+    "fr": "Une cliente est en train de payer un de ses produits. Réessayez dans un quart d’heure.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5397,6 +5397,18 @@
     "key": "fournisseur.colis_article_refuse",
     "fr": "Refusé par vous. Le client sera remboursé.",
     "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.colis_article_annule",
+    "fr": "Annulé par Boutik+. Le client sera remboursé.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.colis_article_ramassage",
+    "fr": "Pas pris par le coursier. Il reste chez vous.",
+    "register": "neutral",
     "screenClass": "status"
   },
   {

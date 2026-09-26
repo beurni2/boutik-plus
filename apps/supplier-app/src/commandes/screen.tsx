@@ -31,6 +31,7 @@ import { nomCoursierPour } from '../gains/view';
 import { resolveMediaBase } from '../supply/media';
 import { photoUri } from '../supply/produits-view';
 import { ConfierCoursier } from './confier';
+import { SignalerRefus } from './signaler';
 import { telEnPaires } from './telephone';
 import {
   attenteDepuis,
@@ -182,10 +183,20 @@ function LivreCommandes({
    */
   const [boardSera, setBoardSera] = useState<BoardSera | null>(null);
   const [livrees, setLivrees] = useState<ReadonlySet<string>>(new Set());
-  /** REMBOURSEMENT-2 — the buyer refunds Shop+ is running, by orderId, off the
-   *  same key-C read as the buyer's contact. Best-effort like the gains read:
-   *  without it a refunding order keeps its old stage, never a guessed one. */
-  const [remboursements, setRemboursements] = useState<ReadonlyMap<string, RemboursementOperateur>>(new Map());
+  /**
+   * REMBOURSEMENT-2 + REMBOURSABLE-1 (AUDIT-B+2 F-69) — the key-C rows, read
+   * ONCE for the whole tab: the refunds Shop+ is running AND, for the card he
+   * opens, the buyer's number the courier brief needs. Each card used to read
+   * every page of every buyer again; it now takes its row from here.
+   * `cle_c_absente` when no key C is on this device (or Shop+ refused it).
+   */
+  const [livraisons, setLivraisons] = useState<ReadonlyMap<string, LivraisonRow> | 'chargement' | 'cle_c_absente' | 'echec'>(
+    () => (readStoredCleC() === null ? 'cle_c_absente' : 'chargement'),
+  );
+  /** REMBOURSABLE-1 (F-61) — one of the best-effort reads (Séra, gains, Shop+)
+   *  did not answer. Said once at the top: the book's own marks still class
+   *  every order, but what only those reads know is missing. */
+  const [lectureEchouee, setLectureEchouee] = useState(false);
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -207,27 +218,37 @@ function LivreCommandes({
     // ids (true, just colder); the board itself is the load-bearing read.
     setRead({ kind: 'ok', orders: orders.orders, contacts: contacts.ok ? contacts.contacts : [] });
 
+    let echec = false;
     const cleSera = readStoredCleCoursiers();
     const dispatchSera = cleSera === null ? null : resolveSeraDispatch();
     if (cleSera !== null && dispatchSera !== null) {
       const b = await dispatchSera.board(cleSera);
       if (b.kind === 'ok') setBoardSera(b.value);
+      else echec = true;
     }
     const cleC = readStoredCleC();
     const gains = resolveGainsService();
     if (cleC !== null && gains !== null) {
       const g = await gains.listGains(cleC);
       if (g.ok) setLivrees(new Set(g.rows.filter((r) => r.livree).map((r) => r.orderId)));
+      else echec = true;
     }
     const dispatch = resolveDispatchService();
-    if (cleC !== null && dispatch !== null) {
+    if (cleC === null || dispatch === null) setLivraisons('cle_c_absente');
+    else {
       const l = await dispatch.listLivraisons(cleC);
-      if (l.ok) {
-        setRemboursements(
-          new Map(l.rows.flatMap((r) => (r.remboursement !== undefined ? [[r.orderId, r.remboursement] as const] : []))),
-        );
+      if (l.ok) setLivraisons(new Map(l.rows.map((r) => [r.orderId, r] as const)));
+      else if (l.reason === 'bad_key') {
+        // A refused key C clears back to its door — the rotation moment, same
+        // law as every stored key in this app.
+        clearStoredCleC();
+        setLivraisons('cle_c_absente');
+      } else {
+        echec = true;
+        setLivraisons('echec');
       }
     }
+    setLectureEchouee(echec);
 
     // Incidents: joined from the claims book ONLY when the fund key is
     // already on this device (typed once in the Fonds zone). Best-effort —
@@ -288,10 +309,17 @@ function LivreCommandes({
       if (nom === '') return [];
       return [{ orderId: id, libelle: nom.length > 80 ? `${nom.slice(0, 79)}…` : nom }];
     });
+  const remboursements = new Map<string, RemboursementOperateur>(
+    typeof livraisons === 'object'
+      ? [...livraisons.values()].flatMap((r) => (r.remboursement !== undefined ? [[r.orderId, r.remboursement] as const] : []))
+      : [],
+  );
   const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees, new Set(remboursements.keys()));
   const rows = segments[segment];
   const now = Date.now();
   const bloques = [...remboursements.values()].filter((r) => r.etat === 'bloque').length;
+  const livraisonDe = (orderId: string): LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec' =>
+    typeof livraisons === 'object' ? (livraisons.get(orderId) ?? 'echec') : livraisons;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -306,6 +334,11 @@ function LivreCommandes({
               ? t('commandes.remb_bloque_un')
               : t('commandes.remb_bloques_n').replace('{n}', String(bloques))}
           </Banner>
+        </View>
+      ) : null}
+      {lectureEchouee ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('commandes.lecture_partielle')}</Banner>
         </View>
       ) : null}
       <ScrollView
@@ -360,6 +393,16 @@ function LivreCommandes({
               coursier={nomCoursierPour(o.orderId, boardSera)}
               articlesColis={articlesColis(o)}
               remboursement={remboursements.get(o.orderId)}
+              livraison={livraisonDe(o.orderId)}
+              onCleC={(k) => {
+                storeCleC(k);
+                setLivraisons('chargement');
+                void charger();
+              }}
+              onCleCRefusee={() => {
+                clearStoredCleC();
+                setLivraisons('cle_c_absente');
+              }}
               onChanged={() => void charger()}
               onCleRefusee={onCleRefusee}
             />
@@ -489,6 +532,9 @@ function RangCommande({
   coursier,
   articlesColis,
   remboursement,
+  livraison,
+  onCleC,
+  onCleCRefusee,
   onChanged,
   onCleRefusee,
 }: {
@@ -507,6 +553,11 @@ function RangCommande({
   articlesColis: readonly { orderId: string; libelle: string }[];
   /** REMBOURSEMENT-2 — the buyer's refund on this order, when there is one. */
   remboursement: RemboursementOperateur | undefined;
+  /** REMBOURSABLE-1 (F-69) — this order's key-C row, from the tab's ONE read. */
+  livraison: LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec';
+  /** Key C typed at a card's door: kept, and the tab reads again. */
+  onCleC: (cle: string) => void;
+  onCleCRefusee: () => void;
   onChanged: () => void;
   /** Threaded down for the retire control: a refused key escalates to the
    *  console's own surface instead of dying silently on this card. */
@@ -541,27 +592,54 @@ function RangCommande({
             {raison !== null ? (
               <Text style={[CORPS, { marginTop: 4 }]}>{t(raison)}</Text>
             ) : row.fulfillment?.refusedAt !== undefined ? (
-              <Text style={[CORPS, { marginTop: 4 }]}>{t('commandes.refusee_ligne')}</Text>
+              <Text style={[CORPS, { marginTop: 4 }]}>
+                {t(row.fulfillment.refusPar === 'fondateur' ? 'commandes.annulee_ligne' : 'commandes.refusee_ligne')}
+              </Text>
+            ) : row.fulfillment?.pickupRefusedAt !== undefined ? (
+              <Text style={[CORPS, { marginTop: 4 }]}>{t('commandes.ramassage_refuse_ligne')}</Text>
             ) : null}
           </View>
         </View>
       </Pressable>
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} onChanged={onChanged} />
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} onCleC={onCleC} onChanged={onChanged} />
         ) : (
-          <DetailATraiter
-            row={row}
-            qui={qui}
-            attente={attente}
-            nowMs={nowMs}
-            service={service}
-            cle={cle}
-            // REMBOURSEMENT-2 — nudging a supplier to prepare an order that is
-            // refused or being refunded would send him after a dead order.
-            relancePossible={remboursement === undefined && row.fulfillment?.refusedAt === undefined}
-            onChanged={onChanged}
-          />
+          <>
+            <DetailATraiter
+              row={row}
+              qui={qui}
+              attente={attente}
+              nowMs={nowMs}
+              service={service}
+              cle={cle}
+              // REMBOURSEMENT-2 — nudging a supplier to prepare an order that is
+              // refused or being refunded would send him after a dead order.
+              relancePossible={
+                remboursement === undefined && row.fulfillment?.refusedAt === undefined &&
+                row.fulfillment?.pickupRefusedAt === undefined
+              }
+              onChanged={onChanged}
+            />
+            {/* REMBOURSABLE-1 (F-02) — HIS « Annuler et rembourser », while the
+                order can still be cancelled: before « prêt » (after it the colis
+                is on Séra's road) and before any refund has begun. */}
+            {row.fulfillment?.readyAt === undefined && row.fulfillment?.refusedAt === undefined && remboursement === undefined ? (
+              <AnnulerRembourser row={row} service={service} cle={cle} onChanged={onChanged} onCleRefusee={onCleRefusee} />
+            ) : null}
+            {/* REMBOURSABLE-1 (F-10) — « Signaler », back where a course that
+                failed at her door lands. Never on an order the SUPPLIER refused
+                or the RIDER refused at pickup: nothing she did caused those, and
+                the ladder would count it against her. */}
+            {segment === 'incidents' && row.fulfillment?.refusedAt === undefined && row.fulfillment?.pickupRefusedAt === undefined ? (
+              <SignalerRefus
+                orderId={row.orderId}
+                cleC={readStoredCleC()}
+                aUnNumero={typeof livraison === 'object' && livraison.contact !== null}
+                onCleCRefusee={onCleCRefusee}
+              />
+            ) : null}
+          </>
         )
       ) : null}
       {/* PURGE-ESSAI — the retire lives HERE, under whichever detail is open:
@@ -633,6 +711,74 @@ function RetraitCommande({ row, service, cle, onChanged, onCleRefusee }: {
       {ui.echec === row.orderId ? (
         <Text style={[PETIT, { marginTop: 6 }]}>{t('operations.retrait_echec')}</Text>
       ) : null}
+      {/* REMBOURSABLE-1 (F-37) — the book refused because the buyer's refund
+          notice has not reached Shop+ yet: a wait, said as one. */}
+      {ui.enAttente === row.orderId ? (
+        <Text style={[PETIT, { marginTop: 6 }]}>{t('operations.retrait_refus_en_attente')}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * REMBOURSABLE-1 (AUDIT-B+2 F-02) — « ANNULER ET REMBOURSER », his act on a
+ * paid order no supplier will serve (unanswered, his access cut, or a product
+ * nobody could attribute). The buyer's money must never wait on a supplier's
+ * tap (B+I-13), and until now it did.
+ *
+ * TWO TAPS, like every act here that cannot be taken back: the question says
+ * what happens — she is refunded in full, the supplier sees HIS cancel — and
+ * the way out comes first. It claims nothing the book did not confirm: « Vous
+ * avez annulé » appears only once the re-read carries the mark, and the refund
+ * itself is Shop+'s to state. The automatic timer is NOT here (his ruling).
+ */
+function AnnulerRembourser({ row, service, cle, onChanged, onCleRefusee }: {
+  row: PaidOrderRow;
+  service: OperationsServicePort;
+  cle: string;
+  onChanged: () => void;
+  onCleRefusee: () => void;
+}) {
+  const [etat, setEtat] = useState<'repos' | 'question' | 'envoi' | 'echec' | 'deja_prete' | 'inconnue'>('repos');
+  if (etat === 'deja_prete' || etat === 'inconnue') {
+    return (
+      <View style={{ marginTop: 14 }}>
+        <Text style={CORPS}>{t(etat === 'deja_prete' ? 'commandes.annuler_deja_prete' : 'commandes.annuler_inconnue')}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12, gap: 8 }}>
+      {etat === 'envoi' ? (
+        <Text style={PETIT}>{t('commandes.annuler_encours')}</Text>
+      ) : etat === 'question' ? (
+        <>
+          <Text style={CORPS}>{t('commandes.annuler_question')}</Text>
+          <BtnSoft label={t('commandes.annuler_garder')} onPress={() => setEtat('repos')} />
+          <BtnSoft
+            label={t('commandes.annuler_oui')}
+            labelStyle={{ color: P.dangerFg }}
+            onPress={() => {
+              setEtat('envoi');
+              void service.annulerCommande(cle, row.orderId).then((r) => {
+                if (r.ok) {
+                  onChanged();
+                  return;
+                }
+                if (r.reason === 'bad_key') onCleRefusee();
+                else if (r.reason === 'deja_prete') setEtat('deja_prete');
+                else if (r.reason === 'inconnue') setEtat('inconnue');
+                else setEtat('echec');
+              });
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <BtnSoft label={t('commandes.annuler_action')} onPress={() => setEtat('question')} />
+          {etat === 'echec' ? <Text style={PETIT}>{t('commandes.annuler_echec')}</Text> : null}
+        </>
+      )}
     </View>
   );
 }
@@ -747,6 +893,8 @@ function DetailTerminee({
   etape,
   coursier,
   articlesColis,
+  buyer,
+  onCleC,
   onChanged,
 }: {
   row: PaidOrderRow;
@@ -756,44 +904,24 @@ function DetailTerminee({
   etape: 'pret' | 'en_route' | 'terminees';
   coursier: string | null;
   articlesColis: readonly { orderId: string; libelle: string }[];
+  /** REMBOURSABLE-1 (F-69) — the buyer's row from the tab's ONE key-C read.
+   *  This card used to re-read every page of every buyer each time it opened. */
+  buyer: LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec';
+  onCleC: (cle: string) => void;
   onChanged: () => void;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
-  const [buyer, setBuyer] = useState<LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec'>(
-    'chargement',
-  );
   const [cleCDraft, setCleCDraft] = useState('');
-  const [recharge, setRecharge] = useState(0);
 
   useEffect(() => {
     let alive = true;
     void service.orderEvidence(cle, row.orderId).then((r) => {
       if (alive) setPreuve(r.ok ? r.evidence : 'echec');
     });
-    const cleC = readStoredCleC();
-    const dispatch = resolveDispatchService();
-    if (cleC === null || dispatch === null) {
-      setBuyer('cle_c_absente');
-    } else {
-      setBuyer('chargement');
-      void dispatch.listLivraisons(cleC).then((r) => {
-        if (!alive) return;
-        if (!r.ok) {
-          // A refused key C clears back to its door — the rotation moment,
-          // same law as every stored key in this app.
-          if (r.reason === 'bad_key') {
-            clearStoredCleC();
-            setBuyer('cle_c_absente');
-          } else setBuyer('echec');
-          return;
-        }
-        setBuyer(r.rows.find((l) => l.orderId === row.orderId) ?? 'echec');
-      });
-    }
     return () => {
       alive = false;
     };
-  }, [service, cle, row.orderId, recharge]);
+  }, [service, cle, row.orderId]);
 
   return (
     <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12, gap: 12 }}>
@@ -831,8 +959,7 @@ function DetailTerminee({
               label={t('commandes.cle_entrer')}
               onPress={() => {
                 if (cleCDraft.trim() === '') return void 0;
-                storeCleC(cleCDraft.trim());
-                setRecharge((n) => n + 1);
+                onCleC(cleCDraft.trim());
               }}
             />
           </View>

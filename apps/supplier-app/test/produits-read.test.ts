@@ -418,10 +418,11 @@ describe('OFFER-DELETE-1 — the fiche’s confirm walk [source-text checks; hou
    * the rest of this file uses — each asserts a guard EXISTS in the code, not
    * that a renderer walked it.
    */
-  it('every supprimer key the fiche cites exists in the catalog — seven, both ways', () => {
+  it('every supprimer key the fiche cites exists in the catalog — eight, both ways', () => {
     const cited = [...screens1.matchAll(/'(produits\.supprimer[a-z_]*)'/g)].map((m) => m[1]!);
-    // the seventh (CLE-FONDATEUR-1): why the delete is not offered without the photo key
-    expect(new Set(cited).size).toBe(7);
+    // the seventh (CLE-FONDATEUR-1): why the delete is not offered without the photo key;
+    // the eighth (REMBOURSABLE-1, F-33): a buyer is paying for a unit right now
+    expect(new Set(cited).size).toBe(8);
     for (const k of cited) expect(keys.has(k), k).toBe(true);
     // and no orphan supprimer key sits in the catalog waiting to drift
     const inCatalog = [...keys].filter((k) => k.startsWith('produits.supprimer'));

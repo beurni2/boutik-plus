@@ -18,6 +18,7 @@ import {
   type FournisseurServicePort,
 } from './service';
 import {
+  HORS_ROUTE,
   PRET_REPOS,
   aAccepterDuColis,
   fournisseurVue,
@@ -764,7 +765,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
             if (carte.kind === 'colis') {
               // The pickup and return checks name the bag through its first
               // article still in play — Séra resolves the ONE course from any.
-              const vivant = carte.articles.find((a) => a.etape !== 'refusee' && a.etape !== 'livree') ?? carte.articles[0]!;
+              const vivant = carte.articles.find((a) => !HORS_ROUTE.includes(a.etape) && a.etape !== 'livree') ?? carte.articles[0]!;
               const noms = carte.articles.map((a) => (a.productName !== '' ? a.productName : a.productVersionId)).join(' · ');
               return (
                 <CarteColis
@@ -999,6 +1000,21 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
         </View>
       )}
 
+      {/* REMBOURSABLE-1 — the two ends he did not choose, each in its own
+          words: the founder's cancel, and the rider's refusal at pickup (the
+          colis never left, so no return code is asked for). */}
+      {commande.etape === 'annulee' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">{t('fournisseur.etape_annulee')}</Banner>
+        </View>
+      )}
+
+      {commande.etape === 'ramassage_refuse' && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">{t('fournisseur.etape_ramassage_refuse')}</Banner>
+        </View>
+      )}
+
       {refusTropTard && (
         <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 10 }]}>{t('fournisseur.refus_trop_tard')}</Text>
       )}
@@ -1126,6 +1142,10 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
                 </Text>
                 {a.etape === 'refusee' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_refuse')}</Text>
+                ) : a.etape === 'annulee' ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_annule')}</Text>
+                ) : a.etape === 'ramassage_refuse' && carte.etape !== 'ramassage_refuse' ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_ramassage')}</Text>
                 ) : a.etape === 'livree' && carte.etape !== 'livree' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_livre')}</Text>
                 ) : a.etape === 'retournee' ? (
@@ -1222,6 +1242,18 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
       {carte.etape === 'refusee' && (
         <View style={{ marginTop: 12 }}>
           <Banner tone="info">{t('fournisseur.etape_refusee')}</Banner>
+        </View>
+      )}
+
+      {carte.etape === 'annulee' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('fournisseur.etape_annulee')}</Banner>
+        </View>
+      )}
+
+      {carte.etape === 'ramassage_refuse' && (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('fournisseur.etape_ramassage_refuse')}</Banner>
         </View>
       )}
     </Card>

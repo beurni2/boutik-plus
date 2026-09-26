@@ -1,4 +1,4 @@
-import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RelanceResult, RetraitResult, RevealResult, RevokeResult } from './service';
+import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RetraitResult, RevealResult, RevokeResult } from './service';
 import type {
   AccesCodeRow,
   CodeAccesResult,
@@ -10,7 +10,6 @@ import type {
   AccesListResult,
   AccesMintResult,
   AccesRevokeResult,
-  LivraisonRow,
   AccesRevealResult,
   CodeAccesRevealResult,
 } from './dispatch-service';
@@ -82,49 +81,6 @@ export type OperationsView =
       readonly anomalies: readonly OperationsRow[];
     };
 
-/* ───────────────── the relance interaction, as a PURE decision ───────────────── */
-
-/**
- * CONSOLE-2 r2 — lifted out of the screen because a verifier proved the point:
- * replacing the component's whole write handler with a no-op left the suite
- * green. The screen now owns only the impure substance (call the port, feed
- * the result back); every decision about what the founder SEES lives here and
- * is asserted by value.
- */
-export interface RelanceUi {
-  /** The order whose call is being recorded right now — one at a time. */
-  readonly busy: string | null;
-  /** The order whose call could NOT be recorded. Keyed, so one card's failure
-   *  can never appear on another's. */
-  readonly echec: string | null;
-}
-
-export const RELANCE_IDLE: RelanceUi = { busy: null, echec: null };
-
-/** Returns null when the tap must be IGNORED (a write is already in flight) —
- *  the caller then does nothing at all, port included. */
-export function relanceStart(ui: RelanceUi, orderId: string): RelanceUi | null {
-  if (ui.busy !== null) return null;
-  return { busy: orderId, echec: null };
-}
-
-export type RelanceSettlement =
-  /** Re-read the board: the « Appelé » the founder sees must be the STORED
-   *  mark, never this screen's hope. */
-  | { readonly ui: RelanceUi; readonly then: 'refresh' }
-  /** The key was refused mid-session — the board escalates to its own
-   *  bad-key surface rather than blaming the phone call. */
-  | { readonly ui: RelanceUi; readonly then: 'bad_key' }
-  | { readonly ui: RelanceUi; readonly then: 'none' };
-
-export function relanceSettled(orderId: string, result: RelanceResult): RelanceSettlement {
-  if (result.ok) return { ui: RELANCE_IDLE, then: 'refresh' };
-  if (result.reason === 'bad_key') return { ui: RELANCE_IDLE, then: 'bad_key' };
-  // `unknown_order` lands here too: the board is stale rather than the call
-  // lost — either way NOTHING is claimed, and the honest line invites a retry.
-  return { ui: { busy: null, echec: orderId }, then: 'none' };
-}
-
 /* ══════════ PURGE-ESSAI — retiring test orders (founder, 2026-08-10) ══════════
  *
  * « products on my ops console and suppliers console that i used for the
@@ -154,6 +110,10 @@ export interface RetraitUi {
   /** Whose removal failed. KEYED, so one card's failure never appears on
    *  another's — the relance rule, for a heavier act. */
   readonly echec: string | null;
+  /** REMBOURSABLE-1 (F-37) — whose removal the book refused because a refund
+   *  notice for it has not reached Shop+ yet. Its own sentence: not a failure
+   *  to retry blindly, a wait. */
+  readonly enAttente: string | null;
   readonly sweep: SweepUi;
 }
 
@@ -174,13 +134,13 @@ export type SweepUi =
   | { readonly kind: 'encours'; readonly faits: number; readonly total: number }
   | { readonly kind: 'fini'; readonly faits: number; readonly echecs: number };
 
-export const RETRAIT_IDLE: RetraitUi = { demande: null, busy: null, echec: null, sweep: { kind: 'idle' } };
+export const RETRAIT_IDLE: RetraitUi = { demande: null, busy: null, echec: null, enAttente: null, sweep: { kind: 'idle' } };
 
 /** First tap. Returns null when the tap must be IGNORED — a removal is
  *  already in flight, or a sweep is running. */
 export function retraitDemande(ui: RetraitUi, orderId: string): RetraitUi | null {
   if (ui.busy !== null || ui.sweep.kind === 'encours') return null;
-  return { ...ui, demande: orderId, echec: null };
+  return { ...ui, demande: orderId, echec: null, enAttente: null };
 }
 
 /** « Annuler » — and the ONLY other way out of a standing question. */
@@ -196,7 +156,7 @@ export function retraitAnnule(ui: RetraitUi): RetraitUi {
 export function retraitStart(ui: RetraitUi, orderId: string): RetraitUi | null {
   if (ui.busy !== null || ui.sweep.kind === 'encours') return null;
   if (ui.demande !== orderId) return null;
-  return { ...ui, demande: null, busy: orderId, echec: null };
+  return { ...ui, demande: null, busy: orderId, echec: null, enAttente: null };
 }
 
 export type RetraitSettlement =
@@ -209,6 +169,7 @@ export type RetraitSettlement =
 export function retraitSettled(orderId: string, result: RetraitResult): RetraitSettlement {
   if (result.ok) return { ui: RETRAIT_IDLE, then: 'refresh' };
   if (result.reason === 'bad_key') return { ui: RETRAIT_IDLE, then: 'bad_key' };
+  if (result.reason === 'refus_en_attente') return { ui: { ...RETRAIT_IDLE, enAttente: orderId }, then: 'none' };
   return { ui: { ...RETRAIT_IDLE, echec: orderId }, then: 'none' };
 }
 
@@ -422,58 +383,6 @@ export function revealSettled(supplierId: string, result: RevealResult): CodesSe
 export function codesReadOf(result: CodesResult): CodesRead {
   if (result.ok) return { kind: 'ok', codes: result.codes };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
-}
-
-/* ─────── BC-1c — the dispatch view (Shop+ read, key C), PURE decisions ─────── */
-
-/**
- * The founder's one question here: « which orders can I send a rider for,
- * right now? » A dispatchable order is CONFIRMED (the webhook's word — the
- * only word that can say paid) AND carries a contact. Everything else is
- * shown honestly in its own place, never promoted: an unconfirmed order is
- * not a course, and a confirmed one without a number is a call to make, not
- * a rider to send.
- */
-export type LivraisonsRead =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'not_configured' }
-  | { readonly kind: 'bad_key' }
-  | { readonly kind: 'failed' }
-  | { readonly kind: 'ok'; readonly rows: readonly LivraisonRow[]; readonly incomplet: boolean };
-
-export type LivraisonsVue =
-  | { readonly kind: 'loading'; readonly message: string }
-  | { readonly kind: 'not_configured'; readonly message: string }
-  | { readonly kind: 'bad_key'; readonly message: string }
-  | { readonly kind: 'failed'; readonly message: string }
-  | { readonly kind: 'empty'; readonly message: string }
-  | {
-      readonly kind: 'liste';
-      /** Confirmed + contact — the riders' queue, LONGEST-WAITING first. */
-      readonly aLivrer: readonly LivraisonRow[];
-      /** Confirmed, no contact — dispatchable only by reaching the buyer
-       *  another way; never buried under the queue. */
-      readonly sansContact: readonly LivraisonRow[];
-      /** Not yet confirmed — context, newest first, whispering. */
-      readonly enAttente: readonly LivraisonRow[];
-      /** DISPATCH-PAGES-1 — the sweep hit its page cap with pages standing:
-       *  the groups are real and newest-first, and DECLARED partial. */
-      readonly incomplet: boolean;
-    };
-
-export function livraisonsVue(read: LivraisonsRead): LivraisonsVue {
-  if (read.kind === 'loading') return { kind: 'loading', message: 'livraisons.chargement' };
-  if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'livraisons.non_configure' };
-  if (read.kind === 'bad_key') return { kind: 'bad_key', message: 'livraisons.cle_refusee' };
-  if (read.kind === 'failed') return { kind: 'failed', message: 'livraisons.echec' };
-  // DISPATCH-PAGES-1 — a PARTIAL sweep that happened to carry no rows is not
-  // « vide »: the empty sentence would claim a fact the read does not hold.
-  if (read.rows.length === 0 && !read.incomplet) return { kind: 'empty', message: 'livraisons.vide' };
-  const confirmed = read.rows.filter((r) => r.state === 'confirmed');
-  const aLivrer = confirmed.filter((r) => r.contact !== null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-  const sansContact = confirmed.filter((r) => r.contact === null).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-  const enAttente = read.rows.filter((r) => r.state !== 'confirmed').sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return { kind: 'liste', aLivrer, sansContact, enAttente, incomplet: read.incomplet };
 }
 
 /* ───── ACCESS-GATE-1 — the reseller ACCESS-code inventory, PURE decisions ───── */

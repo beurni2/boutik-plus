@@ -91,6 +91,15 @@ const RETOUR_PREFIX = 'retour:';
  * which is the honest reading of « we have not been told ».
  */
 const LIVRAISON_PREFIX = 'livraison:';
+/**
+ * REMBOURSABLE-1 (AUDIT-B+2 F-08) — the rider REFUSED the colis at pickup
+ * (Séra's `delivery.refused.v1` with `rejection: 'pickup_refusal'`, relayed by
+ * Shop+). The supplier typed the rider's code BEFORE handing over, so the
+ * handover row already says « Remis au coursier »; without this row his card
+ * said so forever. Séra's instant, first-wins — like the delivery row, this is
+ * a fact that TRAVELLED here, never one this book witnessed.
+ */
+const PICKUP_REFUS_PREFIX = 'ramassagerefus:';
 /** RB-1 — the founder's own contact card per supplier (name + phone), behind
  *  his ops key on both verbs. See the /supplier-contact handler for why this
  *  exists at all (founder decision 2026-08-08). */
@@ -293,6 +302,23 @@ interface RefusRecord {
   readonly supplierId: string;
   /** THIS Worker's clock. */
   readonly refusedAt: string;
+  /**
+   * REMBOURSABLE-1 (AUDIT-B+2 F-02) — present when the FOUNDER cancelled the
+   * order from his console (« Annuler et rembourser »), absent when the
+   * supplier refused it himself. Boutik+'s own business: the canon fact Shop+
+   * receives is the same `fulfillment.rejected.v1` either way, and this never
+   * rides it. The screens read it so neither party is told « vous avez
+   * refusé » about an act he did not do.
+   */
+  readonly par?: 'fondateur';
+}
+
+/** REMBOURSABLE-1 — the rider's refusal at pickup, one row per order. */
+interface PickupRefusRecord {
+  readonly orderId: string;
+  /** Séra's instant, kept verbatim when it is a readable date; this Worker's
+   *  clock otherwise (an unreadable date would drop the row from his screens). */
+  readonly pickupRefusedAt: string;
 }
 
 /** BOUTIK-SUIVI — the confirmed handover, one row per order. */
@@ -751,25 +777,40 @@ export class FulfillmentDO {
       const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
       const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
       const refusees = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
+      // REMBOURSABLE-1 (AUDIT-B+2 F-61) — the book's OWN road marks. His
+      // Commandes tab used to learn « en route », « livrée » and « revenue »
+      // only from other Workers' reads, and a failed read filed a finished
+      // order back under « Prêt à livrer » with « Créer la course » on it.
+      const handovers = await this.state.storage.list<HandoverRecord>({ prefix: HANDOVER_PREFIX });
+      const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
+      const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
+      const pickups = await this.state.storage.list<PickupRefusRecord>({ prefix: PICKUP_REFUS_PREFIX });
       const orders = [...entries.values()]
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
         // Merged at READ — the stored record stays exactly the bytes the
         // intake wrote (see RelanceMark). The fulfillment mark carries the
-        // TWO server clocks only; the evidence (photoRef, challenge) never
+        // server clocks only; the evidence (photoRef, challenge) never
         // leaves this object through the list.
         .map((r) => {
           const mark = marks.get(`${RELANCE_PREFIX}${r.orderId}`);
           const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
           const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
+          const handed = handovers.get(`${HANDOVER_PREFIX}${r.orderId}`);
+          const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
+          const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
+          const pickup = pickups.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`);
           const refusee = refusees.get(`${REFUS_PREFIX}${r.orderId}`);
-          const fulfillment =
-            accepted === undefined && ready === undefined && refusee === undefined
-              ? undefined
-              : {
-                  ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
-                  ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
-                  ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
-                };
+          const f = {
+            ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
+            ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+            ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
+            ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
+            ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
+            ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
+            ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
+            ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+          };
+          const fulfillment = Object.keys(f).length === 0 ? undefined : f;
           return {
             ...r,
             ...(mark !== undefined ? { relance: mark } : {}),
@@ -849,6 +890,24 @@ export class FulfillmentDO {
       const entries = await this.state.storage.list<{ mintedAt?: string; code?: string; revokedAt?: string }>({
         prefix: SUPPLIERCODE_PREFIX,
       });
+      /**
+       * REMBOURSABLE-1 (AUDIT-B+2 F-02) — HOW MANY PAID ORDERS EACH SUPPLIER
+       * STILL HAS OPEN, so « Couper l'accès » is never blind to them: cutting
+       * a supplier closes his own refusal door, and a buyer waiting on him then
+       * depends on the founder's « Annuler et rembourser ». Open = not refused
+       * or cancelled, not delivered, not returned, not refused at pickup. A
+       * count only — never an order id, never a buyer detail.
+       */
+      const orders = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
+      const fermes = new Set<string>();
+      for (const prefix of [REFUS_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, PICKUP_REFUS_PREFIX]) {
+        for (const key of (await this.state.storage.list({ prefix })).keys()) fermes.add(key.slice(prefix.length));
+      }
+      const ouvertes = new Map<string, number>();
+      for (const o of orders.values()) {
+        if (!o.supplierResolved || o.supplierId === '' || fermes.has(o.orderId)) continue;
+        ouvertes.set(o.supplierId, (ouvertes.get(o.supplierId) ?? 0) + 1);
+      }
       const codes = [...entries.entries()]
         .map(([key, v]) => ({
           supplierId: key.slice(SUPPLIERCODE_PREFIX.length),
@@ -864,6 +923,7 @@ export class FulfillmentDO {
           // only says whether « Voir le code » can answer (2026-08-09 ruling):
           // false for codes minted before the plaintext was kept.
           revelable: v.code !== undefined,
+          commandesOuvertes: ouvertes.get(key.slice(SUPPLIERCODE_PREFIX.length)) ?? 0,
         }))
         .sort((a, b) => (a.supplierId < b.supplierId ? -1 : 1));
       return Response.json({ ok: true, codes });
@@ -1085,8 +1145,11 @@ export class FulfillmentDO {
       const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
       // RETOUR-VIVANT-1 — the fourth mark: his own confirmed RETURN code.
       const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
-      // REMBOURSEMENT-2 — the fifth: his own refusal.
+      // REMBOURSEMENT-2 — the fifth: his own refusal (or, REMBOURSABLE-1, the
+      // founder's cancellation, said as such).
       const refus = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
+      // REMBOURSABLE-1 (F-08) — the sixth: the rider refused the colis at pickup.
+      const pickups = await this.state.storage.list<PickupRefusRecord>({ prefix: PICKUP_REFUS_PREFIX });
       const orders = [...entries.values()]
         .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
@@ -1097,6 +1160,7 @@ export class FulfillmentDO {
           const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
           const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
           const refusee = refus.get(`${REFUS_PREFIX}${r.orderId}`);
+          const pickup = pickups.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`);
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -1117,7 +1181,7 @@ export class FulfillmentDO {
             sellerBasePrice: r.sellerBasePrice,
             // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
             ...(r.colis !== undefined ? { colis: r.colis } : {}),
-            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined
+            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined || pickup !== undefined
               ? {
                   fulfillment: {
                     ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
@@ -1125,7 +1189,9 @@ export class FulfillmentDO {
                     ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
                     ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
                     ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
+                    ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
                     ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
+                    ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
                   },
                 }
               : {}),
@@ -1221,6 +1287,80 @@ export class FulfillmentDO {
       await this.state.storage.put(key, refus);
       await this.enqueueProgress('rejected', orderId, refus.refusedAt);
       return Response.json({ ok: true, status: 'refused', refusedAt: refus.refusedAt });
+    }
+
+    /**
+     * REMBOURSABLE-1 (AUDIT-B+2 F-02) — « ANNULER ET REMBOURSER », the
+     * founder's own cancellation of a paid order (his ops key, checked at the
+     * router). B6.1: « timeout → refund saga »; B+I-13: « No seller-caused
+     * refund or logistics loss may delay the buyer's refund ». Until now her
+     * money waited on the supplier's tap, and once his access was cut there
+     * was no designed road at all.
+     *
+     * THE SAME ROW AND THE SAME FACT as his refusal, so Shop+'s refund road
+     * does not change: a refusal row, marked `par: 'fondateur'` so both
+     * screens say who did it, and the canon `fulfillment.rejected.v1` through
+     * the never-parked outbox. The SAME RULE too: before « prêt » only — after
+     * it the colis is on Séra's road, and the rider's pickup check is the
+     * refusal there. It needs no supplier: an order whose product this book
+     * could not attribute is exactly the one only he can refund.
+     *
+     * The automatic timer (B6.1's clock) is NOT here: whether the ratified
+     * 120 minutes refunds on its own, and on which clock, is his ruling.
+     */
+    if (request.method === 'POST' && pathname === '/order/annuler') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      if (typeof orderId !== 'string' || orderId === '' || orderId.length > 256 || Object.keys(body ?? {}).length !== 1) {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+      if (order === undefined) return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      const key = `${REFUS_PREFIX}${orderId}`;
+      const existing = await this.state.storage.get<RefusRecord>(key);
+      if (existing !== undefined) {
+        // Already refunding (his earlier tap, or the supplier's own refusal):
+        // re-asserting repairs a lost fact and announces nothing new.
+        await this.enqueueProgress('rejected', orderId, existing.refusedAt);
+        return Response.json({ ok: true, status: 'already_refused', refusedAt: existing.refusedAt });
+      }
+      if ((await this.state.storage.get(`${READY_PREFIX}${orderId}`)) !== undefined) {
+        return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
+      }
+      const refus: RefusRecord = { orderId, supplierId: order.supplierId, refusedAt: new Date().toISOString(), par: 'fondateur' };
+      await this.state.storage.put(key, refus);
+      await this.enqueueProgress('rejected', orderId, refus.refusedAt);
+      return Response.json({ ok: true, status: 'annulee', refusedAt: refus.refusedAt });
+    }
+
+    /**
+     * REMBOURSABLE-1 (AUDIT-B+2 F-08) — THE RIDER REFUSED THE COLIS AT PICKUP.
+     * Internal: only the refused-course intake below calls it, once Séra's
+     * canon fact names `rejection: 'pickup_refusal'`. First-wins, so a
+     * redelivery never moves the instant a supplier already read. An
+     * unreadable instant takes this Worker's clock rather than refusing the
+     * fact — Shop+ retries any non-OK answer forever, and that would also hold
+     * back every restock on the same wire.
+     */
+    if (request.method === 'POST' && pathname === '/pickup-refused') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      const at = body?.['at'];
+      if (typeof orderId !== 'string' || orderId === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      if ((await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`)) === undefined) {
+        return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      }
+      const key = `${PICKUP_REFUS_PREFIX}${orderId}`;
+      const existing = await this.state.storage.get<PickupRefusRecord>(key);
+      if (existing !== undefined) {
+        return Response.json({ ok: true, status: 'already_recorded', pickupRefusedAt: existing.pickupRefusedAt });
+      }
+      const pickupRefusedAt =
+        typeof at === 'string' && at !== '' && !Number.isNaN(Date.parse(at)) ? at : new Date().toISOString();
+      await this.state.storage.put(key, { orderId, pickupRefusedAt } satisfies PickupRefusRecord);
+      return Response.json({ ok: true, status: 'recorded', pickupRefusedAt });
     }
 
     /**
@@ -1587,6 +1727,8 @@ export class FulfillmentDO {
      * test order must not go on telling Shop+ and Séra about itself an hour
      * later. Stated plainly rather than discovered — this is the one fact
      * that makes the purge irreversible in effect as well as in storage.
+     * The ONE exception is an unsent REFUSAL (REMBOURSABLE-1, below): that
+     * row is a buyer's refund, so the door waits for it instead.
      *
      * IDEMPOTENT, and 200 EITHER WAY: an order this book never knew (or one
      * already retired) answers `inconnu`, never an error — a re-run after a
@@ -1603,7 +1745,18 @@ export class FulfillmentDO {
       // The outbox rows are keyed `progressoutbox:{orderId}:{fact}` — listed
       // by prefix rather than guessed, so a fact added later is swept too
       // instead of being left behind by a hard-coded list.
-      const outbox = await this.state.storage.list({ prefix: `${PROGRESS_OUTBOX_PREFIX}${orderId}:` });
+      const outbox = await this.state.storage.list<{ status?: string }>({ prefix: `${PROGRESS_OUTBOX_PREFIX}${orderId}:` });
+      /**
+       * REMBOURSABLE-1 (AUDIT-B+2 F-37) — EXCEPT A REFUND NOTICE NOT YET SENT.
+       * A refusal queued while Shop+ is unreachable is the buyer's only road to
+       * her refund, and this door cannot tell a test order from a real one:
+       * purging it here would delete the notice and leave nothing to revive it
+       * (the supplier's re-assertion then finds no order). Refused by name until
+       * the notice is delivered; the retire then goes through as before.
+       */
+      if (outbox.get(`${PROGRESS_OUTBOX_PREFIX}${orderId}:rejected`)?.status === 'pending') {
+        return Response.json({ ok: false, reason: 'refus_en_attente' }, { status: 409 });
+      }
       const keys = [
         `${ORDER_PREFIX}${orderId}`,
         `${RELANCE_PREFIX}${orderId}`,
@@ -1614,6 +1767,7 @@ export class FulfillmentDO {
         `${LIVRAISON_PREFIX}${orderId}`,
         `${RETOUR_PREFIX}${orderId}`,
         `${REFUS_PREFIX}${orderId}`,
+        `${PICKUP_REFUS_PREFIX}${orderId}`,
         ...outbox.keys(),
       ];
       // ONE DELETE CALL, so the row and its marks leave together or not at
@@ -1761,6 +1915,22 @@ export async function handleRefusedIntake(
   const res = await stub.fetch(new Request('https://do/order-of', { method: 'POST', body: JSON.stringify({ orderId }) }));
   if (res.status === 404) return Response.json({ ok: true, status: 'unknown_order' });
   if (res.status !== 200) return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
+
+  // REMBOURSABLE-1 (AUDIT-B+2 F-08) — A REFUSAL AT PICKUP is written on the
+  // named order FIRST, for every fault class and whatever the restock below
+  // decides: his card must stop saying the rider has the colis. Séra emits one
+  // fact per article, so only the named order is marked. A failed write is a
+  // 503 (the producer retries; the restock is marker-idempotent).
+  if (p['rejection'] === 'pickup_refusal') {
+    const mark = await stub.fetch(
+      new Request('https://do/pickup-refused', {
+        method: 'POST',
+        body: JSON.stringify({ orderId, at: parsed.data.envelope.serverTime }),
+      }),
+    );
+    if (mark.status !== 200) return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
+  }
+
   const row = (await res.json().catch(() => null)) as { productVersionId?: unknown } | null;
   const pv = typeof row?.productVersionId === 'string' ? row.productVersionId : '';
   if (pv === '') return Response.json({ ok: true, status: 'unknown_order' });
@@ -2043,4 +2213,16 @@ export async function handleOrderRetirer(request: Request, env: FulfillmentEnv):
       body: JSON.stringify({ orderId: body?.orderId }),
     }),
   );
+}
+
+/**
+ * REMBOURSABLE-1 (AUDIT-B+2 F-02) — forward the founder's « Annuler et
+ * rembourser » (ops-gated at the composition root). The body crosses VERBATIM
+ * so the object's exact-key check REFUSES a smuggled field instead of this
+ * layer silently stripping it (the refuse-don't-ignore law `forwardOpsCodeAdmin`
+ * follows): no caller may name a cause, a clock or a supplier here.
+ */
+export async function handleOrderAnnuler(request: Request, env: FulfillmentEnv): Promise<Response> {
+  const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  return stub.fetch(new Request('https://do/order/annuler', { method: 'POST', body: await request.text() }));
 }

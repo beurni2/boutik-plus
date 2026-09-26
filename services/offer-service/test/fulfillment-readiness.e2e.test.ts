@@ -614,10 +614,13 @@ describe('CONSOLE-3 — GET /fulfillment/supplier-codes: the founder sees every 
     // present only on a tombstone, so the console can show a cut-off supplier
     // with a way back instead of erasing him.
     //
+    // REMBOURSABLE-1 (2026-09-26) widened it by ONE count — `commandesOuvertes`,
+    // how many of his paid orders are still open, so the cut is never blind.
+    //
     // ⚠ THE PIN IS AN ALLOWLIST, not a fixed key set, because what it protects
     // is SECRECY: `hash` and `code` must never leave this object. Freezing the
     // exact keys made every honest addition look like a breach.
-    const PERMIS = new Set(['supplierId', 'mintedAt', 'revelable', 'revokedAt']);
+    const PERMIS = new Set(['supplierId', 'mintedAt', 'revelable', 'revokedAt', 'commandesOuvertes']);
     await opsPost('/fulfillment/supplier-code', { supplierId: INV_A });
     const res = await inventory();
     const codes = res.json['codes'] as Record<string, unknown>[];

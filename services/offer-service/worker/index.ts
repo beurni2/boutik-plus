@@ -1,5 +1,5 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderAnnuler, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
 import { makeSupplyFetch } from '../src/supply-endpoint.js';
 import { handleSupplyGrouping } from '../src/supply-grouping.js';
 import { stockDueMs } from '../src/stock-freeze.js';
@@ -117,6 +117,12 @@ async function effacerFournisseur(request: Request, env: Env): Promise<Response>
     }),
     env,
   );
+  if (purge.status === 409) {
+    // REMBOURSABLE-1 (AUDIT-B+2 F-33) — a buyer is paying for one of his units
+    // right now; the purge refused BEFORE removing anything. Named, so the
+    // screen can say « try again in a quarter of an hour ».
+    return Response.json({ ok: false, reason: 'paiement_en_cours' }, { status: 409 });
+  }
   if (!purge.ok) {
     // THE ROW SURVIVES A FAILED PURGE. Erasing it here would orphan whatever
     // the walk did not reach, with nothing left to attribute it to.
@@ -407,6 +413,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handleOrderRetirer(request, env);
+    }
+    // REMBOURSABLE-1 (AUDIT-B+2 F-02) — « Annuler et rembourser »: HIS
+    // credential alone, like the retire door above. The supplier's code opens
+    // his own refusal, never this one; Shop+'s intake secret opens neither.
+    if (request.method === 'POST' && fp === '/fulfillment/order/annuler') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleOrderAnnuler(request, env);
     }
     // ═══ READINESS-WIRE-1b-i — THE PERSONAL CODE DOOR (founder ruling
     // 2026-08-02: authoring is HIS webapp alone; suppliers are fulfillment-

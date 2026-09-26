@@ -480,7 +480,7 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     // Key C's own section comes first; the operator key's is at the foot.
     await screen.press('Oublier la clé sur cet appareil', 0);
     expect(store.has('boutik.livraisons.cle')).toBe(false);
-    expect(screen.canPress('Ouvrir les livraisons'), 'the key-C door is back').toBe(true);
+    expect(screen.canPress('Ouvrir avec la clé Shop+'), 'the key-C door is back').toBe(true);
     expect(store.get(OPS_SLOT), 'the other keys are untouched').toBe(OPS);
     screen.unmount();
   });

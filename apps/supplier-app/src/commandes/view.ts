@@ -22,6 +22,16 @@ import type { PaidOrderRow, SupplierContact } from '../operations/service';
  *   · `pret`       — the supplier confirmed « Produit prêt » (readyAt set):
  *     ready to relay — the confier act lives HERE.
  *   · `a_traiter`  — everything else: paid, waiting on the supplier.
+ *
+ * REMBOURSABLE-1 (AUDIT-B+2 F-61) — THE BOOK'S OWN MARKS DECIDE FIRST. Every
+ * stage past « Prêt » used to come ONLY from other Workers' best-effort reads,
+ * so a failed read filed a delivered or refused order back under « Prêt à
+ * livrer » with « Créer la course » on it. The book now carries the handover,
+ * the delivery, the return and the rider's refusal at pickup: a returned or
+ * pickup-refused order is an incident, a delivered one is finished, a handed
+ * over one is en route — with or without any other key on the device. The
+ * other reads still ADD what only they know (a claim, a refund, a live
+ * assignment the supplier has not confirmed yet).
  */
 
 export type SegmentCommandes = 'a_traiter' | 'pret' | 'en_route' | 'terminees' | 'incidents';
@@ -54,11 +64,15 @@ export function segmenter(
   for (const o of orders) {
     // REMBOURSEMENT-2 — refused by the supplier, or being refunded: the order
     // will not be delivered, and it must never sit in a queue that relays it.
-    if (claimedOrderIds.has(o.orderId) || o.fulfillment?.refusedAt !== undefined || rembourseesOrderIds.has(o.orderId)) {
+    const f = o.fulfillment;
+    if (
+      claimedOrderIds.has(o.orderId) || f?.refusedAt !== undefined || f?.pickupRefusedAt !== undefined ||
+      f?.returnedAt !== undefined || rembourseesOrderIds.has(o.orderId)
+    ) {
       incidents.push(o);
     }
-    else if (livreeOrderIds.has(o.orderId)) terminees.push(o);
-    else if (enRouteOrderIds.has(o.orderId)) en_route.push(o);
+    else if (f?.deliveredAt !== undefined || livreeOrderIds.has(o.orderId)) terminees.push(o);
+    else if (f?.handedOverAt !== undefined || enRouteOrderIds.has(o.orderId)) en_route.push(o);
     else if (o.fulfillment?.readyAt !== undefined) pret.push(o);
     else a_traiter.push(o);
   }
@@ -126,7 +140,12 @@ export function pilluleCommande(
   if (remboursement?.etat === 'en_cours') return { label: 'commandes.pill_remb_en_cours', ton: 'attente' };
   if (remboursement?.etat === 'fait') return { label: 'commandes.pill_rembourse', ton: 'ok' };
   if (remboursement?.etat === 'rien') return { label: 'commandes.pill_rien_a_rembourser', ton: 'ok' };
-  if (row.fulfillment?.refusedAt !== undefined) return { label: 'commandes.pill_refusee', ton: 'alerte' };
+  // REMBOURSABLE-1 — who ended it, said in one word: HIS cancel is never the
+  // supplier's refusal, and a pickup refusal is the rider's.
+  if (row.fulfillment?.refusedAt !== undefined) {
+    return { label: row.fulfillment.refusPar === 'fondateur' ? 'commandes.pill_annulee' : 'commandes.pill_refusee', ton: 'alerte' };
+  }
+  if (row.fulfillment?.pickupRefusedAt !== undefined) return { label: 'commandes.pill_ramassage_refuse', ton: 'alerte' };
   if (segment === 'incidents') return { label: 'commandes.pill_incident', ton: 'alerte' };
   if (segment === 'terminees') return { label: 'commandes.pill_livree', ton: 'ok' };
   if (segment === 'en_route') return { label: 'commandes.pill_en_route', ton: 'ok' };

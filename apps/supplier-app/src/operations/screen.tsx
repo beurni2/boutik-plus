@@ -18,15 +18,7 @@ import {
 import {
   clearStoredCleC,
   readStoredCleC,
-  resolveDispatchService,
   storeCleC,
-  type DispatchServicePort,
-  type LivraisonRow,
-  MOTIFS_REFUS,
-  PREMIER_GRAVE,
-  libelleMotif,
-  resolveRefusService,
-  type MotifRefus,
   resolveAccesService,
   type AccesServicePort,
   resolveComptesService,
@@ -38,27 +30,19 @@ import {
 import {
   CHASE_AFTER_MIN,
   CODES_IDLE,
-  RELANCE_IDLE,
-  ageMinutes,
   codesReadOf,
   codesView,
-  livraisonsVue,
   mintAvis,
   mintSettled,
   mintStart,
   operationsView,
-  relanceSettled,
-  relanceStart,
   revealSettled,
   revealStart,
   revokeSettled,
   revokeStart,
   type CodesRead,
   type CodesUi,
-  type LivraisonsRead,
   type OperationsRead,
-  type OperationsRow,
-  type RelanceUi,
   ACCES_IDLE,
   accesMintSettled,
   accesMintStart,
@@ -277,10 +261,6 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   );
   const [nowMs, setNowMs] = useState(() => Date.now());
   const inFlight = useRef(false);
-  // CONSOLE-2 — which card is mid-write, and which one refused. NEVER
-  // optimistic: a call is « enregistré » only once the book says so (Law 7 —
-  // queued is pending, never done). The transitions are `view.ts`'s.
-  const [relanceUi, setRelanceUi] = useState<RelanceUi>(RELANCE_IDLE);
   // CONSOLE-3 — the code inventory: its own read (codes change on the
   // founder's acts, not by the minute) and its own one-at-a-time write state.
   const [codesRead, setCodesRead] = useState<CodesRead>({ kind: 'loading' });
@@ -365,7 +345,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
    *  must read, not a silent no-op. */
-  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'autre' } | null>(null);
+  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'paiement' | 'autre' } | null>(null);
 
   const effacerFournisseur = async (supplierId: string): Promise<void> => {
     if (service === null) return;
@@ -385,7 +365,13 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
       setEffacerEchec({
         id: supplierId,
         raison:
-          res.reason === 'a_des_commandes' ? 'commandes' : res.reason === 'registre_echoue' ? 'partiel' : 'autre',
+          res.reason === 'a_des_commandes'
+            ? 'commandes'
+            : res.reason === 'registre_echoue'
+              ? 'partiel'
+              : res.reason === 'paiement_en_cours'
+                ? 'paiement'
+                : 'autre',
       });
       if (res.reason !== 'registre_echoue') return;
     }
@@ -443,23 +429,6 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
       result = { ok: false, reason: 'unreachable' } as const;
     }
     await settleCodes(revealSettled(supplierId, result));
-  };
-
-  // Impure substance only — every decision below is `view.ts`'s, by value.
-  const relancer = async (orderId: string): Promise<void> => {
-    if (service === null) return;
-    const started = relanceStart(relanceUi, orderId);
-    if (started === null) return; // a write is already in flight
-    setRelanceUi(started);
-    let settlement;
-    try {
-      settlement = relanceSettled(orderId, await service.recordRelance(opsKey, orderId));
-    } catch {
-      settlement = relanceSettled(orderId, { ok: false, reason: 'unreachable' } as const);
-    }
-    setRelanceUi(settlement.ui);
-    if (settlement.then === 'refresh') await load(true);
-    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
   };
 
   useEffect(() => {
@@ -664,13 +633,16 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
  * two keys are different credentials on different Workers.
  */
 function SLivraisons({ zone }: { zone: ZoneConsole }) {
-  const service = useMemo<DispatchServicePort | null>(() => resolveDispatchService(), []);
   const [cleC, setCleC] = useState<string | null>(() => readStoredCleC());
   const [draft, setDraft] = useState('');
-  const [read, setRead] = useState<LivraisonsRead>(() =>
-    service === null ? { kind: 'not_configured' } : { kind: 'loading' },
-  );
-  const seq = useRef(0);
+  /**
+   * REMBOURSABLE-1 (AUDIT-B+2 F-69) — KEY C REFUSED, as the three reseller
+   * reads below report it. This used to come from a Livraisons read that
+   * pulled up to a thousand buyers' phones, quartiers, repères and GPS pins on
+   * every mount — to feed nothing but this one flag, which those three reads
+   * already answer on the same key. One refused key, one sentence.
+   */
+  const [cleRefusee, setCleRefusee] = useState(false);
 
   /* ── ACCESS-GATE-1 — the reseller ACCESS codes, on the SAME key C ──────────
      Same Worker, same credential, same section: he is minting a code for a new
@@ -719,7 +691,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     }
     if (res.reason === 'bad_key') {
       setRecupUi(RECUP_IDLE);
-      setRead({ kind: 'bad_key' });
+      setCleRefusee(true);
       return;
     }
     setRecupUi({ busy: false, echec: res.reason, nouveau: null });
@@ -732,7 +704,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     const res = await comptes.listComptes(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
     if (mine !== comptesSeq.current) return;
     const read = comptesReadOf(res);
-    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    if (read.kind === 'bad_key') setCleRefusee(true);
     else setComptesRead(read);
   };
 
@@ -743,14 +715,14 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     const res = await comptes.listSuivi(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
     if (mine !== suiviSeq.current) return;
     const read = suiviReadOf(res);
-    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    if (read.kind === 'bad_key') setCleRefusee(true);
     else setSuiviRead(read);
   };
 
   const settleCompte = async (settlement: ComptesSettlement, key: string): Promise<void> => {
     setComptesUi(settlement.ui);
     if (settlement.then === 'refresh') { await loadComptes(key); await loadSuivi(key); }
-    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
+    else if (settlement.then === 'bad_key') setCleRefusee(true);
   };
 
   const agirCompte = async (acte: ActeCompte, accountId: string, key: string): Promise<void> => {
@@ -789,7 +761,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     // « Retour » on an empty column, with no sentence saying the key was
     // refused. One key, one sentence, from every read that asks with it.
     const read = accesReadOf(res);
-    if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });
+    if (read.kind === 'bad_key') setCleRefusee(true);
     else setAccesRead(read);
   };
 
@@ -798,7 +770,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     if (settlement.then === 'refresh') await loadAcces(key);
     // A refused key here refuses the whole section's door, exactly as the
     // livraisons read does — one key, one sentence.
-    else if (settlement.then === 'bad_key') setRead({ kind: 'bad_key' });
+    else if (settlement.then === 'bad_key') setCleRefusee(true);
   };
 
   const creerAcces = async (resellerId: string, key: string): Promise<void> => {
@@ -834,27 +806,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   };
 
   /**
-   * EVERY PATH OUT OF THIS FUNCTION NAMES A STATE (founder-found: the section
-   * sat on « Lecture des livraisons… » forever). The old version RETURNED
-   * SILENTLY when the service was unresolved — while the door's button had
-   * already set `loading` — so an unconfigured build could never reach its own
-   * honest « non configuré » sentence. A silent return under a loading state
-   * is a promise the screen cannot keep.
-   */
-  const load = async (key: string): Promise<void> => {
-    if (service === null) {
-      setRead({ kind: 'not_configured' });
-      return;
-    }
-    seq.current += 1;
-    const mine = seq.current;
-    const res = await service.listLivraisons(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
-    if (mine !== seq.current) return; // only the newest read writes the section
-    if (res.ok) setRead({ kind: 'ok', rows: res.rows, incomplet: res.incomplet });
-    else setRead({ kind: res.reason === 'bad_key' ? 'bad_key' : 'failed' });
-  };
-
-  /**
    * MOUNT ONLY — and every later read is an EXPLICIT call, never a state
    * change this effect has to notice. The `[cleC]` dependency it replaces was
    * the second way to strand the section: re-entering the SAME key value made
@@ -864,7 +815,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   useEffect(() => {
     const stored = readStoredCleC();
     if (stored !== null) {
-      void load(stored);
       // ACCESS-GATE-1 fix (self-found): the acces section was never LOADED on
       // mount — it sat on « Lecture… » with nothing behind it, the exact
       // stranded-loading class the founder once caught on Livraisons. Every
@@ -876,7 +826,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const vue = cleC === null ? null : livraisonsVue(read);
 
   // CONSOLE-GT-1 — the zones that are not this component's render NOTHING, but
   // the component itself STAYS MOUNTED (returning null keeps hooks and state):
@@ -901,10 +850,9 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
                   const v = draft.trim();
                   if (v === '') return;
                   storeCleC(v);
-                  setRead({ kind: 'loading' });
+                  setCleRefusee(false);
                   setCleC(v);
                   // every read is asked for HERE, not inferred from a state change
-                  void load(v);
                   void loadAcces(v);
                   void loadComptes(v);
                   void loadSuivi(v);
@@ -915,9 +863,9 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
         </>
       )}
 
-      {vue !== null && vue.kind === 'bad_key' && (
+      {cleC !== null && cleRefusee && (
         <View style={{ marginTop: 16 }}>
-          <Banner tone="warn">{t(vue.message)}</Banner>
+          <Banner tone="warn">{t('livraisons.cle_refusee')}</Banner>
           <View style={{ marginTop: 10 }}>
             <BtnSoft
               label={t('livraisons.cle_ressaisir')}
@@ -933,15 +881,13 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
       )}
 
       {/* RB-1 (founder order 2026-08-08): the ZONE LIVRAISONS list moved to
-          the app's Commandes TAB (the Terminées detail reads the same key-C
-          dispatch row). This component keeps key C's door and the revendeuses
-          sections — its livraisons ARM alone retired. */}
-      {/* ═══ ZONE REVENDEUSES — the roster, the suivi, the access codes.
-             CONSOLE-GT-1 freed these from the dispatch list's read: a failed
-             LIVRAISONS read no longer hides the ROSTER, because they are
-             different questions on the same key. Only bad_key — the shared
-             door itself — still silences everything behind it. ═══ */}
-      {zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (
+          the app's Commandes TAB. REMBOURSABLE-1 (F-69) retired the last read
+          it left here: this component keeps key C's door and the revendeuses
+          sections, and reads no buyer's contact at all. */}
+      {/* ═══ ZONE REVENDEUSES — the roster, the suivi, the access codes. Only
+             a REFUSED key — the shared door itself — silences everything
+             behind it. ═══ */}
+      {zone === 'revendeuses' && cleC !== null && !cleRefusee && (
         <>
           {/* THE CHOOSER — three doors, one sentence each, and he walks through
               exactly one. The sentences are the sections' OWN `sens` lines, so
@@ -1424,41 +1370,6 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoi
   );
 }
 
-/** One course: the quartier LOUDEST (it is where the rider goes), then the
- *  number — big, selectable — then the repère in the buyer's own words.
- *
- *  SP6.3 — and, folded UNDER the card rather than beside it, the one thing he
- *  needs when the rider calls back to say it did not work. It is closed by
- *  default: the ordinary outcome of a dispatch row is a delivery, and a refusal
- *  form sitting open on every row would make failure look like the expected
- *  shape of the screen. */
-function CarteLivraison({ row, cleC }: { row: LivraisonRow; cleC: string | null }) {
-  return (
-    <Card variant="Llist" style={{ marginTop: 10 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Text style={role({ f: 'BG', w: 800, s: 16 }, P.ink)} numberOfLines={1}>
-          {row.contact?.quartier ?? row.zoneTo}
-        </Text>
-        <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), TNUM]}>{row.createdAt.slice(0, 10)}</Text>
-      </View>
-      {row.contact !== null && (
-        <>
-          <Text style={[role({ f: 'BG', w: 800, s: 20 }, P.greenDeep), TNUM, { marginTop: 5, letterSpacing: 0.5 }]} selectable>
-            {row.contact.phone}
-          </Text>
-          {row.contact.repere !== '' && (
-            <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), { marginTop: 3 }]}>{row.contact.repere}</Text>
-          )}
-        </>
-      )}
-      <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.faint), TNUM, { marginTop: 6 }]} numberOfLines={1}>
-        {row.orderId}
-      </Text>
-      <SignalerRefus orderId={row.orderId} cleC={cleC} aUnNumero={row.contact !== null} />
-    </Card>
-  );
-}
-
 /**
  * CLE-FONDATEUR-1 — « Clé des photos »: the media service's revoke credential,
  * typed once on this device — it is no longer built into the page (AUDIT-B+2
@@ -1522,7 +1433,7 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
   clePhotosPresente: boolean;
   onArmer: (supplierId: string | null) => void;
   onEffacer: (supplierId: string) => void;
-  echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'autre' } | null;
+  echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'paiement' | 'autre' } | null;
   onCouper: (supplierId: string) => void;
   onVoir: (supplierId: string) => void;
   onVu: () => void;
@@ -1586,6 +1497,18 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
                     be answering a question nobody asked. */}
                 {!c.revelable && c.revokedAt === undefined && (
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('operations.code_anterieur')}</Text>
+                )}
+                {/* REMBOURSABLE-1 (F-02) — the buyers still waiting on him, said
+                    on HIS row, before the cut and after it. Cutting him closes
+                    his own refusal door; these orders then depend on « Annuler
+                    et rembourser » in Commandes. It informs, never blocks: a
+                    leaked code must always be killable at once. */}
+                {c.commandesOuvertes !== undefined && c.commandesOuvertes > 0 && (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.warnFg), { marginTop: 3 }]}>
+                    {c.commandesOuvertes === 1
+                      ? t('operations.code_ouvertes_une')
+                      : t('operations.code_ouvertes_n').replace('{n}', String(c.commandesOuvertes))}
+                  </Text>
                 )}
               </View>
               {ui.busy === `revoke:${c.supplierId}` ? (
@@ -1651,7 +1574,9 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
                   {t(
                     echecEffacer.raison === 'commandes'
                       ? 'operations.supprimer_def_commandes'
-                      : echecEffacer.raison === 'partiel'
+                      : echecEffacer.raison === 'paiement'
+                        ? 'operations.supprimer_def_paiement'
+                        : echecEffacer.raison === 'partiel'
                         ? 'operations.supprimer_def_partiel'
                         : 'operations.supprimer_def_echec',
                   )}
@@ -1726,243 +1651,4 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
   );
 }
 
-/**
- * One paid order, one card, the five facts the founder acts on: what was sold,
- * for which supplier, toward which quartier, what the supplier's own number
- * is, and HOW LONG it has waited. The age is the biggest figure on a chase
- * card because the age is why he is looking.
- */
-function CommandeCard({ row, chase, called, nowMs, action }: {
-  row: OperationsRow;
-  chase?: boolean;
-  called?: boolean;
-  nowMs?: number;
-  /** `locked`: ANOTHER card is writing. Its button goes quiet rather than
-   *  staying lit and doing nothing — a dead tap on this screen would teach
-   *  the founder that the board ignores him. */
-  action?: { label: string; busy: boolean; failed: boolean; locked: boolean; onPress: () => void };
-}) {
-  const nom = row.productName !== '' ? row.productName : row.productVersionId;
-  const modeLabel = row.paymentMode === 'DELIVERY_FEE_PREPAID_PRODUCT_AT_DOOR'
-    ? t('operations.mode_porte')
-    : t('operations.mode_paye');
-  return (
-    <Card variant="Llist" style={{ marginTop: 10 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{nom}</Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 3 }]} numberOfLines={1}>
-            {row.supplierResolved ? row.supplierId : t('operations.fournisseur_inconnu')} · {row.zoneTo}
-          </Text>
-          <Text style={[role({ f: 'IS', w: 500, s: 12.5 }, P.inkSoft), TNUM, { marginTop: 2 }]}>
-            {modeLabel} · {formatF(row.sellerBasePrice)}
-          </Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[role({ f: 'BG', w: 800, s: chase === true ? 21 : 15 }, chase === true ? P.warnFg : P.ink), TNUM]}>
-            {row.ageMin < 60 ? t('operations.age_min').replace('{n}', String(row.ageMin)) : t('operations.age_long')}
-          </Text>
-          {chase === true && (
-            <Text style={[role({ f: 'IS', w: 700, s: 11 }, P.warnFg), { marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
-              {t('operations.appeler')}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {row.fulfillment !== undefined && (
-        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={role({ f: 'IS', w: 700, s: 12 }, P.ink)}>
-            {row.fulfillment.readyAt !== undefined ? t('operations.prep_pret') : t('operations.prep_accepte')}
-          </Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginLeft: 6 }]}>
-            {prepSentence(row.fulfillment.readyAt ?? row.fulfillment.acceptedAt ?? '', nowMs ?? Date.now())}
-          </Text>
-        </View>
-      )}
-
-      {called === true && row.relance !== undefined && (
-        <View style={{ marginTop: 8 }}>
-          <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>
-            {relanceSentence(row.relance.at, nowMs ?? Date.now())}
-            {row.relance.count > 1 ? ` · ${t('operations.relance_fois').replace('{n}', String(row.relance.count))}` : ''}
-          </Text>
-        </View>
-      )}
-
-      {action !== undefined && (
-        <View style={{ marginTop: 10 }}>
-          {action.busy ? (
-            <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('operations.relance_encours')}</Text>
-          ) : action.locked ? (
-            <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t('operations.relance_attendre')}</Text>
-          ) : (
-            <BtnSoft label={action.label} icon="check" onPress={action.onPress} />
-          )}
-          {action.failed && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.relance_echec')}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </Card>
-  );
-}
-
-/** « À l'instant » → « il y a X min » → past the hour, no invented precision —
- *  the same honest clock the relance sentence uses, for the supplier's act. */
-function prepSentence(atIso: string, nowMs: number): string {
-  const min = ageMinutes(atIso, nowMs);
-  if (min < 1) return t('operations.prep_maintenant');
-  return min < 60
-    ? t('operations.prep_depuis').replace('{n}', String(min))
-    : t('operations.prep_depuis_long');
-}
-
-/**
- * « Appelé à l'instant » → « Appelé il y a X min » → past the hour, no
- * invented precision. The zero-minute branch is not an edge case: it is the
- * FIRST sentence he reads after tapping, the confirmation beat of his own
- * act, and « il y a 0 min » reads there like a glitch.
- */
-function relanceSentence(atIso: string, nowMs: number): string {
-  const min = ageMinutes(atIso, nowMs);
-  if (min < 1) return t('operations.relance_faite_maintenant');
-  return min < 60
-    ? t('operations.relance_faite').replace('{n}', String(min))
-    : t('operations.relance_faite_long');
-}
-
 export { CHASE_AFTER_MIN };
-
-/**
- * SP6.3 — ONE DOORSTEP REFUSAL, RECORDED (§6.4).
- *
- * ═══ WHAT THIS COSTS A BUYER, WHICH IS WHY IT IS BUILT THE WAY IT IS ═══
- *
- * Tapping one of these moves a real woman's standing: two ordinary faults and
- * « payer à la livraison » closes for her for a month. So the affordance is
- * deliberately quiet, deliberately two taps, and deliberately says what each
- * reason means in her words rather than the system's.
- *
- * THE GRAVE TWO SIT APART. « Abus répété » and « Fraude » end her access to the
- * door entirely and cannot be walked back by the ladder itself; they are last,
- * after a divider, so a tired thumb does not land on them.
- *
- * « L'article n'était pas le bon » IS ON THE LIST AND CARRIES A SENTENCE
- * SAYING IT NEVER COUNTS AGAINST HER. Without it, an honest operator facing a
- * genuine wrong-item refusal has no true option and picks « elle a changé
- * d'avis » — and a buyer is punished for our mistake. The reassurance is not
- * decoration; it is what makes choosing the true reason the easy thing to do.
- */
-function SignalerRefus({
-  orderId,
-  cleC,
-  aUnNumero,
-}: {
-  orderId: string;
-  cleC: string | null;
-  aUnNumero: boolean;
-}) {
-  const [ouvert, setOuvert] = useState(false);
-  const [etat, setEtat] = useState<'repos' | 'envoi' | 'fait' | 'echec' | 'sans_contact' | 'deja'>('repos');
-  const service = useMemo(() => resolveRefusService(), []);
-
-  // NO NUMBER, NO LADDER — and the row says so instead of offering an action
-  // that could only fail. The order is still dispatchable by other means; it is
-  // only the refusal record that has nothing to attach to.
-  if (!aUnNumero || cleC === null || service === null) return null;
-
-  if (etat === 'fait') {
-    return (
-      <View style={{ marginTop: 8 }}>
-        <Text style={role({ f: 'IS', w: 600, s: 12 }, P.ink)}>{t('refus.enregistre')}</Text>
-      </View>
-    );
-  }
-
-  if (!ouvert) {
-    return (
-      <View style={{ marginTop: 10 }}>
-        <BtnSoft label={t('refus.ouvrir')} icon="retry" onPress={() => setOuvert(true)} />
-      </View>
-    );
-  }
-
-  const choisir = (motif: MotifRefus) => {
-    setEtat('envoi');
-    void service.signalerRefus(cleC, orderId, motif).then((res) => {
-      if (res.ok) {
-        setEtat('fait');
-        return;
-      }
-      if (res.reason === 'sans_contact') {
-        setEtat('sans_contact');
-        return;
-      }
-      // REFUS-IDEMPOTENCE-1 — « already noted » is neither a success nor a
-      // network fault, so it gets its own sentence rather than being folded
-      // into one of the two things it is not.
-      setEtat(res.reason === 'deja_note' ? 'deja' : 'echec');
-    });
-  };
-
-  return (
-    <View style={{ marginTop: 10 }}>
-      <Text style={role({ f: 'IS', w: 600, s: 13 }, P.ink)}>{t('refus.titre')}</Text>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{t('refus.aide')}</Text>
-
-      {etat === 'envoi' && (
-        <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 8 }]}>{t('refus.envoi')}</Text>
-      )}
-      {etat === 'echec' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="warn">{t('refus.echec')}</Banner>
-        </View>
-      )}
-      {etat === 'sans_contact' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="info">{t('refus.sans_contact')}</Banner>
-        </View>
-      )}
-      {etat === 'deja' && (
-        <View style={{ marginTop: 8 }}>
-          <Banner tone="info">{t('refus.deja')}</Banner>
-        </View>
-      )}
-
-      {/*
-        THE LIST DISAPPEARS THE MOMENT AN ATTEMPT ENDS BADLY, and it STAYS that
-        way after REFUS-IDEMPOTENCE-1 — for a smaller reason, honestly stated.
-        The route now derives an idempotency key from the order, so re-tapping
-        the SAME reason after a lost response is harmless and the sentence says
-        so. What a blind re-tap can still get wrong is the reason itself: a
-        different one is refused (409, « déjà une note ») rather than applied,
-        and a tired thumb landing on « Fraude » instead of « Elle a changé
-        d'avis » deserves the pause either way. Two ordinary faults close her
-        door for a month; deliberate reopening costs one tap and is worth it.
-      */}
-      {etat === 'repos' &&
-        MOTIFS_REFUS.map((motif) => (
-          <View
-            key={motif}
-            // THE DIVIDER BEFORE THE GRAVE TWO. `repeated_abuse` opens the pair
-            // that ends her access to the door; the wider gap is the pause.
-            style={{ marginTop: motif === PREMIER_GRAVE ? 18 : 8 }}
-          >
-            <BtnSoft label={t(libelleMotif(motif))} icon="check" onPress={() => choisir(motif)} />
-            {motif === 'conformity_mismatch' && (
-              <Text style={[role({ f: 'IS', w: 400, s: 11 }, P.sub), { marginTop: 4 }]}>
-                {t('refus.note_conformite')}
-              </Text>
-            )}
-          </View>
-        ))}
-
-      <View style={{ marginTop: 14 }}>
-        <BtnSoft label={t('refus.fermer')} icon="retry" onPress={() => { setOuvert(false); setEtat('repos'); }} />
-      </View>
-    </View>
-  );
-}

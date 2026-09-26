@@ -614,6 +614,17 @@ export default {
       ) {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
+      // REMBOURSABLE-1 (AUDIT-B+2 F-33) — NOT WHILE A BUYER IS PAYING FOR A
+      // UNIT. Her payment can confirm inside the hold after the delete, and
+      // her paid order would then register with no product and no supplier —
+      // an order no supplier sees and his board cannot name. Read-only and
+      // BEFORE any removal, so a refusal leaves the offer exactly as it was;
+      // the hold lapses on its own within the hold window.
+      const pre = await offerStub(env, cmd.offerId).fetch(new Request('https://do/entry'));
+      if (pre.status === 200) {
+        const held = ((await pre.json()) as { heldUnits?: unknown }).heldUnits;
+        if (typeof held === 'number' && held > 0) return Response.json({ error: 'unite_reservee' }, { status: 409 });
+      }
       // GUARD: only drop the pointer if it still points at THIS offer — a pv
       // whose pointer was since rebound to another offer must keep it.
       const ptrRes = await pvStub(env, cmd.productVersionId).fetch(new Request('https://do/pointer'));
@@ -665,13 +676,24 @@ export default {
       }
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
       const rows = (await idxRes.json()) as IndexRow[];
-      const refs: string[] = [];
-      let supprimes = 0;
+      // REMBOURSABLE-1 (AUDIT-B+2 F-33) — READ EVERYTHING FIRST, remove
+      // nothing, and refuse the whole purge while a buyer holds any one of his
+      // units: her payment may still confirm, and her order would register
+      // with no product and no supplier. Each entry is read once, as before.
+      const siens: { row: IndexRow; entry: OfferEntry }[] = [];
       for (const r of rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
-        const entry = (await eRes.json()) as OfferEntry;
+        const entry = (await eRes.json()) as OfferEntry & { heldUnits?: number };
         if (entry.product.supplierId !== supplierId) continue;
+        if (typeof entry.heldUnits === 'number' && entry.heldUnits > 0) {
+          return Response.json({ error: 'paiement_en_cours' }, { status: 409 });
+        }
+        siens.push({ row: r, entry });
+      }
+      const refs: string[] = [];
+      let supprimes = 0;
+      for (const { row: r, entry } of siens) {
         // EVERY ref this product owns, the MASTER excluded — it never left the
         // device, so there is nothing at a url to destroy (`private/device/…`).
         const a = entry.assets;

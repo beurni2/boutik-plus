@@ -27,7 +27,6 @@ import {
   accesRevokeSettled,
   accesRevokeStart,
   accesVue,
-  livraisonsVue,
   type AccesUi,
   COMPTES_IDLE,
   acteSettled,
@@ -48,7 +47,6 @@ import {
 import {
   CHASE_AFTER_MIN,
   CODES_IDLE,
-  RELANCE_IDLE,
   ageMinutes,
   codesReadOf,
   codesView,
@@ -56,8 +54,6 @@ import {
   mintSettled,
   mintStart,
   operationsView,
-  relanceSettled,
-  relanceStart,
   revealSettled,
   revokeSettled,
   revokeStart,
@@ -93,7 +89,9 @@ import { catalog } from '../src/i18n';
  * make every `not.toContain` below pass while asserting nothing.
  */
 function zoneRevendeuses(source: string): string {
-  const guard = "{zone === 'revendeuses' && cleC !== null && vue !== null && vue.kind !== 'bad_key' && (";
+  // REMBOURSABLE-1 (F-69): the guard reads the refused-key flag the three
+  // reseller reads set, now that no Livraisons read exists here.
+  const guard = "{zone === 'revendeuses' && cleC !== null && !cleRefusee && (";
   const start = source.indexOf(guard);
   if (start < 0) throw new Error('the revendeuses guard moved — this pin is watching nothing');
   // THE END IS THE GUARD'S OWN CLOSE, not the component's. A verifier proved
@@ -264,7 +262,9 @@ describe('CONSOLE-2 — the relance clears the queue, and claims nothing about p
     // Requiring « appel » in every relance label cannot be walked past: a
     // string that claims the supplier's act cannot also be about the call.
     const fr = new Map(catalog.map((e) => [e.key, e.fr]));
-    for (const k of ['operations.relance_action', 'operations.relances_titre', 'operations.relance_faite', 'operations.relance_faite_long', 'operations.relance_faite_maintenant', 'operations.relance_fois', 'operations.relance_rappeler']) {
+    // REMBOURSABLE-1 — the four « appelé il y a… » sentences left with the dead
+    // board card that rendered them (AUDIT-B+2 F-10).
+    for (const k of ['operations.relance_action', 'operations.relances_titre', 'operations.relance_rappeler']) {
       const s = (fr.get(k) ?? '').toLowerCase();
       expect(s, k).not.toBe('');
       expect(s, `${k} must speak of the CALL`).toMatch(/appel/);
@@ -362,66 +362,7 @@ describe('READINESS-WIRE-1a — the REAL signal supersedes the chase AND the cal
     expect(res.orders[0]!.fulfillment).toEqual({ acceptedAt: '2026-08-01T11:10:00.000Z' });
   });
 
-  it('the strings the founder reads: « Prêt » names the EVIDENCE, and « accepté » stays a decision, not readiness', () => {
-    const fr = new Map(catalog.map((e) => [e.key, e.fr]));
-    expect(fr.get('operations.prep_pret')?.toLowerCase()).toContain('photo'); // prêt is claimed WITH its evidence
-    expect(fr.get('operations.prep_accepte')?.toLowerCase()).toContain('accept');
-    expect(fr.get('operations.prep_accepte')?.toLowerCase().includes('prêt')).toBe(false); // acceptance never reads as ready
-  });
 
-  it('[source-text check] the chip conditional binds readyAt→prêt and its absence→accepté — a swap would claim readiness without evidence (verifier N1)', () => {
-    // A verifier swapped the two branches and the whole suite stayed green;
-    // the failure would be an accepted-but-not-ready order rendering « Colis
-    // prêt, photo à l'appui » — the exact confusion B+I-06 exists to prevent.
-    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
-    expect(source).toContain(
-      "row.fulfillment.readyAt !== undefined ? t('operations.prep_pret') : t('operations.prep_accepte')",
-    );
-  });
-});
-
-describe('the relance INTERACTION — the decision the screen used to own, now asserted by value', () => {
-  it('one write at a time: a tap while another card is writing is IGNORED (null = do not even call the port)', () => {
-    expect(relanceStart(RELANCE_IDLE, 'ord-1')).toEqual({ busy: 'ord-1', echec: null });
-    expect(relanceStart({ busy: 'ord-1', echec: null }, 'ord-2')).toBeNull();
-  });
-
-  it('starting a new call CLEARS a previous failure — the old red line must not haunt the new attempt', () => {
-    expect(relanceStart({ busy: null, echec: 'ord-9' }, 'ord-9')).toEqual({ busy: 'ord-9', echec: null });
-  });
-
-  it('SUCCESS releases the lock and demands a RE-READ — what he sees must be the stored mark, never a hope', () => {
-    expect(relanceSettled('ord-1', { ok: true })).toEqual({ ui: RELANCE_IDLE, then: 'refresh' });
-  });
-
-  it('a refused KEY escalates the whole board, and does not blame the phone call', () => {
-    expect(relanceSettled('ord-1', { ok: false, reason: 'bad_key' })).toEqual({ ui: RELANCE_IDLE, then: 'bad_key' });
-  });
-
-  it('unreachable / unknown_order keep the failure ON THAT CARD, release the lock, and claim NOTHING', () => {
-    for (const reason of ['unreachable', 'unknown_order'] as const) {
-      expect(relanceSettled('ord-7', { ok: false, reason }), reason).toEqual({
-        ui: { busy: null, echec: 'ord-7' },
-        then: 'none',
-      });
-    }
-  });
-
-  it('a failure is keyed to ITS order — one card’s red line can never appear on another', () => {
-    const s = relanceSettled('ord-a', { ok: false, reason: 'unreachable' });
-    expect(s.ui.echec).toBe('ord-a');
-    expect(s.ui.echec === 'ord-b').toBe(false);
-  });
-
-  it('[source-text check] the screen delegates: it calls the port and feeds BOTH decisions back, and its own re-read is FORCED', () => {
-    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
-    expect(source).toContain('service.recordRelance(opsKey, orderId)');
-    expect(source).toContain('relanceStart(');
-    expect(source).toContain('relanceSettled(');
-    // the post-write re-read must bypass the in-flight guard, or a successful
-    // call renders as if nothing happened (the verifier's M1)
-    expect(source).toMatch(/then === 'refresh'\) await load\(true\)/);
-  });
 });
 
 describe('the relance port — only the id crosses, and every refusal keeps its own name', () => {
@@ -777,39 +718,6 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
   const lrow = (orderId: string, state: string, createdAt: string, contact: { phone: string; quartier: string; repere: string } | null = { phone: '70 12 34 56', quartier: 'Gounghin', repere: 'Face à la pharmacie' }) =>
     ({ orderId, state, createdAt, contact, productVersionId: 'pv-1', zoneTo: 'Ouagadougou' });
 
-  it('livraisonsVue: only CONFIRMED rows reach the queue; contactless confirmed rows are their own honest group; the unconfirmed whisper', () => {
-    const keys = new Set(catalog.map((e) => e.key));
-    const vue = livraisonsVue({
-      kind: 'ok',
-      incomplet: false,
-      rows: [
-        lrow('o-new', 'confirmed', '2026-08-02T10:00:00.000Z'),
-        lrow('o-old', 'confirmed', '2026-08-02T08:00:00.000Z'),
-        lrow('o-nocontact', 'confirmed', '2026-08-02T09:00:00.000Z', null),
-        lrow('o-pending', 'payment_pending', '2026-08-02T11:00:00.000Z'),
-        lrow('o-failed', 'payment_failed', '2026-08-02T07:00:00.000Z'),
-      ],
-    });
-    if (vue.kind !== 'liste') throw new Error(vue.kind);
-    // longest-waiting first: the buyer who paid first gets her rider first
-    expect(vue.aLivrer.map((r) => r.orderId)).toEqual(['o-old', 'o-new']);
-    expect(vue.sansContact.map((r) => r.orderId)).toEqual(['o-nocontact']);
-    // an unconfirmed order is NEVER dispatchable, whatever contact it carries
-    expect(vue.enAttente.map((r) => r.orderId)).toEqual(['o-pending', 'o-failed']);
-    for (const [read, kind, message] of [
-      [{ kind: 'loading' }, 'loading', 'livraisons.chargement'],
-      [{ kind: 'not_configured' }, 'not_configured', 'livraisons.non_configure'],
-      [{ kind: 'bad_key' }, 'bad_key', 'livraisons.cle_refusee'],
-      [{ kind: 'failed' }, 'failed', 'livraisons.echec'],
-      [{ kind: 'ok', rows: [], incomplet: false }, 'empty', 'livraisons.vide'],
-    ] as const) {
-      const v = livraisonsVue(read);
-      expect(v.kind, message).toBe(kind);
-      expect('message' in v && v.message, kind).toBe(message);
-      expect(keys.has(message), `${message} missing from catalog`).toBe(true);
-    }
-  });
-
   it('the port: key C travels as Bearer to /checkout/dispatch on the SHOP base; 401 → bad_key; a malformed CONTACT drops the whole row', async () => {
     vi.stubEnv('EXPO_PUBLIC_SHOP_CHECKOUT_BASE', 'https://shop.example/');
     const good = lrow('ord-ok', 'confirmed', '2026-08-02T08:00:00.000Z');
@@ -871,14 +779,14 @@ describe('BC-1c — the dispatch view: its own key, its own honest states, dispa
     expect(bag.size).toBe(0);
   });
 
-  it('[source-text check] the section reads with a seq token, never escalates the BOARD on ITS bad key, and every livraisons.* key rendered exists', () => {
+  it('[source-text check] REMBOURSABLE-1 (F-69): the Revendeuses section reads NO buyer contact, its refused key re-enters ITS OWN door, and every livraisons.* key rendered exists', () => {
     const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
-    expect(source).toContain('if (mine !== seq.current) return;');
-    // key C's refusal re-enters ITS OWN door (clearStoredCleC), never setRead bad_key on the board
+    // The Livraisons read pulled every buyer's phone and pin to feed one flag;
+    // the three reseller reads on the same key answer that flag now.
+    expect(source).not.toContain('listLivraisons');
+    expect(source).toContain('setCleRefusee(true);');
     expect(source).toContain('clearStoredCleC();');
     const used = [...source.matchAll(/t\('(livraisons\.[a-z_.]+)'\)/g)].map((m) => m[1]!);
-    // RB-1: the livraisons LIST moved to the Commandes tab; the key-C door and
-    // its own strings stay. The floor drops with the arm, deliberately.
     expect(used.length).toBeGreaterThan(2);
     const keys = new Set(catalog.map((e) => e.key));
     for (const k of used) expect(keys.has(k), `${k} rendered but not in catalog`).toBe(true);
@@ -904,17 +812,6 @@ describe('BC-1c — every read ends in a NAMED state (founder-found: the door sa
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it('[source-text check] the screen has no silent exit: an unresolved service NAMES itself, and the door asks for its read directly (never via a state change React can skip)', () => {
-    const source = readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
-    // the old `if (service === null) return;` under a loading state is gone
-    expect(source).not.toMatch(/if \(service === null\) return;\s*\n\s*seq\.current/);
-    expect(source).toContain("if (service === null) {\n      setRead({ kind: 'not_configured' });");
-    // re-entering the SAME key must still read: the press calls load itself
-    expect(source).toContain('void load(v);');
-    // and the mount read no longer hangs off a [cleC] dependency
-    expect(source).not.toContain('void load(cleC);\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [cleC]);');
   });
 
   it('the timeout is REAL time, not a knob a slow link can widen — and it is bounded well under a minute', () => {
@@ -1093,16 +990,17 @@ describe('SP6.3 — the refusal port: one field crosses, and the buyer is never 
   });
 });
 
-describe('SP6.3 — [source-text checks] the card wires it, and a lost answer never invites an instant re-tap', () => {
+describe('SP6.3 — [source-text checks] the fold, and a lost answer never invites an instant re-tap', () => {
+  // REMBOURSABLE-1 (AUDIT-B+2 F-10) — the fold moved to the Commandes tab's
+  // Incidents card. The pin that stood here (« every dispatchable card carries
+  // the refusal fold ») passed for seven weeks over a component nothing
+  // mounted; its mount is now proven by a walk that presses a real reason
+  // (`rendu-commandes-rembourser.test.tsx`), never by the text of a file.
   const screenSource = () =>
-    readFileSync(join(import.meta.dirname, '..', 'src/operations/screen.tsx'), 'utf8');
+    readFileSync(join(import.meta.dirname, '..', 'src/commandes/signaler.tsx'), 'utf8');
 
-  it('every dispatchable card carries the refusal fold, and « has a number » comes from the ROW, not from hope', () => {
-    const source = screenSource();
-    expect(source).toContain('<SignalerRefus orderId={row.orderId} cleC={cleC} aUnNumero={row.contact !== null} />');
-    // no number, no key, no service → the fold renders NOTHING. An action that
-    // could only fail is worse than no action on a console.
-    expect(source).toContain('if (!aUnNumero || cleC === null || service === null) return null;');
+  it('no number, no key, no service → the fold renders NOTHING (an action that could only fail is worse than none)', () => {
+    expect(screenSource()).toContain('if (!aUnNumero || cleC === null || service === null) return null;');
   });
 
   it('THE REASON LIST DISAPPEARS AFTER A FAILED ATTEMPT — a lost response may mean the note landed, and two ordinary faults cost her a month', () => {
@@ -1640,7 +1538,7 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
       expect(start, `${loader} moved — this pin is watching nothing`).toBeGreaterThan(-1);
       const body = bloc(source, `const ${loader} = async`, '\n  };');
       expect(body, `${loader} swallows a refused key instead of escalating`).toContain(
-        "if (read.kind === 'bad_key') setRead({ kind: 'bad_key' });",
+        "if (read.kind === 'bad_key') setCleRefusee(true);",
       );
     }
   });

@@ -47,6 +47,12 @@ export interface CommandeRow {
     /** REMBOURSEMENT-2 — HIS refusal: « je ne peux pas fournir » (→ the
      *  archive; the buyer is refunded). */
     readonly refusedAt?: string;
+    /** REMBOURSABLE-1 (F-02) — the refusal was the FOUNDER's cancellation,
+     *  not his: the card says Boutik+ did it. Read only beside `refusedAt`. */
+    readonly refusPar?: 'fondateur';
+    /** REMBOURSABLE-1 (F-08) — the rider refused the colis at pickup: the
+     *  order is over and the colis never left his hands (→ the archive). */
+    readonly pickupRefusedAt?: string;
   };
   /**
    * COLIS-FOURNISSEUR-1 — the colis this order travels in (one buyer, one
@@ -389,7 +395,7 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     // one drops the WHOLE row. A row demoted to « no handover » would re-arm
     // the ramassage check over a colis already gone (verifier N4's law, now
     // guarding two more fields).
-    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'refusedAt'] as const;
+    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'refusedAt', 'pickupRefusedAt'] as const;
     const lus: Partial<Record<(typeof marks)[number], string>> = {};
     for (const m of marks) {
       if (fr[m] === undefined) continue;
@@ -397,7 +403,9 @@ function readCommandeRow(value: unknown): CommandeRow | null {
       lus[m] = fr[m];
     }
     if (Object.keys(lus).length === 0) return null;
-    fulfillment = lus;
+    // Who refused: an unknown value reads as HIS refusal — the card it gives
+    // asks for nothing, so no act can be re-armed by a word we do not know.
+    fulfillment = { ...lus, ...(lus.refusedAt !== undefined && fr['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}) };
   }
   // COLIS-FOURNISSEUR-1 — the same strictness: a malformed package drops the
   // WHOLE row, never a half-formed card asking for an act on a guessed bag.
