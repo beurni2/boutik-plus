@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-26 · REMBOURSABLE-1 (slice 3 of the AUDIT-B+2 plan) — every paid order has a road to its refund · ON THE BRANCH, awaiting the founder's word
+## 2026-09-26 · REMBOURSABLE-1 (slice 3 of the AUDIT-B+2 plan) — every paid order has a road to its refund · MERGED AND DEPLOYED 2026-09-26 on the founder's « go »
+
+**Merged and deployed (founder: « go », 2026-09-26).** `main` fast-forwarded `776896c → 285c991` (ancestry verified with `merge-base --is-ancestor` before the push). Offer service first, then the console and the supplier page. **ci 365 · expo-preview 243 · offer-deploy 42 · web-deploy 78 · fournisseur-web-deploy 20, all green on `285c991`** — read on the runs list. offer-deploy 42's own assertion, read off its log: « health 200 — live canon=3.20.0 release=285c991… · PROVENANCE OK — live Worker is 285c991be1c895f7ba2369e812f54a5de135b6cf speaking canon 3.20.0. » The founder answered « go » without ruling on the three questions in the report: the cancel wording ships as written (flagged as mine), F-82 and the older pickup refusals stay open until he rules.
 
 **Founder order (2026-09-26).** « go » on slice 3, « Every paid order can be refunded ». It closes F-02 (the manual button; the automatic timer waits for his ruling), F-08, F-10, F-33, F-37, F-61, F-69. **F-82 is NOT built** — see « Still open ».
 
