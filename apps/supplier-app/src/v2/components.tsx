@@ -273,11 +273,18 @@ export function Stepper({ value, onMinus, onPlus, onChangeText }: { value: strin
  * a FCFA field that opens the alphabetic keyboard on a 1GB Android is a failed
  * screen (SUPPLIER-AUTHORING-1).
  */
-export function Input({ label, value, onChangeText, defaultValue, keyboardType, placeholder }: { label: string; value?: string; onChangeText?: (t: string) => void; defaultValue?: string; keyboardType?: 'default' | 'number-pad'; placeholder?: string }) {
+export function Input({ label, value, onChangeText, defaultValue, keyboardType, placeholder, autoCapitalize, autoCorrect, spellCheck }: {
+  label: string; value?: string; onChangeText?: (t: string) => void; defaultValue?: string; keyboardType?: 'default' | 'number-pad'; placeholder?: string;
+  /** FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-06) — optional keyboard hints, unset by
+   *  default so every other field keeps the phone's normal typing. A CODE field
+   *  asks for capitals and no correction: a phone's sentence case and
+   *  autocorrect were turning a right code into a refused one. */
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'; autoCorrect?: boolean; spellCheck?: boolean;
+}) {
   return (
     <View>
       <Overline>{label}</Overline>
-      <TextInput style={[s.input, { marginTop: C16.labelGap }]} accessibilityLabel={label} value={value} defaultValue={defaultValue} onChangeText={onChangeText} keyboardType={keyboardType} placeholder={placeholder} placeholderTextColor={P.sub} />
+      <TextInput style={[s.input, { marginTop: C16.labelGap }]} accessibilityLabel={label} value={value} defaultValue={defaultValue} onChangeText={onChangeText} keyboardType={keyboardType} placeholder={placeholder} placeholderTextColor={P.sub} autoCapitalize={autoCapitalize} autoCorrect={autoCorrect} spellCheck={spellCheck} />
     </View>
   );
 }

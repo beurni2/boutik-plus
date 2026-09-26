@@ -48,7 +48,6 @@ const row = (orderId: string, fulfillment?: CommandeRow['fulfillment']): Command
   offerVersion: 'ov-1',
   paymentMode: 'FULL_PREPAY',
   paidAt: '2026-08-09T08:00:00.000Z',
-  zoneTo: 'Gounghin',
   sellerBasePrice: 8_000,
   ...(fulfillment === undefined ? {} : { fulfillment }),
 });

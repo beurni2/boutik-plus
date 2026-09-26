@@ -28,7 +28,6 @@ export interface CommandeRow {
   readonly offerVersion: string;
   readonly paymentMode: string;
   readonly paidAt: string;
-  readonly zoneTo: string;
   readonly sellerBasePrice: number;
   /**
    * The book's marks, in road order. BOUTIK-SUIVI (founder, 2026-08-09) adds
@@ -88,7 +87,7 @@ export interface ProduitRow {
   readonly variantsNote?: string;
   /** ABSENT means live to resellers right now; present names WHY it is not —
    *  the refusal ladder's own reason, never a local re-derivation. */
-  readonly hiddenReason?: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective';
+  readonly hiddenReason?: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective' | 'stock_unconfirmed';
 }
 
 export type ProduitsResult =
@@ -314,7 +313,10 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
   };
 }
 
-const HIDDEN_REASONS = ['product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective'] as const;
+/** Every reason the ladder can send (`projection.ts` ProjectionRefusal). A
+ *  reason missing here DROPS the row — how a frozen product vanished from his
+ *  list while it was only paused (AUDIT-B+2 F-07). */
+const HIDDEN_REASONS = ['product_not_active', 'product_not_approved', 'offer_not_active', 'offer_not_effective', 'stock_unconfirmed'] as const;
 
 /** Strict, like `readCommandeRow`: a malformed row is DROPPED WHOLE — a
  *  product with an unreadable price must not render a wrong one. */
@@ -358,7 +360,10 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     typeof r['offerVersion'] === 'string' &&
     typeof r['paymentMode'] === 'string' &&
     typeof r['paidAt'] === 'string' &&
-    typeof r['zoneTo'] === 'string' &&
+    // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — `zoneTo` is no longer read, nor
+    // required: the buyer's zone left his screen on 2026-09-02 and now leaves
+    // his wire. Not requiring it FIRST is what lets the server stop sending
+    // it without emptying every supplier's list.
     typeof r['sellerBasePrice'] === 'number' && Number.isSafeInteger(r['sellerBasePrice']);
   if (!ok) return null;
   // A MALFORMED fulfillment mark drops the WHOLE ROW (verifier N4): demoting
@@ -410,7 +415,6 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     offerVersion: r['offerVersion'] as string,
     paymentMode: r['paymentMode'] as string,
     paidAt: r['paidAt'] as string,
-    zoneTo: r['zoneTo'] as string,
     sellerBasePrice: r['sellerBasePrice'] as number,
     ...(fulfillment !== undefined ? { fulfillment } : {}),
     ...(colis !== undefined ? { colis } : {}),

@@ -178,6 +178,25 @@ function mintSupplierCode(): string {
 }
 
 /**
+ * FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-06) — the code as the person MEANT it. It is
+ * typed once, by hand, on a phone whose keyboard capitalises the first letter
+ * and lowers the rest, and may put spaces or nothing where the dashes were;
+ * hashing the keystrokes as-is refused the right code as « pas le bon ».
+ *
+ * Capitals, then 0 → O (before the filter, or the 0 would be dropped; 0 is
+ * never minted, O is), then only the minted alphabet survives. Sixteen letters,
+ * or eighteen starting « BF », regroup to the minted form — the one the mint
+ * hashed, so codes already given keep working. Anything else is returned
+ * unchanged and meets the same uniform 401 as any other wrong code.
+ */
+function codeCanonique(presented: string): string {
+  const lettres = presented.toUpperCase().replace(/0/g, 'O').replace(/[^A-Z2-7]/g, '');
+  const corps = lettres.length === 18 && lettres.startsWith('BF') ? lettres.slice(2) : lettres;
+  if (corps.length !== 16) return presented;
+  return `BF-${corps.slice(0, 4)}-${corps.slice(4, 8)}-${corps.slice(8, 12)}-${corps.slice(12, 16)}`;
+}
+
+/**
  * CONSOLE-2 — THE OPERATOR'S CHASE LOG, AND WHAT IT DELIBERATELY IS NOT.
  *
  * The founder's ruling (2026-08-01): « after 10 mn if the another supplier get
@@ -681,7 +700,7 @@ export class FulfillmentDO {
 
   private async resolveCode(presented: unknown): Promise<SupplierCodeRecord | null> {
     if (typeof presented !== 'string' || presented === '') return null;
-    const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(presented)}`);
+    const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(codeCanonique(presented))}`);
     return record ?? null;
   }
 
@@ -1085,7 +1104,12 @@ export class FulfillmentDO {
             offerVersion: r.offerVersion,
             paymentMode: r.paymentMode,
             paidAt: r.paidAt,
-            zoneTo: r.zoneTo,
+            // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — NO `zoneTo`. The founder
+            // took the buyer's zone off his screen on 2026-09-02; her
+            // whereabouts ride to the delivery organiser and nowhere else, so
+            // they do not ride to his phone either. Deployed AFTER the
+            // supplier page, whose reader no longer requires the field — the
+            // other order would empty every supplier's list.
             sellerBasePrice: r.sellerBasePrice,
             // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
             ...(r.colis !== undefined ? { colis: r.colis } : {}),

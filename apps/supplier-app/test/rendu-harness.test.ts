@@ -6,6 +6,9 @@ import * as svgDouble from './doubles/react-native-svg';
 import * as cryptoDouble from './doubles/expo-crypto';
 import * as imgDouble from './doubles/expo-image-manipulator';
 import * as fsDouble from './doubles/expo-file-system';
+import * as fontDouble from './doubles/expo-font';
+import { cheminResolu as cheminSelecteur } from './doubles/expo-image-picker';
+import { createRequire } from 'node:module';
 
 /**
  * ═══ RENDU-RÉEL — the harness holds ITSELF to the mock-certification law ═══
@@ -60,6 +63,7 @@ const DOUBLED: readonly { readonly spec: string; readonly mod: Record<string, un
   { spec: 'expo-crypto', mod: cryptoDouble as unknown as Record<string, unknown> },
   { spec: 'expo-image-manipulator', mod: imgDouble as unknown as Record<string, unknown> },
   { spec: 'expo-file-system', mod: fsDouble as unknown as Record<string, unknown> },
+  { spec: 'expo-font', mod: fontDouble as unknown as Record<string, unknown> },
 ];
 
 describe('every double is CERTIFIED to what the app imports', () => {
@@ -161,5 +165,37 @@ describe('every double is CERTIFIED to what the app imports', () => {
     const src = readFileSync(join(appDir, 'test/doubles/react-native.tsx'), 'utf8');
     expect(src).toContain('IT PROVIDES NOTHING ELSE');
     expect(src).toContain('may NEVER\n *   claim anything about appearance');
+  });
+});
+
+/**
+ * FOURNISSEUR-VRAI-1 — the two stand-ins this slice added, held to the same
+ * law: each reaches the app where the app actually looks, and each states what
+ * it may never be used to claim.
+ */
+describe('the picker and font stand-ins are CERTIFIED to where the app looks', () => {
+  it('the photo sheet stand-in sits where the app’s own lazy require resolves — a stand-in anywhere else is one the app never meets', () => {
+    const appRequire = createRequire(join(appDir, 'src/studio/pick-native.ts'));
+    expect(appRequire.resolve('expo-image-picker')).toBe(cheminSelecteur);
+    expect(typeof (appRequire('expo-image-picker') as { launchImageLibraryAsync?: unknown }).launchImageLibraryAsync).toBe('function');
+  });
+
+  it('the picker source still requires the sheet LAZILY and by that exact name — the stand-in’s whole premise', () => {
+    const src = readFileSync(join(appDir, 'src/studio/pick-native.ts'), 'utf8');
+    expect(src).toContain("require('expo-image-picker')");
+    expect(src).not.toMatch(/^import[^\n]*from 'expo-image-picker'/m);
+  });
+
+  it('the font double answers a `.ttf` require with an asset id, never the file parsed as script', () => {
+    const r = createRequire(join(appDir, 'src/ui/web-fonts.ts'));
+    expect(typeof r('../../assets/fonts/faso-premium/InstrumentSans-Regular.ttf')).toBe('number');
+  });
+
+  it('and each states its own bound — no walk may claim a photo was decoded, or a face was shown', () => {
+    const picker = readFileSync(join(appDir, 'test/doubles/expo-image-picker.ts'), 'utf8');
+    expect(picker).toContain('It decodes nothing and makes no\n *   pixels');
+    const font = readFileSync(join(appDir, 'test/doubles/expo-font.ts'), 'utf8');
+    expect(font).toContain('IT LOADS NO FONT');
+    expect(Object.values(fontDouble.FontDisplay)).toEqual(['auto', 'swap', 'block', 'fallback', 'optional']);
   });
 });

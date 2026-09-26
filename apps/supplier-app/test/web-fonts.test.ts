@@ -15,10 +15,12 @@ import { FP_FACES, FP_FONT_DIR } from '../src/ui/fonts';
 const appDir = join(import.meta.dirname, '..');
 const source = readFileSync(join(appDir, 'src/ui/web-fonts.ts'), 'utf8');
 
-/** Every `'Family': require('<path>.ttf')` row of the literal map. */
-const rows = [...source.matchAll(/'([A-Za-z-]+)':\s*require\('([^']+\.ttf)'\)/g)].map((m) => ({
+/** Every `'Family': { uri: require('<path>.ttf'), display: FontDisplay.X }`
+ *  row of the literal map — the display strategy captured with it (F-29). */
+const rows = [...source.matchAll(/'([A-Za-z-]+)':\s*\{\s*uri:\s*require\('([^']+\.ttf)'\),\s*display:\s*FontDisplay\.([A-Z]+)\s*\}/g)].map((m) => ({
   family: m[1]!,
   path: m[2]!,
+  display: m[3]!,
 }));
 
 describe('web font map covers the Faso Premium faces exactly (BOUTIK-WEB-W1)', () => {
@@ -40,7 +42,14 @@ describe('web font map covers the Faso Premium faces exactly (BOUTIK-WEB-W1)', (
     }
   });
 
-  it('the app root mounts the loader — a map nothing calls loads nothing', () => {
-    expect(readFileSync(join(appDir, 'src/v2/AppV2.tsx'), 'utf8')).toMatch(/useWebFonts\(\)/);
+  it('every face is declared font-display SWAP — `auto` hides his labels and FCFA amounts until ~300 KB of type arrives (AUDIT-B+2 F-29)', () => {
+    expect(rows.map((r) => r.display)).toEqual(FP_FACES.map(() => 'SWAP'));
+    expect(source).toMatch(/import \{ FontDisplay, useFonts, type FontSource \} from 'expo-font';/);
+  });
+
+  it('EVERY web root mounts the loader — the founder\'s console AND the suppliers\' page (AUDIT-B+2 F-28: the suppliers\' page never did, so it painted in a fallback face)', () => {
+    for (const root of ['src/v2/AppV2.tsx', 'src/fournisseur/FournisseurApp.tsx']) {
+      expect(readFileSync(join(appDir, root), 'utf8'), root).toMatch(/^\s*useWebFonts\(\);/m);
+    }
   });
 });

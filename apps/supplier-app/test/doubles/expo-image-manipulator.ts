@@ -31,11 +31,36 @@ export const SaveFormat = {
   WEBP: 'webp',
 } as const;
 
+/**
+ * FOURNISSEUR-VRAI-1 — ARMED, it hands back ONE encoded result the walk
+ * supplied: base64 bytes and their size. It still makes no pixels — the bytes
+ * are the walk's own, and the app's REAL strip and `assertExifFree` run over
+ * them exactly as on a phone, so a walk that arms garbage meets the real
+ * refusal. Unarmed, it throws as before.
+ */
+let arme: { readonly base64: string; readonly width: number; readonly height: number } | null = null;
+
+export function armerManipulateur(encode: { readonly base64: string; readonly width: number; readonly height: number } | null): void {
+  arme = encode;
+}
+
 export const ImageManipulator = {
-  manipulate(uri: unknown): never {
-    throw new Error(
-      `expo-image-manipulator double: no image pipeline under vitest (asked for « ${String(uri)} »). ` +
-        'A walk that means to exercise capture must arm this double explicitly.',
-    );
+  manipulate(uri: unknown) {
+    const sortie = arme;
+    if (sortie === null) {
+      throw new Error(
+        `expo-image-manipulator double: no image pipeline under vitest (asked for « ${String(uri)} »). ` +
+          'A walk that means to exercise capture must arm this double explicitly.',
+      );
+    }
+    const ctx = {
+      resize: () => ctx,
+      renderAsync: async () => ({
+        width: sortie.width,
+        height: sortie.height,
+        saveAsync: async () => ({ base64: sortie.base64, width: sortie.width, height: sortie.height }),
+      }),
+    };
+    return ctx;
   },
 };

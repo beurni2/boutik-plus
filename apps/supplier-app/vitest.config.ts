@@ -45,6 +45,11 @@ export default defineConfig({
       // a real byte read fails loudly instead of passing over a fiction.
       'expo-image-manipulator': at('./test/doubles/expo-image-manipulator.ts'),
       'expo-file-system': at('./test/doubles/expo-file-system.ts'),
+      // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-28) — the growth rule again: the
+      // suppliers' page now mounts the web-font loader at its root. The double
+      // loads no font and states so; it also gives Node the `.ttf` asset
+      // loader Metro provides.
+      'expo-font': at('./test/doubles/expo-font.ts'),
     },
   },
 });

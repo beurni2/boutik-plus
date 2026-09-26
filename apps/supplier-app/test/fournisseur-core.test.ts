@@ -34,7 +34,7 @@ const keys = new Set(catalog.map((e) => e.key));
 function row(orderId: string, paidAt: string, over: Partial<CommandeRow> = {}): CommandeRow {
   return {
     orderId, productName: 'Pagne tissé', productVersionId: 'pv-1', offerVersion: 'ov-1',
-    paymentMode: 'FULL_PREPAY', paidAt, zoneTo: 'Gounghin', sellerBasePrice: 8_000, ...over,
+    paymentMode: 'FULL_PREPAY', paidAt, sellerBasePrice: 8_000, ...over,
   };
 }
 
@@ -148,6 +148,19 @@ describe('the port — Bearer code, refusals by status, malformed rows dropped',
 
     stubFetch(async () => new Response('no', { status: 401 }));
     expect(await resolveFournisseurService()!.listMine('k')).toEqual({ ok: false, reason: 'bad_code' });
+  });
+
+  it('FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — the buyer\'s zone is neither required nor kept: a row WITHOUT it parses (the server after the change), and a row WITH it (the server still live while this page deploys first) parses with the zone left on the wire', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offer.example');
+    const sans = row('ord-sans-zone', '2026-08-02T08:00:00.000Z');
+    stubFetch(async () =>
+      new Response(JSON.stringify({ ok: true, orders: [sans, { ...row('ord-avec-zone', '2026-08-02T09:00:00.000Z'), zoneTo: '1200 Logements' }] })),
+    );
+    const res = await resolveFournisseurService()!.listMine('k');
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.orders.map((r) => r.orderId)).toEqual(['ord-sans-zone', 'ord-avec-zone']);
+    for (const r of res.orders) expect(Object.keys(r)).not.toContain('zoneTo');
+    expect(JSON.stringify(res.orders)).not.toContain('1200 Logements');
   });
 
   it('a MALFORMED fulfillment mark drops the WHOLE ROW — demoting it to « no mark » would re-arm « Accepter » on an already-accepted order (verifier N4)', async () => {

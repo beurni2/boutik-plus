@@ -291,8 +291,15 @@ describe('1b-i — /fulfillment/mine: the code is the identity, and only YOUR or
     expect(aOrders.some((o) => o['orderId'] === 'ord-mine-b1')).toBe(false);
     const row = aOrders.find((o) => o['orderId'] === 'ord-mine-a1')!;
     expect(Object.keys(row).sort()).toEqual(
-      ['offerVersion', 'orderId', 'paidAt', 'paymentMode', 'productName', 'productVersionId', 'sellerBasePrice', 'zoneTo'].sort(),
+      ['offerVersion', 'orderId', 'paidAt', 'paymentMode', 'productName', 'productVersionId', 'sellerBasePrice'].sort(),
     ); // the ALLOWLIST: no relance, no supplierId, no correlation, no registeredAt
+    // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — and no zone: the founder's
+    // 2026-09-02 order (« do not show the address of the buyer ») took it off
+    // his screen, and her whereabouts ride to the delivery organiser and
+    // nowhere else — so they leave his phone's wire too. Asserted on the RAW
+    // body: a zone that rode unparsed would still be on his device.
+    expect(a.text).not.toContain('zoneTo');
+    expect(a.text).not.toContain('Gounghin');
 
     const b = await mine(codeB);
     const bOrders = b.json['orders'] as Record<string, unknown>[];

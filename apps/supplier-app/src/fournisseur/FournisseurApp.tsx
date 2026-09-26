@@ -21,9 +21,12 @@ import {
   PRET_REPOS,
   aAccepterDuColis,
   fournisseurVue,
+  modeVisible,
   pretChoisir,
   pretEnvoyer,
   pretIssue,
+  pretPhotoEnMain,
+  pretPhotoRefusee,
   produitsVue,
   type CarteFournisseur,
   type CommandeVue,
@@ -34,6 +37,7 @@ import {
 } from './view';
 import { galleryPhotos, photoSlot, type GalleryPhoto } from '../supply/produits-view';
 import { FicheVideo } from '../v2/fiche-video';
+import { useWebFonts } from '../ui/web-fonts';
 import type { ProduitVue } from './view';
 
 /**
@@ -62,6 +66,10 @@ import type { ProduitVue } from './view';
 const REFRESH_EVERY_MS = 60_000;
 
 export function FournisseurApp() {
+  // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-28) — the Faso Premium faces on his web
+  // page too. Every text style here names them; without the loader every
+  // supplier screen painted in a browser fallback face. Never gates a render.
+  useWebFonts();
   const [code, setCode] = useState<string | null>(() => readStoredCode());
   // LISTER-POUR-1c — two views, ONE door: Commandes (his hands) and Mes
   // produits (his eyes). Both read through the same stored code; clearing it
@@ -151,6 +159,9 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
   const inFlight = useRef(false);
   const readSeq = useRef(0);
   const mediaBase = process.env.EXPO_PUBLIC_MEDIA_BASE ?? null;
+  /** F-19 — the last refresh failed while a good list is on screen: the list
+   *  stays, with a line saying it may have changed since. */
+  const [perimee, setPerimee] = useState(false);
 
   const charger = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
@@ -160,8 +171,17 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
     try {
       const res = await service.listProduits(code);
       if (seq !== readSeq.current) return; // a newer read owns the screen
-      if (res.ok) setRead({ kind: 'ok', rows: res.produits });
-      else setRead({ kind: res.reason === 'bad_code' ? 'bad_code' : 'failed' });
+      if (res.ok) {
+        setRead({ kind: 'ok', rows: res.produits });
+        setPerimee(false);
+      } else if (res.reason === 'bad_code') {
+        setRead({ kind: 'bad_code' });
+      } else {
+        // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-19) — one failed refresh never
+        // wipes a good list: the wall is for « never read at all ».
+        setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'failed' }));
+        setPerimee(true);
+      }
     } finally {
       inFlight.current = false;
     }
@@ -184,6 +204,12 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
       <View style={{ marginTop: 8 }}>
         <Text style={role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub)}>{t('fournisseur.produits_intro')}</Text>
       </View>
+
+      {perimee && (vue.kind === 'liste' || vue.kind === 'empty') && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="warn">{t('fournisseur.liste_pas_a_jour')}</Banner>
+        </View>
+      )}
 
       {vue.kind === 'loading' && (
         <View style={{ marginTop: 14 }}>
@@ -316,12 +342,23 @@ function SPorteCode({ onCodeSaved }: { onCodeSaved: (code: string) => void }) {
   const trimmed = draft.trim();
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>{t('fournisseur.titre')}</PageTitle>
+      {/* FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-25) — the door has its own title: it
+          opens on « Mes produits », so « Mes commandes » promised a screen he
+          would not land on. */}
+      <PageTitle>{t('fournisseur.porte_titre')}</PageTitle>
       <View style={{ marginTop: 14 }}>
         <Banner tone="info">{t('fournisseur.code_explication')}</Banner>
       </View>
       <View style={{ marginTop: 16 }}>
-        <Input label={t('fournisseur.code_libelle')} value={draft} onChangeText={setDraft} />
+        {/* F-06 — the phone is told this is a code: capitals, no correction. */}
+        <Input
+          label={t('fournisseur.code_libelle')}
+          value={draft}
+          onChangeText={setDraft}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          spellCheck={false}
+        />
       </View>
       <View style={{ marginTop: 16 }}>
         <C07BtnPrimary
@@ -374,6 +411,19 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
    *  « prête » and that control leaves the screen, so its own sentence would
    *  leave with it and the card would flip without a word. */
   const [refusTropTard, setRefusTropTard] = useState<ReadonlySet<string>>(new Set());
+  /** F-19 — the last refresh failed while a good list is on screen. */
+  const [perimee, setPerimee] = useState(false);
+  /**
+   * FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-20) — a « code confirmé » he was shown,
+   * HELD HERE until he refreshes by hand or changes tab (this screen remounts
+   * per tab). The confirmed code writes the book's mark, so the minute refresh
+   * moves the card to the next screen — and its verdict used to leave with it
+   * while he was still handing the parcel over. Only the verdict is held,
+   * never the card's stage.
+   */
+  const [tenus, setTenus] = useState<readonly { readonly cle: string; readonly nom: string; readonly phrase: string }[]>([]);
+  const tenir = (cle: string, nom: string, phrase: string): void =>
+    setTenus((prev) => [...prev.filter((x) => x.cle !== cle), { cle, nom, phrase }]);
 
   const load = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
@@ -383,8 +433,18 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     try {
       const [res, prods] = await Promise.all([service.listMine(code), service.listProduits(code)]);
       if (seq !== readSeq.current) return; // a newer read owns the screen
-      if (res.ok) setRead({ kind: 'ok', rows: res.orders });
-      else setRead({ kind: res.reason === 'bad_code' ? 'bad_code' : 'failed' });
+      if (res.ok) {
+        setRead({ kind: 'ok', rows: res.orders });
+        setPerimee(false);
+      } else if (res.reason === 'bad_code') {
+        setRead({ kind: 'bad_code' });
+      } else {
+        // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-19) — the SAME list branch stays,
+        // with the same card keys, so a half-typed code or a verdict on a card
+        // survives a failed refresh. The wall is for « never read at all ».
+        setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'failed' }));
+        setPerimee(true);
+      }
       // The photo join never speaks for the list: a products failure leaves
       // the previous map alone (his thumbnails do not blink on one bad read).
       if (prods.ok) {
@@ -421,9 +481,23 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
   };
 
   const choisirPhoto = async (orderId: string): Promise<void> => {
-    const batch = await pickShots(nativeImageSource, 1);
+    // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-21) — a photo this phone cannot open
+    // is said on HIS card, never a silent dead tap; bytes the privacy strip
+    // cannot prove clean throw, and are refused the same way — nothing
+    // uploads. Backing out of the sheet stays silent.
+    const refusee = (): void => setPret((prev) => pretPhotoRefusee(prev, orderId, 'fournisseur.pret_photo_illisible') ?? prev);
+    let batch: Awaited<ReturnType<typeof pickShots>>;
+    try {
+      batch = await pickShots(nativeImageSource, 1);
+    } catch {
+      refusee();
+      return;
+    }
     const shot = batch.shots[0];
-    if (shot === undefined) return; // cancelled or refused — the picker said its own sentence
+    if (shot === undefined) {
+      if (batch.refusal !== null) refusee();
+      return;
+    }
     const next = pretChoisir(pret, orderId, shot.derivative.uri);
     if (next !== null) setPret(next);
   };
@@ -458,10 +532,11 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
    *  must stay under his eyes — the coursier still has to validate on his
    *  phone before the colis changes hands — and the row moves to the archive
    *  on his next refresh, when the book is re-asked. */
-  const verifierRetour = async (orderId: string, dit: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
+  const verifierRetour = async (orderId: string, dit: string, cle: string, nom: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
     if (service === null) return 'echec';
     try {
       const res = await service.verifierRetour(code, orderId, dit);
+      if (res.ok && res.verdict === 'confirme') tenir(cle, nom, 'retour.confirme');
       if (res.ok) return res.verdict;
       if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
       return 'echec';
@@ -472,10 +547,11 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
 
   /** RAMASSAGE — the act rides the session code like every other; a dead code
    *  escalates the whole screen to the door, exactly as accept does. */
-  const verifierRamassage = async (orderId: string, dit: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
+  const verifierRamassage = async (orderId: string, dit: string, cle: string, nom: string): Promise<'confirme' | 'non_confirme' | 'echec'> => {
     if (service === null) return 'echec';
     try {
       const res = await service.verifierRamassage(code, orderId, dit);
+      if (res.ok && res.verdict === 'confirme') tenir(cle, nom, 'ramassage.confirme');
       if (res.ok) return res.verdict;
       if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
       return 'echec';
@@ -488,8 +564,9 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     if (service === null) return;
     const started = pretEnvoyer(pret);
     if (started === null) return;
-    if (pret.etat !== 'photo_choisie' || pret.orderId !== commande.orderId) return;
-    const previewUri = pret.previewUri;
+    // F-22 — the photo in his hand: chosen, or kept through a refusal a retry cures.
+    const previewUri = pretPhotoEnMain(pret);
+    if (previewUri === null || started.etat !== 'envoi' || started.orderId !== commande.orderId) return;
     setPret(started);
     let issue;
     try {
@@ -497,19 +574,19 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
       //    so the whole act sits inside one 10-minute window.
       const ch = await service.challenge(code, commande.orderId);
       if (!ch.ok) {
-        issue = pretIssue(commande.orderId, { ok: false, reason: ch.reason === 'unreachable' ? 'unreachable' : ch.reason });
+        issue = pretIssue(commande.orderId, { ok: false, reason: ch.reason === 'unreachable' ? 'unreachable' : ch.reason }, previewUri);
       } else {
         // 2. the stripped bytes, through the UPLOAD-ONLY seam (verifier M1:
         //    resolveMediaService carried revokeImage + /media/revoke into the
         //    artifact — a destructive capability the ruling never granted).
         const upload = resolveReadinessUpload();
         if (upload === null) {
-          issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' });
+          issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' }, previewUri);
         } else {
           const bytes = await bytesFromUri(previewUri);
           const up = await upload(bytes);
           if (!up.ok) {
-            issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' });
+            issue = pretIssue(commande.orderId, { ok: false, reason: 'photo_echec' }, previewUri);
           } else {
             // 3. the strict canon confirmation — repeating the LOCKED terms.
             //    Sending IS the availability attestation; the sentence above
@@ -525,12 +602,13 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
                 availableConfirmed: true,
                 at: new Date().toISOString(),
               }),
+              previewUri,
             );
           }
         }
       }
     } catch {
-      issue = pretIssue(commande.orderId, { ok: false, reason: 'unreachable' });
+      issue = pretIssue(commande.orderId, { ok: false, reason: 'unreachable' }, previewUri);
     }
     setPret(issue.ui);
     if (issue.then === 'refresh') await load(true);
@@ -577,20 +655,20 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     if (service === null) return;
     const started = pretEnvoyer(pret);
     if (started === null) return;
-    if (pret.etat !== 'photo_choisie' || pret.orderId !== carte.packageId) return;
-    const previewUri = pret.previewUri;
+    const previewUri = pretPhotoEnMain(pret);
+    if (previewUri === null || started.etat !== 'envoi' || started.orderId !== carte.packageId) return;
     setPret(started);
-    let issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' });
+    let issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' }, previewUri);
     try {
       const upload = resolveReadinessUpload();
       const up = upload === null ? null : await upload(await bytesFromUri(previewUri));
       if (up === null || !up.ok) {
-        issue = pretIssue(carte.packageId, { ok: false, reason: 'photo_echec' });
+        issue = pretIssue(carte.packageId, { ok: false, reason: 'photo_echec' }, previewUri);
       } else {
-        issue = await pretColis(service, code, carte.packageId, carte.articles, up.value);
+        issue = await pretColis(service, code, carte.packageId, carte.articles, up.value, previewUri);
       }
     } catch {
-      issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' });
+      issue = pretIssue(carte.packageId, { ok: false, reason: 'unreachable' }, previewUri);
     }
     setPret(issue.ui);
     if (issue.then === 'refresh') await load(true);
@@ -607,9 +685,26 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     : zone === 'livrees' ? 'fournisseur.compte_livrees'
     : 'fournisseur.a_faire';
 
+  // F-20 — a held verdict speaks from the top only once its card has left
+  // this screen; while the card is here, the card says it itself.
+  const surEcran = new Set(vue.kind === 'liste' ? vue.cartes.map((c) => (c.kind === 'colis' ? c.packageId : c.commande.orderId)) : []);
+  const verdictsTenus = tenus.filter((v) => !surEcran.has(v.cle));
+
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
       <PageTitle>{t(titreKey)}</PageTitle>
+
+      {perimee && (vue.kind === 'liste' || vue.kind === 'empty') && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="warn">{t('fournisseur.liste_pas_a_jour')}</Banner>
+        </View>
+      )}
+
+      {verdictsTenus.map((v) => (
+        <View key={`tenu-${v.cle}`} style={{ marginTop: 14 }}>
+          <Banner tone="success" check>{`${v.nom} : ${t(v.phrase)}`}</Banner>
+        </View>
+      ))}
 
       {vue.kind === 'loading' && (
         <View style={{ marginTop: 14 }}>
@@ -652,7 +747,8 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
         <>
           <View style={{ marginTop: 8 }}>
             <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)}>
-              {t(compteKey).replace('{n}', String(zone === 'commandes' ? vue.aFaire : vue.commandes.length))}
+              {/* F-23 — a parcel counts once, on every screen: cards, not articles. */}
+              {t(compteKey).replace('{n}', String(zone === 'commandes' ? vue.aFaire : vue.cartes.length))}
             </Text>
           </View>
           {vue.cartes.map((carte) => {
@@ -660,6 +756,7 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
               // The pickup and return checks name the bag through its first
               // article still in play — Séra resolves the ONE course from any.
               const vivant = carte.articles.find((a) => a.etape !== 'refusee' && a.etape !== 'livree') ?? carte.articles[0]!;
+              const noms = carte.articles.map((a) => (a.productName !== '' ? a.productName : a.productVersionId)).join(' · ');
               return (
                 <CarteColis
                   key={carte.packageId}
@@ -672,14 +769,15 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
                   onAccepter={() => { void accepterColis(carte.packageId, aAccepterDuColis(carte.articles)); }}
                   onChoisirPhoto={() => { void choisirPhoto(carte.packageId); }}
                   onEnvoyer={() => { void envoyerColis(carte); }}
-                  onVerifierRamassage={(dit) => verifierRamassage(vivant.orderId, dit)}
-                  onVerifierRetour={(dit) => verifierRetour(vivant.orderId, dit)}
+                  onVerifierRamassage={(dit) => verifierRamassage(vivant.orderId, dit, carte.packageId, noms)}
+                  onVerifierRetour={(dit) => verifierRetour(vivant.orderId, dit, carte.packageId, noms)}
                   onRefuser={(orderId) => refuser(orderId)}
                   refusTropTard={refusTropTard}
                 />
               );
             }
             const c = carte.commande;
+            const nom = c.productName !== '' ? c.productName : c.productVersionId;
             return (
               <CarteCommande
                 key={c.orderId}
@@ -692,15 +790,16 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
                 onAccepter={() => { void accepter(c.orderId); }}
                 onChoisirPhoto={() => { void choisirPhoto(c.orderId); }}
                 onEnvoyer={() => { void envoyer(c); }}
-                onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit)}
-                onVerifierRetour={(dit) => verifierRetour(c.orderId, dit)}
+                onVerifierRamassage={(dit) => verifierRamassage(c.orderId, dit, c.orderId, nom)}
+                onVerifierRetour={(dit) => verifierRetour(c.orderId, dit, c.orderId, nom)}
                 onRefuser={() => refuser(c.orderId)}
                 refusTropTard={refusTropTard.has(c.orderId)}
               />
             );
           })}
           <View style={{ marginTop: 22 }}>
-            <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { void load(); }} />
+            {/* A refresh by hand is also « I have seen it »: the held verdicts go. */}
+            <BtnSoft label={t('operations.actualiser')} icon="retry" onPress={() => { setTenus([]); void load(); }} />
           </View>
         </>
       )}
@@ -813,6 +912,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
   const mine = (u: PretUi): u is Exclude<PretUi, { etat: 'repos' }> =>
     u.etat !== 'repos' && u.orderId === commande.orderId;
   const enEnvoi = pret.etat === 'envoi' && pret.orderId === commande.orderId;
+  const enMain = mine(pret) ? pretPhotoEnMain(pret) : null;
 
   return (
     <Card variant="Llist" style={{ marginTop: 10 }}>
@@ -836,9 +936,18 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
               nowhere else, the same law as her number. What he reads is the
               payment fact and the price HE listed (`sellerBasePrice` is his
               base price on the /mine allowlist, never the buyer's total). */}
-          <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={2}>
-            {modeLabel} · {formatF(commande.sellerBasePrice)}
+          {/* FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-09) — his price on its OWN line,
+              named: paired with the payment way it read as the amount the
+              buyer owes at the door, which it is not. The payment way stands
+              alone, and only while the order is moving. */}
+          <Text style={[role({ f: 'IS', w: 700, s: 13 }, P.ink), { marginTop: 2 }]} numberOfLines={2}>
+            {t('fournisseur.votre_prix').replace('{prix}', formatF(commande.sellerBasePrice))}
           </Text>
+          {modeVisible(commande.etape) && (
+            <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]} numberOfLines={2}>
+              {modeLabel}
+            </Text>
+          )}
         </View>
       </View>
       {galerie.length > 1 && (
@@ -915,10 +1024,10 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
         <View style={{ marginTop: 10 }}>
           {enEnvoi ? (
             <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.pret_envoi')}</Text>
-          ) : mine(pret) && pret.etat === 'photo_choisie' ? (
+          ) : enMain !== null ? (
             <>
               <Image
-                source={{ uri: pret.previewUri }}
+                source={{ uri: enMain }}
                 // FOUNDER REPORT (2026-08-08): « the proof photos are too big in
                 // the screen » — on the webapp '100%' is the whole browser width.
                 // Same cap as the Terminées photo (commandes/screen.tsx).
@@ -979,11 +1088,14 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
     : t('operations.mode_paye');
   const mine = pret.etat !== 'repos' && pret.orderId === carte.packageId;
   const enEnvoi = pret.etat === 'envoi' && pret.orderId === carte.packageId;
+  const enMain = mine ? pretPhotoEnMain(pret) : null;
   const aFaire = carte.etape === 'a_accepter' || carte.etape === 'a_preparer';
   return (
     <Card variant="Llist" style={{ marginTop: 10 }}>
       <Overline level="card">{`${t('fournisseur.colis_titre')} · ${carte.articles.length} ${t('fournisseur.colis_articles')}`}</Overline>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{modeLabel}</Text>
+      {modeVisible(carte.etape) && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{modeLabel}</Text>
+      )}
       {carte.articles.map((a) => {
         const slot = photoSlot(photos.get(a.productVersionId) ?? [], mediaBase);
         const nom = a.productName !== '' ? a.productName : a.productVersionId;
@@ -997,7 +1109,9 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
               )}
               <View style={{ flex: 1 }}>
                 <Text style={role({ f: 'BG', w: 700, s: 14 }, P.ink)} numberOfLines={2}>{nom}</Text>
-                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{formatF(a.sellerBasePrice)}</Text>
+                <Text style={[role({ f: 'IS', w: 700, s: 12 }, P.ink), { marginTop: 2 }]}>
+                  {t('fournisseur.votre_prix').replace('{prix}', formatF(a.sellerBasePrice))}
+                </Text>
                 {a.etape === 'refusee' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_refuse')}</Text>
                 ) : a.etape === 'livree' && carte.etape !== 'livree' ? (
@@ -1039,10 +1153,10 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
         <View style={{ marginTop: 12 }}>
           {enEnvoi ? (
             <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.pret_envoi')}</Text>
-          ) : mine && pret.etat === 'photo_choisie' ? (
+          ) : enMain !== null ? (
             <>
               <Image
-                source={{ uri: pret.previewUri }}
+                source={{ uri: enMain }}
                 style={{ width: '100%', maxWidth: 340, height: 180, borderRadius: 12, backgroundColor: P.bg }}
                 resizeMode="cover"
               />

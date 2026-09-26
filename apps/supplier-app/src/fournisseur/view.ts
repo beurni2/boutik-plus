@@ -144,6 +144,17 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
   return 'a_accepter';
 }
 
+/**
+ * FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-09) — the payment way (« Tout est payé » /
+ * « Reste à payer à la porte ») is a fact about an order STILL MOVING. On a
+ * delivered one nothing is left to pay, and on a refused or returned one « tout
+ * est payé » would sit beside « le client sera remboursé ». His price is shown
+ * on its own line at every stage; this line only while the order moves.
+ */
+export function modeVisible(etape: EtapeCommande): boolean {
+  return etape === 'a_accepter' || etape === 'a_preparer' || etape === 'prete' || etape === 'en_route';
+}
+
 const ETAPE_RANK: Record<EtapeCommande, number> = {
   a_accepter: 0, a_preparer: 1, prete: 2, en_route: 3, livree: 4, retournee: 4, refusee: 4,
 };
@@ -240,7 +251,14 @@ export type PretUi =
   | { readonly etat: 'photo_choisie'; readonly orderId: string; readonly previewUri: string }
   /** Challenge + upload + confirmation in flight — one spinner, one sentence. */
   | { readonly etat: 'envoi'; readonly orderId: string }
-  | { readonly etat: 'refus'; readonly orderId: string; readonly messageKey: string };
+  /**
+   * FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-22) — a refusal that another tap can
+   * cure KEEPS the photo he chose (`previewUri`): the card goes on showing it
+   * with « Envoyer la preuve » armed, so « Réessayez » and « Appuyez à nouveau
+   * sur Envoyer la preuve » name a button that is on screen. A refusal no
+   * retry can cure (terms mismatch, not his order) drops it, as before.
+   */
+  | { readonly etat: 'refus'; readonly orderId: string; readonly messageKey: string; readonly previewUri?: string };
 
 export const PRET_REPOS: PretUi = { etat: 'repos' };
 
@@ -251,8 +269,28 @@ export function pretChoisir(ui: PretUi, orderId: string, previewUri: string): Pr
 }
 
 export function pretEnvoyer(ui: PretUi): PretUi | null {
-  if (ui.etat !== 'photo_choisie') return null;
+  if (ui.etat === 'repos' || pretPhotoEnMain(ui) === null) return null;
   return { etat: 'envoi', orderId: ui.orderId };
+}
+
+/** The photo the card still holds, ready to send — chosen, or kept through a
+ *  refusal a retry can cure (F-22). `null` means « Choisir la photo » is the act. */
+export function pretPhotoEnMain(ui: PretUi): string | null {
+  if (ui.etat === 'photo_choisie') return ui.previewUri;
+  if (ui.etat === 'refus') return ui.previewUri ?? null;
+  return null;
+}
+
+/**
+ * FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-21) — the photo he picked could not be
+ * opened (a format this phone cannot decode, or bytes the privacy strip
+ * cannot prove clean): its own sentence on HIS card, never a silent dead tap.
+ * `null` while another card is sending, so a refusal on card B can never
+ * overwrite card A's send in flight.
+ */
+export function pretPhotoRefusee(ui: PretUi, orderId: string, messageKey: string): PretUi | null {
+  if (ui.etat === 'envoi') return null;
+  return { etat: 'refus', orderId, messageKey };
 }
 
 export type PretIssue =
@@ -282,14 +320,24 @@ export function pretRefusKey(reason: Exclude<ReadyResult, { ok: true }>['reason'
   }
 }
 
-export function pretIssue(orderId: string, result: ReadyResult | { readonly ok: false; readonly reason: 'photo_echec' }): PretIssue {
+/** The refusals another send can cure — the photo stays in his hand (F-22). */
+const PRET_RETENTABLE: readonly string[] = [
+  'photo_echec', 'unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used',
+];
+
+export function pretIssue(
+  orderId: string,
+  result: ReadyResult | { readonly ok: false; readonly reason: 'photo_echec' },
+  previewUri?: string,
+): PretIssue {
   if ('ok' in result && result.ok) return { ui: PRET_REPOS, then: 'refresh' };
   if (result.reason === 'bad_code') return { ui: PRET_REPOS, then: 'bad_code' };
   if (result.reason === 'already_ready') return { ui: PRET_REPOS, then: 'refresh' }; // it IS ready — show the truth
+  const garde = previewUri !== undefined && PRET_RETENTABLE.includes(result.reason) ? { previewUri } : {};
   if (result.reason === 'photo_echec') {
-    return { ui: { etat: 'refus', orderId, messageKey: 'fournisseur.pret_photo_echec' }, then: 'none' };
+    return { ui: { etat: 'refus', orderId, messageKey: 'fournisseur.pret_photo_echec', ...garde }, then: 'none' };
   }
-  return { ui: { etat: 'refus', orderId, messageKey: pretRefusKey(result.reason) }, then: 'none' };
+  return { ui: { etat: 'refus', orderId, messageKey: pretRefusKey(result.reason), ...garde }, then: 'none' };
 }
 
 
@@ -334,6 +382,10 @@ export function produitEtatKey(reason: ProduitRow['hiddenReason']): string {
       return 'fournisseur.produit_en_attente';
     case 'offer_not_effective':
       return 'fournisseur.produit_pas_encore';
+    // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-07) — STOCK-JOURNAL-1's freeze. The
+    // cause only: the founder confirms stock, so there is no act to ask of him.
+    case 'stock_unconfirmed':
+      return 'fournisseur.produit_stock_gele';
   }
 }
 

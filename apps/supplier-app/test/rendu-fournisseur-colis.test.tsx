@@ -171,7 +171,10 @@ describe('COLIS-FOURNISSEUR-1 — one card for one colis', () => {
     const refus = fil.calls.filter((c) => c.path === '/fulfillment/refuse');
     expect(refus.map((c) => c.body?.['orderId'])).toEqual(['c1']);
     expect(screen.shows('Colis · 2 articles')).toBe(true);
-    expect(screen.shows('Refusé par vous. Le client est remboursé.'), `no refused line. On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    // AUDIT-B+2 F-24 — « sera remboursé »: Boutik+ cannot know the refund
+    // happened (it is Shop+'s, confirmed by the provider, and can stall).
+    expect(screen.shows('Refusé par vous. Le client sera remboursé.'), `no refused line. On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('Le client est remboursé')).toBe(false);
     expect(screen.canPress('Accepter le colis')).toBe(true);
 
     // Accepting now accepts only what is left.

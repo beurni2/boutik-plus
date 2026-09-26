@@ -20,12 +20,14 @@ export async function pretColis(
   packageId: string,
   articles: readonly CommandeVue[],
   photoRef: MediaRefInput,
+  /** The photo on his card — kept through a refusal a retry can cure (F-22). */
+  previewUri?: string,
 ): Promise<PretIssue> {
-  let issue = pretIssue(packageId, { ok: false, reason: 'unreachable' });
+  let issue = pretIssue(packageId, { ok: false, reason: 'unreachable' }, previewUri);
   for (const a of articles.filter((x) => x.etape === 'a_preparer')) {
     const ch = await service.challenge(code, a.orderId);
     if (!ch.ok) {
-      issue = pretIssue(packageId, { ok: false, reason: ch.reason });
+      issue = pretIssue(packageId, { ok: false, reason: ch.reason }, previewUri);
       if (ch.reason === 'already_ready') continue;
       return issue;
     }
@@ -40,6 +42,7 @@ export async function pretColis(
         availableConfirmed: true,
         at: new Date().toISOString(),
       }),
+      previewUri,
     );
     if (issue.then !== 'refresh') return issue;
   }

@@ -18,7 +18,7 @@ const PHOTO = { assetId: 'asset-colis-1', role: 'readiness' } as never;
 function article(orderId: string, pv: string, fulfillment: CommandeRow['fulfillment']): CommandeVue {
   const r: CommandeRow = {
     orderId, productName: `Produit ${orderId}`, productVersionId: pv, offerVersion: 'ov-1',
-    paymentMode: 'FULL_PREPAY', paidAt: '2026-09-23T07:00:00.000Z', zoneTo: 'Gounghin', sellerBasePrice: 5_000,
+    paymentMode: 'FULL_PREPAY', paidAt: '2026-09-23T07:00:00.000Z', sellerBasePrice: 5_000,
     ...(fulfillment === undefined ? {} : { fulfillment }),
     colis: { packageId: 'pkg-1', orderIds: ['o1', 'o2', 'o3'] },
   };

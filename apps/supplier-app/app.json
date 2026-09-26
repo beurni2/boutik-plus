@@ -15,6 +15,7 @@
       "package": "bf.boutikplus.supplier"
     },
     "web": {
+      "lang": "fr",
       "bundler": "metro",
       "output": "single",
       "backgroundColor": "#F4EFE6"

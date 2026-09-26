@@ -2466,6 +2466,12 @@
     "screenClass": "label"
   },
   {
+    "key": "fournisseur.porte_titre",
+    "fr": "Votre espace Boutik+",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "fournisseur.chargement",
     "fr": "Un instant…",
     "register": "neutral",
@@ -2490,6 +2496,12 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.liste_pas_a_jour",
+    "fr": "La liste n'a pas pu être mise à jour. Elle a peut-être changé depuis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.vide",
     "fr": "Aucune commande pour l'instant. Dès qu'un client paie, elle apparaît ici.",
     "register": "money",
@@ -2503,7 +2515,7 @@
   },
   {
     "key": "fournisseur.code_explication",
-    "fr": "Entrez votre code personnel Boutik+. Il vous a été remis en main propre.",
+    "fr": "Tapez le code que l'équipe Boutik+ vous a donné.",
     "register": "money",
     "screenClass": "general"
   },
@@ -2515,13 +2527,13 @@
   },
   {
     "key": "fournisseur.code_ouvrir",
-    "fr": "Ouvrir mes commandes",
+    "fr": "Ouvrir",
     "register": "neutral",
     "screenClass": "general"
   },
   {
     "key": "fournisseur.code_reste_ici",
-    "fr": "Votre code reste sur ce téléphone, rien d'autre.",
+    "fr": "Ce téléphone garde votre code : vous n'aurez pas à le retaper.",
     "register": "money",
     "screenClass": "general"
   },
@@ -2534,6 +2546,12 @@
   {
     "key": "fournisseur.a_faire",
     "fr": "À traiter : {n}",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fournisseur.votre_prix",
+    "fr": "Votre prix : {prix}",
     "register": "money",
     "screenClass": "label"
   },
@@ -2676,6 +2694,12 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.pret_photo_illisible",
+    "fr": "Cette photo ne s'ouvre pas sur ce téléphone. Choisissez-en une autre.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.pret_attestation",
     "fr": "En envoyant, vous confirmez : le colis est complet et disponible.",
     "register": "money",
@@ -2754,6 +2778,12 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.produit_stock_gele",
+    "fr": "Plus en vente pour le moment : l'équipe Boutik+ doit confirmer votre stock.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.onglet_en_route",
     "fr": "En route",
     "register": "neutral",
@@ -2797,7 +2827,7 @@
   },
   {
     "key": "fournisseur.compte_livrees",
-    "fr": "Livrés : {n}",
+    "fr": "Terminées : {n}",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -5365,7 +5395,7 @@
   },
   {
     "key": "fournisseur.colis_article_refuse",
-    "fr": "Refusé par vous. Le client est remboursé.",
+    "fr": "Refusé par vous. Le client sera remboursé.",
     "register": "money",
     "screenClass": "status"
   },
