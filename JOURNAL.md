@@ -3,7 +3,9 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-26 · FOURNISSEUR-VRAI-1 (slice 1 of the AUDIT-B+2 plan) — the supplier's app tells the truth and lets him in · ON THE BRANCH, awaiting the founder's word
+## 2026-09-26 · FOURNISSEUR-VRAI-1 (slice 1 of the AUDIT-B+2 plan) — the supplier's app tells the truth and lets him in · MERGED AND DEPLOYED 2026-09-26 on the founder's « go »
+
+**Merged and deployed (founder: « go », 2026-09-26).** `main` fast-forwarded `2a74eee → 8065436` (ancestry verified with `merge-base --is-ancestor` before the push). **ci 363 · expo-preview 241 · fournisseur-web-deploy 19 · offer-deploy 40, all green on `8065436`** — read on the runs list. offer-deploy 40's own assertion, read off its log: « health 200 — live canon=3.20.0 release=8065436… » then « PROVENANCE OK — live Worker is 8065436… speaking canon 3.20.0 ». fournisseur-web-deploy 19 passed « Assert the capability ruling ON THE EXACT DIST THIS JOB DEPLOYS » and uploaded 9 files (8 new — the page, its script, the six font files) to `boutik-plus-fournisseur`. The founder's console (web-deploy) and the media Worker were not redeployed: nothing they serve needed it. Live consequence, stated: a supplier tab opened before this deploy keeps its list (the Worker still sends `zoneTo`, empty) and picks up the new page at its next reload.
 
 **Founder order (2026-09-26).** Shown the ten-slice plan built from AUDIT-B+2, he answered « go » — slice 1, the one that needed no decision from him. It closes F-06, F-07, F-09, F-19, F-20, F-21, F-22, F-23, F-24, F-25, F-26, F-28, F-29, F-30, F-80.
 
