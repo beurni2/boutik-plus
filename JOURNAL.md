@@ -3,7 +3,11 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-27 · CROISSANCE-1 + CATALOGUE-PAGES-1 (AUDIT-B+2 slice 5: F-04, F-05, F-32, F-89; F-72 with Shop+) — the platform survives growth on Cloudflare · ON THE BRANCH, awaiting the founder's word (not merged, not deployed)
+## 2026-09-27 · CROISSANCE-1 + CATALOGUE-PAGES-1 (AUDIT-B+2 slice 5: F-04, F-05, F-32, F-89; F-72 with Shop+) — the platform survives growth on Cloudflare · MERGED AND DEPLOYED 2026-09-27 on the founder's « go »
+
+**Merged and deployed (founder: « go, and do what you recommended for this slice, paid plan is now active », 2026-09-27).** `main` fast-forwarded `46a186a → 50b9483` (ancestry verified with `merge-base --is-ancestor` first). ci 367 green on `50b9483`, then offer-deploy 44 — its own check: « PROVENANCE OK — live Worker is 50b9483… speaking canon 3.20.0 » — and web-deploy 80 and fournisseur-web-deploy 22, all `success`. Shop+ storefront-deploy 115 live as `978f8a2` (its journal). No media deploy (nothing changed there).
+
+**His rulings on this slice's open items (the same message):** the Paid plan is ON — the budgets above were set under the Free plan's limits and hold under the Paid ones; the page sizes stay as they are · the reseller collection stays unpaged, as his 2026-07-25 order says · filing orders and products under their supplier: yes — built next as ETIQUETTE-FOURNISSEUR-1 · no archive bound for now · the four budget rows ride the next canon release, not one of their own.
 
 **Founder order (2026-09-27).** « go » on slice 5 of the AUDIT-B+2 plan: « Each supplier's refresh reads only his own orders, and pauses when the page is hidden. Product lists and the reseller board load a page at a time, so nothing breaks at 50 products or 50 resellers. Your board stops downloading every order every minute. » The plan's four questions for him were not answered with the « go »; everything that needs one of them was left out, by name, below.
 
