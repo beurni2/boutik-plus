@@ -57,7 +57,7 @@ type Ventes =
   | { kind: 'sans_cle' }
   | { kind: 'chargement' }
   | { kind: 'echec' }
-  | { kind: 'ok'; aTraiter: readonly PaidOrderRow[]; enAttente: number; pretes: number; total: number };
+  | { kind: 'ok'; aTraiter: readonly PaidOrderRow[]; enAttente: number; pretes: number; total: number; incomplet: boolean };
 
 export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string | null }) {
   // PHOTO-À-TRAITER — read once per mount, exactly as `produits-real.tsx` does.
@@ -105,6 +105,8 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
           enAttente: s.a_traiter.length,
           pretes: s.pret.length,
           total: r.orders.length,
+          // CROISSANCE-1 — counts from a book the page cap stopped are « at least ».
+          incomplet: r.incomplet === true,
         });
       });
     }
@@ -202,6 +204,11 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
               <Text style={[CHIFFRE, TNUM, { marginTop: 4 }]}>{ventes.pretes}</Text>
             </Card>
           </View>
+          {/* CROISSANCE-1 — the counts above came from a book the page cap
+              stopped: they are real, and not everything. */}
+          {ventes.incomplet && (
+            <Text style={[PETIT, { marginTop: 8 }]}>{t('operations.carnet_partiel')}</Text>
+          )}
           <View style={{ marginTop: 10 }}>
             <BtnSoft label={t('accueil.voir_commandes')} onPress={() => d({ t: 'TAB', tab: 'commandes' })} />
           </View>

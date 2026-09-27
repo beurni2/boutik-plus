@@ -103,6 +103,9 @@ export const PAGES_MAX = 25;
  */
 export const DISPATCH_TIMEOUT_MS = 12_000;
 
+/** SUIVI-PAGES-1 — each page reads up to ~38 sales; 25 pages ≈ 950. */
+export const PAGES_MAX_SUIVI = 25;
+
 export function resolveDispatchService(): DispatchServicePort | null {
   const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
   if (base === undefined || base === '') return null;
@@ -729,7 +732,9 @@ export type CodeAccesResult =
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'not_pending' | 'not_found' };
 
 export type SuiviResult =
-  | { readonly ok: true; readonly lignes: readonly SuiviLigne[] }
+  /** SUIVI-PAGES-1 — `total`: how many accounts the roster holds, when the
+   *  service said so; fewer lines than that means the read was cut short. */
+  | { readonly ok: true; readonly lignes: readonly SuiviLigne[]; readonly total?: number }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 export type CodeAccesRevealResult =
@@ -894,21 +899,58 @@ export function resolveComptesService(): ComptesServicePort | null {
     pause: (cleC, accountId) => acte('/reseller/accounts/pause', cleC, accountId),
     resume: (cleC, accountId) => acte('/reseller/accounts/resume', cleC, accountId),
 
+    /**
+     * SUIVI-PAGES-1 (AUDIT-B+2 F-72) — the board a page at a time. Each page
+     * is a PART: an account's lines are summed across pages, and one the page
+     * cap left unfinished is DECLARED partial, never counted as whole. An
+     * older Worker ignores `paged` and answers the whole board at once.
+     */
     async listSuivi(cleC: string): Promise<SuiviResult> {
-      const res = await appel('/reseller/suivi', cleC);
-      if (res === null) return { ok: false, reason: 'unreachable' };
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      if (res.body?.['ok'] !== true || !Array.isArray(res.body['lignes'])) return { ok: false, reason: 'unreachable' };
-      const lignes: SuiviLigne[] = [];
-      for (const raw of res.body['lignes']) {
-        const l = readSuiviLigne(raw);
-        if (l !== null) lignes.push(l);
+      const parCompte = new Map<string, SuiviLigne>();
+      const aSuivre = new Set<string>();
+      let total: number | undefined;
+      let cursor: string | undefined;
+      let reprise = false;
+      const fin = (coupe: boolean): SuiviResult => {
+        const lignes = [...parCompte.values()].map((l) => (coupe && aSuivre.has(l.accountId) ? { ...l, incomplet: true } : l));
+        // THE ORDER IS AN EXACT COUNT, DESCENDING — deterministic and explainable
+        // in one sentence, per the reputation law's own precedent. Ties break by
+        // net then id so the board never reshuffles between reads. A PARTIAL
+        // row is never ranked against whole ones: it goes last (F-72).
+        lignes.sort((a, b) =>
+          Number(a.incomplet) - Number(b.incomplet) || b.ventes - a.ventes || b.netFcfa - a.netFcfa || (a.accountId < b.accountId ? -1 : 1));
+        return { ok: true, lignes, ...(total !== undefined ? { total } : {}) };
+      };
+      for (let tour = 0; tour < PAGES_MAX_SUIVI; tour += 1) {
+        const res = await appel(`/reseller/suivi?paged=1${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`, cleC);
+        if (res === null) return { ok: false, reason: 'unreachable' };
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        // Her account left the roster between two pages: read again from the start.
+        if (res.status === 409 && res.body?.['reason'] === 'curseur_perdu' && !reprise) {
+          reprise = true;
+          parCompte.clear();
+          aSuivre.clear();
+          cursor = undefined;
+          continue;
+        }
+        if (res.body?.['ok'] !== true || !Array.isArray(res.body['lignes'])) return { ok: false, reason: 'unreachable' };
+        for (const raw of res.body['lignes']) {
+          const l = readSuiviLigne(raw);
+          if (l === null) continue;
+          const deja = parCompte.get(l.accountId);
+          parCompte.set(l.accountId, deja === undefined ? l : {
+            ...deja, ventes: deja.ventes + l.ventes, netFcfa: deja.netFcfa + l.netFcfa, incomplet: deja.incomplet || l.incomplet,
+          });
+          if ((raw as Record<string, unknown>)['suite'] === true) aSuivre.add(l.accountId);
+          else aSuivre.delete(l.accountId);
+        }
+        const t = res.body['total'];
+        if (typeof t === 'number' && Number.isInteger(t) && t >= 0) total = t;
+        const next = res.body['next'];
+        if (typeof next !== 'string' || next === '') return fin(false);
+        cursor = next;
       }
-      // THE ORDER IS AN EXACT COUNT, DESCENDING — deterministic and explainable
-      // in one sentence, per the reputation law's own precedent. Ties break by
-      // net then id so the board never reshuffles between reads.
-      lignes.sort((a, b) => b.ventes - a.ventes || b.netFcfa - a.netFcfa || (a.accountId < b.accountId ? -1 : 1));
-      return { ok: true, lignes };
+      return fin(true);
     },
   };
 }

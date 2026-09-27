@@ -112,7 +112,8 @@ describe('the real client sends what the service expects', () => {
     const svc = new HttpSupplyService('https://offer.example/', 'the-key'); // trailing slash on purpose
     const out = await svc.listOffers(SUPPLIER_ID);
     expect(out).toEqual({ ok: true, value: { asOf: '2026-07-25T08:00:00.000Z', items: [] } });
-    expect(calls[0]!.url).toBe(`https://offer.example/offers?supplierId=${SUPPLIER_ID}`); // no double slash
+    // CATALOGUE-PAGES-1 — the first page, asked by size; the scope stays first
+    expect(calls[0]!.url).toBe(`https://offer.example/offers?supplierId=${SUPPLIER_ID}&limit=40`); // no double slash
     expect(calls[0]!.init.method).toBe('GET');
     expect(credentiel(calls[0]!.init)).toEqual({ bearer: 'Bearer the-key', ancienne: undefined });
   });
@@ -137,7 +138,7 @@ describe('the real client sends what the service expects', () => {
       return new Response(JSON.stringify({ asOf: '2026-07-25T08:00:00.000Z', items: [] }), { status: 200 });
     });
     await new HttpSupplyService('https://offer.example', 'k').listOffers('a&supplierId=b');
-    expect(calls[0]).toBe('https://offer.example/offers?supplierId=a%26supplierId%3Db');
+    expect(calls[0]).toBe('https://offer.example/offers?supplierId=a%26supplierId%3Db&limit=40');
   });
 
   it('a 400 from the scope refusal is an HTTP failure carrying the service’s own words', async () => {

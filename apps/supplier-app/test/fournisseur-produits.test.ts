@@ -132,7 +132,8 @@ describe('listProduits — the read side of the derived-scope door', () => {
       return Response.json({ asOf: 't', items: [] });
     }));
     await service().listProduits('BF-ABCD-EFGH');
-    expect(seen[0]!.url).toBe('https://offer.example/offers/mine');
+    // CATALOGUE-PAGES-1 — his first page, asked by size, still naming nobody
+    expect(seen[0]!.url).toBe('https://offer.example/offers/mine?limit=40');
     expect(seen[0]!.auth).toBe('Bearer BF-ABCD-EFGH');
     expect(seen[0]!.url.includes('supplierId')).toBe(false);
   });

@@ -489,7 +489,8 @@ describe('the resolver — unset means NOTHING, never demo (standing law of this
       expect(res).toEqual({ ok: true, orders: [] });
       expect(spy).toHaveBeenCalledOnce();
       const [url, init] = spy.mock.calls[0]!;
-      expect(url).toBe('https://offer.example/fulfillment/orders'); // trailing slash trimmed
+      // CROISSANCE-1 — the board asks for its first page by name
+      expect(url).toBe('https://offer.example/fulfillment/orders?limit=100'); // trailing slash trimmed
       expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer cle-du-fondateur');
     });
   });
@@ -692,7 +693,8 @@ describe('CONSOLE-3 — the code inventory: honest states, the mint pre-flight, 
     spy = stubFetch(async () => new Response(JSON.stringify({ ok: true, status: 'no_code' })));
     expect(await resolveOperationsService()!.revokeCode('cle-ops', 'supplier-x')).toEqual({ ok: true, status: 'no_code' });
     const [revokeUrl, revokeInit] = spy.mock.calls[0]!;
-    expect(revokeUrl).toBe('https://offer.example/fulfillment/supplier-code/revoke');
+    // CATALOGUE-PAGES-1 — the cut asks for its product walk a page at a time
+    expect(revokeUrl).toBe('https://offer.example/fulfillment/supplier-code/revoke?limit=20');
     expect(JSON.parse(String(revokeInit?.body))).toEqual({ supplierId: 'supplier-x' });
 
     for (const call of [
@@ -1370,7 +1372,10 @@ describe('RESELLER-ACCOUNTS — the ports parse strictly and answer honestly', (
     // COUNT DESC first — a bigger net never outranks more delivered-real sales
     // (the reputation law's spirit: the count is the truth, money is detail) —
     // then net desc, then id, so the board never reshuffles between reads.
-    expect(suivi.lignes.map((l) => l.accountId)).toEqual(['rs-c', 'rs-b', 'rs-a']);
+    // SUIVI-PAGES-1 (AUDIT-B+2 F-72): a row NOT fully read (rs-c) is never
+    // ranked against whole ones — its count is « at least », so it goes last.
+    // This pin used to put rs-c FIRST on its partial count: the defect itself.
+    expect(suivi.lignes.map((l) => l.accountId)).toEqual(['rs-b', 'rs-a', 'rs-c']);
   });
 
   it('a suivi line with a NEGATIVE or fractional franc is dropped — a monitoring board must never display an impossible figure', async () => {
@@ -1580,7 +1585,8 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     expect(source).not.toMatch(/zone === 'fournisseurs' && \(view\.kind/);
     // THE CONTROL: the refresh that made this reachable is still installed, so
     // this pin cannot pass because the interval quietly disappeared
-    expect(source).toContain('setInterval(');
+    // (CROISSANCE-1: it runs through the visibility-aware helper now)
+    expect(source).toContain('rafraichirQuandVisible(');
     expect(source).toContain('REFRESH_EVERY_MS');
   });
 
@@ -1634,7 +1640,8 @@ describe('CONSOLE-GT-1 — one column, one masthead, four zones', () => {
     expect(source).not.toMatch(/view\.kind === 'board' \|\| view\.kind === 'empty'\) && \(\s*<View[^\n]*\n\s*<ChipCategory/);
     // THE CONTROL: the interval that made this reachable is still there, so the
     // pin is not passing because the refresh quietly disappeared
-    expect(source).toContain('setInterval(');
+    // (CROISSANCE-1: it runs through the visibility-aware helper now)
+    expect(source).toContain('rafraichirQuandVisible(');
     expect(source).toContain('REFRESH_EVERY_MS');
   });
 

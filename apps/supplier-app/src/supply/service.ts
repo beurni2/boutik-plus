@@ -467,35 +467,63 @@ export class HttpSupplyService implements SupplyServicePort {
    * missing one with a 400 naming the param, so a bug here fails loudly rather
    * than quietly listing every supplier.
    */
+  /**
+   * CATALOGUE-PAGES-1 (AUDIT-B+2 F-05) — a page at a time: the whole walk in
+   * one request failed near 50 offers on the platform. Whole or nothing: a
+   * page that fails fails the read, and a sweep the page cap stops is refused
+   * by name rather than served as the whole list. An older Worker answers
+   * everything with no `next`.
+   */
   async listOffers(supplierId: string): Promise<ServiceResult<SupplierOfferList>> {
-    const url = `${this.base.replace(/\/+$/, '')}/offers?supplierId=${encodeURIComponent(supplierId)}`;
-    let res: Response;
-    try {
-      res = await fetch(url, { method: 'GET', headers: this.cle() });
-    } catch (err) {
-      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+    const base = `${this.base.replace(/\/+$/, '')}/offers?supplierId=${encodeURIComponent(supplierId)}&limit=${PAGE_OFFRES}`;
+    let items: SupplierOfferList['items'][number][] = [];
+    let cursor: string | undefined;
+    let reprise = false;
+    for (let tour = 0; tour < PAGES_MAX_OFFRES; tour += 1) {
+      const url = cursor === undefined ? base : `${base}&cursor=${encodeURIComponent(cursor)}`;
+      let res: Response;
+      try {
+        res = await fetch(url, { method: 'GET', headers: this.cle() });
+      } catch (err) {
+        return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+      }
+      let text: string;
+      try {
+        text = await res.text();
+      } catch (err) {
+        // Response.text() rejects when the body stream dies after the status
+        // line — a TYPED network failure, never a throw into the UI (verifier
+        // finding 2026-07-27, all read-the-body sites hardened together).
+        return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
+      }
+      // An offer deleted between two pages took the cursor: read again from the start.
+      if (res.status === 409 && !reprise) {
+        reprise = true;
+        items = [];
+        cursor = undefined;
+        continue;
+      }
+      if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
+      }
+      const list = readSupplierOfferList(parsed);
+      if (list === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
+      items.push(...list.items);
+      const next = (parsed as { next?: unknown }).next;
+      if (typeof next !== 'string' || next === '') return { ok: true, value: { asOf: list.asOf, items } };
+      cursor = next;
     }
-    let text: string;
-    try {
-      text = await res.text();
-    } catch (err) {
-      // Response.text() rejects when the body stream dies after the status
-      // line — a TYPED network failure, never a throw into the UI (verifier
-      // finding 2026-07-27, all read-the-body sites hardened together).
-      return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
-    }
-    if (!res.ok) return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return { ok: false, cause: 'unreadable', reason: `réponse illisible: ${text.slice(0, 300)}` };
-    }
-    const list = readSupplierOfferList(parsed);
-    if (list === null) return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
-    return { ok: true, value: list };
+    return { ok: false, cause: 'unreadable', reason: `liste trop longue : ${PAGES_MAX_OFFRES} pages lues, pas toutes` };
   }
 }
+
+/** One page of the platform's catalogue (his are filtered from it server-side). */
+const PAGE_OFFRES = 40;
+const PAGES_MAX_OFFRES = 25;
 
 const ATTACH_STATUSES = ['attached', 'idempotent', 'not_found', 'refused'] as const;
 

@@ -82,9 +82,13 @@ export { OfferDO, FulfillmentDO };
  * promise that no byte exists anywhere from this second onward.
  */
 async function effacerFournisseur(request: Request, env: Env): Promise<Response> {
-  const body = (await request.json().catch(() => null)) as { supplierId?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { supplierId?: unknown; etape?: unknown; cursor?: unknown } | null;
   const supplierId = body?.supplierId;
   if (typeof supplierId !== 'string' || supplierId.trim() === '') {
+    return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+  }
+  const etape = body?.etape;
+  if (etape !== undefined && etape !== 'verifier' && etape !== 'effacer') {
     return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
   }
   // ⚠ `BOOK_NAME`, IMPORTED — never a literal. A hand-typed name addresses a
@@ -109,14 +113,26 @@ async function effacerFournisseur(request: Request, env: Env): Promise<Response>
     return Response.json({ ok: false, reason: 'a_des_commandes' }, { status: 409 });
   }
 
+  // CATALOGUE-PAGES-1 (F-05) — every guard above runs again on EVERY page, so a
+  // supplier re-admitted or paid between two pages stops the erase there.
+  const cursor = typeof body?.cursor === 'string' && body.cursor !== '' ? body.cursor : undefined;
   const purge = await offerRouter.fetch(
     new Request('https://do/offers/purge-fournisseur', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ supplierId }),
+      body: JSON.stringify({
+        supplierId,
+        ...(etape !== undefined ? { limit: etape === 'verifier' ? 40 : 8, verifier: etape === 'verifier' } : {}),
+        ...(cursor !== undefined ? { cursor } : {}),
+      }),
     }),
     env,
   );
+  if (purge.status === 409 && etape !== undefined) {
+    const raison = ((await purge.clone().json().catch(() => null)) as { error?: unknown } | null)?.error;
+    // The cursor row went between two pages: start the sweep again.
+    if (raison === 'curseur_perdu') return Response.json({ ok: false, reason: 'curseur_perdu' }, { status: 409 });
+  }
   if (purge.status === 409) {
     // REMBOURSABLE-1 (AUDIT-B+2 F-33) — a buyer is paying for one of his units
     // right now; the purge refused BEFORE removing anything. Named, so the
@@ -125,10 +141,26 @@ async function effacerFournisseur(request: Request, env: Env): Promise<Response>
   }
   if (!purge.ok) {
     // THE ROW SURVIVES A FAILED PURGE. Erasing it here would orphan whatever
-    // the walk did not reach, with nothing left to attribute it to.
-    return Response.json({ ok: false, reason: 'purge_echouee' }, { status: 502 });
+    // the walk did not reach, with nothing left to attribute it to. A paged
+    // failure still hands back the refs of what it already erased (F-05).
+    const partiel = (await purge.json().catch(() => null)) as { supprimes?: unknown; refs?: unknown } | null;
+    const refsPartiels = Array.isArray(partiel?.refs) ? partiel.refs.filter((r): r is string => typeof r === 'string') : [];
+    return Response.json(
+      etape === undefined
+        ? { ok: false, reason: 'purge_echouee' }
+        : { ok: false, reason: 'purge_echouee', supprimes: typeof partiel?.supprimes === 'number' ? partiel.supprimes : 0, refs: refsPartiels },
+      { status: 502 },
+    );
   }
-  const { supprimes, refs } = (await purge.json()) as { supprimes: number; refs: string[] };
+  if (etape === 'verifier') {
+    const v = (await purge.json()) as { next?: unknown };
+    return Response.json({ ok: true, supplierId, verifie: true, ...(typeof v.next === 'string' ? { suite: v.next } : {}) });
+  }
+  const { supprimes, refs, fini, cursor: suite } = (await purge.json()) as { supprimes: number; refs: string[]; fini?: boolean; cursor?: string };
+  if (etape === 'effacer' && fini !== true) {
+    // More of his catalogue after this page: the registry row waits for the last one.
+    return Response.json({ ok: true, supplierId, supprimes, refs, fini: false, ...(suite !== undefined ? { suite } : {}) });
+  }
 
   const efface = await book.fetch(
     new Request('https://do/code/effacer', { method: 'POST', body: JSON.stringify({ supplierId }) }),
@@ -137,10 +169,70 @@ async function effacerFournisseur(request: Request, env: Env): Promise<Response>
 
   // `refs` travels so his console can destroy the bytes with the credential
   // this Worker deliberately does not hold.
-  return Response.json({ ok: true, supplierId, supprimes, refs });
+  return Response.json({ ok: true, supplierId, supprimes, refs, ...(etape === 'effacer' ? { fini: true } : {}) });
+}
+
+/**
+ * CATALOGUE-PAGES-1 (AUDIT-B+2 F-05) — the product half of a cut or a re-mint,
+ * ONE PAGE PER REQUEST. The walk used to run over the whole index inside the
+ * code act's own request and stopped near 50 offers at the same place on every
+ * replay, leaving a cut supplier's later products on sale. A console that asks
+ * with `?limit=` gets the first page and a `suite` cursor; this door walks the
+ * rest, one page per call.
+ *
+ * IT RE-CHECKS THE DOOR BEFORE EVERY PAGE: a « couper » continued after he
+ * re-minted the code would take a live supplier's products off sale, and a
+ * re-mint continued after he cut again would put a cut supplier's back on.
+ * Either mismatch is refused by name (`acces_change`) and walks nothing.
+ */
+async function walkAcces(
+  env: Env,
+  acte: 'mint' | 'revoke',
+  supplierId: string,
+  limit: string | null,
+  cursor: string | null,
+): Promise<{ produits: number | null; next?: string }> {
+  const chemin = acte === 'revoke' ? '/offers/retrait-acces' : '/offers/restauration-acces';
+  try {
+    const walk = await offerRouter.fetch(
+      new Request(`https://do${chemin}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId,
+          at: new Date().toISOString(),
+          ...(limit !== null ? { limit } : {}),
+          ...(cursor !== null ? { cursor } : {}),
+        }),
+      }),
+      env,
+    );
+    if (!walk.ok) return { produits: null };
+    const r = (await walk.json()) as { changed?: number; next?: unknown };
+    return { produits: r.changed ?? null, ...(typeof r.next === 'string' && r.next !== '' ? { next: r.next } : {}) };
+  } catch {
+    return { produits: null }; // best-effort; the code act already stands, and a replay finishes it
+  }
+}
+
+async function suiteAcces(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { supplierId?: unknown; acte?: unknown; cursor?: unknown } | null;
+  const supplierId = body?.supplierId;
+  const acte = body?.acte;
+  const cursor = body?.cursor;
+  // No cursor walks from the start — the console's « Finir » after a walk it could not complete.
+  if (typeof supplierId !== 'string' || supplierId.trim() === '' || (acte !== 'revoke' && acte !== 'mint') || (cursor !== undefined && typeof cursor !== 'string')) {
+    return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+  }
+  if ((await supplierHasActiveCode(env, supplierId)) !== (acte === 'mint')) {
+    return Response.json({ ok: false, reason: 'acces_change' }, { status: 409 });
+  }
+  const { produits, next } = await walkAcces(env, acte, supplierId, '20', typeof cursor === 'string' && cursor !== '' ? cursor : null);
+  return Response.json({ ok: true, supplierId, produits, ...(next !== undefined ? { suite: next } : {}) });
 }
 
 async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke'): Promise<Response> {
+  const limit = new URL(request.url).searchParams.get('limit');
   const raw = await request.text();
   const supplierId = ((): string | null => {
     try {
@@ -159,23 +251,10 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
   // of a malformed request would be the worst kind of side effect.
   if (!codeRes.ok || supplierId === null) return codeRes;
 
-  const chemin = acte === 'revoke' ? '/offers/retrait-acces' : '/offers/restauration-acces';
-  let produits: number | null = null;
-  try {
-    const walk = await offerRouter.fetch(
-      new Request(`https://do${chemin}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supplierId, at: new Date().toISOString() }),
-      }),
-      env,
-    );
-    if (walk.ok) produits = ((await walk.json()) as { changed?: number }).changed ?? null;
-  } catch {
-    produits = null; // best-effort; the code act already stands, and a replay finishes it
-  }
+  // No `?limit=` (a console page from before CATALOGUE-PAGES-1): the whole walk, as before.
+  const { produits, next } = await walkAcces(env, acte, supplierId, limit === null ? null : '20', null);
   const body = (await codeRes.json()) as Record<string, unknown>;
-  return Response.json({ ...body, produits }, { status: codeRes.status });
+  return Response.json({ ...body, produits, ...(next !== undefined ? { suite: next } : {}) }, { status: codeRes.status });
 }
 
 interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
@@ -371,7 +450,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       // photograph from the offer entry, so the store is composed here exactly
       // as the intake composes it (same binding, same router, one road).
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
-      return handlePaidOrdersList(store, env);
+      return handlePaidOrdersList(store, env, new URL(request.url).searchParams);
     }
     // RB-1 — three founder-only additions on the SAME credential as the board
     // read (the Commandes tab is that board's new home): the per-order
@@ -452,7 +531,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'GET' && fp === '/offers/inventaire') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
-      return offerRouter.fetch(new Request('https://do/offers/inventaire'), env);
+      // CATALOGUE-PAGES-1 — `limit`/`cursor` ride through; none = the whole list, as before.
+      return offerRouter.fetch(new Request(`https://do/offers/inventaire${new URL(request.url).search}`), env);
     }
     // STOCK-JOURNAL-1 (B5.2) — « Confirmer le stock » and the journal read,
     // on HIS ops credential like the inventory above: the confirm act moves a
@@ -499,6 +579,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (refused) return refused;
       return acteSurAcces(request, env, 'revoke');
     }
+    // CATALOGUE-PAGES-1 (F-05) — the rest of a cut's (or a re-mint's) product
+    // walk, one page per call. HIS credential, like the act it continues.
+    if (request.method === 'POST' && fp === '/fulfillment/supplier-acces/suite') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return suiteAcces(request, env);
+    }
     // CODE-REVU (founder ruling 2026-08-09): reread a code already given —
     // the same founder-only door as the mint it rereads.
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code/reveal') {
@@ -534,7 +621,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const presented = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';
       const supplierId = await resolveSupplierIdByCode(env, presented);
       if (supplierId === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
-      return offerRouter.fetch(new Request(`https://do/offers?supplierId=${encodeURIComponent(supplierId)}`), env);
+      // CATALOGUE-PAGES-1 — his page request rides through; the scope stays derived.
+      const q = new URL(request.url).searchParams;
+      const page = ['limit', 'cursor'].flatMap((k) => (q.has(k) ? [`&${k}=${encodeURIComponent(q.get(k)!)}`] : [])).join('');
+      return offerRouter.fetch(new Request(`https://do/offers?supplierId=${encodeURIComponent(supplierId)}${page}`), env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/accept') {
       return forwardSupplierAct(request, env, '/accept');

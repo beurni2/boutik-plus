@@ -103,7 +103,9 @@ export interface PaidOrderRow {
 }
 
 export type PaidOrdersResult =
-  | { readonly ok: true; readonly orders: readonly PaidOrderRow[] }
+  /** CROISSANCE-1 — `incomplet` TRUE means the page cap ended the sweep with
+   *  pages still standing: the rows are real, the book is declared partial. */
+  | { readonly ok: true; readonly orders: readonly PaidOrderRow[]; readonly incomplet?: boolean }
   /** The key was REFUSED — a different honest sentence from « unreachable »:
    *  one asks the founder to re-check what he typed, the other to retry. */
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
@@ -205,7 +207,7 @@ export interface InventaireRow {
 }
 
 export type InventaireResult =
-  | { readonly ok: true; readonly rows: readonly InventaireRow[] }
+  | { readonly ok: true; readonly rows: readonly InventaireRow[]; readonly incomplet?: boolean }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 export type CodesResult =
@@ -214,7 +216,12 @@ export type CodesResult =
 
 export type MintResult =
   /** The plaintext code — shown ONCE, never stored anywhere by this app. */
-  | { readonly ok: true; readonly code: string; readonly supplierId: string; readonly mintedAt: string }
+  | {
+      readonly ok: true; readonly code: string; readonly supplierId: string; readonly mintedAt: string;
+      /** CATALOGUE-PAGES-1 — the code stands, but not every product he had
+       *  retired is back on sale yet: « Finir » walks the rest. */
+      readonly produitsIncomplets?: true;
+    }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 /**
@@ -245,13 +252,22 @@ export type EffacerResult =
    * one branch the design claims to cover.
    */
   | { readonly ok: false; readonly reason: 'registre_echoue'; readonly supprimes: number; readonly refs: readonly string[] }
+  /**
+   * CATALOGUE-PAGES-1 (F-05) — the erase goes a page at a time now, and one
+   * page failing after others succeeded leaves part of his catalogue gone:
+   * those refs are the only road to their photographs, so they travel here
+   * exactly as the registry partial's do. Pressing again finishes the rest.
+   */
+  | { readonly ok: false; readonly reason: 'purge_inachevee'; readonly supprimes: number; readonly refs: readonly string[] }
   /** REMBOURSABLE-1 (F-33) — `paiement_en_cours`: a buyer holds one of his
    *  units while she pays; nothing was erased, and the hold lapses within a
    *  quarter of an hour. */
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'inconnu' | 'acces_actif' | 'a_des_commandes' | 'purge_echouee' | 'paiement_en_cours' };
 
 export type RevokeResult =
-  | { readonly ok: true; readonly status: 'revoked' | 'no_code' }
+  /** `produitsIncomplets` — the door is shut, but not every product is off
+   *  sale yet (CATALOGUE-PAGES-1): « Finir » walks the rest. */
+  | { readonly ok: true; readonly status: 'revoked' | 'no_code'; readonly produitsIncomplets?: true }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 /** RB-1 — the founder's own card per supplier (name + phone, his decision
@@ -310,6 +326,9 @@ export interface OperationsServicePort {
   mintCode(opsKey: string, supplierId: string): Promise<MintResult>;
   /** Cut a supplier off. Idempotent — `no_code` is an honest answer. */
   revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult>;
+  /** CATALOGUE-PAGES-1 — finish the product half of a cut (`revoke`) or a
+   *  re-mint (`mint`) from the start, without touching the code itself. */
+  finirProduits(opsKey: string, supplierId: string, acte: 'revoke' | 'mint'): Promise<FinirProduitsResult>;
   /** PURGE-FOURNISSEUR — erase him and every product he owns. IRREVERSIBLE, and
    *  refused by name when his access is still live or he has paid orders. */
   effacerFournisseur(opsKey: string, supplierId: string): Promise<EffacerResult>;
@@ -338,6 +357,27 @@ export type ConfirmStockResult =
     }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'invalid_qty' | 'unknown_offer' };
 
+export type FinirProduitsResult =
+  | { readonly ok: true; readonly complet: boolean }
+  /** `acces_change` — his door changed since (re-minted after a cut, or cut
+   *  after a re-mint): walking on would undo his newer act, so nothing moves. */
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'acces_change' };
+
+/**
+ * CROISSANCE-1 / CATALOGUE-PAGES-1 (AUDIT-B+2 F-89 c, F-05) — the service now
+ * answers these reads a PAGE at a time (each within the platform's
+ * per-request budget) with a `next` while more remain. The ports follow the
+ * cursor, WHOLE-OR-NOTHING (DISPATCH-PAGES-1's law: a half list dressed as the
+ * whole would hide real rows), and an older Worker answers everything with no
+ * `next` — one round trip, done.
+ */
+export const PAGE_CARNET = 100;
+export const PAGES_MAX_CARNET = 50;
+export const PAGE_CATALOGUE = 40;
+export const PAGES_MAX_CATALOGUE = 25;
+/** The cut's product walk: 20 offers a page (read + write each), up to 1 000. */
+export const PAGES_MAX_ACCES = 50;
+
 export type RevealResult =
   | { readonly ok: true; readonly code: string; readonly supplierId: string }
   | { readonly ok: false; readonly reason: 'bad_key' | 'no_code' | 'code_anterieur' | 'unreachable' };
@@ -351,75 +391,119 @@ export function resolveOperationsService(): OperationsServicePort | null {
   const base = process.env.EXPO_PUBLIC_OFFER_BASE;
   if (base === undefined || base === '') return null;
   const trimmed = base.replace(/\/$/, '');
+
+  /** CATALOGUE-PAGES-1 — one page of a cut's (or a re-mint's) product walk;
+   *  no cursor = from the start (« Finir »). */
+  async function pageProduits(
+    opsKey: string,
+    supplierId: string,
+    acte: 'revoke' | 'mint',
+    cursor: string | undefined,
+  ): Promise<{ ok: true; suite?: string } | { ok: false; reason: 'bad_key' | 'unreachable' | 'acces_change' }> {
+    let res: Response;
+    try {
+      res = await fetch(`${trimmed}/fulfillment/supplier-acces/suite`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+        body: JSON.stringify({ supplierId, acte, ...(cursor !== undefined ? { cursor } : {}) }),
+      });
+    } catch {
+      return { ok: false, reason: 'unreachable' };
+    }
+    if (res.status === 401) return { ok: false, reason: 'bad_key' };
+    const body = (await res.json().catch(() => null)) as { ok?: boolean; produits?: unknown; suite?: unknown; reason?: unknown } | null;
+    if (res.status === 409 && body?.reason === 'acces_change') return { ok: false, reason: 'acces_change' };
+    // `produits: null` — the page's walk itself failed: not done, whatever else it says.
+    if (!res.ok || body?.ok !== true || body.produits === null) return { ok: false, reason: 'unreachable' };
+    return typeof body.suite === 'string' && body.suite !== '' ? { ok: true, suite: body.suite } : { ok: true };
+  }
+
+  /** Follow the product walk a code act began. TRUE only when it provably
+   *  reached the end: a failed first walk (`produits: null`) or any failed
+   *  page is « not finished », said on his row, never a silent success. */
+  async function suivreProduits(
+    opsKey: string,
+    supplierId: string,
+    acte: 'revoke' | 'mint',
+    produits: unknown,
+    suite: unknown,
+  ): Promise<boolean> {
+    if (produits === null) return false;
+    let cursor = typeof suite === 'string' && suite !== '' ? suite : undefined;
+    for (let tour = 0; cursor !== undefined; tour += 1) {
+      if (tour >= PAGES_MAX_ACCES) return false;
+      const r = await pageProduits(opsKey, supplierId, acte, cursor);
+      if (!r.ok) return false;
+      cursor = r.suite;
+    }
+    return true;
+  }
+
   return {
     async listPaidOrders(opsKey: string): Promise<PaidOrdersResult> {
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/fulfillment/orders`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
-      } catch {
-        return { ok: false, reason: 'unreachable' };
-      }
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
-      if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
-      // Shape-READ row by row: a record the book never wrote is DROPPED, never
-      // rendered half-formed — the console's whole worth is that every line on
-      // it is true. Reading (not just guarding) matters for the two fields
-      // records written BEFORE the productName enrichment lack: they normalize
-      // to '', so the screen's fallback-to-pv-id renders instead of a blank
-      // title on precisely the oldest rows.
       const orders: PaidOrderRow[] = [];
-      for (const raw of body.orders) {
-        const row = readPaidOrderRow(raw);
-        if (row !== null) orders.push(row);
+      let cursor: string | undefined;
+      for (let tour = 0; tour < PAGES_MAX_CARNET; tour += 1) {
+        let res: Response;
+        try {
+          res = await fetch(
+            `${trimmed}/fulfillment/orders?limit=${PAGE_CARNET}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+            { headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` } },
+          );
+        } catch {
+          return { ok: false, reason: 'unreachable' };
+        }
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown; next?: unknown } | null;
+        if (body?.ok !== true || !Array.isArray(body.orders)) return { ok: false, reason: 'unreachable' };
+        // Shape-READ row by row: a record the book never wrote is DROPPED, never
+        // rendered half-formed — the console's whole worth is that every line on
+        // it is true. Reading (not just guarding) matters for the two fields
+        // records written BEFORE the productName enrichment lack: they normalize
+        // to '', so the screen's fallback-to-pv-id renders instead of a blank
+        // title on precisely the oldest rows.
+        for (const raw of body.orders) {
+          const row = readPaidOrderRow(raw);
+          if (row !== null) orders.push(row);
+        }
+        if (typeof body.next !== 'string' || body.next === '') return { ok: true, orders: plusRecentesDabord(orders) };
+        cursor = body.next;
       }
-      return { ok: true, orders };
+      return { ok: true, orders: plusRecentesDabord(orders), incomplet: true };
     },
 
     async listInventaire(opsKey: string): Promise<InventaireResult> {
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/offers/inventaire`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
-      } catch {
-        return { ok: false, reason: 'unreachable' };
+      let rows: InventaireRow[] = [];
+      let cursor: string | undefined;
+      let reprise = false;
+      for (let tour = 0; tour < PAGES_MAX_CATALOGUE; tour += 1) {
+        let res: Response;
+        try {
+          res = await fetch(
+            `${trimmed}/offers/inventaire?limit=${PAGE_CATALOGUE}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+            { headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` } },
+          );
+        } catch {
+          return { ok: false, reason: 'unreachable' };
+        }
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        // The row the cursor named left between two pages: sweep once more from
+        // the start rather than guess where the list now resumes.
+        if (res.status === 409 && !reprise) {
+          reprise = true;
+          rows = [];
+          cursor = undefined;
+          continue;
+        }
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        const body = (await res.json().catch(() => null)) as { items?: unknown; next?: unknown } | null;
+        if (!Array.isArray(body?.items)) return { ok: false, reason: 'unreachable' };
+        rows.push(...lireInventaire(body.items));
+        if (typeof body.next !== 'string' || body.next === '') return { ok: true, rows };
+        cursor = body.next;
       }
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
-      if (!Array.isArray(body?.items)) return { ok: false, reason: 'unreachable' };
-      // A malformed row is DROPPED, never rendered half-formed — the standing
-      // law of every read on this console.
-      const rows: InventaireRow[] = [];
-      for (const raw of body.items) {
-        if (raw === null || typeof raw !== 'object') continue;
-        const r = raw as Record<string, unknown>;
-        if (typeof r['offerId'] !== 'string' || r['offerId'] === '') continue;
-        if (typeof r['productVersionId'] !== 'string' || typeof r['supplierId'] !== 'string') continue;
-        if (typeof r['name'] !== 'string' || typeof r['available'] !== 'number') continue;
-        rows.push({
-          offerId: r['offerId'],
-          productVersionId: r['productVersionId'],
-          name: r['name'],
-          category: typeof r['category'] === 'string' ? r['category'] : '',
-          basePrice: typeof r['basePrice'] === 'number' ? r['basePrice'] : 0,
-          resellerCommission: typeof r['resellerCommission'] === 'number' ? r['resellerCommission'] : 0,
-          available: r['available'],
-          assetRefs: Array.isArray(r['assetRefs']) ? (r['assetRefs'] as string[]).filter((a) => typeof a === 'string') : [],
-          supplierId: r['supplierId'],
-          ...(typeof r['videoRef'] === 'string' ? { videoRef: r['videoRef'] } : {}),
-          ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
-          ...(typeof r['hiddenReason'] === 'string' ? { hiddenReason: r['hiddenReason'] } : {}),
-          ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
-            ? { stockConfirmedAt: r['stockConfirmedAt'] }
-            : {}),
-        });
-      }
-      return { ok: true, rows };
+      return { ok: true, rows, incomplet: true };
     },
 
     async confirmStock(opsKey: string, cmd: ConfirmStockCommand): Promise<ConfirmStockResult> {
@@ -645,7 +729,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async mintCode(opsKey: string, supplierId: string): Promise<MintResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-code`, {
+        res = await fetch(`${trimmed}/fulfillment/supplier-code?limit=20`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           // EXACTLY {supplierId} — the book's exact-key check refuses anything
@@ -666,7 +750,13 @@ export function resolveOperationsService(): OperationsServicePort | null {
       ) {
         return { ok: false, reason: 'unreachable' };
       }
-      return { ok: true, code: body['code'], supplierId: body['supplierId'], mintedAt: body['mintedAt'] };
+      // CATALOGUE-PAGES-1 — the products this cut had retired come back a
+      // page at a time; the code already stands whatever happens below.
+      const complet = await suivreProduits(opsKey, body['supplierId'], 'mint', body['produits'], body['suite']);
+      return {
+        ok: true, code: body['code'], supplierId: body['supplierId'], mintedAt: body['mintedAt'],
+        ...(complet ? {} : { produitsIncomplets: true as const }),
+      };
     },
 
     async revealCode(opsKey: string, supplierId: string): Promise<RevealResult> {
@@ -693,55 +783,80 @@ export function resolveOperationsService(): OperationsServicePort | null {
     },
 
     async effacerFournisseur(opsKey: string, supplierId: string): Promise<EffacerResult> {
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/fulfillment/supplier/effacer`, {
-          method: 'POST',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
-          body: JSON.stringify({ supplierId }),
-        });
-      } catch {
-        return { ok: false, reason: 'unreachable' };
-      }
-      if (res.status === 401) return { ok: false, reason: 'bad_key' };
-      const body = (await res.json().catch(() => null)) as
-        | { ok?: boolean; supprimes?: unknown; refs?: unknown; reason?: unknown }
-        | null;
-      if (!res.ok) {
-        // The service's TYPED refusals travel verbatim — « cut him off first »
-        // and « he has orders » are answers, not errors, and the screen says
-        // each in its own words.
-        const r = body?.reason;
-        if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu' || r === 'paiement_en_cours') return { ok: false, reason: r };
-        // THE PARTIAL — the catalogue is already gone and the refs came with
-        // the failure. They are carried out so the caller can still destroy the
-        // bytes; dropping them here is unrecoverable (see the type above).
-        if (r === 'registre_echoue') {
-          return {
-            ok: false,
-            reason: 'registre_echoue',
-            supprimes: typeof body?.supprimes === 'number' ? body.supprimes : 0,
-            refs: Array.isArray(body?.refs)
-              ? body.refs.filter((x): x is string => typeof x === 'string' && x.startsWith('media/'))
-              : [],
-          };
+      /**
+       * CATALOGUE-PAGES-1 (F-05) — TWO SWEEPS, a page per request. First the
+       * read-only one over his whole catalogue (F-33: nothing removed while a
+       * buyer holds a unit), then the erase itself. Every page carries back the
+       * refs of what it erased; they are collected across pages so a failure
+       * on page five still hands over the photographs of pages one to four.
+       */
+      const appel = async (corps: Record<string, unknown>): Promise<Response | null> => {
+        try {
+          return await fetch(`${trimmed}/fulfillment/supplier/effacer`, {
+            method: 'POST',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+            body: JSON.stringify({ supplierId, ...corps }),
+          });
+        } catch {
+          return null;
         }
-        if (r === 'purge_echouee') return { ok: false, reason: 'purge_echouee' };
-        return { ok: false, reason: 'unreachable' };
+      };
+      let suite: string | undefined;
+      let relu = false;
+      for (let tour = 0; ; tour += 1) {
+        if (tour >= PAGES_MAX_CATALOGUE) return { ok: false, reason: 'unreachable' };
+        const v = await appel({ etape: 'verifier', ...(suite !== undefined ? { cursor: suite } : {}) });
+        if (v === null) return { ok: false, reason: 'unreachable' };
+        if (v.status === 401) return { ok: false, reason: 'bad_key' };
+        const vb = (await v.json().catch(() => null)) as { ok?: boolean; verifie?: unknown; suite?: unknown; reason?: unknown } | null;
+        if (!v.ok) {
+          if (vb?.reason === 'curseur_perdu' && !relu) { relu = true; suite = undefined; continue; }
+          return lireEffacement(v.status, vb);
+        }
+        if (vb?.verifie !== true) {
+          // An older Worker ignored the step and erased everything in one
+          // request: its answer IS the final one.
+          return lireEffacement(v.status, vb);
+        }
+        if (typeof vb.suite !== 'string' || vb.suite === '') break;
+        suite = vb.suite;
       }
-      if (body?.ok !== true || typeof body.supprimes !== 'number' || !Array.isArray(body.refs)) {
-        return { ok: false, reason: 'unreachable' };
+      const refs: string[] = [];
+      let supprimes = 0;
+      suite = undefined;
+      relu = false;
+      for (let tour = 0; tour < 4 * PAGES_MAX_ACCES; tour += 1) {
+        const e = await appel({ etape: 'effacer', ...(suite !== undefined ? { cursor: suite } : {}) });
+        const partiel = (): EffacerResult =>
+          supprimes > 0 || refs.length > 0
+            ? { ok: false, reason: 'purge_inachevee', supprimes, refs: [...new Set(refs)] }
+            : { ok: false, reason: 'unreachable' };
+        if (e === null) return partiel();
+        if (e.status === 401) return supprimes > 0 || refs.length > 0 ? partiel() : { ok: false, reason: 'bad_key' };
+        const eb = (await e.json().catch(() => null)) as { ok?: boolean; supprimes?: unknown; refs?: unknown; fini?: unknown; suite?: unknown; reason?: unknown } | null;
+        const pageRefs = Array.isArray(eb?.refs) ? eb.refs.filter((x): x is string => typeof x === 'string' && x.startsWith('media/')) : [];
+        refs.push(...pageRefs);
+        if (typeof eb?.supprimes === 'number') supprimes += eb.supprimes;
+        if (!e.ok) {
+          if (eb?.reason === 'curseur_perdu' && !relu) { relu = true; suite = undefined; continue; }
+          if (eb?.reason === 'registre_echoue') return { ok: false, reason: 'registre_echoue', supprimes, refs: [...new Set(refs)] };
+          const r = eb?.reason;
+          if (supprimes === 0 && refs.length === 0 && (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu' || r === 'paiement_en_cours')) {
+            return { ok: false, reason: r };
+          }
+          return partiel();
+        }
+        if (eb?.ok !== true) return partiel();
+        if (eb.fini === true) return { ok: true, supprimes, refs: [...new Set(refs)] };
+        suite = typeof eb.suite === 'string' && eb.suite !== '' ? eb.suite : undefined;
       }
-      // Strict: a ref outside the minted namespace is not one this system made,
-      // and the console must never be talked into revoking an arbitrary key.
-      const refs = body.refs.filter((r): r is string => typeof r === 'string' && r.startsWith('media/'));
-      return { ok: true, supprimes: body.supprimes, refs };
+      return { ok: false, reason: 'purge_inachevee', supprimes, refs: [...new Set(refs)] };
     },
 
     async revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-code/revoke`, {
+        res = await fetch(`${trimmed}/fulfillment/supplier-code/revoke?limit=20`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           body: JSON.stringify({ supplierId }),
@@ -751,13 +866,110 @@ export function resolveOperationsService(): OperationsServicePort | null {
       }
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
       if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; status?: unknown } | null;
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; status?: unknown; produits?: unknown; suite?: unknown } | null;
       if (body?.ok !== true || (body.status !== 'revoked' && body.status !== 'no_code')) {
         return { ok: false, reason: 'unreachable' };
       }
-      return { ok: true, status: body.status };
+      // CATALOGUE-PAGES-1 (F-05) — the door is shut; his products leave sale a
+      // page at a time, and a walk that cannot finish SAYS so on his row.
+      const complet = await suivreProduits(opsKey, supplierId, 'revoke', body.produits, body.suite);
+      return { ok: true, status: body.status, ...(complet ? {} : { produitsIncomplets: true as const }) };
+    },
+
+    async finirProduits(opsKey: string, supplierId: string, acte: 'revoke' | 'mint'): Promise<FinirProduitsResult> {
+      let cursor: string | undefined;
+      for (let tour = 0; tour < PAGES_MAX_ACCES; tour += 1) {
+        const r = await pageProduits(opsKey, supplierId, acte, cursor);
+        if (!r.ok) return r;
+        if (r.suite === undefined) return { ok: true, complet: true };
+        cursor = r.suite;
+      }
+      return { ok: true, complet: false };
     },
   };
+}
+
+/**
+ * One whole-catalogue erase answer — what a Worker from before
+ * CATALOGUE-PAGES-1 gives (it ignores the step and erases in one request), and
+ * what any typed refusal looks like. The service's TYPED refusals travel
+ * verbatim: « cut him off first » and « he has orders » are answers, not errors.
+ */
+function lireEffacement(
+  status: number,
+  body: { ok?: boolean; supprimes?: unknown; refs?: unknown; reason?: unknown } | null,
+): EffacerResult {
+  if (status === 401) return { ok: false, reason: 'bad_key' };
+  const ok = status >= 200 && status < 300;
+  if (!ok) {
+    // The service's TYPED refusals travel verbatim — « cut him off first »
+    // and « he has orders » are answers, not errors, and the screen says
+    // each in its own words.
+    const r = body?.reason;
+    if (r === 'acces_actif' || r === 'a_des_commandes' || r === 'inconnu' || r === 'paiement_en_cours') return { ok: false, reason: r };
+    // THE PARTIAL — the catalogue is already gone and the refs came with
+    // the failure. They are carried out so the caller can still destroy the
+    // bytes; dropping them here is unrecoverable (see the type above).
+    if (r === 'registre_echoue') {
+      return {
+        ok: false,
+        reason: 'registre_echoue',
+        supprimes: typeof body?.supprimes === 'number' ? body.supprimes : 0,
+        refs: Array.isArray(body?.refs)
+          ? body.refs.filter((x): x is string => typeof x === 'string' && x.startsWith('media/'))
+          : [],
+      };
+    }
+    if (r === 'purge_echouee') return { ok: false, reason: 'purge_echouee' };
+    return { ok: false, reason: 'unreachable' };
+  }
+  if (body?.ok !== true || typeof body.supprimes !== 'number' || !Array.isArray(body.refs)) {
+    return { ok: false, reason: 'unreachable' };
+  }
+  // Strict: a ref outside the minted namespace is not one this system made,
+  // and the console must never be talked into revoking an arbitrary key.
+  const refs = body.refs.filter((r): r is string => typeof r === 'string' && r.startsWith('media/'));
+  return { ok: true, supprimes: body.supprimes, refs };
+}
+
+/**
+ * CROISSANCE-1 — the book pages in STORAGE order; the board has always shown
+ * newest first. The Worker's own comparator, applied to rows in the same
+ * storage order, so the paged board lists exactly what the whole-book read did.
+ */
+function plusRecentesDabord(rows: PaidOrderRow[]): PaidOrderRow[] {
+  return rows.sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));
+}
+
+/** A malformed inventory row is DROPPED, never rendered half-formed — the
+ *  standing law of every read on this console. */
+function lireInventaire(items: readonly unknown[]): InventaireRow[] {
+  const rows: InventaireRow[] = [];
+  for (const raw of items) {
+    if (raw === null || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    if (typeof r['offerId'] !== 'string' || r['offerId'] === '') continue;
+    if (typeof r['productVersionId'] !== 'string' || typeof r['supplierId'] !== 'string') continue;
+    if (typeof r['name'] !== 'string' || typeof r['available'] !== 'number') continue;
+    rows.push({
+      offerId: r['offerId'],
+      productVersionId: r['productVersionId'],
+      name: r['name'],
+      category: typeof r['category'] === 'string' ? r['category'] : '',
+      basePrice: typeof r['basePrice'] === 'number' ? r['basePrice'] : 0,
+      resellerCommission: typeof r['resellerCommission'] === 'number' ? r['resellerCommission'] : 0,
+      available: r['available'],
+      assetRefs: Array.isArray(r['assetRefs']) ? (r['assetRefs'] as string[]).filter((a) => typeof a === 'string') : [],
+      supplierId: r['supplierId'],
+      ...(typeof r['videoRef'] === 'string' ? { videoRef: r['videoRef'] } : {}),
+      ...(typeof r['variantsNote'] === 'string' ? { variantsNote: r['variantsNote'] } : {}),
+      ...(typeof r['hiddenReason'] === 'string' ? { hiddenReason: r['hiddenReason'] } : {}),
+      ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
+        ? { stockConfirmedAt: r['stockConfirmedAt'] }
+        : {}),
+    });
+  }
+  return rows;
 }
 
 /** A code row must be whole or it is nothing — same law as every reader here. */

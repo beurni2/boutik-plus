@@ -79,6 +79,8 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   /** True when his ops key is on the device and the inventory read REFUSED —
    *  the list is then his own products, not « Tous », and the screen says so. */
   const [inventaireRefuse, setInventaireRefuse] = useState(false);
+  /** CATALOGUE-PAGES-1 — the page cap stopped the inventory read: said, never hidden. */
+  const [inventairePartiel, setInventairePartiel] = useState(false);
   // PRODUITS-PAR-FOURNISSEUR (founder order 2026-08-03) — he lists FOR every
   // supplier and monitors all of them, so his own Produits screen filters by
   // whose product it is. The roster is the SAME code inventory the publish
@@ -202,6 +204,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
         }
         if (inv.ok) {
           setInventaireRefuse(false);
+          setInventairePartiel(inv.incomplet === true);
           const tous = cible === TOUS;
           const vise = cible === '' ? supplierId : cible;
           const gardees = inv.rows.filter((r) => tous || r.supplierId === vise);
@@ -439,6 +442,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
       {photosBanniere}
       {inventaireRefuse ? (
         <Banner tone="warn" style={{ marginTop: 12 }}>{t('produits.inventaire_refuse')}</Banner>
+      ) : null}
+      {inventairePartiel ? (
+        <Banner tone="warn" style={{ marginTop: 12 }}>{t('produits.inventaire_partiel')}</Banner>
       ) : null}
       {chips.length === 0 ? null : (
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 }}>

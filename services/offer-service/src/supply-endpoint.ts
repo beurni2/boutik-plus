@@ -109,10 +109,19 @@ export function sweepIdentityKeys(obj: Record<string, unknown>): void {
  * and now bites on real populated arrays (BOUTIK-MEDIA-1): media keys are opaque
  * tokens precisely so a ref can never carry the supplier id this refuses.
  */
+/** The media Worker's minted key, mirrored from its `isOpaqueMediaKey` (a
+ *  different deployable, so the shape is restated rather than imported). */
+const OPAQUE_MEDIA_REF = /^media\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 export function assertAssetRefsIdentityFree(assetRefs: readonly string[], supplierId: string): void {
   const needle = supplierId.trim();
   if (needle.length === 0) return; // no id to match — nothing to leak (defensive; IdSchema is non-empty)
   for (const ref of assetRefs) {
+    // CATALOGUE-PAGES-1 (AUDIT-B+2 F-32) — a ref of EXACTLY the minted shape
+    // (`media/<uuid v4>`, media-key.ts: CSPRNG, no argument) cannot carry an
+    // identity; a short supplier id like `ed` matching its random hex is chance,
+    // and refusing it took the whole reseller collection down.
+    if (OPAQUE_MEDIA_REF.test(ref)) continue;
     if (ref.includes(needle)) {
       throw new SupplyLeakError(`asset ref encodes supplier identity: ${ref}`);
     }
@@ -260,7 +269,16 @@ export function serveProjections(
 ): SupplyCollection {
   const items: SupplyReadModel[] = [];
   for (const entry of entries) {
-    const outcome = serveProjection(service, entry, nowIso, attested, dueMs);
+    // F-32 — a throw (the leak guard, the strict parse) OMITS this entry, the
+    // same as any refusal; it used to escape and 500 every reseller's browse.
+    // The single read still throws for it. Logged by offer id only.
+    let outcome: ServeOutcome;
+    try {
+      outcome = serveProjection(service, entry, nowIso, attested, dueMs);
+    } catch (err) {
+      console.error(`supply-projections: entry omitted (${err instanceof Error ? err.name : 'error'}) offer=${entry.offerId}`);
+      continue;
+    }
     if (outcome.ok) items.push(outcome.body);
   }
   return { asOf: nowIso, items };

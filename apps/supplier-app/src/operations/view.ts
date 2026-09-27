@@ -1,4 +1,4 @@
-import type { CodeRow, CodesResult, MintResult, PaidOrderRow, RetraitResult, RevealResult, RevokeResult } from './service';
+import type { CodeRow, CodesResult, FinirProduitsResult, MintResult, PaidOrderRow, RetraitResult, RevealResult, RevokeResult } from './service';
 import type {
   AccesCodeRow,
   CodeAccesResult,
@@ -53,7 +53,8 @@ export type OperationsRead =
   | { readonly kind: 'not_configured' }
   | { readonly kind: 'bad_key' }
   | { readonly kind: 'failed' }
-  | { readonly kind: 'ok'; readonly rows: readonly PaidOrderRow[] };
+  /** CROISSANCE-1 — `incomplet`: the page cap stopped the read (said on screen). */
+  | { readonly kind: 'ok'; readonly rows: readonly PaidOrderRow[]; readonly incomplet?: boolean };
 
 export type OperationsView =
   | { readonly kind: 'loading'; readonly message: string }
@@ -306,15 +307,21 @@ export function mintAvis(
  * renders as done before the book answers.
  */
 export interface CodesUi {
-  /** 'mint', or the supplierId being revoked or reread — one act at a time. */
-  readonly busy: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
+  /** 'mint', or the supplierId being revoked, reread or finished — one act at a time. */
+  readonly busy: 'mint' | `revoke:${string}` | `reveal:${string}` | `finir:${string}` | null;
   /** The plaintext on screen, until the founder dismisses it. `revele` marks
    *  a REREAD (CODE-REVU, 2026-08-09) — same card, its own sentence: a
    *  reread code is not « il ne s'affichera plus », he can come back. */
   readonly nouveau: { readonly supplierId: string; readonly code: string; readonly revele?: boolean } | null;
   /** Which act failed — namespaced like `busy`, so a supplier literally
    *  named « mint » can never light the wrong sentence (verifier note). */
-  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | `anterieur:${string}` | null;
+  readonly echec:
+    | 'mint' | `revoke:${string}` | `reveal:${string}` | `anterieur:${string}`
+    /** CATALOGUE-PAGES-1 — the door act stands, but its product walk did not
+     *  reach the end: his products are not all off sale (`coupe`) or not all
+     *  back (`rendu`). Said on his row, with « Finir » — never a quiet success. */
+    | `produits-coupe:${string}` | `produits-rendu:${string}`
+    | null;
 }
 
 export const CODES_IDLE: CodesUi = { busy: null, nouveau: null, echec: null };
@@ -351,7 +358,14 @@ export function mintSettled(result: MintResult): CodesSettlement {
   if (result.ok) {
     // The list refreshes (the row must be the STORED truth) while the
     // plaintext stays on screen until dismissed — the founder is mid-handover.
-    return { ui: { busy: null, nouveau: { supplierId: result.supplierId, code: result.code }, echec: null }, then: 'refresh' };
+    return {
+      ui: {
+        busy: null,
+        nouveau: { supplierId: result.supplierId, code: result.code },
+        echec: result.produitsIncomplets === true ? `produits-rendu:${result.supplierId}` : null,
+      },
+      then: 'refresh',
+    };
   }
   if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
   return { ui: { busy: null, nouveau: null, echec: 'mint' }, then: 'none' };
@@ -360,9 +374,33 @@ export function mintSettled(result: MintResult): CodesSettlement {
 export function revokeSettled(supplierId: string, result: RevokeResult): CodesSettlement {
   // `no_code` re-reads too: the list claimed a code the book no longer holds —
   // the row must leave the screen, and the stored truth is how.
-  if (result.ok) return { ui: CODES_IDLE, then: 'refresh' };
+  if (result.ok) {
+    return result.produitsIncomplets === true
+      ? { ui: { busy: null, nouveau: null, echec: `produits-coupe:${supplierId}` }, then: 'refresh' }
+      : { ui: CODES_IDLE, then: 'refresh' };
+  }
   if (result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
   return { ui: { busy: null, nouveau: null, echec: `revoke:${supplierId}` }, then: 'none' };
+}
+
+/**
+ * CATALOGUE-PAGES-1 — « Finir »: the product walk only, from the start, never
+ * the door act again (a second cut is harmless, but a second MINT would kill
+ * the code he just handed over). Not while a one-time code is on screen.
+ */
+export function finirStart(ui: CodesUi, supplierId: string): CodesUi | null {
+  if (ui.busy !== null || ui.nouveau !== null) return null;
+  if (ui.echec !== `produits-coupe:${supplierId}` && ui.echec !== `produits-rendu:${supplierId}`) return null;
+  return { busy: `finir:${supplierId}`, nouveau: null, echec: ui.echec };
+}
+
+export function finirSettled(ui: CodesUi, result: FinirProduitsResult): CodesSettlement {
+  if (result.ok && result.complet) return { ui: CODES_IDLE, then: 'refresh' };
+  if (!result.ok && result.reason === 'bad_key') return { ui: CODES_IDLE, then: 'bad_key' };
+  // His door changed since: walking on would undo his newer act. The row
+  // re-reads and shows the door as it now is; there is nothing to finish.
+  if (!result.ok && result.reason === 'acces_change') return { ui: CODES_IDLE, then: 'refresh' };
+  return { ui: { busy: null, nouveau: null, echec: ui.echec }, then: 'none' };
 }
 
 /**
@@ -632,24 +670,30 @@ export type SuiviRead =
   | { readonly kind: 'loading' }
   | { readonly kind: 'bad_key' }
   | { readonly kind: 'failed' }
-  | { readonly kind: 'ok'; readonly lignes: readonly SuiviLigne[] };
+  | { readonly kind: 'ok'; readonly lignes: readonly SuiviLigne[]; readonly total?: number };
 
 export type SuiviVue =
   | { readonly kind: 'loading'; readonly message: string }
   | { readonly kind: 'failed'; readonly message: string }
   | { readonly kind: 'empty'; readonly message: string }
-  | { readonly kind: 'liste'; readonly lignes: readonly SuiviLigne[] };
+  /** `partielle` — the roster holds more accounts than the board could read
+   *  (SUIVI-PAGES-1): said above the list, « {lues} sur {total} ». */
+  | { readonly kind: 'liste'; readonly lignes: readonly SuiviLigne[]; readonly partielle?: { readonly lues: number; readonly total: number } };
 
 export function suiviVue(read: SuiviRead): SuiviVue | null {
   if (read.kind === 'bad_key') return null;
   if (read.kind === 'loading') return { kind: 'loading', message: 'suivi.chargement' };
   if (read.kind === 'failed') return { kind: 'failed', message: 'suivi.echec' };
   if (read.lignes.length === 0) return { kind: 'empty', message: 'suivi.vide' };
-  return { kind: 'liste', lignes: read.lignes };
+  return {
+    kind: 'liste',
+    lignes: read.lignes,
+    ...(read.total !== undefined && read.total > read.lignes.length ? { partielle: { lues: read.lignes.length, total: read.total } } : {}),
+  };
 }
 
 export function suiviReadOf(result: SuiviResult): SuiviRead {
-  if (result.ok) return { kind: 'ok', lignes: result.lignes };
+  if (result.ok) return { kind: 'ok', lignes: result.lignes, ...(result.total !== undefined ? { total: result.total } : {}) };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { rafraichirQuandVisible } from '../ui/rafraichir';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -40,6 +41,8 @@ import {
   revealStart,
   revokeSettled,
   revokeStart,
+  finirSettled,
+  finirStart,
   type CodesRead,
   type CodesUi,
   type OperationsRead,
@@ -283,7 +286,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     try {
       const res = await service.listPaidOrders(opsKey);
       setNowMs(Date.now());
-      if (res.ok) setRead({ kind: 'ok', rows: res.orders });
+      if (res.ok) setRead({ kind: 'ok', rows: res.orders, ...(res.incomplet === true ? { incomplet: true } : {}) });
       else setRead({ kind: res.reason === 'bad_key' ? 'bad_key' : 'failed' });
     } finally {
       inFlight.current = false;
@@ -345,7 +348,7 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
   const [photosEnCours, setPhotosEnCours] = useState(false);
   /** The refusal to SAY, per supplier — « il a des commandes » is an answer he
    *  must read, not a silent no-op. */
-  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'paiement' | 'autre' } | null>(null);
+  const [effacerEchec, setEffacerEchec] = useState<{ id: string; raison: 'commandes' | 'partiel' | 'inacheve' | 'paiement' | 'autre' } | null>(null);
 
   const effacerFournisseur = async (supplierId: string): Promise<void> => {
     if (service === null) return;
@@ -360,7 +363,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
      * this is the only moment those photographs can ever be revoked, and
      * treating the partial as a plain failure leaked every one of them, forever.
      */
-    const refs = res.ok || res.reason === 'registre_echoue' ? res.refs : [];
+    // CATALOGUE-PAGES-1 — an erase that stopped between pages carries the
+    // refs of every page it DID erase: the same one-chance rule.
+    const refs = res.ok || res.reason === 'registre_echoue' || res.reason === 'purge_inachevee' ? res.refs : [];
     if (!res.ok) {
       setEffacerEchec({
         id: supplierId,
@@ -369,11 +374,13 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             ? 'commandes'
             : res.reason === 'registre_echoue'
               ? 'partiel'
-              : res.reason === 'paiement_en_cours'
-                ? 'paiement'
-                : 'autre',
+              : res.reason === 'purge_inachevee'
+                ? 'inacheve'
+                : res.reason === 'paiement_en_cours'
+                  ? 'paiement'
+                  : 'autre',
       });
-      if (res.reason !== 'registre_echoue') return;
+      if (res.reason !== 'registre_echoue' && res.reason !== 'purge_inachevee') return;
     }
     /**
      * THE BYTES, DESTROYED HERE — the offer service cannot: the media revoke
@@ -416,6 +423,22 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     await settleCodes(revokeSettled(supplierId, result));
   };
 
+  /** CATALOGUE-PAGES-1 — « Finir »: walk the rest of his products, never the door act again. */
+  const finirProduits = async (supplierId: string): Promise<void> => {
+    if (service === null) return;
+    const acte = codesUi.echec === `produits-rendu:${supplierId}` ? 'mint' : 'revoke';
+    const started = finirStart(codesUi, supplierId);
+    if (started === null) return;
+    setCodesUi(started);
+    let result;
+    try {
+      result = await service.finirProduits(opsKey, supplierId, acte);
+    } catch {
+      result = { ok: false, reason: 'unreachable' } as const;
+    }
+    await settleCodes(finirSettled(started, result));
+  };
+
   /** CODE-REVU (founder ruling 2026-08-09) — reread a code already given. */
   const revoirCode = async (supplierId: string): Promise<void> => {
     if (service === null) return;
@@ -439,10 +462,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     // the age figures stay true. One interval, cleared on unmount. (The code
     // inventory re-reads on the founder's own acts instead — codes change by
     // his hand, not by the clock.)
-    const h = setInterval(() => {
-      void load();
-    }, REFRESH_EVERY_MS);
-    return () => clearInterval(h);
+    // CROISSANCE-1 (F-04 d) — and only while he is looking: a console tab
+    // left open behind others re-read the whole book every minute for nobody.
+    return rafraichirQuandVisible(() => { void load(); }, REFRESH_EVERY_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -490,6 +512,14 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             <View style={{ marginTop: 14 }}>
               <C07BtnPrimary label={t('operations.reessayer')} icon="retry" onPress={() => { void load(); }} />
             </View>
+          </View>
+        )}
+
+        {/* CROISSANCE-1 — the page cap stopped the read: what is shown is
+            true, and it is said that it is not everything. */}
+        {read.kind === 'ok' && read.incomplet === true && (
+          <View style={{ marginTop: 14 }}>
+            <Banner tone="warn">{t('operations.carnet_partiel')}</Banner>
           </View>
         )}
 
@@ -561,8 +591,11 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             onEffacer={(supplierId) => { void effacerFournisseur(supplierId); }}
             echecEffacer={effacerEchec}
             onCouper={(supplierId) => { void couperCode(supplierId); }}
+            onFinir={(supplierId) => { void finirProduits(supplierId); }}
             onVoir={(supplierId) => { void revoirCode(supplierId); }}
-            onVu={() => setCodesUi(CODES_IDLE)}
+            // « C'est noté » closes the code card, never the unfinished-walk
+            // line beside it: that one leaves only when « Finir » succeeds.
+            onVu={() => setCodesUi((u) => ({ ...CODES_IDLE, echec: u.echec !== null && u.echec.startsWith('produits-') ? u.echec : null }))}
             onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
           />
         )}
@@ -1148,26 +1181,37 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
         <View style={{ marginTop: 10 }}><Banner tone="info">{t(vue.message)}</Banner></View>
       )}
 
+      {/* SUIVI-PAGES-1 (F-72) — the roster holds more accounts than the
+          board could read: said, with both numbers, above the list. */}
+      {vue.kind === 'liste' && vue.partielle !== undefined && (
+        <View style={{ marginTop: 10 }}>
+          <Banner tone="info">
+            {t('suivi.partiel_n_sur').replace('{n}', String(vue.partielle.lues)).replace('{total}', String(vue.partielle.total))}
+          </Banner>
+        </View>
+      )}
+
       {/* THE RANK IS THE ROW ORDER MADE VISIBLE — the deterministic sort
           (ventes → net → id) already decided it; the numeral only says it out
           loud. Gold on the first row, ink on the rest: one quiet honour, never
-          a score. */}
+          a score. A PARTIAL row (F-72) is sorted last and wears NO rank and no
+          total: « au moins » for what was read, « — » for a sum nobody finished. */}
       {vue.kind === 'liste' && vue.lignes.map((l: SuiviLigne, rang: number) => (
         <Card key={l.accountId} variant="Llist" style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 12 }}>
-              <Text style={[role({ f: 'BG', w: 800, s: 16 }, rang === 0 ? P.gold : P.faint), TNUM, { width: 34 }]}>
-                {rang + 1}
+              <Text style={[role({ f: 'BG', w: 800, s: 16 }, rang === 0 && !l.incomplet ? P.gold : P.faint), TNUM, { width: 34 }]}>
+                {l.incomplet ? '—' : rang + 1}
               </Text>
               <View style={{ flex: 1 }}>
                 <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{l.name}</Text>
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
-                  {t('suivi.ventes_n').replace('{n}', String(l.ventes))}
+                  {t(l.incomplet ? 'suivi.ventes_au_moins' : 'suivi.ventes_n').replace('{n}', String(l.ventes))}
                   {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
                 </Text>
               </View>
             </View>
-            <Text style={[role({ f: 'BG', w: 800, s: 17 }, P.ink), TNUM]}>{formatF(l.netFcfa)}</Text>
+            <Text style={[role({ f: 'BG', w: 800, s: 17 }, l.incomplet ? P.faint : P.ink), TNUM]}>{l.incomplet ? '—' : formatF(l.netFcfa)}</Text>
           </View>
         </Card>
       ))}
@@ -1412,7 +1456,7 @@ function SClePhotos({ cle, onEnregistree, onOubliee }: {
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, clePhotosPresente, onArmer, onEffacer, echecEffacer, onCouper, onVoir, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, clePhotosPresente, onArmer, onEffacer, echecEffacer, onCouper, onFinir, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
@@ -1433,8 +1477,9 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
   clePhotosPresente: boolean;
   onArmer: (supplierId: string | null) => void;
   onEffacer: (supplierId: string) => void;
-  echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'paiement' | 'autre' } | null;
+  echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'inacheve' | 'paiement' | 'autre' } | null;
   onCouper: (supplierId: string) => void;
+  onFinir: (supplierId: string) => void;
   onVoir: (supplierId: string) => void;
   onVu: () => void;
   onRetry: () => void;
@@ -1578,6 +1623,8 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
                         ? 'operations.supprimer_def_paiement'
                         : echecEffacer.raison === 'partiel'
                         ? 'operations.supprimer_def_partiel'
+                        : echecEffacer.raison === 'inacheve'
+                        ? 'operations.supprimer_def_inacheve'
                         : 'operations.supprimer_def_echec',
                   )}
                 </Text>
@@ -1586,6 +1633,20 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
             {ui.echec === `revoke:${c.supplierId}` && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('operations.code_coupure_echec')}</Text>
+              </View>
+            )}
+            {/* CATALOGUE-PAGES-1 — the door act stood, its product walk did
+                not reach the end. Said here, with the one act that finishes it. */}
+            {(ui.echec === `produits-coupe:${c.supplierId}` || ui.echec === `produits-rendu:${c.supplierId}`) && (
+              <View style={{ marginTop: 6, gap: 6, alignItems: 'flex-start' }}>
+                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
+                  {t(ui.echec.startsWith('produits-coupe:') ? 'operations.produits_coupe_inacheve' : 'operations.produits_rendu_inacheve')}
+                </Text>
+                {ui.busy === `finir:${c.supplierId}` ? (
+                  <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.produits_finir_encours')}</Text>
+                ) : ui.nouveau === null ? (
+                  <BtnSoft label={t('operations.produits_finir')} onPress={() => onFinir(c.supplierId)} />
+                ) : null}
               </View>
             )}
             {ui.echec === `reveal:${c.supplierId}` && (

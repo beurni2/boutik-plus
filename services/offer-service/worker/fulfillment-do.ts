@@ -8,6 +8,7 @@ import {
   type OrderConfirmedEvent,
   type PackageReadinessConfirmation,
 } from '@platform/contracts';
+import { provenance } from '@boutik/observability';
 import { restockOnRefusal } from '../src/offer-core.js';
 import type { OfferStore } from '../src/offer-store.js';
 
@@ -113,6 +114,32 @@ export interface SupplierContactRecord {
 }
 /** READINESS-RETURN-1 — one outbox row per (order, fact). */
 const PROGRESS_OUTBOX_PREFIX = 'progressoutbox:';
+/**
+ * CROISSANCE-1 (AUDIT-B+2 F-89 a) — ONE POINTER PER FACT STILL WAITING,
+ * `progresspending:{orderId}:{fact}`, beside its outbox row. Every wake used to
+ * list the WHOLE outbox — every fact ever delivered, which is never removed
+ * (first-wins depends on it) — to find the few still pending: about three rows
+ * read per lifetime order, every hour a fact was stuck.
+ *
+ * THE INVARIANT, one way only: a pending row ALWAYS has its pointer — written
+ * in the SAME multi-key put that creates the row. A pointer may briefly outlive
+ * its row's delivery (it is deleted just after); the wake reads the row, sees
+ * it is not pending, and drops the pointer. A stale pointer costs one read; a
+ * missing one would strand a readiness fact for good.
+ */
+const PROGRESS_PENDING_PREFIX = 'progresspending:';
+/**
+ * Holds the RELEASE whose sweep gave every waiting row its pointer. Keyed to
+ * the release, not set once: a rollback to a build without pointers writes
+ * pending rows that have none, and the next deploy's first wake finds them.
+ * One full outbox walk per deploy is the whole price.
+ */
+const PROGRESS_PENDING_BUILT = 'progresspending-bati';
+const pointeurDe = (outboxKey: string): string => PROGRESS_PENDING_PREFIX + outboxKey.slice(PROGRESS_OUTBOX_PREFIX.length);
+/** DO storage takes at most 128 keys per multi-key get/put/delete. */
+const STORAGE_BATCH_MAX = 128;
+/** CROISSANCE-1 (F-89 c) — one page of the founder's board: its payload, its CPU and its photo join stay bounded. */
+const ORDERS_PAGE_MAX = 100;
 
 /**
  * At-least-once backoff for the return leg, mirroring the Shop+ emitter's
@@ -385,6 +412,46 @@ export interface PaidOrderRecord {
   readonly colis?: { readonly packageId: string; readonly orderIds: readonly string[] };
 }
 
+/** The mark families the founder's board folds into each order row. */
+const MARQUES_DU_CARNET = [
+  RELANCE_PREFIX, ACCEPT_PREFIX, READY_PREFIX, REFUS_PREFIX,
+  HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, PICKUP_REFUS_PREFIX,
+] as const;
+
+/**
+ * One row of the founder's board — ONE builder for the whole-book read and a
+ * page of it, so the two can never disagree. Merged at READ: the stored record
+ * stays exactly the bytes the intake wrote (see RelanceMark). The fulfillment
+ * mark carries the server clocks only; the evidence (photoRef, challenge) never
+ * leaves this object through the list.
+ */
+function ligneDuCarnet(r: PaidOrderRecord, marques: ReadonlyMap<string, unknown>) {
+  const mark = marques.get(`${RELANCE_PREFIX}${r.orderId}`) as RelanceMark | undefined;
+  const accepted = marques.get(`${ACCEPT_PREFIX}${r.orderId}`) as FulfillmentAcceptanceRecord | undefined;
+  const ready = marques.get(`${READY_PREFIX}${r.orderId}`) as ReadinessRecord | undefined;
+  const handed = marques.get(`${HANDOVER_PREFIX}${r.orderId}`) as HandoverRecord | undefined;
+  const livree = marques.get(`${LIVRAISON_PREFIX}${r.orderId}`) as LivraisonRecord | undefined;
+  const retour = marques.get(`${RETOUR_PREFIX}${r.orderId}`) as RetourRecord | undefined;
+  const pickup = marques.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`) as PickupRefusRecord | undefined;
+  const refusee = marques.get(`${REFUS_PREFIX}${r.orderId}`) as RefusRecord | undefined;
+  const f = {
+    ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
+    ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
+    ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
+    ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
+    ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
+    ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
+    ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
+    ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+  };
+  const fulfillment = Object.keys(f).length === 0 ? undefined : f;
+  return {
+    ...r,
+    ...(mark !== undefined ? { relance: mark } : {}),
+    ...(fulfillment !== undefined ? { fulfillment } : {}),
+  };
+}
+
 export class FulfillmentDO {
   constructor(
     private readonly state: DurableObjectState,
@@ -471,19 +538,23 @@ export class FulfillmentDO {
        * (absent, not '' standing in for an identity nobody established).
        */
       const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
-      await this.state.storage.put(key, {
-        status: 'pending' as const,
-        target: 'sera' as const,
-        event: {
-          orderId,
-          ready: true,
-          asOf: at,
-          ...(order !== undefined && order.supplierResolved && order.supplierId !== ''
-            ? { supplierRef: order.supplierId }
-            : {}),
+      await this.state.storage.put({
+        [key]: {
+          status: 'pending' as const,
+          target: 'sera' as const,
+          event: {
+            orderId,
+            ready: true,
+            asOf: at,
+            ...(order !== undefined && order.supplierResolved && order.supplierId !== ''
+              ? { supplierRef: order.supplierId }
+              : {}),
+          },
+          attempts: 0,
+          nextAttemptAt: 0,
         },
-        attempts: 0,
-        nextAttemptAt: 0,
+        // CROISSANCE-1 — the pointer lands in the SAME write as the row.
+        [pointeurDe(key)]: 1,
       });
       await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
     } catch {
@@ -554,7 +625,8 @@ export class FulfillmentDO {
       const row = composed.success
         ? { status: 'pending' as const, event: composed.data, attempts: 0, nextAttemptAt: 0 }
         : { status: 'unsendable' as const, reason: 'not_canonical', attempts: 0, nextAttemptAt: 0 };
-      await this.state.storage.put(key, row);
+      // CROISSANCE-1 — a pending row and its pointer land in ONE write.
+      await this.state.storage.put(composed.success ? { [key]: row, [pointeurDe(key)]: 1 } : { [key]: row });
       if (composed.success) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
     } catch {
       // The supplier's act is already durably recorded and must never fail on
@@ -570,17 +642,42 @@ export class FulfillmentDO {
    *  producer bug shows up as a repeating refusal in both Workers' logs
    *  rather than a silent loss. */
   async alarm(): Promise<void> {
-    const rows = await this.state.storage.list<{
+    type OutboxRow = {
       status: 'pending' | 'delivered' | 'unsendable';
       event?: unknown;
       attempts: number;
       nextAttemptAt?: number;
       reason?: string;
-    }>({ prefix: PROGRESS_OUTBOX_PREFIX });
+    };
+    // CROISSANCE-1 — rows written without a pointer (before this slice, or by
+    // a rolled-back build) are found ONCE per release, by the old full walk;
+    // the marker lands in the last write, so a wake that dies half-way sweeps again.
+    const release = provenance().release;
+    if ((await this.state.storage.get(PROGRESS_PENDING_BUILT)) !== release) {
+      const tout = await this.state.storage.list<OutboxRow>({ prefix: PROGRESS_OUTBOX_PREFIX });
+      const manquants = [...tout].filter(([, r]) => r.status === 'pending').map(([k]) => pointeurDe(k));
+      for (let i = 0; i < manquants.length; i += STORAGE_BATCH_MAX - 1) {
+        await this.state.storage.put(Object.fromEntries(manquants.slice(i, i + STORAGE_BATCH_MAX - 1).map((p) => [p, 1])));
+      }
+      await this.state.storage.put(PROGRESS_PENDING_BUILT, release);
+    }
+    const pointeurs = [...(await this.state.storage.list({ prefix: PROGRESS_PENDING_PREFIX })).keys()];
+    const cles = pointeurs.map((p) => PROGRESS_OUTBOX_PREFIX + p.slice(PROGRESS_PENDING_PREFIX.length));
+    const rows = new Map<string, OutboxRow>();
+    for (let i = 0; i < cles.length; i += STORAGE_BATCH_MAX) {
+      for (const [k, v] of await this.state.storage.get<OutboxRow>(cles.slice(i, i + STORAGE_BATCH_MAX))) rows.set(k, v);
+    }
+    const perimes: string[] = [];
     const now = Date.now();
     let retryIn: number | null = null;
-    for (const [key, row] of rows) {
-      if (row.status !== 'pending' || row.event === undefined) continue;
+    for (const key of cles) {
+      const row = rows.get(key);
+      // A pointer whose fact is gone, delivered or parked no longer waits.
+      if (row === undefined || row.status !== 'pending') {
+        perimes.push(pointeurDe(key));
+        continue;
+      }
+      if (row.event === undefined) continue;
       /**
        * VERIFIER M5 — EACH ROW WAITS ITS OWN TURN. Without a per-row due time
        * a row whose ladder says thirty minutes was re-attempted — and had its
@@ -644,18 +741,25 @@ export class FulfillmentDO {
       }
       if (delivered) {
         await this.state.storage.put(key, { ...row, status: 'delivered', attempts: row.attempts + 1 });
+        perimes.push(pointeurDe(key));
         continue;
       }
       if (permanentRefusal) {
         await this.state.storage.put(key, {
           ...row, status: 'unsendable', reason: 'refused_by_consumer', attempts: row.attempts + 1,
         });
+        perimes.push(pointeurDe(key));
         continue;
       }
       const attempts = row.attempts + 1;
       const next = progressBackoffMs(attempts);
       await this.state.storage.put(key, { ...row, attempts, nextAttemptAt: now + next });
       retryIn = retryIn === null ? next : Math.min(retryIn, next);
+    }
+    // AFTER the rows: a pointer is only ever dropped once its row says it no
+    // longer waits (the invariant's safe direction).
+    for (let i = 0; i < perimes.length; i += STORAGE_BATCH_MAX) {
+      await this.state.storage.delete(perimes.slice(i, i + STORAGE_BATCH_MAX));
     }
     if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
   }
@@ -724,6 +828,50 @@ export class FulfillmentDO {
     return miens;
   }
 
+  /**
+   * CROISSANCE-1 (AUDIT-B+2 F-89 c) — ONE PAGE OF THE FOUNDER'S BOARD. The
+   * whole book used to leave in one answer every minute (1.1 MB at 2 000
+   * orders, past the Free plan's CPU budget between 1 000 and 2 000). A page
+   * walks the order rows in STORAGE order after the cursor (an orderId), and
+   * reads each mark family only over that same range of keys — every mark key
+   * is `{prefix}{orderId}`, so the range holds exactly this page's marks. A
+   * sweep of every page reads what one whole-book read did, in pieces no
+   * request can outgrow. Rows come in storage order; the console sorts.
+   */
+  private async pageDuCarnet(limitRaw: string, cursor: string | null): Promise<Response> {
+    const n = Number(limitRaw);
+    if (!Number.isInteger(n) || n < 1) return Response.json({ ok: false, reason: 'malformed', param: 'limit' }, { status: 400 });
+    const taille = Math.min(n, ORDERS_PAGE_MAX);
+    const lus = await this.state.storage.list<PaidOrderRecord>({
+      prefix: ORDER_PREFIX,
+      ...(cursor !== null && cursor !== '' ? { startAfter: `${ORDER_PREFIX}${cursor}` } : {}),
+      limit: taille + 1, // one more, only to know whether a next page exists
+    });
+    const page = [...lus.values()].slice(0, taille);
+    const marques = new Map<string, unknown>();
+    if (page.length > 0) {
+      const premier = page[0]!.orderId;
+      const dernier = page[page.length - 1]!.orderId;
+      for (const p of MARQUES_DU_CARNET) {
+        // `\u0000` sorts before any other character: the end bound keeps the
+        // last order's mark and nothing of an id that merely extends it.
+        const range = await this.state.storage.list({ start: `${p}${premier}`, end: `${p}${dernier}\u0000` });
+        for (const [k, v] of range) marques.set(k, v);
+      }
+    }
+    const orders = page.map((r) => ligneDuCarnet(r, marques));
+    return Response.json(lus.size > taille ? { ok: true, orders, next: page[page.length - 1]!.orderId } : { ok: true, orders });
+  }
+
+  /** CROISSANCE-1 — point-read these keys, in batches the platform accepts. */
+  private async lireParCles(cles: readonly string[]): Promise<Map<string, unknown>> {
+    const out = new Map<string, unknown>();
+    for (let i = 0; i < cles.length; i += STORAGE_BATCH_MAX) {
+      for (const [k, v] of await this.state.storage.get<unknown>(cles.slice(i, i + STORAGE_BATCH_MAX))) out.set(k, v);
+    }
+    return out;
+  }
+
   private async resolveCode(presented: unknown): Promise<SupplierCodeRecord | null> {
     if (typeof presented !== 'string' || presented === '') return null;
     const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(codeCanonique(presented))}`);
@@ -772,51 +920,21 @@ export class FulfillmentDO {
      *  store's list: a cursor today is speculative flexibility, an obligation
      *  forever). */
     if (request.method === 'GET' && pathname === '/orders') {
+      const q = new URL(request.url).searchParams;
+      if (q.has('limit')) return this.pageDuCarnet(q.get('limit')!, q.get('cursor'));
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
-      const marks = await this.state.storage.list<RelanceMark>({ prefix: RELANCE_PREFIX });
-      const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
-      const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
-      const refusees = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
-      // REMBOURSABLE-1 (AUDIT-B+2 F-61) — the book's OWN road marks. His
-      // Commandes tab used to learn « en route », « livrée » and « revenue »
-      // only from other Workers' reads, and a failed read filed a finished
-      // order back under « Prêt à livrer » with « Créer la course » on it.
-      const handovers = await this.state.storage.list<HandoverRecord>({ prefix: HANDOVER_PREFIX });
-      const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
-      const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
-      const pickups = await this.state.storage.list<PickupRefusRecord>({ prefix: PICKUP_REFUS_PREFIX });
+      // REMBOURSABLE-1 (AUDIT-B+2 F-61) — the book's OWN road marks are here
+      // too (handover, delivery, return, pickup refusal). His Commandes tab
+      // used to learn « en route », « livrée » and « revenue » only from other
+      // Workers' reads, and a failed read filed a finished order back under
+      // « Prêt à livrer » with « Créer la course » on it.
+      const marques = new Map<string, unknown>();
+      for (const p of MARQUES_DU_CARNET) {
+        for (const [k, v] of await this.state.storage.list({ prefix: p })) marques.set(k, v);
+      }
       const orders = [...entries.values()]
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
-        // Merged at READ — the stored record stays exactly the bytes the
-        // intake wrote (see RelanceMark). The fulfillment mark carries the
-        // server clocks only; the evidence (photoRef, challenge) never
-        // leaves this object through the list.
-        .map((r) => {
-          const mark = marks.get(`${RELANCE_PREFIX}${r.orderId}`);
-          const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
-          const ready = readies.get(`${READY_PREFIX}${r.orderId}`);
-          const handed = handovers.get(`${HANDOVER_PREFIX}${r.orderId}`);
-          const livree = livraisons.get(`${LIVRAISON_PREFIX}${r.orderId}`);
-          const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
-          const pickup = pickups.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`);
-          const refusee = refusees.get(`${REFUS_PREFIX}${r.orderId}`);
-          const f = {
-            ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
-            ...(ready !== undefined ? { readyAt: ready.confirmedAt } : {}),
-            ...(handed !== undefined ? { handedOverAt: handed.handedOverAt } : {}),
-            ...(livree !== undefined ? { deliveredAt: livree.deliveredAt } : {}),
-            ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
-            ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
-            ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
-            ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
-          };
-          const fulfillment = Object.keys(f).length === 0 ? undefined : f;
-          return {
-            ...r,
-            ...(mark !== undefined ? { relance: mark } : {}),
-            ...(fulfillment !== undefined ? { fulfillment } : {}),
-          };
-        });
+        .map((r) => ligneDuCarnet(r, marques));
       return Response.json({ ok: true, orders });
     }
 
@@ -1137,21 +1255,29 @@ export class FulfillmentDO {
       const resolved = await this.resolveCode(body?.['code']);
       if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
       const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
-      const accepts = await this.state.storage.list<FulfillmentAcceptanceRecord>({ prefix: ACCEPT_PREFIX });
-      const readies = await this.state.storage.list<ReadinessRecord>({ prefix: READY_PREFIX });
-      // BOUTIK-SUIVI — the two marks that move a row off « Mes commandes »:
-      // his own confirmed handover, and Séra's delivery as Shop+ relayed it.
-      const handovers = await this.state.storage.list<HandoverRecord>({ prefix: HANDOVER_PREFIX });
-      const livraisons = await this.state.storage.list<LivraisonRecord>({ prefix: LIVRAISON_PREFIX });
-      // RETOUR-VIVANT-1 — the fourth mark: his own confirmed RETURN code.
-      const retours = await this.state.storage.list<RetourRecord>({ prefix: RETOUR_PREFIX });
-      // REMBOURSEMENT-2 — the fifth: his own refusal (or, REMBOURSABLE-1, the
-      // founder's cancellation, said as such).
-      const refus = await this.state.storage.list<RefusRecord>({ prefix: REFUS_PREFIX });
-      // REMBOURSABLE-1 (F-08) — the sixth: the rider refused the colis at pickup.
-      const pickups = await this.state.storage.list<PickupRefusRecord>({ prefix: PICKUP_REFUS_PREFIX });
-      const orders = [...entries.values()]
-        .filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId)
+      const siennes = [...entries.values()].filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId);
+      // CROISSANCE-1 (AUDIT-B+2 F-04) — HIS orders' marks only, point-read.
+      // Seven whole-prefix lists used to read every mark on the platform, every
+      // minute, for every supplier with the page open. The marks, as before:
+      // his acceptance and readiness · BOUTIK-SUIVI his confirmed handover and
+      // Séra's delivery as Shop+ relayed it · RETOUR-VIVANT-1 his confirmed
+      // return code · REMBOURSEMENT-2 his refusal (or, REMBOURSABLE-1, the
+      // founder's cancellation) · REMBOURSABLE-1 (F-08) the rider's refusal
+      // at pickup. One map serves every lookup below: its keys carry the prefix.
+      const marques = await this.lireParCles(
+        siennes.flatMap((r) =>
+          [ACCEPT_PREFIX, READY_PREFIX, HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX]
+            .map((p) => `${p}${r.orderId}`),
+        ),
+      );
+      const accepts = marques as Map<string, FulfillmentAcceptanceRecord>;
+      const readies = marques as Map<string, ReadinessRecord>;
+      const handovers = marques as Map<string, HandoverRecord>;
+      const livraisons = marques as Map<string, LivraisonRecord>;
+      const retours = marques as Map<string, RetourRecord>;
+      const refus = marques as Map<string, RefusRecord>;
+      const pickups = marques as Map<string, PickupRefusRecord>;
+      const orders = siennes
         .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1))
         .map((r) => {
           const accepted = accepts.get(`${ACCEPT_PREFIX}${r.orderId}`);
@@ -1769,6 +1895,8 @@ export class FulfillmentDO {
         `${REFUS_PREFIX}${orderId}`,
         `${PICKUP_REFUS_PREFIX}${orderId}`,
         ...outbox.keys(),
+        // CROISSANCE-1 — a fact that dies with its order stops waiting too.
+        ...[...outbox.keys()].map(pointeurDe),
       ];
       // ONE DELETE CALL, so the row and its marks leave together or not at
       // all — the « ONE WRITE, NOT TWO » law this repo already lives by. A
@@ -1987,10 +2115,13 @@ export async function handleRefusedIntake(
  */
 const PHOTO_LOOKUP_MAX = 20;
 
-export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEnv): Promise<Response> {
+export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEnv, query?: URLSearchParams): Promise<Response> {
   const stub = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
-  const res = await stub.fetch(new Request('https://do/orders'));
-  const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown } | null;
+  // CROISSANCE-1 (F-89 c) — a page request rides through; the photo join
+  // below then spends its cap on THIS page, one request per page.
+  const page = ['limit', 'cursor'].flatMap((k) => (query?.has(k) === true ? [`${k}=${encodeURIComponent(query.get(k)!)}`] : [])).join('&');
+  const res = await stub.fetch(new Request(`https://do/orders${page === '' ? '' : `?${page}`}`));
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; orders?: unknown; next?: unknown } | null;
   if (body?.ok !== true || !Array.isArray(body.orders)) return Response.json(body ?? { ok: false }, { status: res.status });
 
   const rows = body.orders as Record<string, unknown>[];
@@ -2028,7 +2159,7 @@ export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEn
   const photoByPv = new Map(found.filter(([, ref]) => ref !== ''));
 
   const orders = rows.map((r) => ({ ...r, productPhotoRef: photoByPv.get(pvOf(r)) ?? '' }));
-  return Response.json({ ok: true, orders });
+  return Response.json(typeof body.next === 'string' ? { ok: true, orders, next: body.next } : { ok: true, orders });
 }
 
 /** RB-1 — the founder's per-order evidence read (ops-gated at the router). */

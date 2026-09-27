@@ -89,7 +89,8 @@ const DUREE = role({ f: 'BG', w: 800, s: 22 }, P.ink);
 type Read =
   | { kind: 'chargement' }
   | { kind: 'echec' }
-  | { kind: 'ok'; orders: readonly PaidOrderRow[]; contacts: readonly SupplierContact[] };
+  /** CROISSANCE-1 — `incomplet`: the page cap stopped the book's read (said on screen). */
+  | { kind: 'ok'; orders: readonly PaidOrderRow[]; contacts: readonly SupplierContact[]; incomplet?: boolean };
 
 export function SCommandesReel() {
   const [cle, setCle] = useState<string | null>(() => readStoredOpsKey());
@@ -218,7 +219,10 @@ function LivreCommandes({
     }
     // A contacts failure never blanks the BOOK — names degrade to supplier
     // ids (true, just colder); the board itself is the load-bearing read.
-    setRead({ kind: 'ok', orders: orders.orders, contacts: contacts.ok ? contacts.contacts : [] });
+    setRead({
+      kind: 'ok', orders: orders.orders, contacts: contacts.ok ? contacts.contacts : [],
+      ...(orders.incomplet === true ? { incomplet: true } : {}),
+    });
 
     let echec = false;
     const cleSera = readStoredCleCoursiers();
@@ -346,6 +350,11 @@ function LivreCommandes({
       {lectureEchouee ? (
         <View style={{ marginTop: 12 }}>
           <Banner tone="info">{t('commandes.lecture_partielle')}</Banner>
+        </View>
+      ) : null}
+      {read.kind === 'ok' && read.incomplet === true ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="warn">{t('operations.carnet_partiel')}</Banner>
         </View>
       ) : null}
       <ScrollView

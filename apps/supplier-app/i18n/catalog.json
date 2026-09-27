@@ -1566,6 +1566,12 @@
     "screenClass": "general"
   },
   {
+    "key": "produits.inventaire_partiel",
+    "fr": "Liste partielle : le catalogue est très long, certains produits ne sont pas affichés.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "produits.filtre_tous",
     "fr": "Tous",
     "register": "neutral",
@@ -2408,6 +2414,12 @@
   {
     "key": "fournisseur.liste_pas_a_jour",
     "fr": "La liste n'a pas pu être mise à jour. Elle a peut-être changé depuis.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produits_partiels",
+    "fr": "Une partie seulement de vos produits est affichée.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3302,6 +3314,18 @@
   {
     "key": "suivi.incomplet",
     "fr": "Lecture partielle",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.ventes_au_moins",
+    "fr": "au moins {n} vente(s)",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "suivi.partiel_n_sur",
+    "fr": "Lecture partielle : {n} revendeuses lues sur {total}. Les autres ne sont pas affichées.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5312,6 +5336,42 @@
   {
     "key": "operations.supprimer_def_partiel",
     "fr": "Les produits sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.supprimer_def_inacheve",
+    "fr": "Une partie seulement de ses produits est effacée. Appuyez encore pour finir.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.produits_coupe_inacheve",
+    "fr": "Son accès est coupé, mais certains de ses produits sont encore en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.produits_rendu_inacheve",
+    "fr": "Son accès est rendu, mais certains de ses produits ne sont pas encore remis en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.produits_finir",
+    "fr": "Terminer",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
+    "key": "operations.produits_finir_encours",
+    "fr": "En cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "operations.carnet_partiel",
+    "fr": "Lecture partielle : le carnet est très long, certaines commandes ne sont pas affichées.",
     "register": "neutral",
     "screenClass": "status"
   },

@@ -91,6 +91,15 @@ runScanGate({
      */
     { file: 'services/offer-service/test/sera-readiness.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
     /**
+     * CROISSANCE-1 (AUDIT-B+2 F-89) — the same class: the outbox growth test
+     * constructs the real `FulfillmentDO` with its env, and the Shop+ delivery
+     * binding's name is `STOREFRONT`; the stand-in answers 200 so a DELIVERED
+     * fact can be seen leaving the waiting list. No buyer surface, no
+     * checkout, no cart, no order created in Boutik+; `checkout`/`cart` stay
+     * banned in this file.
+     */
+    { file: 'services/offer-service/test/croissance-carnet.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery binding the outbox test constructs (CROISSANCE-1)' },
+    /**
      * RAMASSAGE-VERIFY — the same class, fourth instance: the miniflare
      * `serviceBindings` key must spell the wrangler binding name exactly for
      * the worker to boot; the test itself answers it with a stub so the

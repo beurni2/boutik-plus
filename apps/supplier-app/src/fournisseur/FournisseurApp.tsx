@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { rafraichirQuandVisible } from '../ui/rafraichir';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
@@ -165,6 +166,8 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
   /** F-19 — the last refresh failed while a good list is on screen: the list
    *  stays, with a line saying it may have changed since. */
   const [perimee, setPerimee] = useState(false);
+  /** CATALOGUE-PAGES-1 — the page cap stopped the read: the list is partial, and says so. */
+  const [partielle, setPartielle] = useState(false);
 
   const charger = async (force = false): Promise<void> => {
     if (service === null || (inFlight.current && !force)) return;
@@ -177,6 +180,7 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
       if (res.ok) {
         setRead({ kind: 'ok', rows: res.produits });
         setPerimee(false);
+        setPartielle(res.incomplet === true);
       } else if (res.reason === 'bad_code') {
         setRead({ kind: 'bad_code' });
       } else {
@@ -192,10 +196,8 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
 
   useEffect(() => {
     void charger();
-    const h = setInterval(() => {
-      void charger();
-    }, REFRESH_EVERY_MS);
-    return () => clearInterval(h);
+    // CROISSANCE-1 — every minute while he is looking; nothing while the tab is hidden.
+    return rafraichirQuandVisible(() => { void charger(); }, REFRESH_EVERY_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -211,6 +213,11 @@ function SMesProduits({ code, onCodeCleared }: { code: string; onCodeCleared: ()
       {perimee && (vue.kind === 'liste' || vue.kind === 'empty') && (
         <View style={{ marginTop: 14 }}>
           <Banner tone="warn">{t('fournisseur.liste_pas_a_jour')}</Banner>
+        </View>
+      )}
+      {partielle && vue.kind === 'liste' && (
+        <View style={{ marginTop: 14 }}>
+          <Banner tone="warn">{t('fournisseur.produits_partiels')}</Banner>
         </View>
       )}
 
@@ -466,10 +473,8 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
 
   useEffect(() => {
     void load();
-    const h = setInterval(() => {
-      void load();
-    }, REFRESH_EVERY_MS);
-    return () => clearInterval(h);
+    // CROISSANCE-1 — every minute while he is looking; nothing while the tab is hidden.
+    return rafraichirQuandVisible(() => { void load(); }, REFRESH_EVERY_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -97,7 +97,9 @@ export interface ProduitRow {
 }
 
 export type ProduitsResult =
-  | { readonly ok: true; readonly produits: readonly ProduitRow[] }
+  /** CATALOGUE-PAGES-1 — `incomplet`: the page cap ended the sweep with pages
+   *  still standing; the rows are real, the list is declared partial. */
+  | { readonly ok: true; readonly produits: readonly ProduitRow[]; readonly incomplet?: boolean }
   | { readonly ok: false; readonly reason: 'bad_code' | 'unreachable' };
 
 export type ActResult =
@@ -185,6 +187,10 @@ const READY_REFUSALS: readonly ReadyRefusal[] = [
  * door. Anything outside printable ASCII travels as « - »; the server's own
  * reading of the code (it ignores separators) decides the rest.
  */
+/** One page of the platform's catalogue (his are filtered from it server-side). */
+const PAGE_PRODUITS = 40;
+const PAGES_MAX_PRODUITS = 25;
+
 const enTete = (code: string): string => `Bearer ${code.replace(/[^\x20-\x7E]/g, '-')}`;
 
 export function resolveFournisseurService(): FournisseurServicePort | null {
@@ -228,25 +234,46 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       return { ok: true, orders };
     },
 
+    /**
+     * CATALOGUE-PAGES-1 (AUDIT-B+2 F-05) — a page at a time: one request for
+     * the whole catalogue failed near 50 products on the platform. Whole or
+     * nothing, like every paged read here; an older Worker answers everything
+     * with no `next`.
+     */
     async listProduits(code: string): Promise<ProduitsResult> {
-      let res: Response;
-      try {
-        res = await fetch(`${trimmed}/offers/mine`, {
-          headers: { Accept: 'application/json', Authorization: enTete(code) },
-        });
-      } catch {
-        return { ok: false, reason: 'unreachable' };
+      let produits: ProduitRow[] = [];
+      let cursor: string | undefined;
+      let reprise = false;
+      for (let tour = 0; tour < PAGES_MAX_PRODUITS; tour += 1) {
+        let res: Response;
+        try {
+          res = await fetch(
+            `${trimmed}/offers/mine?limit=${PAGE_PRODUITS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+            { headers: { Accept: 'application/json', Authorization: enTete(code) } },
+          );
+        } catch {
+          return { ok: false, reason: 'unreachable' };
+        }
+        if (res.status === 401) return { ok: false, reason: 'bad_code' };
+        // A product deleted between two pages took the cursor with it: read
+        // the list once more from the start, never guess where it resumes.
+        if (res.status === 409 && !reprise) {
+          reprise = true;
+          produits = [];
+          cursor = undefined;
+          continue;
+        }
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        const body = (await res.json().catch(() => null)) as { items?: unknown; next?: unknown } | null;
+        if (body === null || !Array.isArray(body.items)) return { ok: false, reason: 'unreachable' };
+        for (const raw of body.items) {
+          const row = readProduitRow(raw);
+          if (row !== null) produits.push(row);
+        }
+        if (typeof body.next !== 'string' || body.next === '') return { ok: true, produits };
+        cursor = body.next;
       }
-      if (res.status === 401) return { ok: false, reason: 'bad_code' };
-      if (!res.ok) return { ok: false, reason: 'unreachable' };
-      const body = (await res.json().catch(() => null)) as { items?: unknown } | null;
-      if (body === null || !Array.isArray(body.items)) return { ok: false, reason: 'unreachable' };
-      const produits: ProduitRow[] = [];
-      for (const raw of body.items) {
-        const row = readProduitRow(raw);
-        if (row !== null) produits.push(row);
-      }
-      return { ok: true, produits };
+      return { ok: true, produits, incomplet: true };
     },
 
     async accept(code: string, orderId: string): Promise<ActResult> {

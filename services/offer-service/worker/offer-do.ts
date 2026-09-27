@@ -485,6 +485,140 @@ const forward = async (res: Response, status = res.status): Promise<Response> =>
   new Response(await res.text(), { status, headers: { 'Content-Type': 'application/json' } });
 
 /**
+ * ═══ CATALOGUE-PAGES-1 (AUDIT-B+2 F-05) — EVERY WALK, ONE PAGE AT A TIME ═══
+ *
+ * Each walk costs one Durable Object call per offer, inside ONE request, and
+ * the platform bounds the calls a request may make (50 on the Free plan — the
+ * repo's own model, `PHOTO_LOOKUP_MAX`). Near 50 offers his lists, the access
+ * cut and the erase stopped at the same place on every replay. So a caller may
+ * now ask for a PAGE: at most `max` index rows, continuing after the row whose
+ * offerId it names.
+ *
+ * NO `limit` IS THE OLD ANSWER, BYTE FOR BYTE — the whole list, no `next` — so a
+ * console page still cached on a phone keeps working after this deploys.
+ *
+ * THE CURSOR IS AN offerId, NEVER AN OFFSET, and the walk keeps the index's own
+ * order (the order his Produits tab shows). A cursor row deleted between two
+ * pages cannot be continued from honestly, so it answers 409 `curseur_perdu`
+ * and the caller starts the sweep again — never a guessed position that could
+ * skip a product.
+ */
+function pageDeLIndex(
+  rows: readonly IndexRow[],
+  limitRaw: string | null,
+  cursorRaw: string | null,
+  max: number,
+): { readonly rows: readonly IndexRow[]; readonly next?: string } | { readonly refus: Response } {
+  if (limitRaw === null) return { rows };
+  const n = Number(limitRaw);
+  if (!Number.isInteger(n) || n < 1) return { refus: Response.json({ error: 'malformed', param: 'limit' }, { status: 400 }) };
+  let start = 0;
+  if (cursorRaw !== null && cursorRaw !== '') {
+    const at = rows.findIndex((r) => r.offerId === cursorRaw);
+    if (at < 0) return { refus: Response.json({ error: 'curseur_perdu' }, { status: 409 }) };
+    start = at + 1;
+  }
+  const page = rows.slice(start, start + Math.min(n, max));
+  const end = start + page.length;
+  return end < rows.length && page.length > 0 ? { rows: page, next: page[page.length - 1]!.offerId } : { rows: page };
+}
+
+/**
+ * CATALOGUE-PAGES-1 (F-05) — THE ERASE, ONE PAGE PER REQUEST. The same
+ * OFFER-DELETE-1 order per offer as the whole-list erase below it; what
+ * changes is how much one request may do, and what a failure hands back.
+ *
+ * `verifier: true` is the F-33 read-only pass, paged: it removes nothing and
+ * refuses by name if a buyer holds any of his units. The console runs it over
+ * the whole index BEFORE the first deleting page, so « read everything first,
+ * remove nothing » still holds — and a deleting page re-checks its own offers
+ * before touching any of them.
+ *
+ * THE CURSOR IS THE LAST ROW THIS WALK LEFT STANDING. His rows leave the index
+ * as it walks, so « after the last row of the page » may no longer exist; the
+ * last row KEPT (someone else's, or an orphan) always does, and everything
+ * between it and the page's end is gone. None kept yet: from the start again.
+ *
+ * A FAILURE MID-PAGE STILL HANDS BACK THE REFS OF EVERY OFFER ALREADY ERASED
+ * (502 `purge_partielle`): those records are gone for good, and a replay could
+ * never name their photographs again — they would stay readable at their url
+ * forever. The console destroys what it is given, then asks again.
+ */
+async function purgerUnePage(
+  env: Env,
+  supplierId: string,
+  tout: readonly IndexRow[],
+  body: { readonly limit?: unknown; readonly cursor?: unknown; readonly verifier?: unknown },
+): Promise<Response> {
+  const verifier = body.verifier === true;
+  const page = pageDeLIndex(tout, bodyParam(body.limit), bodyParam(body.cursor), verifier ? LIST_PAGE_MAX : PURGE_PAGE_MAX);
+  if ('refus' in page) return page.refus;
+  let garde = typeof body.cursor === 'string' && body.cursor !== '' ? body.cursor : undefined;
+  const siens: { row: IndexRow; entry: OfferEntry }[] = [];
+  for (const r of page.rows) {
+    const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
+    if (eRes.status !== 200) { garde = r.offerId; continue; } // an orphaned row is skipped, and stays
+    const entry = (await eRes.json()) as OfferEntry & { heldUnits?: number };
+    if (entry.product.supplierId !== supplierId) { garde = r.offerId; continue; }
+    if (typeof entry.heldUnits === 'number' && entry.heldUnits > 0) {
+      return Response.json({ error: 'paiement_en_cours' }, { status: 409 });
+    }
+    siens.push({ row: r, entry });
+  }
+  if (verifier) {
+    return Response.json(page.next === undefined ? { ok: true, verifie: true } : { ok: true, verifie: true, next: page.next });
+  }
+  const refs: string[] = [];
+  let supprimes = 0;
+  try {
+    for (const { row: r, entry } of siens) {
+      const ptrRes = await pvStub(env, entry.product.id).fetch(new Request('https://do/pointer'));
+      if (ptrRes.status === 200) {
+        const ptr = (await ptrRes.json()) as PvPointer;
+        if (ptr.offerId === r.offerId) {
+          await pvStub(env, entry.product.id).fetch(new Request('https://do/pointer/delete', { method: 'POST' }));
+        }
+      }
+      await indexStub(env).fetch(
+        new Request('https://do/index/remove', { method: 'PUT', body: JSON.stringify({ offerId: r.offerId }) }),
+      );
+      // Collected the moment its index row is gone: from here no read and no
+      // replay can reach this offer again (OFFER-DELETE-1's « die after 2 »),
+      // so if the next call fails these refs are the only road to its photos.
+      const a = entry.assets;
+      for (const m of [a?.heroSquare, a?.heroVertical, a?.proof, ...(a?.detail ?? []), a?.video]) {
+        if (m !== undefined && typeof m.ref === 'string' && m.ref.startsWith('media/')) refs.push(m.ref);
+      }
+      const delRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry/delete', { method: 'POST' }));
+      if (((await delRes.json()) as { existed: boolean }).existed) supprimes += 1;
+    }
+  } catch {
+    return Response.json(
+      { ok: false, error: 'purge_partielle', supplierId, supprimes, refs: [...new Set(refs)] },
+      { status: 502 },
+    );
+  }
+  const fini = page.next === undefined;
+  return Response.json({
+    ok: true, supplierId, supprimes, refs: [...new Set(refs)], fini,
+    ...(!fini && garde !== undefined ? { cursor: garde } : {}),
+  });
+}
+
+/** One index read + one entry read per row: 1 + 40 calls. */
+const LIST_PAGE_MAX = 40;
+/** The access cut reads AND writes each row: 1 + 2 × 20 calls, plus the code act. */
+const RETRAIT_PAGE_MAX = 20;
+/** The erase's five calls per offer (entry, pointer read, pointer delete, index, entry delete): 1 + 5 × 8. */
+const PURGE_PAGE_MAX = 8;
+
+const pageParams = (url: string): [string | null, string | null] => {
+  const q = new URL(url).searchParams;
+  return [q.get('limit'), q.get('cursor')];
+};
+const bodyParam = (v: unknown): string | null => (typeof v === 'string' || typeof v === 'number' ? String(v) : null);
+
+/**
  * Router — the durable offer surface:
  *   POST /offers                       create (+ writes the pv pointer AND the index row on 'created')
  *   GET  /supply-entry/:productVersionId  the READ resolution — pointer → offer entry (or 404) [internal, via the store shim]
@@ -669,13 +803,17 @@ export default {
      * url would be « erased » as a word, not as a fact.
      */
     if (request.method === 'POST' && pathname === '/offers/purge-fournisseur') {
-      const body = (await request.json().catch(() => null)) as { supplierId?: unknown } | null;
+      const body = (await request.json().catch(() => null)) as
+        | { supplierId?: unknown; limit?: unknown; cursor?: unknown; verifier?: unknown }
+        | null;
       const supplierId = body?.supplierId;
       if (typeof supplierId !== 'string' || supplierId.trim() === '') {
         return Response.json({ error: 'malformed', param: 'supplierId' }, { status: 400 });
       }
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const rows = (await idxRes.json()) as IndexRow[];
+      const tout = (await idxRes.json()) as IndexRow[];
+      if (body?.limit !== undefined) return purgerUnePage(env, supplierId, tout, body);
+      const rows = tout;
       // REMBOURSABLE-1 (AUDIT-B+2 F-33) — READ EVERYTHING FIRST, remove
       // nothing, and refuse the whole purge while a buyer holds any one of his
       // units: her payment may still confirm, and her order would register
@@ -737,16 +875,18 @@ export default {
         return Response.json({ error: 'missing_supplier_id', param: 'supplierId' }, { status: 400 });
       }
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const rows = (await idxRes.json()) as IndexRow[];
+      const page = pageDeLIndex((await idxRes.json()) as IndexRow[], ...pageParams(request.url), LIST_PAGE_MAX);
+      if ('refus' in page) return page.refus;
       const entries: OfferEntry[] = [];
-      for (const r of rows) {
+      for (const r of page.rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row (offer gone) is honestly skipped
         entries.push((await eRes.json()) as OfferEntry);
       }
       // Filtering, the wire-order refs and the ladder-derived `hiddenReason` all
       // live in the PURE builder, so they are testable without a DO.
-      return Response.json(buildSupplierList(supplierId, entries, new Date().toISOString(), stockDueMs(env)));
+      const list = buildSupplierList(supplierId, entries, new Date().toISOString(), stockDueMs(env));
+      return Response.json(page.next === undefined ? list : { ...list, next: page.next });
     }
 
     /**
@@ -785,14 +925,16 @@ export default {
     // book's is; this router is never reachable from outside it.
     if (request.method === 'GET' && pathname === '/offers/inventaire') {
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const rows = (await idxRes.json()) as IndexRow[];
+      const page = pageDeLIndex((await idxRes.json()) as IndexRow[], ...pageParams(request.url), LIST_PAGE_MAX);
+      if ('refus' in page) return page.refus;
       const entries: OfferEntry[] = [];
-      for (const r of rows) {
+      for (const r of page.rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
         entries.push((await eRes.json()) as OfferEntry);
       }
-      return Response.json(buildFullInventory(entries, new Date().toISOString(), stockDueMs(env)));
+      const inv = buildFullInventory(entries, new Date().toISOString(), stockDueMs(env));
+      return Response.json(page.next === undefined ? inv : { ...inv, next: page.next });
     }
 
     /**
@@ -817,23 +959,30 @@ export default {
       request.method === 'POST' &&
       (pathname === '/offers/retrait-acces' || pathname === '/offers/restauration-acces')
     ) {
-      const body = (await request.json().catch(() => null)) as { supplierId?: unknown; at?: unknown } | null;
+      const body = (await request.json().catch(() => null)) as
+        | { supplierId?: unknown; at?: unknown; limit?: unknown; cursor?: unknown }
+        | null;
       const supplierId = body?.supplierId;
       if (typeof supplierId !== 'string' || supplierId.trim() === '') {
         return Response.json({ error: 'malformed', param: 'supplierId' }, { status: 400 });
       }
       const at = typeof body?.at === 'string' ? body.at : new Date().toISOString();
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const rows = (await idxRes.json()) as IndexRow[];
+      const page = pageDeLIndex((await idxRes.json()) as IndexRow[], bodyParam(body?.limit), bodyParam(body?.cursor), RETRAIT_PAGE_MAX);
+      if ('refus' in page) return page.refus;
+      const retrait = pathname === '/offers/retrait-acces';
       let changed = 0;
-      for (const r of rows) {
+      for (const r of page.rows) {
         const stub = offerStub(env, r.offerId);
         const eRes = await stub.fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
         const entry = (await eRes.json()) as OfferEntry;
         if (entry.product.supplierId !== supplierId) continue;
+        // F-05 — already in the asked-for state: no second call spent on it
+        // (the object would answer `changed:false` anyway, by the same rule).
+        if ((retrait ? retirerPourAcces(entry, at) : restaurerApresAcces(entry)) === null) continue;
         const res = await stub.fetch(
-          new Request(`https://do${pathname === '/offers/retrait-acces' ? '/entry/retrait-acces' : '/entry/restauration-acces'}`, {
+          new Request(`https://do${retrait ? '/entry/retrait-acces' : '/entry/restauration-acces'}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ at }),
@@ -841,7 +990,7 @@ export default {
         );
         if (res.status === 200 && ((await res.json()) as { changed?: boolean }).changed === true) changed += 1;
       }
-      return Response.json({ ok: true, supplierId, changed });
+      return Response.json(page.next === undefined ? { ok: true, supplierId, changed } : { ok: true, supplierId, changed, next: page.next });
     }
 
     // DISCOVERY (SLICE B) — every supply entry, RAW. The collection analogue of
