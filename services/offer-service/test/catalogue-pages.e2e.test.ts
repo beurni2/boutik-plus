@@ -63,6 +63,10 @@ async function enVente(): Promise<string[]> {
 const pvs = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `pv-${prefix}-${String(i).padStart(3, '0')}`);
 
 let codeCoupe = '';
+/** offerId → productVersionId, as seeded (ETIQUETTE-FOURNISSEUR-1: a hidden offer is on no list). */
+const pvDe = new Map<string, string>();
+/** His offers an earlier test deleted outright — the erase counts what is left. */
+let siensSupprimes = 0;
 
 beforeAll(async () => {
   for (const s of [COUPE, VOISIN]) {
@@ -72,6 +76,7 @@ beforeAll(async () => {
   }
   // interleaved, so every page mixes the two suppliers: evens and the last are his
   const compte = { c: 0, v: 0 };
+  pvDe.clear();
   for (let i = 0; i < N_COUPE + N_VOISIN; i += 1) {
     const sien = i % 2 === 0 || i === N_COUPE + N_VOISIN - 1;
     const supplierId = sien ? COUPE : VOISIN;
@@ -79,6 +84,7 @@ beforeAll(async () => {
     const k = compte[prefix]++;
     const pv = `pv-${prefix}-${String(k).padStart(3, '0')}`;
     const offerId = `offer-${String(i).padStart(3, '0')}`;
+    pvDe.set(offerId, pv);
     const res = await post('/offers', {
       commandId: `seed-${offerId}`, offerId,
       product: {
@@ -197,11 +203,13 @@ describe('F-05 · a cut whose cursor offer is deleted between two pages restarts
         supprime = true;
         const body = (await res.clone().json()) as { suite?: string };
         expect(typeof body.suite, 'the cut has more than one page').toBe('string');
-        const inv = (await (await mf.dispatchFetch('http://o/offers/inventaire', { headers: { Authorization: `Bearer ${OPS}` } })).json()) as { items: { offerId: string; productVersionId: string }[] };
-        const cible = inv.items.find((i) => i.offerId === body.suite);
-        expect(cible, 'the cursor offer is a live one').toBeDefined();
-        const del = await post('/offers/delete', { commandId: 'del-curseur-coupure', offerId: cible!.offerId, productVersionId: cible!.productVersionId }, OPS);
+        // ETIQUETTE-FOURNISSEUR-1 — the walk reads his rows only, so the offer
+        // it would resume after is one of HIS, already off sale on page one.
+        const pv = pvDe.get(body.suite!);
+        expect(pv?.startsWith('pv-c-'), 'the cursor offer is one of his').toBe(true);
+        const del = await post('/offers/delete', { commandId: 'del-curseur-coupure', offerId: body.suite!, productVersionId: pv! }, OPS);
         expect(del.status).toBe(200);
+        siensSupprimes += 1;
       }
       return res;
     }) as never);
@@ -225,8 +233,8 @@ describe('F-05 · the erase, page by page, hands back every photograph and remov
     const res = await ops.effacerFournisseur(OPS, COUPE);
     expect(res.ok, JSON.stringify(res).slice(0, 300)).toBe(true);
     if (!res.ok) return;
-    expect(res.supprimes).toBe(N_COUPE);
-    expect(new Set(res.refs).size).toBe(3 * N_COUPE);
+    expect(res.supprimes).toBe(N_COUPE - siensSupprimes);
+    expect(new Set(res.refs).size).toBe(3 * (N_COUPE - siensSupprimes));
     expect(res.refs.every((r) => r.startsWith('media/'))).toBe(true);
 
     const inv = await ops.listInventaire(OPS);
@@ -276,5 +284,64 @@ describe('F-89 c · the founder board, a page at a time, through the real Worker
     if (board.ok) expect(board.orders.map((o) => o.orderId)).toEqual(['ord-pages-b', 'ord-pages-c', 'ord-pages-a']);
     const whole = (await (await mf.dispatchFetch('http://o/fulfillment/orders', { headers: { Authorization: `Bearer ${OPS}` } })).json()) as { orders: { orderId: string }[] };
     if (board.ok) expect(board.orders.map((o) => o.orderId)).toEqual(whole.orders.map((o) => o.orderId));
+  });
+});
+
+describe('ETIQUETTE-FOURNISSEUR-1 · products written before the labels are learnt by the founder\'s Produits; a new supplier\'s code then comes at once', () => {
+  it('three old unlabelled products of the neighbour: his Produits labels them; a brand-new supplier gets his code with nothing to walk', async () => {
+    const OFFER = await mf.getDurableObjectNamespace('OFFER');
+    const index = OFFER.get(OFFER.idFromName('index'));
+    // written the way the router wrote them before this slice: the entry, its
+    // pointer, and an index row that names no supplier
+    for (let i = 0; i < 3; i += 1) {
+      const offerId = `offer-ancien-${i}`;
+      const pv = `pv-ancien-${i}`;
+      const cmd = {
+        commandId: `seed-${offerId}`, offerId,
+        product: {
+          id: pv, supplierId: VOISIN, version: 1, name: `Ancien ${i}`, productCode: `PA-${i}`, facts: {},
+          category: 'fashion_bags_fabrics', zone: 'Gounghin', moderationState: 'approved', status: 'active', supplyMode: 'SELLER_HELD',
+        },
+        draft: {
+          productVersionId: pv, basePrice: 8_000, resellerCommission: 800, eligibleVariants: [], zones: [],
+          effective: '2026-07-10T00:00:00.000Z', expiry: '2026-12-31T00:00:00.000Z',
+        },
+        available: 3, asOf: T0,
+      };
+      const cree = await OFFER.get(OFFER.idFromName(offerId)).fetch('https://do/entry/create', { method: 'POST', body: JSON.stringify(cmd) });
+      expect(cree.status, await cree.clone().text()).toBe(200);
+      await OFFER.get(OFFER.idFromName(`pv:${pv}`)).fetch('https://do/pointer', { method: 'PUT', body: JSON.stringify({ offerId }) });
+      await index.fetch('https://do/index/add', { method: 'PUT', body: JSON.stringify({ offerId, productVersionId: pv }) });
+    }
+    type Ligne = { offerId: string; supplierId?: string };
+    const avant = (await (await index.fetch('https://do/index')).json()) as Ligne[];
+    expect(avant.filter((r) => r.supplierId === undefined).map((r) => r.offerId).sort()).toEqual(['offer-ancien-0', 'offer-ancien-1', 'offer-ancien-2']);
+    expect(avant.length, 'more rows than one cut page, so a walk that read everyone would need a second page').toBeGreaterThan(20);
+
+    const { ops } = await ports();
+    const inv = await ops.listInventaire(OPS);
+    expect(inv.ok).toBe(true);
+    if (inv.ok) expect(inv.rows.filter((r) => r.productVersionId.startsWith('pv-ancien-')).map((r) => r.supplierId)).toEqual([VOISIN, VOISIN, VOISIN]);
+    const apres = (await (await index.fetch('https://do/index')).json()) as Ligne[];
+    expect(apres.every((r) => r.supplierId !== undefined), 'THE INDEX: every row now names its supplier').toBe(true);
+    expect(apres.filter((r) => r.offerId.startsWith('offer-ancien-')).every((r) => r.supplierId === VOISIN)).toBe(true);
+
+    const vus: string[] = [];
+    let reponse: { produits?: unknown; suite?: unknown } | null = null;
+    vi.stubGlobal('fetch', (async (url: string, init?: RequestInit) => {
+      const res = await mf.dispatchFetch(url, init as never);
+      vus.push(String(url));
+      if (String(url).includes('/fulfillment/supplier-code?')) reponse = (await res.clone().json()) as typeof reponse;
+      return res;
+    }) as never);
+    try {
+      const mint = await ops.mintCode(OPS, 'supplier-pages-neuf');
+      expect(mint.ok && mint.produitsIncomplets !== true, JSON.stringify(mint)).toBe(true);
+    } finally {
+      vi.stubGlobal('fetch', ((url: string, init?: RequestInit) => mf.dispatchFetch(url, init as never)) as never);
+    }
+    expect(reponse, 'his walk found nothing of his, in its first request').toMatchObject({ produits: 0 });
+    expect(reponse!.suite).toBeUndefined();
+    expect(vus.some((u) => u.includes('/fulfillment/supplier-acces/suite')), 'no second page asked').toBe(false);
   });
 });

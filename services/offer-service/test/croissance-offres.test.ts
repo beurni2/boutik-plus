@@ -68,9 +68,130 @@ beforeEach(async () => {
   }
 });
 
+/** The index object's own storage (the real `OfferDO`'s, reached the way the erase tests reach an offer's). */
+const indexStockage = (): StockageCompteur =>
+  (espace.instances.get('index') as unknown as { state: { storage: StockageCompteur } }).state.storage;
+type Ligne = { offerId: string; productVersionId: string; supplierId?: string };
+const lignes = (): Ligne[] => indexStockage().data.get('index-list') as Ligne[];
+/** The index as it was written before ETIQUETTE-FOURNISSEUR-1: no supplier on any row. */
+function sansEtiquettes(): void {
+  indexStockage().data.set('index-list', lignes().map(({ offerId, productVersionId }) => ({ offerId, productVersionId })));
+}
+const etiquetees = (): number => lignes().filter((r) => r.supplierId !== undefined).length;
+
 describe('the premise — the whole walk breaks past the ceiling', () => {
-  it(`an unpaged supplier list over ${N} offers needs ${N + 1} calls and dies at the 51st`, async () => {
+  it(`rows written before the labels: an unpaged supplier list over ${N} offers needs ${N + 1} calls and dies at the 51st`, async () => {
+    sansEtiquettes();
     await expect(mesurer(() => appel('/offers?supplierId=supplier-coupe'))).rejects.toThrow(/subrequest 51 past the ceiling/);
+  });
+});
+
+describe('ETIQUETTE-FOURNISSEUR-1 · a walk for one supplier reads his products, never everyone\'s', () => {
+  it('a product is born labelled: his whole unpaged list is the index + his 40 — 41 calls, not 121', async () => {
+    expect(etiquetees()).toBe(N);
+    const { appels, valeur } = await mesurer(() => appel('/offers?supplierId=supplier-coupe'));
+    expect(appels).toBe(1 + N / 3);
+    expect(((await valeur.json()) as { items: unknown[] }).items).toHaveLength(N / 3);
+  });
+
+  it('a new supplier with nothing to restore: the re-mint walk ends in its first request — one call, no next', async () => {
+    const { appels, valeur } = await mesurer(() =>
+      poster('/offers/restauration-acces', { supplierId: 'supplier-neuf', at: T0, limit: 20 }),
+    );
+    expect(appels).toBe(1);
+    expect(await valeur.json()).toEqual({ ok: true, supplierId: 'supplier-neuf', changed: 0 });
+  });
+
+  it('the whole cut of a supplier with 40 of 120: one index read per page, 40 reads and 40 writes — the neighbour\'s 80 never touched', async () => {
+    let cursor: string | undefined;
+    let pages = 0;
+    let appelsTotal = 0;
+    let retires = 0;
+    for (let tour = 0; tour < 20; tour += 1) {
+      const { appels, valeur } = await mesurer(() =>
+        poster('/offers/retrait-acces', { supplierId: 'supplier-coupe', at: T0, limit: 20, ...(cursor !== undefined ? { cursor } : {}) }),
+      );
+      pages += 1;
+      appelsTotal += appels;
+      const body = (await valeur.json()) as { changed: number; next?: string };
+      retires += body.changed;
+      if (body.next === undefined) break;
+      cursor = body.next;
+    }
+    expect(retires).toBe(N / 3);
+    expect(pages).toBe(2);
+    expect(appelsTotal).toBe(pages + 2 * (N / 3));
+  });
+
+  it('rows from before the labels: his own walk labels every row it reads, in one more call', async () => {
+    sansEtiquettes();
+    const { appels } = await mesurer(() =>
+      poster('/offers/retrait-acces', { supplierId: 'supplier-coupe', at: T0, limit: 20 }),
+    );
+    // the index + 20 reads + his 7 writes (rows 0, 3, … 18) + the one label call
+    expect(appels).toBe(1 + 20 + 7 + 1);
+    expect(lignes().slice(0, 20).every((r) => r.supplierId === (Number(r.offerId.slice(-4)) % 3 === 0 ? 'supplier-coupe' : 'supplier-voisin'))).toBe(true);
+    expect(etiquetees()).toBe(20);
+  });
+
+  it('rows from before the labels: the founder\'s Produits labels the whole index a page at a time, and then his list reads his only', async () => {
+    sansEtiquettes();
+    let cursor: string | undefined;
+    let pire = 0;
+    for (let tour = 0; tour < 20; tour += 1) {
+      const { appels, valeur } = await mesurer(() =>
+        appel(`/offers/inventaire?limit=40${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`),
+      );
+      pire = Math.max(pire, appels);
+      const body = (await valeur.json()) as { next?: string };
+      if (body.next === undefined) break;
+      cursor = body.next;
+    }
+    expect(pire).toBeLessThanOrEqual(42); // the index + 40 reads + the one label call
+    expect(etiquetees()).toBe(N);
+    const { appels } = await mesurer(() => appel('/offers?supplierId=supplier-coupe'));
+    expect(appels).toBe(1 + N / 3);
+  });
+
+  it('a cut over rows from before the labels still pages to the end: the cursor row it just learnt is someone else\'s still marks its place', async () => {
+    sansEtiquettes();
+    let cursor: string | undefined;
+    let retires = 0;
+    for (let tour = 0; tour < 20; tour += 1) {
+      const res = await poster('/offers/retrait-acces', { supplierId: 'supplier-coupe', at: T0, limit: 20, ...(cursor !== undefined ? { cursor } : {}) });
+      expect(res.status, await res.clone().text()).toBe(200);
+      const body = (await res.json()) as { changed: number; next?: string };
+      retires += body.changed;
+      if (body.next === undefined) break;
+      cursor = body.next;
+    }
+    expect(retires).toBe(N / 3);
+    expect(etiquetees()).toBe(N);
+  });
+
+  it('verifier MINOR 1 — the old one-request erase labels the rows that stay', async () => {
+    sansEtiquettes();
+    const res = await poster('/offers/purge-fournisseur', { supplierId: 'supplier-coupe' });
+    expect(res.status).toBe(200);
+    expect(lignes()).toHaveLength(N - N / 3);
+    expect(lignes().every((r) => r.supplierId === 'supplier-voisin')).toBe(true);
+  });
+
+  it('an old create replayed labels the row it repairs', async () => {
+    sansEtiquettes();
+    expect((await poster('/offers', creer(0, 'supplier-coupe'))).status).toBe(200); // same commandId: idempotent
+    expect(lignes().find((r) => r.offerId === 'offer-0000')?.supplierId).toBe('supplier-coupe');
+    expect(etiquetees()).toBe(1);
+  });
+
+  it('a label once written is never replaced — an offer\'s supplier does not change', async () => {
+    const index = espace.get(espace.idFromName('index'));
+    const res = await index.fetch(new Request('https://do/index/etiqueter', {
+      method: 'PUT',
+      body: JSON.stringify({ etiquettes: [{ offerId: 'offer-0000', supplierId: 'supplier-voisin' }] }),
+    }));
+    expect(res.status).toBe(200);
+    expect(lignes().find((r) => r.offerId === 'offer-0000')?.supplierId).toBe('supplier-coupe');
   });
 });
 

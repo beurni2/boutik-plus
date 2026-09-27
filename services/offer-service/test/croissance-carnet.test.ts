@@ -67,16 +67,98 @@ beforeEach(async () => {
   storage.reset();
 });
 
-describe('F-04 · his refresh reads the order rows once, then only HIS marks', () => {
-  it(`at ${N} orders with ${OWN} of his: at most N + 7 × his + the code`, async () => {
-    const res = await post('/mine', { code });
-    const body = (await res.json()) as { ok: boolean; orders: { orderId: string; fulfillment?: Record<string, string> }[] };
+type Mine = { ok: boolean; orders: { orderId: string; fulfillment?: Record<string, string> }[] };
+const etiquettes = (): string[] => [...storage.data.keys()].filter((k) => k.startsWith('commandefournisseur:'));
+
+describe('F-04 · ETIQUETTE-FOURNISSEUR-1 — his refresh reads HIS orders, through his labels', () => {
+  it(`the first refresh after a deploy files all ${N} orders once; every later one reads his ${OWN} and their marks, whatever N is`, async () => {
+    const premiere = (await (await post('/mine', { code })).json()) as Mine;
+    expect(etiquettes(), 'every stored order filed under its supplier').toHaveLength(N);
+    storage.reset();
+    const body = (await (await post('/mine', { code })).json()) as Mine;
     expect(body.ok).toBe(true);
     expect(body.orders).toHaveLength(OWN);
     // the answer is unchanged: newest first, every mark folded in
     expect(body.orders.map((o) => o.orderId)).toEqual(['ord-00004', 'ord-00003', 'ord-00002', 'ord-00001', 'ord-00000']);
     expect(body.orders[0]!.fulfillment).toEqual({ acceptedAt: iso(5), readyAt: iso(6), handedOverAt: iso(7) });
-    expect(storage.rowsRead).toBeLessThanOrEqual(N + 7 * OWN + 1);
+    expect(body).toEqual(premiere);
+    // the code + his labels + his orders + his 7 marks each
+    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 7 * OWN);
+  });
+
+  it('an order registered now is filed in the same write, and his next refresh shows it', async () => {
+    await post('/mine', { code });
+    const r = record(N, 'supplier-sien');
+    expect((await post('/register', r)).status).toBe(200);
+    expect(storage.data.has(`order:${r.orderId}`)).toBe(true);
+    expect(storage.data.has(`commandefournisseur:supplier-sien:${r.orderId}`)).toBe(true);
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.orders.map((o) => o.orderId)).toContain(r.orderId);
+  });
+
+  it('verifier MAJOR 1 — rolled back to a build without labels, then the SAME build deployed again: the order taken meanwhile is on his page and the erase guard sees it', async () => {
+    // the build is live and has filed the book
+    await post('/mine', { code });
+    // rolled back: the old build registers an order with no label, and retires
+    // one of his without removing its label
+    await storage.put('order:ord-99999', record(99_999, 'supplier-neuve'));
+    await storage.delete('order:ord-00004');
+    // the same build again: a new object over the same storage
+    book = new FulfillmentDO({ storage } as unknown as DurableObjectState);
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.orders.map((o) => o.orderId)).not.toContain('ord-00004');
+    expect(storage.data.has('commandefournisseur:supplier-sien:ord-00004'), 'the label of an order gone goes too').toBe(false);
+    const neuve = (await (await post('/supplier/effacable', { supplierId: 'supplier-neuve' })).json()) as { aDesCommandes: boolean };
+    expect(neuve.aDesCommandes, 'her only order came in during the rollback — she still cannot be erased').toBe(true);
+    expect(storage.data.has('commandefournisseur:supplier-neuve:ord-99999')).toBe(true);
+  });
+
+  it('a new object files again: an order written without a label is found, and a label with no order goes', async () => {
+    await post('/mine', { code });
+    await storage.put('order:ord-99999', record(99_999, 'supplier-sien')); // no label, as an older build wrote it
+    await storage.put('commandefournisseur:supplier-sien:ord-fantome', 1);
+    book = new FulfillmentDO({ storage } as unknown as DurableObjectState);
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.orders.map((o) => o.orderId)).toContain('ord-99999');
+    expect(storage.data.has('commandefournisseur:supplier-sien:ord-fantome')).toBe(false);
+  });
+
+  it('verifier MINOR 2 — a supplier id no web address could carry does not break the book', async () => {
+    const r = { ...record(N + 1, 'fournisseur-\uD800'), orderId: 'ord-bizarre' };
+    expect((await post('/register', r)).status).toBe(200);
+    book = new FulfillmentDO({ storage } as unknown as DurableObjectState);
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.ok).toBe(true);
+    expect(body.orders).toHaveLength(OWN);
+    const elle = (await (await post('/supplier/effacable', { supplierId: 'fournisseur-\uD800' })).json()) as { aDesCommandes: boolean };
+    expect(elle.aDesCommandes).toBe(true);
+  });
+
+  it('a label under his name for someone else\'s order shows him nothing of that order', async () => {
+    await post('/mine', { code });
+    await storage.put('commandefournisseur:supplier-sien:ord-00100', 1); // ord-00100 is supplier-autre's
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.orders.map((o) => o.orderId)).not.toContain('ord-00100');
+    expect(body.orders).toHaveLength(OWN);
+  });
+
+  it('a supplier whose id begins with his rides nothing of his refresh: 50 of her orders cost him no read', async () => {
+    for (let i = 0; i < 50; i += 1) await storage.put(`order:ord-voisine-${i}`, { ...record(1000 + i, 'supplier-sien:x'), orderId: `ord-voisine-${i}` });
+    await post('/mine', { code });
+    storage.reset();
+    const body = (await (await post('/mine', { code })).json()) as Mine;
+    expect(body.orders).toHaveLength(OWN);
+    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 7 * OWN);
+  });
+
+  it('the erase guard asks his labels, not the book', async () => {
+    await post('/mine', { code });
+    storage.reset();
+    const sien = (await (await post('/supplier/effacable', { supplierId: 'supplier-sien' })).json()) as { aDesCommandes: boolean };
+    expect(sien.aDesCommandes).toBe(true);
+    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN);
+    const inconnu = (await (await post('/supplier/effacable', { supplierId: 'supplier-personne' })).json()) as { aDesCommandes: boolean };
+    expect(inconnu.aDesCommandes).toBe(false);
   });
 });
 
@@ -185,7 +267,9 @@ describe('F-89 (a) · an outbox wake reads the facts still waiting, never the de
     expect((storage.data.get('progressoutbox:ord-00000:accepted') as { attempts: number }).attempts, 'and the next wake attempts it').toBe(1);
   });
 
-  it('retiring an order takes its waiting pointers with it', async () => {
+  it('retiring an order takes its waiting pointers — and its supplier label — with it', async () => {
+    await post('/mine', { code }); // files the book, so ord-00001 carries its label
+    expect(storage.data.has('commandefournisseur:supplier-sien:ord-00001')).toBe(true);
     await post('/accept', { code, orderId: 'ord-00001' });
     expect(storage.data.has('progresspending:ord-00001:accepted')).toBe(true);
     const r = await post('/order/retirer', { orderId: 'ord-00001' });

@@ -142,6 +142,28 @@ const STORAGE_BATCH_MAX = 128;
 const ORDERS_PAGE_MAX = 100;
 
 /**
+ * ETIQUETTE-FOURNISSEUR-1 — EACH ORDER FILED UNDER ITS SUPPLIER,
+ * `commandefournisseur:{supplierId, escaped}:{orderId}`, beside the order
+ * row, written in the SAME put that registers it. His refresh then lists his
+ * labels and point-reads his orders: it no longer grows with anyone else's.
+ * The supplier id is escaped (`%` then `:`) so no id can be a prefix of
+ * another's label range (`a:` would otherwise also list `a:b`'s orders) — an
+ * escape that cannot throw, whatever the id holds; `/mine` still checks every
+ * record it reads is his.
+ *
+ * The order rows themselves are never rewritten. Labels for orders registered
+ * before this slice — or by any build without labels, a rollback included —
+ * are rebuilt each time this object starts (verifier MAJOR 1): every deploy and
+ * every rollback restarts it, so a marker that could outlive a rollback is not
+ * trusted. No read uses the labels before that rebuild has finished: it runs
+ * first, inside the read that needs it.
+ */
+const ETIQUETTE_PREFIX = 'commandefournisseur:';
+const etiquettesDe = (supplierId: string): string =>
+  `${ETIQUETTE_PREFIX}${supplierId.replace(/%/g, '%25').replace(/:/g, '%3A')}:`;
+const etiquetteDe = (supplierId: string, orderId: string): string => `${etiquettesDe(supplierId)}${orderId}`;
+
+/**
  * At-least-once backoff for the return leg, mirroring the Shop+ emitter's
  * policy rather than inventing a second one: quick first retries for a
  * transient blip, then hourly so a long Shop+ outage cannot spin a Worker.
@@ -453,6 +475,9 @@ function ligneDuCarnet(r: PaidOrderRecord, marques: ReadonlyMap<string, unknown>
 }
 
 export class FulfillmentDO {
+  /** ETIQUETTE-FOURNISSEUR-1 — the labels were rebuilt since this object started. */
+  private etiquettesVerifiees = false;
+
   constructor(
     private readonly state: DurableObjectState,
     private readonly env?: {
@@ -878,6 +903,36 @@ export class FulfillmentDO {
     return out;
   }
 
+  /**
+   * ETIQUETTE-FOURNISSEUR-1 — the labels, rebuilt once per start of this object
+   * to match the order rows exactly: every resolved order gets its label, and a
+   * label with no matching order goes. One read of the book per start (each
+   * deploy, rollback or wake after idle) — where every refresh used to read it.
+   * The flag is set last, so a rebuild that dies half-way runs again.
+   */
+  private async etiquettesPretes(): Promise<void> {
+    if (this.etiquettesVerifiees) return;
+    const voulues = new Set<string>();
+    for (const r of (await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX })).values()) {
+      if (r.supplierResolved && typeof r.supplierId === 'string' && r.supplierId !== '') voulues.add(etiquetteDe(r.supplierId, r.orderId));
+    }
+    const presentes = new Set((await this.state.storage.list({ prefix: ETIQUETTE_PREFIX })).keys());
+    const aPoser = [...voulues].filter((k) => !presentes.has(k));
+    const aOter = [...presentes].filter((k) => !voulues.has(k));
+    for (let i = 0; i < aPoser.length; i += STORAGE_BATCH_MAX) {
+      await this.state.storage.put(Object.fromEntries(aPoser.slice(i, i + STORAGE_BATCH_MAX).map((k) => [k, 1])));
+    }
+    for (let i = 0; i < aOter.length; i += STORAGE_BATCH_MAX) await this.state.storage.delete(aOter.slice(i, i + STORAGE_BATCH_MAX));
+    this.etiquettesVerifiees = true;
+  }
+
+  /** His order ids, from his labels alone — in orderId order, as the whole-book list gave them. */
+  private async commandesDe(supplierId: string): Promise<string[]> {
+    await this.etiquettesPretes();
+    const prefixe = etiquettesDe(supplierId);
+    return [...(await this.state.storage.list({ prefix: prefixe })).keys()].map((k) => k.slice(prefixe.length));
+  }
+
   private async resolveCode(presented: unknown): Promise<SupplierCodeRecord | null> {
     if (typeof presented !== 'string' || presented === '') return null;
     const record = await this.state.storage.get<SupplierCodeRecord>(`${CODEHASH_PREFIX}${await sha256Hex(codeCanonique(presented))}`);
@@ -900,7 +955,12 @@ export class FulfillmentDO {
       if (existing !== undefined) {
         return Response.json({ ok: true, status: 'duplicate' });
       }
-      await this.state.storage.put(key, record);
+      // ETIQUETTE-FOURNISSEUR-1 — the order and its supplier's label land together.
+      await this.state.storage.put(
+        record.supplierResolved && typeof record.supplierId === 'string' && record.supplierId !== ''
+          ? { [key]: record, [etiquetteDe(record.supplierId, record.orderId)]: 1 }
+          : { [key]: record },
+      );
       return Response.json({ ok: true, status: 'registered' });
     }
 
@@ -1209,8 +1269,9 @@ export class FulfillmentDO {
         return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
       }
       const row = await this.state.storage.get<{ revokedAt?: string }>(`${SUPPLIERCODE_PREFIX}${supplierId}`);
-      const orders = await this.state.storage.list<{ supplierId?: string }>({ prefix: ORDER_PREFIX });
-      const aDesCommandes = [...orders.values()].some((o) => o?.supplierId === supplierId);
+      // ETIQUETTE-FOURNISSEUR-1 — his labels, not the whole book (an unresolved
+      // order carries no supplier id, so it never counted here either).
+      const aDesCommandes = (await this.commandesDe(supplierId)).length > 0;
       return Response.json({
         ok: true,
         connu: row !== undefined,
@@ -1260,8 +1321,14 @@ export class FulfillmentDO {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
       const resolved = await this.resolveCode(body?.['code']);
       if (resolved === null) return Response.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
-      const entries = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
-      const siennes = [...entries.values()].filter((r) => r.supplierResolved && r.supplierId === resolved.supplierId);
+      // ETIQUETTE-FOURNISSEUR-1 — his orders through his labels, point-read in
+      // label order (the whole-book list's orderId order); every record is
+      // still checked to be his before a field of it leaves.
+      const ids = await this.commandesDe(resolved.supplierId);
+      const lus = await this.lireParCles(ids.map((id) => `${ORDER_PREFIX}${id}`));
+      const siennes = ids
+        .map((id) => lus.get(`${ORDER_PREFIX}${id}`) as PaidOrderRecord | undefined)
+        .filter((r): r is PaidOrderRecord => r !== undefined && r.supplierResolved && r.supplierId === resolved.supplierId);
       // CROISSANCE-1 (AUDIT-B+2 F-04) — HIS orders' marks only, point-read.
       // Seven whole-prefix lists used to read every mark on the platform, every
       // minute, for every supplier with the page open. The marks, as before:
@@ -1903,6 +1970,8 @@ export class FulfillmentDO {
         ...outbox.keys(),
         // CROISSANCE-1 — a fact that dies with its order stops waiting too.
         ...[...outbox.keys()].map(pointeurDe),
+        // ETIQUETTE-FOURNISSEUR-1 — and so does its supplier's label.
+        ...(existing !== undefined && existing.supplierResolved ? [etiquetteDe(existing.supplierId, orderId)] : []),
       ];
       // ONE DELETE CALL, so the row and its marks leave together or not at
       // all — the « ONE WRITE, NOT TWO » law this repo already lives by. A

@@ -63,6 +63,14 @@ interface PvPointer {
 interface IndexRow {
   offerId: string;
   productVersionId: string;
+  /**
+   * ETIQUETTE-FOURNISSEUR-1 — whose offer it is, so a walk for one supplier
+   * reads only his. Immutable like the other two (an offer never changes
+   * product: a second create is a collision). ABSENT on rows written before
+   * this slice: such a row is read like before, and labelled by the walk
+   * that reads it.
+   */
+  supplierId?: string;
 }
 
 export class OfferDO {
@@ -430,10 +438,34 @@ export class OfferDO {
         return Response.json({ error: 'malformed' }, { status: 400 });
       }
       const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
-      if (!list.some((r) => r.offerId === row.offerId)) {
-        list.push({ offerId: row.offerId, productVersionId: row.productVersionId });
+      const sid = typeof row.supplierId === 'string' && row.supplierId !== '' ? row.supplierId : undefined;
+      const deja = list.find((r) => r.offerId === row.offerId);
+      if (deja === undefined) {
+        list.push({ offerId: row.offerId, productVersionId: row.productVersionId, ...(sid !== undefined ? { supplierId: sid } : {}) });
+        await this.state.storage.put(INDEX_KEY, list);
+      } else if (deja.supplierId === undefined && sid !== undefined) {
+        // an idempotent replay of an old create labels the row it repairs
+        deja.supplierId = sid;
         await this.state.storage.put(INDEX_KEY, list);
       }
+      return Response.json({ ok: true });
+    }
+    // ETIQUETTE-FOURNISSEUR-1 — labels learnt by a walk that read the entries.
+    // A row already labelled keeps its label: an offer's supplier never changes.
+    if (request.method === 'PUT' && pathname === '/index/etiqueter') {
+      const body = (await request.json().catch(() => null)) as { etiquettes?: unknown } | null;
+      if (!Array.isArray(body?.etiquettes)) return Response.json({ error: 'malformed' }, { status: 400 });
+      const lues = new Map<string, string>();
+      for (const e of body.etiquettes as { offerId?: unknown; supplierId?: unknown }[]) {
+        if (typeof e?.offerId === 'string' && typeof e.supplierId === 'string' && e.supplierId !== '') lues.set(e.offerId, e.supplierId);
+      }
+      const list = (await this.state.storage.get<IndexRow[]>(INDEX_KEY)) ?? [];
+      let change = false;
+      for (const r of list) {
+        const sid = lues.get(r.offerId);
+        if (r.supplierId === undefined && sid !== undefined) { r.supplierId = sid; change = true; }
+      }
+      if (change) await this.state.storage.put(INDEX_KEY, list);
       return Response.json({ ok: true });
     }
     if (request.method === 'GET' && pathname === '/index') {
@@ -508,19 +540,49 @@ function pageDeLIndex(
   limitRaw: string | null,
   cursorRaw: string | null,
   max: number,
+  garder: (r: IndexRow) => boolean = () => true,
 ): { readonly rows: readonly IndexRow[]; readonly next?: string } | { readonly refus: Response } {
-  if (limitRaw === null) return { rows };
+  if (limitRaw === null) return { rows: rows.filter(garder) };
   const n = Number(limitRaw);
   if (!Number.isInteger(n) || n < 1) return { refus: Response.json({ error: 'malformed', param: 'limit' }, { status: 400 }) };
   let start = 0;
   if (cursorRaw !== null && cursorRaw !== '') {
+    // Found in the WHOLE index: a cursor row this walk has since learnt is
+    // someone else's still marks the place.
     const at = rows.findIndex((r) => r.offerId === cursorRaw);
     if (at < 0) return { refus: Response.json({ error: 'curseur_perdu' }, { status: 409 }) };
     start = at + 1;
   }
-  const page = rows.slice(start, start + Math.min(n, max));
-  const end = start + page.length;
-  return end < rows.length && page.length > 0 ? { rows: page, next: page[page.length - 1]!.offerId } : { rows: page };
+  const page: IndexRow[] = [];
+  let i = start;
+  for (; i < rows.length && page.length < Math.min(n, max); i += 1) if (garder(rows[i]!)) page.push(rows[i]!);
+  return page.length > 0 && rows.slice(i).some(garder) ? { rows: page, next: page[page.length - 1]!.offerId } : { rows: page };
+}
+
+/**
+ * ETIQUETTE-FOURNISSEUR-1 — a walk for one supplier reads HIS rows and the rows
+ * nobody has labelled yet (read exactly as before); every other supplier's
+ * labelled row is passed over without a call. Once the index is labelled, a
+ * cut, a re-mint or an erase touches his products alone.
+ */
+const siennesOuSansEtiquette = (supplierId: string) => (r: IndexRow): boolean =>
+  r.supplierId === undefined || r.supplierId === supplierId;
+
+/**
+ * Hands the index the labels a walk learnt from the entries it read — one call,
+ * only when there is something to learn. A label not written now (the call
+ * failed) is simply learnt again by the next walk that reads that entry, so the
+ * walk's own answer never depends on it.
+ */
+async function etiqueter(env: Env, apprises: readonly IndexRow[]): Promise<void> {
+  if (apprises.length === 0) return;
+  try {
+    await indexStub(env).fetch(
+      new Request('https://do/index/etiqueter', { method: 'PUT', body: JSON.stringify({ etiquettes: apprises }) }),
+    );
+  } catch {
+    // learnt again by the next walk — see above
+  }
 }
 
 /**
@@ -551,20 +613,27 @@ async function purgerUnePage(
   body: { readonly limit?: unknown; readonly cursor?: unknown; readonly verifier?: unknown },
 ): Promise<Response> {
   const verifier = body.verifier === true;
-  const page = pageDeLIndex(tout, bodyParam(body.limit), bodyParam(body.cursor), verifier ? LIST_PAGE_MAX : PURGE_PAGE_MAX);
+  const page = pageDeLIndex(
+    tout, bodyParam(body.limit), bodyParam(body.cursor), verifier ? LIST_PAGE_MAX : PURGE_PAGE_MAX, siennesOuSansEtiquette(supplierId),
+  );
   if ('refus' in page) return page.refus;
-  let garde = typeof body.cursor === 'string' && body.cursor !== '' ? body.cursor : undefined;
   const siens: { row: IndexRow; entry: OfferEntry }[] = [];
+  const apprises: IndexRow[] = [];
   for (const r of page.rows) {
     const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
-    if (eRes.status !== 200) { garde = r.offerId; continue; } // an orphaned row is skipped, and stays
+    if (eRes.status !== 200) continue; // an orphaned row is skipped, and stays
     const entry = (await eRes.json()) as OfferEntry & { heldUnits?: number };
-    if (entry.product.supplierId !== supplierId) { garde = r.offerId; continue; }
+    if (entry.product.supplierId !== supplierId) {
+      if (r.supplierId === undefined) apprises.push({ ...r, supplierId: entry.product.supplierId });
+      continue;
+    }
     if (typeof entry.heldUnits === 'number' && entry.heldUnits > 0) {
       return Response.json({ error: 'paiement_en_cours' }, { status: 409 });
     }
     siens.push({ row: r, entry });
   }
+  // Only rows that STAY are labelled: his leave the index on this page.
+  await etiqueter(env, apprises);
   if (verifier) {
     return Response.json(page.next === undefined ? { ok: true, verifie: true } : { ok: true, verifie: true, next: page.next });
   }
@@ -599,17 +668,27 @@ async function purgerUnePage(
     );
   }
   const fini = page.next === undefined;
+  // The last row still standing at or before this page's end: his are gone,
+  // everyone else's (read or passed over) and every orphan stay. None since
+  // the cursor: the cursor itself, which stayed.
+  const effaces = new Set(siens.map((x) => x.row.offerId));
+  const depart = typeof body.cursor === 'string' && body.cursor !== '' ? tout.findIndex((r) => r.offerId === body.cursor) : -1;
+  const fin = page.rows.length > 0 ? tout.findIndex((r) => r.offerId === page.rows[page.rows.length - 1]!.offerId) : -1;
+  let garde = depart >= 0 ? tout[depart]!.offerId : undefined;
+  for (let i = fin; i > depart; i -= 1) {
+    if (!effaces.has(tout[i]!.offerId)) { garde = tout[i]!.offerId; break; }
+  }
   return Response.json({
     ok: true, supplierId, supprimes, refs: [...new Set(refs)], fini,
     ...(!fini && garde !== undefined ? { cursor: garde } : {}),
   });
 }
 
-/** One index read + one entry read per row: 1 + 40 calls. */
+/** One index read + one entry read per row: 1 + 40 calls, + 1 when the page learnt labels. */
 const LIST_PAGE_MAX = 40;
-/** The access cut reads AND writes each row: 1 + 2 × 20 calls, plus the code act. */
+/** The access cut reads AND writes each row: 1 + 2 × 20 calls (+ 1 for labels learnt), plus the code act. */
 const RETRAIT_PAGE_MAX = 20;
-/** The erase's five calls per offer (entry, pointer read, pointer delete, index, entry delete): 1 + 5 × 8. */
+/** The erase's five calls per offer (entry, pointer read, pointer delete, index, entry delete): 1 + 5 × 8 (+ 1 for labels learnt). */
 const PURGE_PAGE_MAX = 8;
 
 const pageParams = (url: string): [string | null, string | null] => {
@@ -694,7 +773,12 @@ export default {
         await indexStub(env).fetch(
           new Request('https://do/index/add', {
             method: 'PUT',
-            body: JSON.stringify({ offerId: cmd.offerId, productVersionId: decision.entry.product.id }),
+            body: JSON.stringify({
+              offerId: cmd.offerId,
+              productVersionId: decision.entry.product.id,
+              // ETIQUETTE-FOURNISSEUR-1 — born labelled.
+              supplierId: decision.entry.product.supplierId,
+            }),
           }),
         );
       }
@@ -813,22 +897,28 @@ export default {
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
       const tout = (await idxRes.json()) as IndexRow[];
       if (body?.limit !== undefined) return purgerUnePage(env, supplierId, tout, body);
-      const rows = tout;
+      const rows = tout.filter(siennesOuSansEtiquette(supplierId));
       // REMBOURSABLE-1 (AUDIT-B+2 F-33) — READ EVERYTHING FIRST, remove
       // nothing, and refuse the whole purge while a buyer holds any one of his
       // units: her payment may still confirm, and her order would register
       // with no product and no supplier. Each entry is read once, as before.
       const siens: { row: IndexRow; entry: OfferEntry }[] = [];
+      const apprises: IndexRow[] = [];
       for (const r of rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
         const entry = (await eRes.json()) as OfferEntry & { heldUnits?: number };
-        if (entry.product.supplierId !== supplierId) continue;
+        if (entry.product.supplierId !== supplierId) {
+          // ETIQUETTE-FOURNISSEUR-1 (verifier MINOR 1) — the rows that stay are learnt here too.
+          if (r.supplierId === undefined) apprises.push({ ...r, supplierId: entry.product.supplierId });
+          continue;
+        }
         if (typeof entry.heldUnits === 'number' && entry.heldUnits > 0) {
           return Response.json({ error: 'paiement_en_cours' }, { status: 409 });
         }
         siens.push({ row: r, entry });
       }
+      await etiqueter(env, apprises);
       const refs: string[] = [];
       let supprimes = 0;
       for (const { row: r, entry } of siens) {
@@ -875,14 +965,20 @@ export default {
         return Response.json({ error: 'missing_supplier_id', param: 'supplierId' }, { status: 400 });
       }
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const page = pageDeLIndex((await idxRes.json()) as IndexRow[], ...pageParams(request.url), LIST_PAGE_MAX);
+      const page = pageDeLIndex(
+        (await idxRes.json()) as IndexRow[], ...pageParams(request.url), LIST_PAGE_MAX, siennesOuSansEtiquette(supplierId),
+      );
       if ('refus' in page) return page.refus;
       const entries: OfferEntry[] = [];
+      const apprises: IndexRow[] = [];
       for (const r of page.rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row (offer gone) is honestly skipped
-        entries.push((await eRes.json()) as OfferEntry);
+        const entry = (await eRes.json()) as OfferEntry;
+        if (r.supplierId === undefined) apprises.push({ ...r, supplierId: entry.product.supplierId });
+        entries.push(entry);
       }
+      await etiqueter(env, apprises);
       // Filtering, the wire-order refs and the ladder-derived `hiddenReason` all
       // live in the PURE builder, so they are testable without a DO.
       const list = buildSupplierList(supplierId, entries, new Date().toISOString(), stockDueMs(env));
@@ -928,11 +1024,17 @@ export default {
       const page = pageDeLIndex((await idxRes.json()) as IndexRow[], ...pageParams(request.url), LIST_PAGE_MAX);
       if ('refus' in page) return page.refus;
       const entries: OfferEntry[] = [];
+      const apprises: IndexRow[] = [];
       for (const r of page.rows) {
         const eRes = await offerStub(env, r.offerId).fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
-        entries.push((await eRes.json()) as OfferEntry);
+        const entry = (await eRes.json()) as OfferEntry;
+        if (r.supplierId === undefined) apprises.push({ ...r, supplierId: entry.product.supplierId });
+        entries.push(entry);
       }
+      // ETIQUETTE-FOURNISSEUR-1 — his Produits tab reads every entry: the one
+      // read that labels the whole index, a page at a time.
+      await etiqueter(env, apprises);
       const inv = buildFullInventory(entries, new Date().toISOString(), stockDueMs(env));
       return Response.json(page.next === undefined ? inv : { ...inv, next: page.next });
     }
@@ -968,15 +1070,19 @@ export default {
       }
       const at = typeof body?.at === 'string' ? body.at : new Date().toISOString();
       const idxRes = await indexStub(env).fetch(new Request('https://do/index'));
-      const page = pageDeLIndex((await idxRes.json()) as IndexRow[], bodyParam(body?.limit), bodyParam(body?.cursor), RETRAIT_PAGE_MAX);
+      const page = pageDeLIndex(
+        (await idxRes.json()) as IndexRow[], bodyParam(body?.limit), bodyParam(body?.cursor), RETRAIT_PAGE_MAX, siennesOuSansEtiquette(supplierId),
+      );
       if ('refus' in page) return page.refus;
       const retrait = pathname === '/offers/retrait-acces';
       let changed = 0;
+      const apprises: IndexRow[] = [];
       for (const r of page.rows) {
         const stub = offerStub(env, r.offerId);
         const eRes = await stub.fetch(new Request('https://do/entry'));
         if (eRes.status !== 200) continue; // an orphaned index row is honestly skipped
         const entry = (await eRes.json()) as OfferEntry;
+        if (r.supplierId === undefined) apprises.push({ ...r, supplierId: entry.product.supplierId });
         if (entry.product.supplierId !== supplierId) continue;
         // F-05 — already in the asked-for state: no second call spent on it
         // (the object would answer `changed:false` anyway, by the same rule).
@@ -990,6 +1096,7 @@ export default {
         );
         if (res.status === 200 && ((await res.json()) as { changed?: boolean }).changed === true) changed += 1;
       }
+      await etiqueter(env, apprises);
       return Response.json(page.next === undefined ? { ok: true, supplierId, changed } : { ok: true, supplierId, changed, next: page.next });
     }
 
