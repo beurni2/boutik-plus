@@ -114,6 +114,96 @@ describe('DELAI-ACCEPTATION-1 — the supplier is told the deadline before it pa
   });
 });
 
+/**
+ * VERIFIER MAJOR 2 (walk written FIRST, red): a « Accepter » tapped after the
+ * clock has cancelled the order. The book answers 409 `refusee`; he must land
+ * on the cancelled card — never on « Réessayez » over an order that is
+ * already being refunded.
+ */
+describe('DELAI-ACCEPTATION-1 — « Accepter » tapped after the 2 hours', () => {
+  const annulee = { fulfillment: { refusedAt: '2026-09-27T09:00:05.000Z', refusPar: 'delai' } };
+  const tardif = (path: string): { status: number; json: Record<string, unknown> } | null =>
+    path === '/fulfillment/accept' ? { status: 409, json: { ok: false, reason: 'refusee' } } : null;
+
+  it('lands on the cancelled order, says why, and asks nothing more of him', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    let lu = 0;
+    const fil = wire([
+      (path) =>
+        path === '/fulfillment/mine'
+          ? ((lu += 1), {
+              status: 200,
+              json: {
+                ok: true,
+                orders: [lu === 1 ? ligne('ord-1', 'Bazin riche', { repondreAvant: '2026-09-27T09:00:00.000Z' }) : ligne('ord-1', 'Bazin riche', annulee)] as never,
+              },
+            })
+          : null,
+      tardif,
+      offres,
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.settle();
+    await screen.press('Accepter la commande');
+    await screen.settle();
+    expect(fil.calls.filter((c) => c.path === '/fulfillment/accept')).toHaveLength(1);
+    expect(screen.shows('Réessayez'), `told to retry a cancelled order. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.canPress('Accepter la commande')).toBe(false);
+    await screen.press('Livré');
+    await screen.settle();
+    expect(screen.texts()).toContain(
+      "Vous n'avez pas répondu dans les 2 heures. La commande est annulée et le client sera remboursé. Ne la préparez pas.",
+    );
+    screen.unmount();
+  });
+
+  it('in a colis, the article the clock took is skipped, the rest is accepted, and the card says which', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    const acceptees = new Set<string>();
+    let c1Annule = false;
+    const fil = wire([
+      (path) =>
+        path === '/fulfillment/mine'
+          ? {
+              status: 200,
+              json: {
+                ok: true,
+                orders: [
+                  c1Annule
+                    ? ligne('c1', 'Pagne wax', annulee, ['c1', 'c2'])
+                    : ligne('c1', 'Pagne wax', { repondreAvant: '2026-09-27T09:00:00.000Z' }, ['c1', 'c2']),
+                  acceptees.has('c2')
+                    ? ligne('c2', 'Sac en cuir', { fulfillment: { acceptedAt: '2026-09-27T09:01:00.000Z' } }, ['c1', 'c2'])
+                    : ligne('c2', 'Sac en cuir', { repondreAvant: '2026-09-27T11:00:00.000Z' }, ['c1', 'c2']),
+                ] as never,
+              },
+            }
+          : null,
+      (path, body) => {
+        if (path !== '/fulfillment/accept') return null;
+        if (body?.['orderId'] === 'c1') {
+          c1Annule = true;
+          return { status: 409, json: { ok: false, reason: 'refusee' } };
+        }
+        acceptees.add(String(body?.['orderId']));
+        return { status: 200, json: { ok: true, status: 'accepted', acceptedAt: '2026-09-27T09:01:00.000Z' } };
+      },
+      offres,
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.settle();
+    await screen.press('Accepter le colis');
+    await screen.settle();
+    expect(fil.calls.filter((c) => c.path === '/fulfillment/accept').map((c) => c.body?.['orderId'])).toEqual(['c1', 'c2']);
+    expect(screen.shows('Réessayez'), `told to retry. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.texts()).toContain('Annulé : pas de réponse dans les 2 heures. Le client sera remboursé.');
+    expect(screen.canPress('Accepter le colis'), 'the rest was accepted — nothing left to accept').toBe(false);
+    screen.unmount();
+  });
+});
+
 describe('DELAI-ACCEPTATION-1 — an order the clock cancelled, on his page', () => {
   it('leaves « Commandes »; the archive says HE did not answer in 2 hours — never « Boutik+ a annulé », never « vous avez refusé »', async () => {
     storage({ 'boutik.fournisseur.code': CODE });

@@ -245,8 +245,8 @@ capture founder-keys-absent-negative fail node scripts/gates/founder-keys-absent
 # The checks write sw.js into the page they are given, so each run gets a copy.
 PAGE_TMP="$(mktemp -d)"
 cp -r gates/fixtures/web-size-dist "$PAGE_TMP/ok" && cp -r gates/fixtures/negative/web-page "$PAGE_TMP/e1"
-log "gate: web-size — no signed ceiling (⏳ W-D3): measured and printed, never failed (must pass)"
-capture web-size-unsigned pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur
+log "gate: web-size — no signed ceiling (the console, ⏳ W-D3): measured and printed, never failed (must pass)"
+capture web-size-unsigned pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist console
 log "gate: web-size — a SIGNED ceiling the page is within (must pass)"
 capture web-size-signed-within pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur --budgets gates/fixtures/web-size-budgets.signed-generous.json
 log "gate: web-size — NEGATIVE FIXTURE (a SIGNED ceiling the page is over, must fail)"

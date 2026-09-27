@@ -486,7 +486,9 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     setAcceptEchec(null);
     try {
       const res = await service.accept(code, orderId);
-      if (res.ok) await load(true);
+      // already cancelled: re-reading his list turns the card into the
+      // cancelled one — there is nothing for him to retry
+      if (res.ok || res.reason === 'annulee') await load(true);
       else if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
       else setAcceptEchec(orderId);
     } catch {
@@ -644,7 +646,8 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     try {
       for (const orderId of orderIds) {
         const res = await service.accept(code, orderId);
-        if (res.ok) continue;
+        // an article already cancelled is no longer his to accept: the rest still is
+        if (res.ok || res.reason === 'annulee') continue;
         if (res.reason === 'bad_code') setRead({ kind: 'bad_code' });
         else setAcceptEchec(packageId);
         return;

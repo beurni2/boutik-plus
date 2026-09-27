@@ -73,9 +73,12 @@ export interface Wire {
  * The answers a walk scripts for another app's door were « certified » by a
  * comment, and twice they were kinder than the real door. Now every answer
  * given at the Shop+ or Séra base is checked against the forms that app's OWN
- * workerd suite recorded (`@platform/recorded-answers`); one that is not a
- * recorded form fails the walk after it runs. The check cannot live inside the
- * fake: a throw there is caught by the port and becomes the offline screen.
+ * workerd suite recorded (`@platform/recorded-answers`): a door with no
+ * recording, or an answer that is not a recorded form, fails the walk after it
+ * runs (an outage of 500 and more is the network's — unless it names a
+ * `reason`, which a screen reads as the door's word). The check cannot live
+ * inside the fake: a throw there is caught by the port and becomes the offline
+ * screen.
  *
  * ITS BOUND: it proves a stand-in never says what the real door never says
  * (a status, a field, a reason word). It does not prove the stand-in picks the

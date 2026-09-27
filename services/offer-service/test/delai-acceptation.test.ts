@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FulfillmentDO } from '../worker/fulfillment-do.js';
 import { StockageCompteur } from './doubles/stockage-compteur.js';
@@ -38,6 +40,8 @@ let book: FulfillmentDO;
 let code: string;
 /** What Shop+ was told, verbatim. */
 let recu: { name: string; orderId: string }[];
+/** An act that lands while the wake is delivering to Shop+ (the platform lets one in). */
+let pendantLivraison: (() => Promise<void>) | null;
 
 function ouvrir(env: Record<string, string> = {}): FulfillmentDO {
   return new FulfillmentDO({ storage } as unknown as DurableObjectState, {
@@ -45,6 +49,9 @@ function ouvrir(env: Record<string, string> = {}): FulfillmentDO {
       fetch: async (req: Request) => {
         const e = (await req.json()) as { name: string; payload: { orderId: string } };
         recu.push({ name: e.name, orderId: e.payload.orderId });
+        const acte = pendantLivraison;
+        pendantLivraison = null;
+        if (acte !== null) await acte();
         return new Response('{}', { status: 200 });
       },
     },
@@ -69,6 +76,7 @@ async function post(path: string, body: unknown): Promise<Response> {
 beforeEach(async () => {
   storage = new StockageCompteur();
   recu = [];
+  pendantLivraison = null;
   book = ouvrir();
   code = ((await (await post('/code/mint', { supplierId: 'supplier-sien' })).json()) as { code: string }).code;
 });
@@ -128,7 +136,7 @@ describe('DELAI-ACCEPTATION-1 · an order no one answers is cancelled at 2 hours
     expect(recu).toEqual([{ name: 'fulfillment.rejected.v1', orderId: 'ord-1' }]);
   });
 
-  it('an order stored BEFORE this slice (no deadline filed) is found when the object starts, and cancelled once its 2 hours are past', async () => {
+  it('an order stored BEFORE this slice (no deadline filed) is found at the first wake after the object starts, and cancelled once its 2 hours are past', async () => {
     await storage.put('order:ord-vieux', record('ord-vieux', 'supplier-sien', Date.now() - 3 * H2));
     book = ouvrir(); // the object starts again (the deploy)
     await reveil();
@@ -143,6 +151,16 @@ describe('DELAI-ACCEPTATION-1 · an order no one answers is cancelled at 2 hours
     await reveil();
     expect(recu).toEqual([{ name: 'fulfillment.rejected.v1', orderId: 'ord-1' }]);
     expect(storage.data.has('attentereponse:ord-1')).toBe(false);
+  });
+
+  it('the test knob is never in anything that deploys — in production, shortening is the dangerous side (verifier MINOR 6)', () => {
+    const racine = join(import.meta.dirname, '..', '..', '..');
+    const fichiers = [
+      join(racine, 'services/offer-service/wrangler.toml'),
+      ...readdirSync(join(racine, '.github/workflows')).map((f) => join(racine, '.github/workflows', f)),
+    ];
+    expect(fichiers.length).toBeGreaterThan(1);
+    for (const f of fichiers) expect(readFileSync(f, 'utf8').includes('ACCEPTANCE_DECISION_MS'), f).toBe(false);
   });
 
   it('the test knob can only SHORTEN the 2 hours', async () => {
@@ -181,6 +199,26 @@ describe('DELAI-ACCEPTATION-1 · an order no one answers is cancelled at 2 hours
     await post('/register', record('ord-proche', 'supplier-sien', t - H2 + 30_000));
     await reveil(); // a later wake: only its own last step can set the next one
     expect(await storage.getAlarm()).toBe(t - H2 + 30_000 + H2);
+  });
+
+  it('an answer that lands WHILE the wake is delivering keeps its own wake — the clock never pushes it back to a deadline (verifier MAJOR 1)', async () => {
+    const t = Date.now();
+    await post('/register', record('ord-1', 'supplier-sien', t));
+    await post('/register', record('ord-2', 'supplier-sien', t));
+    await reveil(); // the first wake of this object re-checks the book
+    expect((await post('/accept', { code, orderId: 'ord-2' })).status).toBe(200);
+    // while that acceptance is being delivered, he refuses ord-1: the refusal
+    // asks for a wake NOW, so the buyer's refund leaves at once
+    pendantLivraison = async () => {
+      expect((await post('/refuse', { code, orderId: 'ord-1' })).status).toBe(200);
+    };
+    await reveil();
+    expect(recu.map((e) => e.name)).toEqual(['fulfillment.accepted.v1']);
+    const prochain = await storage.getAlarm();
+    expect(prochain, 'the refusal\'s wake, not ord-1\'s deadline two hours away').not.toBeNull();
+    expect(prochain!).toBeLessThanOrEqual(Date.now());
+    await reveil();
+    expect(recu.map((e) => e.name)).toEqual(['fulfillment.accepted.v1', 'fulfillment.rejected.v1']);
   });
 
   it('retiring an order takes its deadline with it', async () => {

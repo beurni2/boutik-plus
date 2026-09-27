@@ -133,9 +133,9 @@ describe('« Aider une cliente » — her way back, from his console', () => {
   });
 
   it('an unreachable service says « Réessayez » and the button presses again', async () => {
-    // the door's own « unavailable », never the harness's unrouted 404 — a 404
-    // is an answer the real door gives only for a number with no account
-    wire([(path) => (path === '/buyer/accounts/recovery-code' ? { status: 503, json: { ok: false, reason: 'accounts_unavailable' } } : null), ...autour]);
+    // an outage, never the harness's unrouted 404 — a 404 is an answer the
+    // real door gives only for a number with no account
+    wire([(path) => (path === '/buyer/accounts/recovery-code' ? { status: 503, json: { ok: false } } : null), ...autour]);
     const screen = await versAider();
     await screen.type('70 12 34 56');
     await screen.press('Créer le code');

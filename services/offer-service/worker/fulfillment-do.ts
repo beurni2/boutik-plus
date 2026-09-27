@@ -822,9 +822,13 @@ export class FulfillmentDO {
     for (let i = 0; i < perimes.length; i += STORAGE_BATCH_MAX) {
       await this.state.storage.delete(perimes.slice(i, i + STORAGE_BATCH_MAX));
     }
-    // The next wake: the nearest outbox retry or answer deadline, whichever first.
+    // The next wake: the nearest outbox retry or answer deadline, whichever
+    // first — brought FORWARD only. An act that landed while this wake was
+    // delivering (an accept, a refusal, a cancel) has already asked for its
+    // own, earlier wake; overwriting it would hold that fact — a refund among
+    // them — until the next deadline, up to two hours (verifier MAJOR 1).
     const suivants = [...(retryIn !== null ? [Date.now() + retryIn] : []), ...(prochaineEcheance !== null ? [prochaineEcheance] : [])];
-    if (suivants.length > 0) await this.state.storage.setAlarm(Math.min(...suivants)).catch(() => undefined);
+    if (suivants.length > 0) await this.armerAvant(Math.min(...suivants));
   }
 
   /** The Shop+ leg — the service binding, unchanged from READINESS-RETURN-1.

@@ -111,7 +111,9 @@ export type ProduitsResult =
 
 export type ActResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'unreachable' };
+  /** `annulee` — the order was already cancelled (the 2-hour clock, or the
+   *  founder): nothing to retry, his list must be read again. */
+  | { readonly ok: false; readonly reason: 'bad_code' | 'not_yours_or_unknown' | 'annulee' | 'unreachable' };
 
 /** REMBOURSEMENT-2 — his refusal answers `refused` (or `already_refused`),
  *  or `already_ready` once the colis is on Séra's road. */
@@ -288,6 +290,7 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       if (res === null) return { ok: false, reason: 'unreachable' };
       if (res.status === 401) return { ok: false, reason: 'bad_code' };
       if (res.status === 404) return { ok: false, reason: 'not_yours_or_unknown' };
+      if (res.status === 409 && res.json['reason'] === 'refusee') return { ok: false, reason: 'annulee' };
       if (res.json['ok'] !== true) return { ok: false, reason: 'unreachable' };
       return { ok: true };
     },
