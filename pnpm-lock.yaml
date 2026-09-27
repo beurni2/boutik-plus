@@ -105,6 +105,9 @@ importers:
       '@babel/core':
         specifier: ^7.25.2
         version: 7.29.7
+      '@platform/recorded-answers':
+        specifier: git+https://github.com/beurni2/platform-contracts.git#ced137161c4f0b5d950ba5eb71cfc2c5366ee37e&path:packages/recorded-answers
+        version: https://codeload.github.com/beurni2/platform-contracts/tar.gz/ced137161c4f0b5d950ba5eb71cfc2c5366ee37e#path:packages/recorded-answers
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.18
@@ -1780,6 +1783,10 @@ packages:
   '@platform/kernel-types@https://codeload.github.com/beurni2/platform-contracts/tar.gz/ac64d43e1b8496af2dfcf134bab622462892f79d#path:packages/kernel-types':
     resolution: {path: packages/kernel-types, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/ac64d43e1b8496af2dfcf134bab622462892f79d}
     version: 3.20.0
+
+  '@platform/recorded-answers@https://codeload.github.com/beurni2/platform-contracts/tar.gz/ced137161c4f0b5d950ba5eb71cfc2c5366ee37e#path:packages/recorded-answers':
+    resolution: {path: packages/recorded-answers, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/ced137161c4f0b5d950ba5eb71cfc2c5366ee37e}
+    version: 3.25.0
 
   '@platform/taxonomy@https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14#path:packages/taxonomy':
     resolution: {path: packages/taxonomy, tarball: https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14}
@@ -6690,6 +6697,8 @@ snapshots:
   '@platform/kernel-types@https://codeload.github.com/beurni2/platform-contracts/tar.gz/ac64d43e1b8496af2dfcf134bab622462892f79d#path:packages/kernel-types':
     dependencies:
       zod: 4.4.3
+
+  '@platform/recorded-answers@https://codeload.github.com/beurni2/platform-contracts/tar.gz/ced137161c4f0b5d950ba5eb71cfc2c5366ee37e#path:packages/recorded-answers': {}
 
   '@platform/taxonomy@https://codeload.github.com/beurni2/platform-contracts/tar.gz/1fb7649d981521329b5ad041ec52c89728981b14#path:packages/taxonomy': {}
 

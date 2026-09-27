@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -9,6 +10,8 @@ import * as fsDouble from './doubles/expo-file-system';
 import * as fontDouble from './doubles/expo-font';
 import { cheminResolu as cheminSelecteur } from './doubles/expo-image-picker';
 import { createRequire } from 'node:module';
+import { ENREGISTREMENTS } from '@platform/recorded-answers';
+import { substitutsRefuses, wire } from './rendu';
 
 /**
  * ═══ RENDU-RÉEL — the harness holds ITSELF to the mock-certification law ═══
@@ -197,5 +200,87 @@ describe('the picker and font stand-ins are CERTIFIED to where the app looks', (
     const font = readFileSync(join(appDir, 'test/doubles/expo-font.ts'), 'utf8');
     expect(font).toContain('IT LOADS NO FONT');
     expect(Object.values(fontDouble.FontDisplay)).toEqual(['auto', 'swap', 'block', 'fallback', 'optional']);
+  });
+});
+
+/**
+ * REPONSES-ENREGISTREES-1 (AUDIT-B+2 F-82) — the harness's check on Shop+ and
+ * Séra stand-ins, certified against itself through the REAL `wire()` and a
+ * real fetch: a copy the real door never gives is refused, a recorded one
+ * passes, and nothing outside those two apps is judged.
+ */
+describe('a stand-in for Shop+ or Séra may only say what the real door says', () => {
+  const base = { shop: 'http://shop.test', sera: 'http://logistics.test' };
+  const appel = async (url: string, init?: RequestInit) => (globalThis.fetch as (u: string, i?: RequestInit) => Promise<Response>)(url, init);
+  const avec = async (f: () => Promise<void>) => {
+    process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'] = base.shop;
+    process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'] = base.sera;
+    try {
+      await f();
+    } finally {
+      delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
+      delete process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'];
+      delete (globalThis as { fetch?: unknown }).fetch;
+    }
+  };
+
+  it('the recordings are there to check against: every door the walks copy is recorded with forms', () => {
+    for (const chemin of ['/checkout/dispatch', '/checkout/gains', '/reseller/suivi', '/ops/board', '/ops/task']) {
+      expect(ENREGISTREMENTS.find((p) => p.chemin === chemin)?.formes.length ?? 0, chemin).toBeGreaterThan(0);
+    }
+  });
+
+  it('refuses the copies F-82 found — a rung Shop+ never names, an empty ladder record, a board missing its keys — and names the door', async () => {
+    await avec(async () => {
+      wire([
+        (path) => (path === '/checkout/dispatch/ord-1/refusal' ? { status: 200, json: { ok: true, record: {}, rung: 'standard', escalated: false } } : null),
+        (path) => (path === '/ops/board' ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [] } } } : null),
+      ]);
+      await appel(`${base.shop}/checkout/dispatch/ord-1/refusal`, { method: 'POST', body: JSON.stringify({ reason: 'change_of_mind' }) });
+      await appel(`${base.sera}/ops/board`);
+      const refus = substitutsRefuses();
+      expect(refus).toHaveLength(2);
+      expect(refus[0]).toContain('shop-plus POST /checkout/dispatch/:orderId/refusal never answers 200');
+      expect(refus[1]).toContain('sera GET /ops/board never answers 200');
+    });
+  });
+
+  it('passes a recorded form, and judges the harness’s OWN unrouted answer too — a recorded door is never silently 404', async () => {
+    await avec(async () => {
+      wire([(path) => (path === '/ops/riders' ? { status: 200, json: { ok: true, riders: [] } } : null)]);
+      await appel(`${base.sera}/ops/riders`);
+      expect(substitutsRefuses()).toEqual([]);
+      await appel(`${base.shop}/reseller/codes`);
+      expect(substitutsRefuses()).toEqual([expect.stringContaining('shop-plus GET /reseller/codes never answers 404')]);
+    });
+  });
+
+  it('the end-of-walk check is WIRED: a walk whose every assertion passes still fails on an unreal Shop+ copy', () => {
+    let code = 0;
+    let sortie = '';
+    try {
+      sortie = execSync('npx vitest run --config test/fixtures/substitut-irreel/vitest.config.ts', { cwd: appDir, encoding: 'utf8', stdio: 'pipe' });
+    } catch (e) {
+      const err = e as { status: number; stdout: string; stderr: string };
+      code = err.status;
+      sortie = `${err.stdout}${err.stderr}`;
+    }
+    expect(code, sortie).toBe(1);
+    expect(sortie).toContain('a stand-in said what the real door never says');
+    expect(sortie).toContain('shop-plus POST /checkout/dispatch/:orderId/refusal never answers 200');
+  }, 60_000);
+
+  it('leaves alone what is not Shop+ or Séra, and an outage (5xx) — the network’s answer, not the door’s', async () => {
+    await avec(async () => {
+      wire([
+        (path) => (path === '/fulfillment/orders' ? { status: 200, json: { anything: true } } : null),
+        (path) => (path === '/checkout/gains' ? { status: 503, json: { ok: false } } : null),
+      ]);
+      await appel('http://offer.test/fulfillment/orders');
+      await appel(`${base.shop}/checkout/gains`);
+      // the same path on another origin is not Shop+'s door
+      await appel('http://offer.test/checkout/dispatch');
+      expect(substitutsRefuses()).toEqual([]);
+    });
   });
 });

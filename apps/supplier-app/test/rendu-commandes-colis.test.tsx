@@ -44,11 +44,18 @@ const C1 = { ...BASE, orderId: 'c1', productVersionId: 'pv-c1', productName: 'Pa
 const C2 = { ...BASE, orderId: 'c2', productVersionId: 'pv-c2', productName: 'Sac en cuir', paidAt: '2026-09-23T07:00:00.000Z', fulfillment: { acceptedAt: '2026-09-23T07:10:00.000Z', readyAt: '2026-09-23T07:40:00.000Z' } };
 
 const dispatch = (orderId: string, remboursement: unknown, contact: unknown) => ({
-  ok: true, exists: true, orderId, state: 'paid', createdAt: '2026-09-23T07:00:00.000Z',
+  ok: true, exists: true, orderId, state: 'confirmed', createdAt: '2026-09-23T07:00:00.000Z',
   contact, productVersionId: `pv-${orderId}`, zoneTo: 'Ouagadougou', remboursement,
 });
 
-const LIBRE = { riderId: 'r-1', displayName: 'Issa', certified: true, assignable: true, shift: { status: 'on_shift' } };
+const LIBRE = {
+  riderId: 'r-1', displayName: 'Issa', phoneAlias: 'alias-issa', certified: true, assignable: true,
+  privacyAck: { ackAt: '2026-09-23T07:00:00.000Z', noticeVersion: 'privacy-notice.v1' },
+  shift: { status: 'on_shift', startedAt: '2026-09-23T07:00:05.000Z', confirmedBy: 'server' },
+};
+
+const FENETRE = { start: '2026-09-23T09:00:00.000Z', end: '2026-09-23T17:00:00.000Z' };
+const LIEU = { zone: 'Ouagadougou', landmark: "À l'échangeur, portail vert", directions: 'Après le rond-point', maskedRelay: '' };
 
 function routes(): { routes: Route[]; admise: { v: boolean } } {
   const admise = { v: false };
@@ -66,7 +73,7 @@ function routes(): { routes: Route[]; admise: { v: boolean } } {
               json: {
                 ok: true,
                 orders: [
-                  dispatch('c1', { etat: 'en_cours' }, null),
+                  dispatch('c1', { etat: 'en_cours' }, { phone: '70 00 00 00', quartier: 'Zogona', repere: "À l'échangeur, portail vert" }),
                   dispatch('c2', null, { phone: '70 00 00 00', quartier: 'Zogona', repere: "À l'échangeur, portail vert" }),
                 ],
               },
@@ -83,9 +90,10 @@ function routes(): { routes: Route[]; admise: { v: boolean } } {
               json: {
                 ok: true,
                 board: {
-                  queued: admise.v ? [{ taskId: 't-colis', orderId: 'c2', admittedAt: '2026-09-23T09:00:00.000Z', window: {}, location: {}, colis: { orderIds: voyage } }] : [],
+                  // one travelling order: Séra's board carries no `colis` for it
+                  queued: admise.v ? [{ taskId: 't-colis', orderId: 'c2', admittedAt: '2026-09-23T09:00:00.000Z', window: FENETRE, location: LIEU }] : [],
                   riders: [LIBRE],
-                  assignments: [],
+                  assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {},
                 },
               },
             }

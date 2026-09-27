@@ -12,6 +12,7 @@ onlyBuiltDependencies:
   - "@platform/ui-tokens"
   - "@platform/certification"
   - "@platform/taxonomy"
+  - "@platform/recorded-answers"
 
 # @platform/contracts depends on @platform/kernel-types by VERSION, which
 # exists on no registry; this override routes that transitive resolution to

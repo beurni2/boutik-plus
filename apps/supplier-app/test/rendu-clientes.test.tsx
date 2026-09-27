@@ -34,7 +34,7 @@ const autour: Route[] = [
   (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
   (path) => (path === '/fulfillment/supplier-codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
   (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
-  (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [] } } : null),
+  (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
   (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
 ];
 
@@ -133,7 +133,9 @@ describe('« Aider une cliente » — her way back, from his console', () => {
   });
 
   it('an unreachable service says « Réessayez » and the button presses again', async () => {
-    wire(autour);
+    // the door's own « unavailable », never the harness's unrouted 404 — a 404
+    // is an answer the real door gives only for a number with no account
+    wire([(path) => (path === '/buyer/accounts/recovery-code' ? { status: 503, json: { ok: false, reason: 'accounts_unavailable' } } : null), ...autour]);
     const screen = await versAider();
     await screen.type('70 12 34 56');
     await screen.press('Créer le code');

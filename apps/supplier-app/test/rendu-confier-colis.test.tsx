@@ -49,14 +49,18 @@ const ARTICLES = [
 
 const BUYER: LivraisonRow = {
   orderId: 'c2',
-  state: 'paid',
+  state: 'confirmed',
   createdAt: '2026-09-23T07:00:00.000Z',
   contact: { phone: '70 00 00 00', quartier: 'Zogona', repere: "À l'échangeur, portail vert" },
   productVersionId: 'pv-c2',
   zoneTo: 'Ouagadougou',
 };
 
-const LIBRE = { riderId: 'r-1', displayName: 'Issa', certified: true, assignable: true, shift: { status: 'on_shift' } };
+const LIBRE = {
+  riderId: 'r-1', displayName: 'Issa', phoneAlias: 'alias-issa', certified: true, assignable: true,
+  privacyAck: { ackAt: '2026-09-23T07:00:00.000Z', noticeVersion: 'privacy-notice.v1' },
+  shift: { status: 'on_shift', startedAt: '2026-09-23T07:00:05.000Z', confirmedBy: 'server' },
+};
 
 /** Séra's book, as the door keeps it: nothing queued until the compose admits
  *  the colis under its first order; then the board shows ONE queued task
@@ -71,10 +75,15 @@ function seraColis(): { routes: Route[]; etat: { admise: boolean } } {
             ok: true,
             board: {
               queued: etat.admise
-                ? [{ taskId: 't-colis', orderId: 'c1', admittedAt: '2026-09-23T09:00:00.000Z', window: {}, location: {}, colis: { orderIds: ['c1', 'c2'] } }]
+                ? [{
+                    taskId: 't-colis', orderId: 'c1', admittedAt: '2026-09-23T09:00:00.000Z',
+                    window: { start: '2026-09-23T09:00:00.000Z', end: '2026-09-23T17:00:00.000Z' },
+                    location: { zone: 'Ouagadougou', landmark: "À l'échangeur, portail vert", directions: 'Après le rond-point', maskedRelay: '' },
+                    colis: { orderIds: ['c1', 'c2'] },
+                  }]
                 : [],
               riders: [LIBRE],
-              assignments: [],
+              assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {},
             },
           },
         }
@@ -99,10 +108,11 @@ function seraColis(): { routes: Route[]; etat: { admise: boolean } } {
         });
       if (!ok) return { status: 400, json: { ok: false, reason: 'articles_malformed' } };
     }
-    // The package's task is named by its first order (`colis_tete_attendue`).
-    if (body['orderId'] !== 'c1') return { status: 422, json: { ok: false, admitted: false, reason: 'colis_tete_attendue' } };
+    // The door files a package's task under its first order whichever member
+    // composes it, and names the travelling orders back (the walk asserts the
+    // app sends the first order itself — its command id depends on it).
     etat.admise = true;
-    return { status: 200, json: { ok: true, admitted: true, duplicate: false, taskId: 't-colis' } };
+    return { status: 200, json: { ok: true, admitted: true, duplicate: false, taskId: 't-colis', colis: { orderIds: ['c1', 'c2'] } } };
   };
   return { routes: [tableau, compose], etat };
 }

@@ -101,7 +101,7 @@ const BUYER: LivraisonRow = {
  *  compose form — exactly where the founder stood. */
 const planche: Route = (path) =>
   path === '/ops/board'
-    ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [] } } }
+    ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {} } } }
     : null;
 
 /**
@@ -165,7 +165,7 @@ function livreSera(): { routes: readonly Route[]; etat: { retiree: boolean } } {
   const etat = { retiree: false };
   const tableau: Route = (path) =>
     path === '/ops/board'
-      ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [] } } }
+      ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {} } } }
       : null;
   const compose: Route = porteCompose(() => {
     if (!etat.retiree) return REFUS_COURSE_EXISTANTE;
@@ -330,7 +330,8 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
   });
 
   it('every OTHER unnamed refusal keeps the generic banner — nothing else in the mapping moved', async () => {
-    wire([planche, porteCompose({ status: 422, json: { ok: false, admitted: false, reason: 'not_funded_for_mode' } })]);
+    // any refusal the console does not name — one the real door gives (the recordings)
+    wire([planche, porteCompose({ status: 422, json: { ok: false, admitted: false, reason: 'colis_fournisseurs_differents' } })]);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
     await screen.settle();
 

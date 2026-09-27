@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer';
-import { expect } from 'vitest';
+import { afterEach, expect } from 'vitest';
+import { ENREGISTREMENTS, refusDuSubstitut, type Porte } from '@platform/recorded-answers';
 
 /**
  * ═══ RENDU-RÉEL (Boutik+) — mount his real console screen and USE it ═══
@@ -66,6 +67,40 @@ export interface Wire {
 }
 
 /**
+ * ═══ REPONSES-ENREGISTREES-1 (AUDIT-B+2 F-82) — a stand-in for Shop+ or Séra
+ * may only say what the real door says ═══
+ *
+ * The answers a walk scripts for another app's door were « certified » by a
+ * comment, and twice they were kinder than the real door. Now every answer
+ * given at the Shop+ or Séra base is checked against the forms that app's OWN
+ * workerd suite recorded (`@platform/recorded-answers`); one that is not a
+ * recorded form fails the walk after it runs. The check cannot live inside the
+ * fake: a throw there is caught by the port and becomes the offline screen.
+ *
+ * ITS BOUND: it proves a stand-in never says what the real door never says
+ * (a status, a field, a reason word). It does not prove the stand-in picks the
+ * answer the real door would pick for that request.
+ */
+function producteurDe(origin: string): Porte['producteur'] | undefined {
+  const de = (base: string | undefined) => (base === undefined ? undefined : new URL(base).origin);
+  if (origin === de(process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'])) return 'shop-plus';
+  if (origin === de(process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'])) return 'sera';
+  return undefined;
+}
+
+const refuses: string[] = [];
+
+/** The refusals so far, taken — for the harness's own certification. */
+export function substitutsRefuses(): string[] {
+  return refuses.splice(0);
+}
+
+afterEach(() => {
+  const r = refuses.splice(0);
+  if (r.length > 0) throw new Error(`a stand-in said what the real door never says:\n  ${r.join('\n  ')}`);
+});
+
+/**
  * Install a fake `fetch` built from routes. Anything unrouted answers 404 and
  * is RECORDED — an unexpected call is a finding, never a silent pass.
  */
@@ -80,17 +115,26 @@ export function wire(routes: readonly Route[]): Wire {
     for (const [k, v] of Object.entries((init?.headers ?? {}) as Record<string, string>)) {
       headers[k.toLowerCase()] = v;
     }
-    calls.push({ path, method: init?.method ?? 'GET', body, headers });
+    const method = init?.method ?? 'GET';
+    calls.push({ path, method, body, headers });
+    let answer: { status: number; json: Record<string, unknown> } = { status: 404, json: { error: 'no_route', path } };
     for (const r of routes) {
-      const answer = r(path, body, url.searchParams, headers);
-      if (answer !== null) {
-        return new Response(JSON.stringify(answer.json), {
-          status: answer.status,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      const a = r(path, body, url.searchParams, headers);
+      if (a !== null) {
+        answer = a;
+        break;
       }
     }
-    return new Response(JSON.stringify({ error: 'no_route', path }), { status: 404 });
+    const producteur = producteurDe(url.origin);
+    if (producteur !== undefined) {
+      const portes = ENREGISTREMENTS.filter((p) => p.producteur === producteur);
+      const why = refusDuSubstitut(portes, method, path, answer.status, answer.json);
+      if (why !== null) refuses.push(why);
+    }
+    return new Response(JSON.stringify(answer.json), {
+      status: answer.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
   };
   (globalThis as { fetch: unknown }).fetch = fake;
   return { calls };

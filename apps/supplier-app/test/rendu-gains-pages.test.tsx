@@ -27,8 +27,10 @@ const SPLIT = {
   productSubtotal: 11_500, buyerTotal: 12_500, sellerPlatformFee: 0, sellerNet: 9_000,
   resellerPlatformFee: 0, resellerNet: 2_500,
 };
+/** The confirmed order's own gains answer, passed through whole by the door. */
 const gain = (orderId: string, jour: string) => ({
-  orderId, createdAt: `2026-09-0${jour}T08:00:00.000Z`, productVersionId: 'pv-1', zoneTo: 'Gounghin', split: SPLIT,
+  ok: true, exists: true, orderId, state: 'confirmed', createdAt: `2026-09-0${jour}T08:00:00.000Z`,
+  productVersionId: 'pv-1', zoneTo: 'Gounghin', split: SPLIT, livree: false, obligations: [],
 });
 
 /** Pages served IN SEQUENCE per request. The wire records the PATH only, so

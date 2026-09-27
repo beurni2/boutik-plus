@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@platform/recorded-answers": "git+https://github.com/beurni2/platform-contracts.git#ced137161c4f0b5d950ba5eb71cfc2c5366ee37e&path:packages/recorded-answers",
     "@types/react": "~19.2.2",
     "@types/react-test-renderer": "^19.1.0",
     "babel-preset-expo": "~57.0.10",

@@ -35,7 +35,8 @@ const RIDER = {
   displayName: 'Boss',
   phoneAlias: 'alias-boss',
   certified: true,
-  shift: { status: 'on_shift' },
+  privacyAck: { ackAt: '2026-09-27T07:00:00.000Z', noticeVersion: 'privacy-notice.v1' },
+  shift: { status: 'on_shift', startedAt: '2026-09-27T07:00:05.000Z', confirmedBy: 'server' },
   assignable: true,
 };
 
@@ -79,7 +80,7 @@ function roster(riders: readonly unknown[], codes: readonly unknown[] = []): Rou
   return [
     (path) => (path === '/ops/riders' ? { status: 200, json: { ok: true, riders } as never } : null),
     (path) => (path === '/ops/rider-codes' ? { status: 200, json: { ok: true, codes } as never } : null),
-    (path) => (path === '/ops/board' ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [] } } as never } : null),
+    (path) => (path === '/ops/board' ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {} } } as never } : null),
   ];
 }
 

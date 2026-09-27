@@ -127,7 +127,7 @@ describe('F-33 — nothing vanishes while a buyer is paying', () => {
 describe('F-69 — opening the console reads no buyer\'s contact', () => {
   const reseller: Route[] = [
     (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
-    (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [] } } : null),
+    (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
     (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
   ];
 

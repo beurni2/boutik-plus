@@ -367,6 +367,8 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
           }
         : null,
   ];
+  /** Her ladder record as the real door answers it: the note just written. */
+  const NOTE = { buyerRef: 'ladder:70123456', state: 'allowed', buyerRefusalCount: 1, buyerRiskState: 'watch', requiredDeposit: 0, reason: 'change_of_mind' };
   const versIncident = async (refusal: Route) => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
     const fil = wire(routesSignaler(refusal));
@@ -380,7 +382,7 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
   it('a real reason posts {reason} alone on key C, and the answer is said', async () => {
     const { fil, screen } = await versIncident((path) =>
       path === '/checkout/dispatch/ord-revenue/refusal'
-        ? { status: 200, json: { ok: true, record: {}, rung: 'standard', escalated: false } }
+        ? { status: 200, json: { ok: true, record: NOTE, rung: 'first_fault_recorded', escalated: true } }
         : null,
     );
     expect(screen.canPress('Signaler'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
@@ -398,7 +400,7 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
   it('a repeat of the same reason (replay) is the same « noted »', async () => {
     const { screen } = await versIncident((path) =>
       path === '/checkout/dispatch/ord-revenue/refusal'
-        ? { status: 200, json: { ok: true, record: {}, rung: 'standard', escalated: false, replay: true } }
+        ? { status: 200, json: { ok: true, record: NOTE, rung: 'first_fault_recorded', escalated: true, replay: true } }
         : null,
     );
     await screen.press('Signaler');
@@ -411,11 +413,12 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
   it('a different reason already noted is said as such (409), and no number says so (422)', async () => {
     const deja = await versIncident((path) =>
       path === '/checkout/dispatch/ord-revenue/refusal'
-        ? { status: 409, json: { ok: false, reason: 'already_recorded', recorded: 'honest_absence' } }
+        ? { status: 409, json: { ok: false, reason: 'already_recorded', recorded: 'change_of_mind' } }
         : null,
     );
     await deja.screen.press('Signaler');
-    await deja.screen.press("Elle a changé d'avis");
+    // « changé d'avis » is already on her record; a DIFFERENT reason is refused
+    await deja.screen.press("Elle n'avait pas l'argent");
     await deja.screen.settle();
     expect(deja.screen.shows('Cette commande a déjà une note.')).toBe(true);
     deja.screen.unmount();

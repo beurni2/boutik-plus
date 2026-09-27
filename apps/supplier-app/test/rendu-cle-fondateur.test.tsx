@@ -472,7 +472,7 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     wire([
       ...autourBoard([]),
       (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
-      (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [] } } : null),
+      (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
       (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
     ]);
     const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
@@ -493,7 +493,7 @@ describe('THE OTHER DOORS — Séra and the fund can be forgotten too', () => {
     wire([
       (path) => (path === '/ops/riders' ? { status: 200, json: { ok: true, riders: [] } } : null),
       (path) => (path === '/ops/rider-codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
-      (path) => (path === '/ops/board' ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [] } } } : null),
+      (path) => (path === '/ops/board' ? { status: 200, json: { ok: true, board: { queued: [], riders: [], assignments: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {} } } } : null),
     ]);
     const screen = await mountEcran(<SZoneCoursiers />);
     await screen.press('Oublier la clé sur cet appareil');
