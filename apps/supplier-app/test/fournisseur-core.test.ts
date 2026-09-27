@@ -310,7 +310,7 @@ describe('[source-text checks] the screen’s wiring the pure tests cannot see (
     expect(app).toContain('if (seq !== readSeq.current) return;');
     // and the post-act re-reads stay FORCED past the in-flight guard
     expect(app).toContain("if (issue.then === 'refresh') await load(true)");
-    expect(app).toContain('if (res.ok) await load(true)');
+    expect(app).toContain("if (res.ok || res.reason === 'annulee') await load(true)");
   });
 
   it('every fournisseur.* key the screen renders exists in the catalog', () => {
