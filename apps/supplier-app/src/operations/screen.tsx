@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { rafraichirQuandVisible } from '../ui/rafraichir';
+import { noterInacheve, oublierInacheve, produitsInacheves, type Inacheve } from './produits-inacheves';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -328,7 +329,11 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     } catch {
       result = { ok: false, reason: 'unreachable' } as const;
     }
-    if (result.ok) setCodeDraft('');
+    if (result.ok) {
+      setCodeDraft('');
+      // CATALOGUE-PAGES-1 — the products this cut had retired: all back, or said on his row
+      setInacheves(result.produitsIncomplets === true ? noterInacheve(result.supplierId, 'mint') : oublierInacheve(result.supplierId));
+    }
     await settleCodes(mintSettled(result));
   };
 
@@ -340,6 +345,8 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
    * one is worse — it takes a whole catalogue and cannot be undone.
    */
   const [aEffacer, setAEffacer] = useState<string | null>(null);
+  /** CATALOGUE-PAGES-1 (verifier MAJOR 2) — the unfinished product walks, kept by the device. */
+  const [inacheves, setInacheves] = useState<readonly Inacheve[]>(() => produitsInacheves());
   /** CLE-FONDATEUR-1 — the photo key, typed here; the erase needs it to arm. */
   const [clePhotos, setClePhotos] = useState<string | null>(() => readStoredClePhotos());
   /** F-68 — photographs an erase could not destroy: counted, kept by the
@@ -396,6 +403,8 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
      */
     const restantes = await effacerPhotos(refs);
     if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));
+    // Erased whole: no walk of his is left to finish.
+    if (res.ok) setInacheves(oublierInacheve(supplierId));
     // The list is re-read so the row he just erased actually leaves the screen —
     // a destructive act that appears to do nothing is how a founder taps twice.
     await loadCodes();
@@ -420,23 +429,28 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
     } catch {
       result = { ok: false, reason: 'unreachable' } as const;
     }
+    // CATALOGUE-PAGES-1 — every product off sale, or said on his row until « Terminer » finishes it
+    if (result.ok) setInacheves(result.produitsIncomplets === true ? noterInacheve(supplierId, 'revoke') : oublierInacheve(supplierId));
     await settleCodes(revokeSettled(supplierId, result));
   };
 
-  /** CATALOGUE-PAGES-1 — « Finir »: walk the rest of his products, never the door act again. */
+  /** CATALOGUE-PAGES-1 — « Terminer »: walk the rest of his products, never the door act again. */
   const finirProduits = async (supplierId: string): Promise<void> => {
     if (service === null) return;
-    const acte = codesUi.echec === `produits-rendu:${supplierId}` ? 'mint' : 'revoke';
+    const entree = inacheves.find((e) => e.supplierId === supplierId);
+    if (entree === undefined) return;
     const started = finirStart(codesUi, supplierId);
     if (started === null) return;
     setCodesUi(started);
     let result;
     try {
-      result = await service.finirProduits(opsKey, supplierId, acte);
+      result = await service.finirProduits(opsKey, supplierId, entree.acte);
     } catch {
       result = { ok: false, reason: 'unreachable' } as const;
     }
-    await settleCodes(finirSettled(started, result));
+    const fin = finirSettled(result);
+    if (fin.oublier) setInacheves(oublierInacheve(supplierId));
+    await settleCodes(fin);
   };
 
   /** CODE-REVU (founder ruling 2026-08-09) — reread a code already given. */
@@ -592,10 +606,9 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
             echecEffacer={effacerEchec}
             onCouper={(supplierId) => { void couperCode(supplierId); }}
             onFinir={(supplierId) => { void finirProduits(supplierId); }}
+            inacheves={inacheves}
             onVoir={(supplierId) => { void revoirCode(supplierId); }}
-            // « C'est noté » closes the code card, never the unfinished-walk
-            // line beside it: that one leaves only when « Finir » succeeds.
-            onVu={() => setCodesUi((u) => ({ ...CODES_IDLE, echec: u.echec !== null && u.echec.startsWith('produits-') ? u.echec : null }))}
+            onVu={() => setCodesUi(CODES_IDLE)}
             onRetry={() => { setCodesRead({ kind: 'loading' }); void loadCodes(); }}
           />
         )}
@@ -1456,7 +1469,7 @@ function SClePhotos({ cle, onEnregistree, onOubliee }: {
   );
 }
 
-function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, clePhotosPresente, onArmer, onEffacer, echecEffacer, onCouper, onFinir, onVoir, onVu, onRetry }: {
+function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, clePhotosPresente, onArmer, onEffacer, echecEffacer, onCouper, onFinir, inacheves, onVoir, onVu, onRetry }: {
   read: CodesRead;
   ui: CodesUi;
   draft: string;
@@ -1480,6 +1493,7 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
   echecEffacer: { id: string; raison: 'commandes' | 'partiel' | 'inacheve' | 'paiement' | 'autre' } | null;
   onCouper: (supplierId: string) => void;
   onFinir: (supplierId: string) => void;
+  inacheves: readonly Inacheve[];
   onVoir: (supplierId: string) => void;
   onVu: () => void;
   onRetry: () => void;
@@ -1637,10 +1651,10 @@ function SCodes({ read, ui, draft, avis, onDraft, onCreer, onRedonner, arme, cle
             )}
             {/* CATALOGUE-PAGES-1 — the door act stood, its product walk did
                 not reach the end. Said here, with the one act that finishes it. */}
-            {(ui.echec === `produits-coupe:${c.supplierId}` || ui.echec === `produits-rendu:${c.supplierId}`) && (
+            {inacheves.some((e) => e.supplierId === c.supplierId) && (
               <View style={{ marginTop: 6, gap: 6, alignItems: 'flex-start' }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>
-                  {t(ui.echec.startsWith('produits-coupe:') ? 'operations.produits_coupe_inacheve' : 'operations.produits_rendu_inacheve')}
+                  {t(inacheves.find((e) => e.supplierId === c.supplierId)!.acte === 'revoke' ? 'operations.produits_coupe_inacheve' : 'operations.produits_rendu_inacheve')}
                 </Text>
                 {ui.busy === `finir:${c.supplierId}` ? (
                   <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('operations.produits_finir_encours')}</Text>

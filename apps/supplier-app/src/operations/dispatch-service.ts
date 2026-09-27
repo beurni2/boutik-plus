@@ -908,6 +908,11 @@ export function resolveComptesService(): ComptesServicePort | null {
     async listSuivi(cleC: string): Promise<SuiviResult> {
       const parCompte = new Map<string, SuiviLigne>();
       const aSuivre = new Set<string>();
+      /** Accounts already read to their last sale. The service orders active
+       *  accounts first, so one paused between two pages moves behind the
+       *  cursor and is served again whole (the slice's verifier, MAJOR 1):
+       *  summing it twice would double her count and her net. */
+      const finis = new Set<string>();
       let total: number | undefined;
       let cursor: string | undefined;
       let reprise = false;
@@ -930,19 +935,23 @@ export function resolveComptesService(): ComptesServicePort | null {
           reprise = true;
           parCompte.clear();
           aSuivre.clear();
+          finis.clear();
           cursor = undefined;
           continue;
         }
         if (res.body?.['ok'] !== true || !Array.isArray(res.body['lignes'])) return { ok: false, reason: 'unreachable' };
         for (const raw of res.body['lignes']) {
           const l = readSuiviLigne(raw);
-          if (l === null) continue;
+          if (l === null || finis.has(l.accountId)) continue;
           const deja = parCompte.get(l.accountId);
           parCompte.set(l.accountId, deja === undefined ? l : {
             ...deja, ventes: deja.ventes + l.ventes, netFcfa: deja.netFcfa + l.netFcfa, incomplet: deja.incomplet || l.incomplet,
           });
           if ((raw as Record<string, unknown>)['suite'] === true) aSuivre.add(l.accountId);
-          else aSuivre.delete(l.accountId);
+          else {
+            aSuivre.delete(l.accountId);
+            finis.add(l.accountId);
+          }
         }
         const t = res.body['total'];
         if (typeof t === 'number' && Number.isInteger(t) && t >= 0) total = t;

@@ -294,6 +294,18 @@ describe('PHOTO-À-TRAITER — the product photograph reaches his board', () => 
     expect(cap.find((r) => r.orderId === 'ord-cap-20')?.productPhotoRef).toBe('media/cap-hero-20');
     // …and the OLDEST is the one that goes without — never an arbitrary row.
     expect(cap.find((r) => r.orderId === 'ord-cap-00')?.productPhotoRef).toBe('');
+
+    // CROISSANCE-1 (verifier MINOR 5) — the same on a PAGE of the board. A page
+    // arrives in storage order (here the oldest first), so the join must rank
+    // it by recency before the cap spends itself — or the newest goes bare.
+    const paged = (await mfCap.dispatchFetch('http://o/fulfillment/orders?limit=100', {
+      headers: { Authorization: `Bearer ${OPS_SECRET}` },
+    })) as unknown as Response;
+    expect(paged.status).toBe(200);
+    const pageRows = ((await paged.json()) as { orders: { orderId: string; productPhotoRef: string }[] }).orders;
+    expect(pageRows[0]?.orderId, 'the page is in storage order, oldest first').toBe('ord-cap-00');
+    expect(pageRows.find((r) => r.orderId === 'ord-cap-20')?.productPhotoRef).toBe('media/cap-hero-20');
+    expect(pageRows.find((r) => r.orderId === 'ord-cap-00')?.productPhotoRef).toBe('');
     } finally {
       await mfCap.dispose();
       rmSync(capPersist, { recursive: true, force: true });

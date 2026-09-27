@@ -191,7 +191,7 @@ async function walkAcces(
   supplierId: string,
   limit: string | null,
   cursor: string | null,
-): Promise<{ produits: number | null; next?: string }> {
+): Promise<{ produits: number | null; next?: string; perdu?: true }> {
   const chemin = acte === 'revoke' ? '/offers/retrait-acces' : '/offers/restauration-acces';
   try {
     const walk = await offerRouter.fetch(
@@ -207,7 +207,12 @@ async function walkAcces(
       }),
       env,
     );
-    if (!walk.ok) return { produits: null };
+    if (!walk.ok) {
+      // A cursor whose offer left the index between two pages is not a
+      // failure to hide inside `produits: null`: the caller restarts the walk.
+      const raison = ((await walk.json().catch(() => null)) as { error?: unknown } | null)?.error;
+      return raison === 'curseur_perdu' ? { produits: null, perdu: true } : { produits: null };
+    }
     const r = (await walk.json()) as { changed?: number; next?: unknown };
     return { produits: r.changed ?? null, ...(typeof r.next === 'string' && r.next !== '' ? { next: r.next } : {}) };
   } catch {
@@ -227,7 +232,8 @@ async function suiteAcces(request: Request, env: Env): Promise<Response> {
   if ((await supplierHasActiveCode(env, supplierId)) !== (acte === 'mint')) {
     return Response.json({ ok: false, reason: 'acces_change' }, { status: 409 });
   }
-  const { produits, next } = await walkAcces(env, acte, supplierId, '20', typeof cursor === 'string' && cursor !== '' ? cursor : null);
+  const { produits, next, perdu } = await walkAcces(env, acte, supplierId, '20', typeof cursor === 'string' && cursor !== '' ? cursor : null);
+  if (perdu === true) return Response.json({ ok: false, reason: 'curseur_perdu' }, { status: 409 });
   return Response.json({ ok: true, supplierId, produits, ...(next !== undefined ? { suite: next } : {}) });
 }
 

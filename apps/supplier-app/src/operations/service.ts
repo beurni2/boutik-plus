@@ -375,8 +375,14 @@ export const PAGE_CARNET = 100;
 export const PAGES_MAX_CARNET = 50;
 export const PAGE_CATALOGUE = 40;
 export const PAGES_MAX_CATALOGUE = 25;
-/** The cut's product walk: 20 offers a page (read + write each), up to 1 000. */
-export const PAGES_MAX_ACCES = 50;
+/**
+ * The cut's, the re-mint's and the erase's walks: every page is bounded, so
+ * these caps only stop a runaway loop — sized to FINISH a real catalogue
+ * (500 × 20 = 10 000 offers on the platform), never to give up at 1 000 (the
+ * slice's verifier, MINOR 4: a walk that stops there reports his products
+ * unfinished for ever, or the erase as « service unreachable »).
+ */
+export const PAGES_MAX_ACCES = 500;
 
 export type RevealResult =
   | { readonly ok: true; readonly code: string; readonly supplierId: string }
@@ -399,7 +405,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     supplierId: string,
     acte: 'revoke' | 'mint',
     cursor: string | undefined,
-  ): Promise<{ ok: true; suite?: string } | { ok: false; reason: 'bad_key' | 'unreachable' | 'acces_change' }> {
+  ): Promise<{ ok: true; suite?: string } | { ok: false; reason: 'bad_key' | 'unreachable' | 'acces_change' | 'curseur_perdu' }> {
     let res: Response;
     try {
       res = await fetch(`${trimmed}/fulfillment/supplier-acces/suite`, {
@@ -413,6 +419,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     if (res.status === 401) return { ok: false, reason: 'bad_key' };
     const body = (await res.json().catch(() => null)) as { ok?: boolean; produits?: unknown; suite?: unknown; reason?: unknown } | null;
     if (res.status === 409 && body?.reason === 'acces_change') return { ok: false, reason: 'acces_change' };
+    if (res.status === 409 && body?.reason === 'curseur_perdu') return { ok: false, reason: 'curseur_perdu' };
     // `produits: null` — the page's walk itself failed: not done, whatever else it says.
     if (!res.ok || body?.ok !== true || body.produits === null) return { ok: false, reason: 'unreachable' };
     return typeof body.suite === 'string' && body.suite !== '' ? { ok: true, suite: body.suite } : { ok: true };
@@ -430,9 +437,19 @@ export function resolveOperationsService(): OperationsServicePort | null {
   ): Promise<boolean> {
     if (produits === null) return false;
     let cursor = typeof suite === 'string' && suite !== '' ? suite : undefined;
+    let reprise = false;
     for (let tour = 0; cursor !== undefined; tour += 1) {
       if (tour >= PAGES_MAX_ACCES) return false;
       const r = await pageProduits(opsKey, supplierId, acte, cursor);
+      if (!r.ok && r.reason === 'curseur_perdu' && !reprise) {
+        // an offer deleted between two pages took the cursor: walk again from
+        // the start (a walked offer answers « no change » and costs no write)
+        reprise = true;
+        const depuisDebut = await pageProduits(opsKey, supplierId, acte, undefined);
+        if (!depuisDebut.ok) return false;
+        cursor = depuisDebut.suite;
+        continue;
+      }
       if (!r.ok) return false;
       cursor = r.suite;
     }
@@ -804,7 +821,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
       let suite: string | undefined;
       let relu = false;
       for (let tour = 0; ; tour += 1) {
-        if (tour >= PAGES_MAX_CATALOGUE) return { ok: false, reason: 'unreachable' };
+        if (tour >= PAGES_MAX_ACCES) return { ok: false, reason: 'unreachable' };
         const v = await appel({ etape: 'verifier', ...(suite !== undefined ? { cursor: suite } : {}) });
         if (v === null) return { ok: false, reason: 'unreachable' };
         if (v.status === 401) return { ok: false, reason: 'bad_key' };
@@ -878,9 +895,15 @@ export function resolveOperationsService(): OperationsServicePort | null {
 
     async finirProduits(opsKey: string, supplierId: string, acte: 'revoke' | 'mint'): Promise<FinirProduitsResult> {
       let cursor: string | undefined;
+      let reprise = false;
       for (let tour = 0; tour < PAGES_MAX_ACCES; tour += 1) {
         const r = await pageProduits(opsKey, supplierId, acte, cursor);
-        if (!r.ok) return r;
+        if (!r.ok && r.reason === 'curseur_perdu' && !reprise) {
+          reprise = true;
+          cursor = undefined;
+          continue;
+        }
+        if (!r.ok) return { ok: false, reason: r.reason === 'curseur_perdu' ? 'unreachable' : r.reason };
         if (r.suite === undefined) return { ok: true, complet: true };
         cursor = r.suite;
       }

@@ -187,6 +187,36 @@ describe('F-05 · the cut takes EVERY one of his products off sale; the re-mint 
   });
 });
 
+describe('F-05 · a cut whose cursor offer is deleted between two pages restarts itself and still finishes (verifier MINOR 3)', () => {
+  it('the founder deletes the very offer the cut would resume after: the port walks again from the start; none of his left on sale', async () => {
+    const { ops } = await ports();
+    let supprime = false;
+    vi.stubGlobal('fetch', (async (url: string, init?: RequestInit) => {
+      const res = await mf.dispatchFetch(url, init as never);
+      if (!supprime && String(url).includes('/fulfillment/supplier-code/revoke')) {
+        supprime = true;
+        const body = (await res.clone().json()) as { suite?: string };
+        expect(typeof body.suite, 'the cut has more than one page').toBe('string');
+        const inv = (await (await mf.dispatchFetch('http://o/offers/inventaire', { headers: { Authorization: `Bearer ${OPS}` } })).json()) as { items: { offerId: string; productVersionId: string }[] };
+        const cible = inv.items.find((i) => i.offerId === body.suite);
+        expect(cible, 'the cursor offer is a live one').toBeDefined();
+        const del = await post('/offers/delete', { commandId: 'del-curseur-coupure', offerId: cible!.offerId, productVersionId: cible!.productVersionId }, OPS);
+        expect(del.status).toBe(200);
+      }
+      return res;
+    }) as never);
+    try {
+      const cut = await ops.revokeCode(OPS, COUPE);
+      expect(cut, 'restarted once by itself, and reached the end').toEqual({ ok: true, status: 'revoked' });
+    } finally {
+      vi.stubGlobal('fetch', ((url: string, init?: RequestInit) => mf.dispatchFetch(url, init as never)) as never);
+    }
+    expect((await enVente()).filter((p) => p.startsWith('pv-c-')), 'THE LEDGER: nothing of his on sale').toEqual([]);
+    const mint = await ops.mintCode(OPS, COUPE);
+    expect(mint.ok && mint.produitsIncomplets !== true).toBe(true);
+  });
+});
+
 describe('F-05 · the erase, page by page, hands back every photograph and removes him last', () => {
   it('he is erased: his products gone from the inventory and the collection, all 3 × his refs returned, the neighbour intact, his registry row gone', async () => {
     const { ops } = await ports();

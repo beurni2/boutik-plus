@@ -171,6 +171,20 @@ describe('F-89 (a) · an outbox wake reads the facts still waiting, never the de
     expect(storage.data.has('progresspending:ord-00000:accepted')).toBe(true);
   });
 
+  it('a waiting fact with no pointer under THIS release gets it back when its act is asserted again (verifier MINOR 6)', async () => {
+    // a same-version rollback: the sweep for this release already ran, then a
+    // build without pointers wrote a waiting row
+    await storage.put('progresspending-bati', 'dev');
+    await storage.put('progressoutbox:ord-00000:accepted', { status: 'pending', event: { name: 'fulfillment.accepted.v1' }, attempts: 0, nextAttemptAt: 0 });
+    await book.alarm();
+    expect(storage.data.has('progresspending:ord-00000:accepted'), 'the wake cannot see it — the premise').toBe(false);
+    const r = await post('/accept', { code, orderId: 'ord-00000' });
+    expect(r.status).toBe(200);
+    expect(storage.data.has('progresspending:ord-00000:accepted'), 'the re-assertion re-files its pointer').toBe(true);
+    await book.alarm();
+    expect((storage.data.get('progressoutbox:ord-00000:accepted') as { attempts: number }).attempts, 'and the next wake attempts it').toBe(1);
+  });
+
   it('retiring an order takes its waiting pointers with it', async () => {
     await post('/accept', { code, orderId: 'ord-00001' });
     expect(storage.data.has('progresspending:ord-00001:accepted')).toBe(true);

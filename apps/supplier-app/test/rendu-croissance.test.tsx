@@ -5,6 +5,8 @@ import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './
 import { installerDocument, retirerDocument } from './doubles/document';
 import { FournisseurApp } from '../src/fournisseur/FournisseurApp';
 import { SOperations } from '../src/operations/screen';
+import { SAccueilReel } from '../src/accueil/screen';
+import { SCommandesReel } from '../src/commandes/screen';
 import { SProduitsReal } from '../src/v2/produits-real';
 import { initialState } from '../src/v2/machine';
 
@@ -207,12 +209,76 @@ describe('F-89 c — his board arrives in pages and rests while hidden', () => {
       (path) => {
         if (path !== '/fulfillment/orders') return null;
         n += 1;
-        return { status: 200, json: { ok: true, orders: [ordre((n % 9) + 1)] as never, next: `ord-${n}` } };
+        return { status: 200, json: { ok: true, orders: [{ ...ordre((n % 9) + 1), orderId: `ord-long-${n}` }] as never, next: `ord-long-${n}` } };
       },
       ...autour(() => []),
     ]);
     const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
     expect(screen.shows('Lecture partielle : le carnet est très long, certaines commandes ne sont pas affichées.'), `on screen: ${JSON.stringify(screen.texts().slice(0, 10))}`).toBe(true);
+    screen.unmount();
+  });
+});
+
+/* The two other screens that read the same book (verifier MINOR 7). */
+
+const PARTIEL = 'Lecture partielle : le carnet est très long, certaines commandes ne sont pas affichées.';
+
+/** Pages of two over `ordres`; `sansFin` answers `next` forever — a book past his page cap. */
+function carnet(ordres: readonly ReturnType<typeof ordre>[], sansFin: boolean): Route {
+  let n = 0;
+  return (path, _b, search) => {
+    if (path !== '/fulfillment/orders') return null;
+    if (sansFin) {
+      n += 1;
+      return { status: 200, json: { ok: true, orders: [{ ...ordre((n % 9) + 1), orderId: `ord-long-${n}` }] as never, next: `ord-long-${n}` } };
+    }
+    const { page, next } = paginer(ordres, 'orderId', search, 2);
+    return { status: 200, json: next === undefined ? { ok: true, orders: page as never } : { ok: true, orders: page as never, next } };
+  };
+}
+
+describe('F-89 c — Accueil counts the whole book across pages, and says when it could not', () => {
+  it('three orders on pages of two: « 3 » paid sales, no partial line — the tree lives and « Ouvrir les Commandes » is there', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    const w = wire([carnet([ordre(1), ordre(2), ordre(3)], false)]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey={OPS} />);
+    expect(w.calls.filter((c) => c.path === '/fulfillment/orders'), 'one read = two pages').toHaveLength(2);
+    expect(screen.shows('Article 3'), `page two reached his Accueil. On screen: ${JSON.stringify(screen.texts().slice(0, 14))}`).toBe(true);
+    expect(screen.shows(PARTIEL)).toBe(false);
+    expect(screen.shows('Ouvrir les Commandes'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    screen.unmount();
+  });
+
+  it('a book longer than the pages he may read: the counts stand, and the line says they are not everything', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    wire([carnet([], true)]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey={OPS} />);
+    expect(screen.shows(PARTIEL), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('Ouvrir les Commandes'), 'the way on to Commandes survives the partial read').toBe(true);
+    screen.unmount();
+  });
+});
+
+describe('F-89 c — Commandes shows the whole book across pages, and says when it could not', () => {
+  it('three orders on pages of two: the one only on page two is in his book, no partial banner', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    const w = wire([carnet([ordre(1), ordre(2), ordre(3)], false), ...autour(() => [])]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(w.calls.filter((c) => c.path === '/fulfillment/orders'), 'one read = two pages').toHaveLength(2);
+    expect(screen.shows('Article 3'), `page two reached Commandes. On screen: ${JSON.stringify(screen.texts().slice(0, 16))}`).toBe(true);
+    expect(screen.shows('Article 1')).toBe(true);
+    expect(screen.shows(PARTIEL)).toBe(false);
+    screen.unmount();
+  });
+
+  it('a book longer than the pages he may read: the banner says so above the orders it did read', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    wire([carnet([], true), ...autour(() => [])]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(screen.shows(PARTIEL), `on screen: ${JSON.stringify(screen.texts().slice(0, 16))}`).toBe(true);
+    expect(screen.shows('Article 2'), 'the orders it did read are still in his book').toBe(true);
     screen.unmount();
   });
 });
@@ -250,6 +316,51 @@ describe('F-05 — a cut that cannot finish taking his products off sale SAYS so
     expect(w.calls.filter((c) => c.path === '/fulfillment/supplier-code/revoke'), 'the door act itself ran once').toHaveLength(1);
     expect(screen.shows('Son accès est coupé, mais certains de ses produits sont encore en vente.')).toBe(false);
     screen.unmount();
+  });
+});
+
+describe('F-05 — the unfinished-walk line outlives every other act and a reload (verifier MAJOR 2)', () => {
+  it('A\'s walk stops; he then cuts B and reloads the console: A\'s line and « Terminer » are still there, and leave only when it finishes', async () => {
+    const store = storage({ [OPS_SLOT]: OPS });
+    const coupes = new Set<string>();
+    let suitePanne = true;
+    wire([
+      (path, body) => {
+        if (path !== '/fulfillment/supplier-code/revoke') return null;
+        const id = String(body?.['supplierId'] ?? '');
+        coupes.add(id);
+        // A's walk has more pages; B's finishes in one
+        return { status: 200, json: { ok: true, status: 'revoked', supplierId: id, produits: 20, ...(id === COUPE ? { suite: 'offer-019' } : {}) } };
+      },
+      (path) => {
+        if (path !== '/fulfillment/supplier-acces/suite') return null;
+        return suitePanne ? { status: 503, json: { ok: false } } : { status: 200, json: { ok: true, supplierId: COUPE, produits: 4 } };
+      },
+      (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [] } } : null),
+      ...autour(() => [COUPE, 'supplier-autre-006'].map((id) => ({
+        supplierId: id, mintedAt: '2026-08-01T08:00:00.000Z', revelable: true, ...(coupes.has(id) ? { revokedAt: '2026-09-27T08:00:00.000Z' } : {}),
+      }))),
+    ]);
+    const LIGNE = 'Son accès est coupé, mais certains de ses produits sont encore en vente.';
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.press("Couper l'accès", 0); // A first
+    await screen.settle();
+    expect(screen.shows(LIGNE), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+
+    await screen.press("Couper l'accès", 0); // then B — the only « Couper » left
+    await screen.settle();
+    expect(screen.shows(LIGNE), 'another act did not erase A\'s line').toBe(true);
+    expect(store.has('boutik.produits.inacheves'), 'the device keeps it').toBe(true);
+    screen.unmount();
+
+    const apres = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    expect(apres.shows(LIGNE), 'a reload did not erase it either').toBe(true);
+    suitePanne = false;
+    await apres.press('Terminer');
+    await apres.settle();
+    expect(apres.shows(LIGNE), 'finished: the line leaves').toBe(false);
+    expect(store.has('boutik.produits.inacheves')).toBe(false);
+    apres.unmount();
   });
 });
 
@@ -387,6 +498,22 @@ describe('F-72 — the revendeuses board joins its pages and never ranks a row n
     expect(screen.shows('3 vente(s)'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.texts().filter((x) => x === 'Awa'), 'one row of her, not two').toHaveLength(1);
     expect(screen.shows('Lecture partielle')).toBe(false);
+    screen.unmount();
+  });
+
+  it('an account paused between two pages is served again behind the cursor: her row is counted ONCE', async () => {
+    const pages: Record<string, Record<string, unknown>> = {
+      '': { ok: true, lignes: [ligne('rs-awa', 'Awa', 2)], total: 2, next: 'rs-fanta~' },
+      // Awa was paused meanwhile: she now sorts after Fanta and comes back whole
+      'rs-fanta~': { ok: true, lignes: [ligne('rs-fanta', 'Fanta', 1), { ...ligne('rs-awa', 'Awa', 2), state: 'paused' }], total: 2 },
+    };
+    wire([
+      (path, _b, search) => (path === '/reseller/suivi' ? { status: 200, json: pages[search.get('cursor') ?? '']! as never } : null),
+      ...autourRev,
+    ]);
+    const screen = await versSuivi();
+    expect(screen.shows('2 vente(s)'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('4 vente(s)'), 'her two sales were not doubled').toBe(false);
     screen.unmount();
   });
 

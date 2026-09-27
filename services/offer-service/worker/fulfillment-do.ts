@@ -521,8 +521,12 @@ export class FulfillmentDO {
       const existing = await this.state.storage.get<{ status: string }>(key);
       if (existing !== undefined) {
         // Same first-wins + stranded-row re-arm as the Shop+ rows.
-        if (existing.status === 'pending' && (await this.state.storage.getAlarm()) === null) {
-          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+        if (existing.status === 'pending') {
+          // CROISSANCE-1 (verifier MINOR 6) — a re-assertion also re-files the
+          // pointer: a row written by a build without pointers, under a release
+          // whose sweep already ran (a same-version rollback), is found here.
+          await this.state.storage.put(pointeurDe(key), 1);
+          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
         }
         return;
       }
@@ -617,8 +621,10 @@ export class FulfillmentDO {
          * could ever rescue it — which never comes for a supplier who accepts
          * and never confirms readiness.
          */
-        if (existing.status === 'pending' && (await this.state.storage.getAlarm()) === null) {
-          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+        if (existing.status === 'pending') {
+          // CROISSANCE-1 (verifier MINOR 6) — and re-files its pointer, see above.
+          await this.state.storage.put(pointeurDe(key), 1);
+          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
         }
         return;
       }
@@ -2110,8 +2116,9 @@ export async function handleRefusedIntake(
  * his work.
  *
  * 20 distinct products × 2 subrequests = 40, leaving headroom for the book read
- * itself. Rows arrive NEWEST-FIRST from the DO, so the cap always spends itself
- * on the recent orders — which is exactly « a bought product comes on À traiter ».
+ * itself. The cap always spends itself on the most recent orders of the read
+ * (a page is ranked by recency first) — which is exactly « a bought product
+ * comes on À traiter ».
  */
 const PHOTO_LOOKUP_MAX = 20;
 
@@ -2127,9 +2134,12 @@ export async function handlePaidOrdersList(store: OfferStore, env: FulfillmentEn
   const rows = body.orders as Record<string, unknown>[];
   const pvOf = (r: Record<string, unknown>): string =>
     typeof r['productVersionId'] === 'string' ? r['productVersionId'] : '';
-  // Insertion order is the DO's newest-first order, so `slice` keeps the recent
-  // products and drops the oldest — never an arbitrary subset.
-  const distinct = [...new Set(rows.map(pvOf))].filter((pv) => pv !== '').slice(0, PHOTO_LOOKUP_MAX);
+  // The cap keeps the RECENT products and drops the oldest — never an
+  // arbitrary subset. The whole-book read arrives newest-first; a PAGE arrives
+  // in storage order (CROISSANCE-1, verifier MINOR 5), so the page's own rows
+  // are ranked newest-first here before the cap spends itself on them.
+  const parRecence = [...rows].sort((a, b) => (String(a['paidAt'] ?? '') < String(b['paidAt'] ?? '') ? 1 : -1));
+  const distinct = [...new Set(parRecence.map(pvOf))].filter((pv) => pv !== '').slice(0, PHOTO_LOOKUP_MAX);
 
   const found = await Promise.all(
     distinct.map(async (pv): Promise<readonly [string, string]> => {
