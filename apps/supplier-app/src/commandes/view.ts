@@ -143,7 +143,7 @@ export function pilluleCommande(
   // REMBOURSABLE-1 — who ended it, said in one word: HIS cancel is never the
   // supplier's refusal, and a pickup refusal is the rider's.
   if (row.fulfillment?.refusedAt !== undefined) {
-    return { label: row.fulfillment.refusPar === 'fondateur' ? 'commandes.pill_annulee' : 'commandes.pill_refusee', ton: 'alerte' };
+    return { label: row.fulfillment.refusPar !== undefined ? 'commandes.pill_annulee' : 'commandes.pill_refusee', ton: 'alerte' };
   }
   if (row.fulfillment?.pickupRefusedAt !== undefined) return { label: 'commandes.pill_ramassage_refuse', ton: 'alerte' };
   if (segment === 'incidents') return { label: 'commandes.pill_incident', ton: 'alerte' };

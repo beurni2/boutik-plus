@@ -42,13 +42,14 @@ import type { OfferStore } from '../src/offer-store.js';
  * refusing would make Shop+ retry a delivery that can never improve, and
  * dropping it would hide a paid order from every human. It lands with
  * `supplierResolved: false`, which is precisely the kind of anomaly the
- * founder's console exists to surface.
+ * founder's console exists to surface — and, since no one can ever answer it,
+ * the 2-hour answer clock refunds it like any other unanswered order.
  *
  * ═══ WHAT THIS OBJECT DOES NOT DO (scope, named) ═══
  *
- * No acceptance decision, no readiness, no 10-minute aging list, no
- * notification — those are the console/board slices on top of this book. And
- * NOTHING here touches money: `sellerBasePrice` is stored verbatim for
+ * No notification, and one clock only: the 2-hour answer deadline
+ * (DELAI-ACCEPTATION-1, `annulerLesSansReponse`) — « accepted but never made
+ * ready » is not timed. And NOTHING here touches money: `sellerBasePrice` is stored verbatim for
  * display to its own supplier, never recomputed, never summed (Ten Laws #2).
  */
 
@@ -159,6 +160,28 @@ const ORDERS_PAGE_MAX = 100;
  * first, inside the read that needs it.
  */
 const ETIQUETTE_PREFIX = 'commandefournisseur:';
+
+/**
+ * DELAI-ACCEPTATION-1 (AUDIT-B+2 F-02 part 2) — B6.1 « Accept/reject … timeout
+ * → refund saga », with the number ruled on 2026-07-10 (ruling ①,
+ * acceptanceDecisionMin 120) and the clock the founder chose on 2026-09-27:
+ * the wall clock, day and night. A paid order its supplier has neither
+ * accepted nor refused 120 minutes after it reached this book is CANCELLED
+ * and the buyer refunded — the same refusal row and the same canon
+ * `fulfillment.rejected.v1` as « Annuler et rembourser », cause `delai`, so
+ * Shop+'s refund road does not change and a late accept is refused `refusee`.
+ *
+ * One pointer per order still waiting, `attentereponse:{orderId}` = its
+ * deadline (ms), written in the SAME put that registers the order; the alarm
+ * reads only these. A pointer that outlives its answer costs one check when
+ * due and is dropped; a waiting order never lacks one (they are rebuilt with
+ * the labels on each start of this object).
+ *
+ * « Accepted but never made ready » has NO ruled number: it is not timed here
+ * (his « Annuler et rembourser » stays the road), and never an invented one.
+ */
+const ATTENTE_PREFIX = 'attentereponse:';
+const DELAI_ACCEPTATION_MS = 120 * 60_000;
 const etiquettesDe = (supplierId: string): string =>
   `${ETIQUETTE_PREFIX}${supplierId.replace(/%/g, '%25').replace(/:/g, '%3A')}:`;
 const etiquetteDe = (supplierId: string, orderId: string): string => `${etiquettesDe(supplierId)}${orderId}`;
@@ -359,7 +382,7 @@ interface RefusRecord {
    * rides it. The screens read it so neither party is told « vous avez
    * refusé » about an act he did not do.
    */
-  readonly par?: 'fondateur';
+  readonly par?: 'fondateur' | 'delai';
 }
 
 /** REMBOURSABLE-1 — the rider's refusal at pickup, one row per order. */
@@ -464,7 +487,7 @@ function ligneDuCarnet(r: PaidOrderRecord, marques: ReadonlyMap<string, unknown>
     ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
     ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
     ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
-    ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+    ...(refusee?.par !== undefined ? { refusPar: refusee.par } : {}),
   };
   const fulfillment = Object.keys(f).length === 0 ? undefined : f;
   return {
@@ -482,6 +505,9 @@ export class FulfillmentDO {
     private readonly state: DurableObjectState,
     private readonly env?: {
       readonly READINESS_TTL_MS?: string;
+      /** DELAI-ACCEPTATION-1 TEST KNOB, never a secret, never in wrangler.toml:
+       *  may only SHORTEN the ruled 120 minutes (see `delaiAcceptationMs`). */
+      readonly ACCEPTANCE_DECISION_MS?: string;
       /**
        * READINESS-RETURN-1 — the return leg's destination and credential.
        * `STOREFRONT` is the Shop+ service binding; `PROGRESS_WRITE_SECRET` is
@@ -673,6 +699,10 @@ export class FulfillmentDO {
    *  producer bug shows up as a repeating refusal in both Workers' logs
    *  rather than a silent loss. */
   async alarm(): Promise<void> {
+    // DELAI-ACCEPTATION-1 — before the outbox, with no network call between:
+    // the facts it writes are delivered by the pass below, in this same wake.
+    await this.etiquettesPretes();
+    const prochaineEcheance = await this.annulerLesSansReponse();
     type OutboxRow = {
       status: 'pending' | 'delivered' | 'unsendable';
       event?: unknown;
@@ -792,7 +822,9 @@ export class FulfillmentDO {
     for (let i = 0; i < perimes.length; i += STORAGE_BATCH_MAX) {
       await this.state.storage.delete(perimes.slice(i, i + STORAGE_BATCH_MAX));
     }
-    if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
+    // The next wake: the nearest outbox retry or answer deadline, whichever first.
+    const suivants = [...(retryIn !== null ? [Date.now() + retryIn] : []), ...(prochaineEcheance !== null ? [prochaineEcheance] : [])];
+    if (suivants.length > 0) await this.state.storage.setAlarm(Math.min(...suivants)).catch(() => undefined);
   }
 
   /** The Shop+ leg — the service binding, unchanged from READINESS-RETURN-1.
@@ -837,6 +869,25 @@ export class FulfillmentDO {
     const raw = this.env?.READINESS_TTL_MS;
     const n = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
     return Number.isSafeInteger(n) && n > 0 ? Math.min(n, READINESS_CHALLENGE_TTL_MS) : READINESS_CHALLENGE_TTL_MS;
+  }
+
+  /** The ruled 120 minutes; the knob can only shorten it (the same clamp as above). */
+  private delaiAcceptationMs(): number {
+    const raw = this.env?.ACCEPTANCE_DECISION_MS;
+    const n = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
+    return Number.isSafeInteger(n) && n > 0 ? Math.min(n, DELAI_ACCEPTATION_MS) : DELAI_ACCEPTATION_MS;
+  }
+
+  /** When an order stops waiting for its supplier: its arrival in this book + the delay. */
+  private echeanceDe(r: PaidOrderRecord): number {
+    const arrivee = Date.parse(r.registeredAt);
+    return (Number.isNaN(arrivee) ? Date.now() : arrivee) + this.delaiAcceptationMs();
+  }
+
+  /** Brings the one alarm forward to `t` — never pushes it back (the outbox shares it). */
+  private async armerAvant(t: number): Promise<void> {
+    const actuelle = await this.state.storage.getAlarm();
+    if (actuelle === null || actuelle > t) await this.state.storage.setAlarm(t).catch(() => undefined);
   }
 
   /** Hash the presented code and look it up — a miss, a non-string, and a
@@ -912,10 +963,32 @@ export class FulfillmentDO {
    */
   private async etiquettesPretes(): Promise<void> {
     if (this.etiquettesVerifiees) return;
+    const commandes = await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX });
     const voulues = new Set<string>();
-    for (const r of (await this.state.storage.list<PaidOrderRecord>({ prefix: ORDER_PREFIX })).values()) {
+    for (const r of commandes.values()) {
       if (r.supplierResolved && typeof r.supplierId === 'string' && r.supplierId !== '') voulues.add(etiquetteDe(r.supplierId, r.orderId));
     }
+    // DELAI-ACCEPTATION-1 — every order still waiting for its supplier's
+    // answer carries its deadline, orders from before this slice included.
+    const repondues = new Set<string>();
+    for (const p of [ACCEPT_PREFIX, REFUS_PREFIX, READY_PREFIX]) {
+      for (const k of (await this.state.storage.list({ prefix: p })).keys()) repondues.add(k.slice(p.length));
+    }
+    const attentes = await this.state.storage.list<number>({ prefix: ATTENTE_PREFIX });
+    const aPoserAttente: [string, number][] = [];
+    let premiere: number | null = null;
+    for (const r of commandes.values()) {
+      if (repondues.has(r.orderId)) continue;
+      const k = `${ATTENTE_PREFIX}${r.orderId}`;
+      const deja = attentes.get(k);
+      const echeance = typeof deja === 'number' ? deja : this.echeanceDe(r);
+      if (typeof deja !== 'number') aPoserAttente.push([k, echeance]);
+      premiere = premiere === null ? echeance : Math.min(premiere, echeance);
+    }
+    for (let i = 0; i < aPoserAttente.length; i += STORAGE_BATCH_MAX) {
+      await this.state.storage.put(Object.fromEntries(aPoserAttente.slice(i, i + STORAGE_BATCH_MAX)));
+    }
+    if (premiere !== null) await this.armerAvant(premiere);
     const presentes = new Set((await this.state.storage.list({ prefix: ETIQUETTE_PREFIX })).keys());
     const aPoser = [...voulues].filter((k) => !presentes.has(k));
     const aOter = [...presentes].filter((k) => !voulues.has(k));
@@ -924,6 +997,43 @@ export class FulfillmentDO {
     }
     for (let i = 0; i < aOter.length; i += STORAGE_BATCH_MAX) await this.state.storage.delete(aOter.slice(i, i + STORAGE_BATCH_MAX));
     this.etiquettesVerifiees = true;
+  }
+
+  /**
+   * DELAI-ACCEPTATION-1 — the orders whose deadline has come. Each one still
+   * unanswered is cancelled — refusal row `par: 'delai'`, then the canon fact
+   * through the outbox — and its pointer goes only AFTER both, so a wake that
+   * dies half-way finds it again; finding its own refusal then, it announces
+   * it again (the outbox row is first-wins). Returns the next deadline still
+   * ahead, for the alarm.
+   */
+  private async annulerLesSansReponse(): Promise<number | null> {
+    const now = Date.now();
+    let prochaine: number | null = null;
+    for (const [k, echeance] of await this.state.storage.list<number>({ prefix: ATTENTE_PREFIX })) {
+      if (typeof echeance === 'number' && echeance > now) {
+        prochaine = prochaine === null ? echeance : Math.min(prochaine, echeance);
+        continue;
+      }
+      const orderId = k.slice(ATTENTE_PREFIX.length);
+      const marques = await this.state.storage.get<unknown>([
+        `${ORDER_PREFIX}${orderId}`, `${ACCEPT_PREFIX}${orderId}`, `${REFUS_PREFIX}${orderId}`, `${READY_PREFIX}${orderId}`,
+      ]);
+      const order = marques.get(`${ORDER_PREFIX}${orderId}`) as PaidOrderRecord | undefined;
+      const refus = marques.get(`${REFUS_PREFIX}${orderId}`) as RefusRecord | undefined;
+      if (order !== undefined && refus?.par === 'delai') {
+        await this.enqueueProgress('rejected', orderId, refus.refusedAt);
+      } else if (
+        order !== undefined && refus === undefined &&
+        !marques.has(`${ACCEPT_PREFIX}${orderId}`) && !marques.has(`${READY_PREFIX}${orderId}`)
+      ) {
+        const annulation: RefusRecord = { orderId, supplierId: order.supplierId, refusedAt: new Date(now).toISOString(), par: 'delai' };
+        await this.state.storage.put(`${REFUS_PREFIX}${orderId}`, annulation);
+        await this.enqueueProgress('rejected', orderId, annulation.refusedAt);
+      }
+      await this.state.storage.delete(k);
+    }
+    return prochaine;
   }
 
   /** His order ids, from his labels alone — in orderId order, as the whole-book list gave them. */
@@ -955,12 +1065,17 @@ export class FulfillmentDO {
       if (existing !== undefined) {
         return Response.json({ ok: true, status: 'duplicate' });
       }
-      // ETIQUETTE-FOURNISSEUR-1 — the order and its supplier's label land together.
-      await this.state.storage.put(
-        record.supplierResolved && typeof record.supplierId === 'string' && record.supplierId !== ''
-          ? { [key]: record, [etiquetteDe(record.supplierId, record.orderId)]: 1 }
-          : { [key]: record },
-      );
+      // ETIQUETTE-FOURNISSEUR-1 — the order and its supplier's label land
+      // together; DELAI-ACCEPTATION-1 — and so does its deadline.
+      const echeance = this.echeanceDe(record);
+      await this.state.storage.put({
+        [key]: record,
+        [`${ATTENTE_PREFIX}${record.orderId}`]: echeance,
+        ...(record.supplierResolved && typeof record.supplierId === 'string' && record.supplierId !== ''
+          ? { [etiquetteDe(record.supplierId, record.orderId)]: 1 }
+          : {}),
+      });
+      await this.armerAvant(echeance);
       return Response.json({ ok: true, status: 'registered' });
     }
 
@@ -1339,7 +1454,7 @@ export class FulfillmentDO {
       // at pickup. One map serves every lookup below: its keys carry the prefix.
       const marques = await this.lireParCles(
         siennes.flatMap((r) =>
-          [ACCEPT_PREFIX, READY_PREFIX, HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX]
+          [ACCEPT_PREFIX, READY_PREFIX, HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, ATTENTE_PREFIX]
             .map((p) => `${p}${r.orderId}`),
         ),
       );
@@ -1360,6 +1475,7 @@ export class FulfillmentDO {
           const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
           const refusee = refus.get(`${REFUS_PREFIX}${r.orderId}`);
           const pickup = pickups.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`);
+          const echeance = marques.get(`${ATTENTE_PREFIX}${r.orderId}`);
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -1380,6 +1496,11 @@ export class FulfillmentDO {
             sellerBasePrice: r.sellerBasePrice,
             // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
             ...(r.colis !== undefined ? { colis: r.colis } : {}),
+            // DELAI-ACCEPTATION-1 — until when he may still answer, told by
+            // the book that will cancel it (never guessed by his phone).
+            ...(accepted === undefined && ready === undefined && refusee === undefined && typeof echeance === 'number'
+              ? { repondreAvant: new Date(echeance).toISOString() }
+              : {}),
             ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined || pickup !== undefined
               ? {
                   fulfillment: {
@@ -1390,7 +1511,7 @@ export class FulfillmentDO {
                     ...(retour !== undefined ? { returnedAt: retour.returnedAt } : {}),
                     ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
                     ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
-                    ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+                    ...(refusee?.par !== undefined ? { refusPar: refusee.par } : {}),
                   },
                 }
               : {}),
@@ -1504,8 +1625,8 @@ export class FulfillmentDO {
      * refusal there. It needs no supplier: an order whose product this book
      * could not attribute is exactly the one only he can refund.
      *
-     * The automatic timer (B6.1's clock) is NOT here: whether the ratified
-     * 120 minutes refunds on its own, and on which clock, is his ruling.
+     * The automatic timer (B6.1's clock) is `annulerLesSansReponse`, the same
+     * row and fact with the cause `delai` (DELAI-ACCEPTATION-1).
      */
     if (request.method === 'POST' && pathname === '/order/annuler') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
@@ -1970,6 +2091,8 @@ export class FulfillmentDO {
         ...outbox.keys(),
         // CROISSANCE-1 — a fact that dies with its order stops waiting too.
         ...[...outbox.keys()].map(pointeurDe),
+        // DELAI-ACCEPTATION-1 — and its answer deadline.
+        `${ATTENTE_PREFIX}${orderId}`,
         // ETIQUETTE-FOURNISSEUR-1 — and so does its supplier's label.
         ...(existing !== undefined && existing.supplierResolved ? [etiquetteDe(existing.supplierId, orderId)] : []),
       ];

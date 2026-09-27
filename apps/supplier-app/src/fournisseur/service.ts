@@ -48,8 +48,10 @@ export interface CommandeRow {
      *  archive; the buyer is refunded). */
     readonly refusedAt?: string;
     /** REMBOURSABLE-1 (F-02) — the refusal was the FOUNDER's cancellation,
-     *  not his: the card says Boutik+ did it. Read only beside `refusedAt`. */
-    readonly refusPar?: 'fondateur';
+     *  not his: the card says Boutik+ did it. DELAI-ACCEPTATION-1 — `delai`:
+     *  the book cancelled it because he did not answer in 2 hours. Read only
+     *  beside `refusedAt`. */
+    readonly refusPar?: 'fondateur' | 'delai';
     /** REMBOURSABLE-1 (F-08) — the rider refused the colis at pickup: the
      *  order is over and the colis never left his hands (→ the archive). */
     readonly pickupRefusedAt?: string;
@@ -60,6 +62,11 @@ export interface CommandeRow {
    * shows them as ONE card, made ready in ONE act. Absent on an order alone.
    */
   readonly colis?: { readonly packageId: string; readonly orderIds: readonly string[] };
+  /**
+   * DELAI-ACCEPTATION-1 — until when he may still accept or refuse, as the
+   * book that will cancel it says (present only while he has not answered).
+   */
+  readonly repondreAvant?: string;
 }
 
 export type MineResult =
@@ -432,7 +439,8 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     if (Object.keys(lus).length === 0) return null;
     // Who refused: an unknown value reads as HIS refusal — the card it gives
     // asks for nothing, so no act can be re-armed by a word we do not know.
-    fulfillment = { ...lus, ...(lus.refusedAt !== undefined && fr['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}) };
+    const par = fr['refusPar'];
+    fulfillment = { ...lus, ...(lus.refusedAt !== undefined && (par === 'fondateur' || par === 'delai') ? { refusPar: par } : {}) };
   }
   // COLIS-FOURNISSEUR-1 — the same strictness: a malformed package drops the
   // WHOLE row, never a half-formed card asking for an act on a guessed bag.
@@ -462,6 +470,8 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     sellerBasePrice: r['sellerBasePrice'] as number,
     ...(fulfillment !== undefined ? { fulfillment } : {}),
     ...(colis !== undefined ? { colis } : {}),
+    // an unreadable deadline is left out, never a reason to hide the order
+    ...(typeof r['repondreAvant'] === 'string' && !Number.isNaN(Date.parse(r['repondreAvant'])) ? { repondreAvant: r['repondreAvant'] } : {}),
   };
 }
 

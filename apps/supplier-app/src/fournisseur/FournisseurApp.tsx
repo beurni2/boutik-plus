@@ -23,7 +23,9 @@ import {
   PRET_REPOS,
   aAccepterDuColis,
   fournisseurVue,
+  heureLimite,
   modeVisible,
+  premiereLimite,
   pretChoisir,
   pretEnvoyer,
   pretIssue,
@@ -1010,7 +1012,9 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
           colis never left, so no return code is asked for). */}
       {commande.etape === 'annulee' && (
         <View style={{ marginTop: 10 }}>
-          <Banner tone="info">{t('fournisseur.etape_annulee')}</Banner>
+          <Banner tone="info">
+            {t(commande.fulfillment?.refusPar === 'delai' ? 'fournisseur.etape_annulee_delai' : 'fournisseur.etape_annulee')}
+          </Banner>
         </View>
       )}
 
@@ -1036,6 +1040,12 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
 
       {commande.etape === 'a_accepter' && (
         <View style={{ marginTop: 10 }}>
+          {/* DELAI-ACCEPTATION-1 — what happens next, before it happens. */}
+          {commande.repondreAvant !== undefined && (
+            <Text style={[role({ f: 'IS', w: 600, s: 12.5 }, P.warnFg), { marginBottom: 8 }]}>
+              {t('fournisseur.repondre_avant').replace('{heure}', heureLimite(commande.repondreAvant))}
+            </Text>
+          )}
           {accepting ? (
             <Text style={role({ f: 'IS', w: 600, s: 13 }, P.sub)}>{t('fournisseur.accepter_encours')}</Text>
           ) : (
@@ -1148,7 +1158,9 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
                 {a.etape === 'refusee' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_refuse')}</Text>
                 ) : a.etape === 'annulee' ? (
-                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_annule')}</Text>
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>
+                    {t(a.fulfillment?.refusPar === 'delai' ? 'fournisseur.colis_article_expire' : 'fournisseur.colis_article_annule')}
+                  </Text>
                 ) : a.etape === 'ramassage_refuse' && carte.etape !== 'ramassage_refuse' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_ramassage')}</Text>
                 ) : a.etape === 'livree' && carte.etape !== 'livree' ? (
@@ -1170,6 +1182,11 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
 
       {carte.etape === 'a_accepter' && (
         <View style={{ marginTop: 12 }}>
+          {premiereLimite(carte.articles) !== undefined && (
+            <Text style={[role({ f: 'IS', w: 600, s: 12.5 }, P.warnFg), { marginBottom: 8 }]}>
+              {t('fournisseur.repondre_avant').replace('{heure}', heureLimite(premiereLimite(carte.articles)!))}
+            </Text>
+          )}
           <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('fournisseur.colis_aide')}</Text>
           <View style={{ marginTop: 8 }}>
             {accepting ? (
@@ -1252,7 +1269,13 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
 
       {carte.etape === 'annulee' && (
         <View style={{ marginTop: 12 }}>
-          <Banner tone="info">{t('fournisseur.etape_annulee')}</Banner>
+          <Banner tone="info">
+            {t(
+              carte.articles.filter((a) => a.etape === 'annulee').every((a) => a.fulfillment?.refusPar === 'delai')
+                ? 'fournisseur.etape_annulee_delai'
+                : 'fournisseur.etape_annulee',
+            )}
+          </Banner>
         </View>
       )}
 

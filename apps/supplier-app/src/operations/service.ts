@@ -50,7 +50,7 @@ export interface FulfillmentMark {
   readonly refusedAt?: string;
   /** REMBOURSABLE-1 (F-02) — present when the refusal was HIS « Annuler et
    *  rembourser », never the supplier's. */
-  readonly refusPar?: 'fondateur';
+  readonly refusPar?: 'fondateur' | 'delai';
   /** REMBOURSABLE-1 (F-61) — the book's own road marks, so a finished order is
    *  classed without any other Worker's read: the supplier's confirmed handover,
    *  Séra's delivery, the colis back home, the rider's refusal at pickup. */
@@ -1102,7 +1102,8 @@ function readFulfillment(value: unknown): FulfillmentMark | null {
   if (Object.keys(lus).length === 0) return null;
   // Who refused is read only BESIDE a readable refusal: « vous avez annulé »
   // must be true or absent, like every other mark here.
-  return { ...lus, ...(lus.refusedAt !== undefined && r['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}) };
+  const par = r['refusPar'];
+  return { ...lus, ...(lus.refusedAt !== undefined && (par === 'fondateur' || par === 'delai') ? { refusPar: par } : {}) };
 }
 
 /* ─────────────────── the founder's key, on HIS device only ─────────────────── */

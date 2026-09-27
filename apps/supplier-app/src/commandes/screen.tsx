@@ -626,7 +626,11 @@ function RangCommande({
               <Text style={[CORPS, { marginTop: 4 }]}>{t(raison)}</Text>
             ) : row.fulfillment?.refusedAt !== undefined ? (
               <Text style={[CORPS, { marginTop: 4 }]}>
-                {t(row.fulfillment.refusPar === 'fondateur' ? 'commandes.annulee_ligne' : 'commandes.refusee_ligne')}
+                {t(
+                  row.fulfillment.refusPar === 'fondateur' ? 'commandes.annulee_ligne'
+                    : row.fulfillment.refusPar === 'delai' ? 'commandes.annulee_delai_ligne'
+                      : 'commandes.refusee_ligne',
+                )}
               </Text>
             ) : row.fulfillment?.pickupRefusedAt !== undefined ? (
               <Text style={[CORPS, { marginTop: 4 }]}>{t('commandes.ramassage_refuse_ligne')}</Text>
