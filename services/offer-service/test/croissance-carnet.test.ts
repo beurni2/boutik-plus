@@ -82,8 +82,8 @@ describe('F-04 · ETIQUETTE-FOURNISSEUR-1 — his refresh reads HIS orders, thro
     expect(body.orders.map((o) => o.orderId)).toEqual(['ord-00004', 'ord-00003', 'ord-00002', 'ord-00001', 'ord-00000']);
     expect(body.orders[0]!.fulfillment).toEqual({ acceptedAt: iso(5), readyAt: iso(6), handedOverAt: iso(7) });
     expect(body).toEqual(premiere);
-    // the code + his labels + his orders + his 7 marks and his answer deadline each
-    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 8 * OWN);
+    // the code + his labels + his orders + his 7 marks each
+    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 7 * OWN);
   });
 
   it('an order registered now is filed in the same write, and his next refresh shows it', async () => {
@@ -148,7 +148,7 @@ describe('F-04 · ETIQUETTE-FOURNISSEUR-1 — his refresh reads HIS orders, thro
     storage.reset();
     const body = (await (await post('/mine', { code })).json()) as Mine;
     expect(body.orders).toHaveLength(OWN);
-    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 8 * OWN);
+    expect(storage.rowsRead).toBeLessThanOrEqual(1 + OWN + OWN + 7 * OWN);
   });
 
   it('the erase guard asks his labels, not the book', async () => {

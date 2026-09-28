@@ -291,8 +291,7 @@ describe('1b-i — /fulfillment/mine: the code is the identity, and only YOUR or
     expect(aOrders.some((o) => o['orderId'] === 'ord-mine-b1')).toBe(false);
     const row = aOrders.find((o) => o['orderId'] === 'ord-mine-a1')!;
     expect(Object.keys(row).sort()).toEqual(
-      // DELAI-ACCEPTATION-1 — `repondreAvant`: until when he may still answer HIS unanswered order
-      ['offerVersion', 'orderId', 'paidAt', 'paymentMode', 'productName', 'productVersionId', 'repondreAvant', 'sellerBasePrice', 'zoneTo'].sort(),
+      ['offerVersion', 'orderId', 'paidAt', 'paymentMode', 'productName', 'productVersionId', 'sellerBasePrice', 'zoneTo'].sort(),
     ); // the ALLOWLIST: no relance, no supplierId, no correlation, no registeredAt
     // FOURNISSEUR-VRAI-1 (AUDIT-B+2 F-26) — and no zone: the founder's
     // 2026-09-02 order (« do not show the address of the buyer ») took it off

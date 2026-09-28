@@ -146,9 +146,9 @@ export type FournisseurVue =
  * delivered beats handed-over beats ready beats accepted.
  */
 export function etapeOf(row: CommandeRow): EtapeCommande {
-  // His refusal — or a cancel he did not make: the founder's, or the book's
-  // after 2 hours without his answer — ends the order before any road began.
-  if (row.fulfillment?.refusedAt !== undefined) return row.fulfillment.refusPar !== undefined ? 'annulee' : 'refusee';
+  // His refusal — or the founder's cancel — ends the order before any road
+  // began (both close at « prêt »).
+  if (row.fulfillment?.refusedAt !== undefined) return row.fulfillment.refusPar === 'fondateur' ? 'annulee' : 'refusee';
   // The rider's refusal at pickup ends it AFTER his handover check: it outranks
   // the handover, or the card would say the rider has the colis forever.
   if (row.fulfillment?.pickupRefusedAt !== undefined) return 'ramassage_refuse';
@@ -160,21 +160,6 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
   if (row.fulfillment?.readyAt !== undefined) return 'prete';
   if (row.fulfillment?.acceptedAt !== undefined) return 'a_preparer';
   return 'a_accepter';
-}
-
-/**
- * DELAI-ACCEPTATION-1 — the hour on the book's deadline, as his watch reads it
- * in Ouagadougou (GMT all year, no summer time): « 14:05 ».
- */
-export function heureLimite(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
-}
-
-/** The earliest deadline among the orders of a card still waiting for his answer. */
-export function premiereLimite(commandes: readonly CommandeVue[]): string | undefined {
-  const limites = commandes.filter((c) => c.etape === 'a_accepter' && c.repondreAvant !== undefined).map((c) => c.repondreAvant!);
-  return limites.length === 0 ? undefined : limites.reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b));
 }
 
 /**

@@ -83,6 +83,82 @@ describe('F-02 — an order the founder cancelled', () => {
   });
 });
 
+/**
+ * « Accepter » tapped on a page that has not yet learnt the founder cancelled
+ * the order (verifier MAJOR 2 of 2026-09-27; the answer clock it was found on
+ * is gone, the case stays): the book answers 409 `refusee`. He must land on
+ * the cancelled card — never on « Réessayez » over an order being refunded.
+ */
+describe('F-02 — « Accepter » on an order the founder has just cancelled', () => {
+  const annule = { refusedAt: '2026-09-26T09:00:00.000Z', refusPar: 'fondateur' };
+
+  it('lands on the cancelled order, says why, and asks nothing more of him', async () => {
+    let lu = 0;
+    const fil = wire([
+      (path) =>
+        path === '/fulfillment/mine'
+          ? ((lu += 1), { status: 200, json: { ok: true, orders: [lu === 1 ? { ...ligne('ord-1', 'Bazin riche', {}), fulfillment: undefined } : ligne('ord-1', 'Bazin riche', annule)] as never } })
+          : null,
+      (path) => (path === '/fulfillment/accept' ? { status: 409, json: { ok: false, reason: 'refusee' } } : null),
+      (path) => (path === '/offers/mine' ? { status: 200, json: { items: [] } } : null),
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.settle();
+    await screen.press('Accepter la commande');
+    await screen.settle();
+    expect(fil.calls.filter((c) => c.path === '/fulfillment/accept')).toHaveLength(1);
+    expect(screen.shows('Réessayez'), `told to retry a cancelled order. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.canPress('Accepter la commande')).toBe(false);
+    await screen.press('Livré');
+    await screen.settle();
+    expect(screen.texts()).toContain('Boutik+ a annulé cette commande. Le client sera remboursé. Ne la préparez pas.');
+    screen.unmount();
+  });
+
+  it('in a colis, the article he cancelled is skipped, the rest is accepted, and the card says which', async () => {
+    const acceptees = new Set<string>();
+    let c1Annule = false;
+    const fil = wire([
+      (path) =>
+        path === '/fulfillment/mine'
+          ? {
+              status: 200,
+              json: {
+                ok: true,
+                orders: [
+                  c1Annule ? ligne('c1', 'Pagne wax', annule, ['c1', 'c2']) : { ...ligne('c1', 'Pagne wax', {}, ['c1', 'c2']), fulfillment: undefined },
+                  acceptees.has('c2')
+                    ? ligne('c2', 'Sac en cuir', { acceptedAt: '2026-09-26T09:01:00.000Z' }, ['c1', 'c2'])
+                    : { ...ligne('c2', 'Sac en cuir', {}, ['c1', 'c2']), fulfillment: undefined },
+                ] as never,
+              },
+            }
+          : null,
+      (path, body) => {
+        if (path !== '/fulfillment/accept') return null;
+        if (body?.['orderId'] === 'c1') {
+          c1Annule = true;
+          return { status: 409, json: { ok: false, reason: 'refusee' } };
+        }
+        acceptees.add(String(body?.['orderId']));
+        return { status: 200, json: { ok: true, status: 'accepted', acceptedAt: '2026-09-26T09:01:00.000Z' } };
+      },
+      (path) => (path === '/offers/mine' ? { status: 200, json: { items: [] } } : null),
+    ]);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.settle();
+    await screen.press('Accepter le colis');
+    await screen.settle();
+    expect(fil.calls.filter((c) => c.path === '/fulfillment/accept').map((c) => c.body?.['orderId'])).toEqual(['c1', 'c2']);
+    expect(screen.shows('Réessayez'), `told to retry. On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.texts()).toContain('Annulé par Boutik+. Le client sera remboursé.');
+    expect(screen.canPress('Accepter le colis'), 'the rest was accepted — nothing left to accept').toBe(false);
+    screen.unmount();
+  });
+});
+
 describe('F-08 — the rider refused the colis at pickup', () => {
   it('leaves « En route » for the archive, says the colis stays with him, and asks for no return code', async () => {
     wire(mine([ligne('ord-ramassage', 'Panier tressé', { ...REMIS, pickupRefusedAt: '2026-09-26T08:05:00.000Z' })]));

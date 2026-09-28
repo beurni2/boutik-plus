@@ -284,8 +284,6 @@ interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
    *  challenge TTL so the e2e can prove expiry without waiting. Production
    *  never sets it; unset or unparseable falls to the canon value. */
   READINESS_TTL_MS?: string;
-  /** DELAI-ACCEPTATION-1 TEST KNOB — may only shorten the ruled 120 minutes. Never set in wrangler.toml. */
-  ACCEPTANCE_DECISION_MS?: string;
   /** STOCK-JOURNAL-1 TEST KNOB, never a secret: may only SHORTEN the seven-day
    *  reconfirmation window (`stockDueMs`) so the e2e can prove the freeze
    *  without waiting a week. Production never sets it. */

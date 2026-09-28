@@ -2550,18 +2550,6 @@
     "screenClass": "status"
   },
   {
-    "key": "fournisseur.etape_annulee_delai",
-    "fr": "Vous n'avez pas répondu dans les 2 heures. La commande est annulée et le client sera remboursé. Ne la préparez pas.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "fournisseur.repondre_avant",
-    "fr": "Répondez avant {heure}. Sinon, la commande sera annulée et le client remboursé.",
-    "register": "money",
-    "screenClass": "instruction"
-  },
-  {
     "key": "fournisseur.etape_ramassage_refuse",
     "fr": "Le coursier n'a pas pris le colis. La commande est annulée. Le client sera remboursé. Le colis reste chez vous.",
     "register": "money",
@@ -4560,12 +4548,6 @@
     "screenClass": "status"
   },
   {
-    "key": "commandes.annulee_delai_ligne",
-    "fr": "Annulée automatiquement : le fournisseur n'a pas répondu dans les 2 heures. La cliente sera remboursée.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
     "key": "commandes.ramassage_refuse_ligne",
     "fr": "Le coursier n'a pas pris le colis. La commande est annulée. La cliente sera remboursée.",
     "register": "money",
@@ -5492,12 +5474,6 @@
   {
     "key": "fournisseur.colis_article_annule",
     "fr": "Annulé par Boutik+. Le client sera remboursé.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "fournisseur.colis_article_expire",
-    "fr": "Annulé : pas de réponse dans les 2 heures. Le client sera remboursé.",
     "register": "money",
     "screenClass": "status"
   },

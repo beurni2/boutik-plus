@@ -99,8 +99,6 @@ runScanGate({
      * banned in this file.
      */
     { file: 'services/offer-service/test/croissance-carnet.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery binding the outbox test constructs (CROISSANCE-1)' },
-    { file: 'services/offer-service/test/delai-acceptation.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery binding the answer-clock test constructs (DELAI-ACCEPTATION-1)' },
-    { file: 'services/offer-service/test/delai-acceptation.e2e.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery binding the answer-clock seam captures (DELAI-ACCEPTATION-1)' },
     { file: 'apps/supplier-app/test/rendu-harness.test.ts', pattern: 'checkout-route', ruling: 'the walk harness certifying its check on Shop+ stand-ins (REPONSES-ENREGISTREES-1)' },
     { file: 'apps/supplier-app/test/fixtures/substitut-irreel/substitut-irreel.fixture.tsx', pattern: 'checkout-route', ruling: 'the unreal Shop+ stand-in the harness must fail on (REPONSES-ENREGISTREES-1)' },
     /**
