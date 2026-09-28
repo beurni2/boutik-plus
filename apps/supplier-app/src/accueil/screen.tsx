@@ -10,8 +10,11 @@ import { resolveMediaBase } from '../supply/media';
 import { photoUri } from '../supply/produits-view';
 import { SUPPLIER_ID, resolveSupplyService, type SupplierOfferRow } from '../supply/service';
 import { resolveOperationsService, type PaidOrderRow } from '../operations/service';
+import { readStoredCleC, resolveDispatchService, resolveGainsService } from '../operations/dispatch-service';
+import { readStoredCleCoursiers } from '../coursiers/service';
+import { resolveSeraDispatch } from '../commandes/sera-service';
 import { attenteDepuis, segmenter } from '../commandes/view';
-import { plusAnciennes, stockBas } from './view';
+import { plusAnciennes, produitsEnLigne, stockBas, ventesPayees } from './view';
 
 /**
  * ═══ RB-4 — THE REAL ACCUEIL (founder direction 2026-08-08) ═══
@@ -46,6 +49,39 @@ const CORPS = role({ f: 'IS', w: 400, s: 13 }, P.sub);
 const PETIT = role({ f: 'IS', w: 400, s: 12 }, P.sub);
 const NOM_ROW = role({ f: 'IS', w: 700, s: 14.5 }, P.ink);
 const CHIFFRE = role({ f: 'BG', w: 800, s: 26 }, P.greenDeep);
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-53) — the road facts the Commandes tab reads, read
+ * here too so the home's counts stop claiming what they do not count: Séra's
+ * live courses (relayed, so no longer « prêtes à confier »), the settlement's
+ * « livrée », and the refunds Shop+ is running. Each only when its key is
+ * ALREADY on this device, and READ-ONLY: a refused key is left exactly where it
+ * is — the home has no door, and clearing another screen's key from here would
+ * strand him (see the header). A failed read leaves its set empty: the book's
+ * own marks still class every order.
+ */
+async function faitsDeRoute(): Promise<{ enRoute: Set<string>; livrees: Set<string>; remboursees: Set<string> }> {
+  const enRoute = new Set<string>();
+  const livrees = new Set<string>();
+  const remboursees = new Set<string>();
+  const cleSera = readStoredCleCoursiers();
+  const sera = cleSera === null ? null : resolveSeraDispatch();
+  const cleC = readStoredCleC();
+  const gains = cleC === null ? null : resolveGainsService();
+  const dispatch = cleC === null ? null : resolveDispatchService();
+  await Promise.all([
+    cleSera !== null && sera !== null
+      ? sera.board(cleSera).then((b) => { if (b.kind === 'ok') for (const a of b.value.affectations) enRoute.add(a.orderId); })
+      : null,
+    cleC !== null && gains !== null
+      ? gains.listGains(cleC).then((g) => { if (g.ok) for (const r of g.rows) if (r.livree) livrees.add(r.orderId); })
+      : null,
+    cleC !== null && dispatch !== null
+      ? dispatch.listLivraisons(cleC).then((l) => { if (l.ok) for (const r of l.rows) if (r.remboursement !== undefined) remboursees.add(r.orderId); })
+      : null,
+  ]);
+  return { enRoute, livrees, remboursees };
+}
 
 type Offres =
   | { kind: 'indisponible' }
@@ -85,7 +121,7 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
       setVentes({ kind: 'sans_cle' });
     } else {
       setVentes({ kind: 'chargement' });
-      void operations.listPaidOrders(opsKey).then((r) => {
+      void Promise.all([operations.listPaidOrders(opsKey), faitsDeRoute()]).then(([r, faits]) => {
         if (!alive) return;
         if (!r.ok) {
           // bad_key included: the honest line, and the slot stays — the
@@ -95,16 +131,16 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
         }
         // No fund key here, so claimed orders are not split out — the
         // Commandes tab (which reads the claims book) holds incident truth.
-        // Same for the Séra board and the gains read: without them the road
-        // facts are unknown here, so « prêtes » counts everything readyAt-set
-        // (relayed or delivered included) — the tab itself splits the stages.
-        const s = segmenter(r.orders, new Set(), new Set(), new Set());
+        // STOCK-VRAI-1 (F-53) — the road facts ARE read (above): an order Séra
+        // carries is no longer « prête à confier », and one Shop+ is refunding
+        // is neither « à faire » nor a paid sale.
+        const s = segmenter(r.orders, new Set(), faits.enRoute, faits.livrees, faits.remboursees);
         setVentes({
           kind: 'ok',
           aTraiter: plusAnciennes(s.a_traiter, 3),
           enAttente: s.a_traiter.length,
           pretes: s.pret.length,
-          total: r.orders.length,
+          total: ventesPayees(r.orders, faits.remboursees),
           // CROISSANCE-1 — counts from a book the page cap stopped are « at least ».
           incomplet: r.incomplet === true,
         });
@@ -131,7 +167,7 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
       </View>
       <Text style={[SOUS, { marginTop: 8 }]}>
         {offres.kind === 'ok'
-          ? t('accueil.greeting_sub').replace('{n}', String(offres.rows.length))
+          ? ((p) => t(p.key).replace('{n}', String(p.n)))(produitsEnLigne(offres.rows))
           : t('accueil.tagline')}
       </Text>
 

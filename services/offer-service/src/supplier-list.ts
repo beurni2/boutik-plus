@@ -82,6 +82,14 @@ export interface SupplierOfferRow {
    * — `hiddenReason: 'stock_unconfirmed'` rides beside it.
    */
   readonly stockConfirmedAt?: string;
+  /**
+   * STOCK-VRAI-1 (AUDIT-B+2 F-12) — the offer's sale window, verbatim from the
+   * stored canon offer: when it opens and when it closes. The ladder above
+   * already reads them; carrying them lets his screens say « En ligne jusqu'au
+   * … », and say WHICH side of the window a hidden offer is on.
+   */
+  readonly effective: string;
+  readonly expiry: string;
 }
 
 /** The envelope — same `{asOf, items}` shape and SERVE clock as the supply collection. */
@@ -179,6 +187,8 @@ export function buildSupplierList(
       ...(entry.variantsNote === undefined ? {} : { variantsNote: entry.variantsNote }),
       ...(built.ok ? {} : { hiddenReason: built.reason }),
       ...(entry.stockConfirmedAt === undefined ? {} : { stockConfirmedAt: entry.stockConfirmedAt }),
+      effective: entry.offer.effective,
+      expiry: entry.offer.expiry,
     };
     items.push(row);
   }

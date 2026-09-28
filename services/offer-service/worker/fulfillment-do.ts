@@ -979,6 +979,31 @@ export class FulfillmentDO {
       return Response.json({ ok: true, productVersionId: order.productVersionId });
     }
 
+    /**
+     * STOCK-VRAI-1 (AUDIT-B+2 F-03) — INTERNAL: his orders of ONE product whose
+     * parcel is still in his hands — no handover, no refusal (his or the
+     * founder's cancellation), no refusal at pickup, no delivery, no return.
+     * The stock count subtracts them: they left the counter at payment and
+     * leave the shelf only at pickup. Read through his labels, like `/mine`.
+     */
+    if (request.method === 'POST' && pathname === '/attente-ramassage') {
+      const body = (await request.json().catch(() => null)) as { supplierId?: unknown; productVersionId?: unknown } | null;
+      const supplierId = body?.supplierId;
+      const pv = body?.productVersionId;
+      if (typeof supplierId !== 'string' || supplierId === '' || typeof pv !== 'string' || pv === '') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      const ids = await this.commandesDe(supplierId);
+      const lus = await this.lireParCles(ids.map((id) => `${ORDER_PREFIX}${id}`));
+      const siennes = ids.filter((id) => {
+        const r = lus.get(`${ORDER_PREFIX}${id}`) as PaidOrderRecord | undefined;
+        return r !== undefined && r.supplierResolved && r.supplierId === supplierId && r.productVersionId === pv;
+      });
+      const sorties = [HANDOVER_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX];
+      const marques = await this.lireParCles(siennes.flatMap((id) => sorties.map((p) => `${p}${id}`)));
+      return Response.json({ ok: true, orderIds: siennes.filter((id) => !sorties.some((p) => marques.has(`${p}${id}`))) });
+    }
+
     /** THE OPS READ — every paid order, supplier ids included. The ROUTER
      *  gates this behind FULFILLMENT_OPS_SECRET — the founder's OWN credential
      *  (his console's login), never the intake secret Shop+ holds to deliver.

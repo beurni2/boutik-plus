@@ -42,12 +42,42 @@ interface Rangee {
   supplierId: string;
   hiddenReason?: string;
   stockConfirmedAt?: string;
+  effective?: string;
+  expiry?: string;
 }
 
 /** The book the real Worker keeps, as the routes the console reads and writes. */
-function livre(rangees: Rangee[], stockDoor: (body: Record<string, unknown> | null) => { status: number; json: Record<string, unknown> } | 'ok') {
-  const state = { rangees, confirms: [] as Record<string, unknown>[] };
+function livre(
+  rangees: Rangee[],
+  stockDoor: (body: Record<string, unknown> | null) => { status: number; json: Record<string, unknown> } | 'ok',
+  /** STOCK-VRAI-1 — sold parcels still waiting for the rider, per offer, as
+   *  the real Worker counts them from the order book (never from the caller). */
+  enAttente: Record<string, number> = {},
+  prolongerDoor: () => { status: number; json: Record<string, unknown> } | 'ok' = () => 'ok',
+) {
+  const state = { rangees, confirms: [] as Record<string, unknown>[], enAttente, attenteLus: [] as string[] };
   const routes: Route[] = [
+    (path, _b, search, headers) => {
+      if (path !== '/offers/stock/attente') return null;
+      if (headers['authorization'] !== `Bearer ${OPS_KEY}`) return { status: 401, json: { error: 'unauthorized' } };
+      const offerId = search.get('offerId') ?? '';
+      state.attenteLus.push(offerId);
+      if (!state.rangees.some((x) => x.offerId === offerId)) return { status: 404, json: { error: 'not_found' } };
+      return { status: 200, json: { enAttente: state.enAttente[offerId] ?? 0 } };
+    },
+    (path, body, _s, headers) => {
+      if (path !== '/offers/prolonger') return null;
+      if (headers['authorization'] !== `Bearer ${OPS_KEY}`) return { status: 401, json: { error: 'unauthorized' } };
+      const verdict = prolongerDoor();
+      if (verdict !== 'ok') return verdict;
+      const r = state.rangees.find((x) => x.offerId === body?.['offerId']);
+      if (r === undefined) return { status: 404, json: { error: 'not_found' } };
+      // decideProlonger: a year after today or after the current end, whichever is later.
+      const depart = Math.max(Date.now(), Date.parse(r.expiry ?? '1970-01-01T00:00:00.000Z'));
+      r.expiry = new Date(depart + 365 * 24 * 60 * 60 * 1000).toISOString();
+      if (r.hiddenReason === 'offer_not_effective') delete r.hiddenReason;
+      return { status: 200, json: { status: 'prolonge', expiry: r.expiry, version: 2 } };
+    },
     (path, body, _s, headers) => {
       if (path !== '/offers/stock') return null;
       // THE CREDENTIAL IS CHECKED, as the real root checks it: his ops key,
@@ -64,12 +94,16 @@ function livre(rangees: Rangee[], stockDoor: (body: Record<string, unknown> | nu
       }
       const r = state.rangees.find((x) => x.offerId === offerId);
       if (r === undefined) return { status: 404, json: { error: 'not_found' } };
-      const status = r.available === available ? 'confirmed' : 'adjusted';
+      // STOCK-VRAI-1 — the real rule: the parcels waiting for the rider are
+      // taken off what he counted; a caller's own `enAttente` is never read.
+      const attente = state.enAttente[offerId] ?? 0;
+      const net = Math.max(0, available - attente);
+      const status = r.available === net ? 'confirmed' : 'adjusted';
       const at = '2026-09-17T10:00:00.000Z';
-      r.available = available;
+      r.available = net;
       r.stockConfirmedAt = at;
-      delete r.hiddenReason; // the freeze lifts — the ladder's last rung passes again
-      return { status: 200, json: { status, available, stockConfirmedAt: at } };
+      if (r.hiddenReason === 'stock_unconfirmed') delete r.hiddenReason; // the freeze lifts
+      return { status: 200, json: { status, available: net, stockConfirmedAt: at, compte: available, enAttente: attente } };
     },
     (path, _b, _s, headers) => {
       if (path !== '/offers/inventaire') return null;
@@ -225,7 +259,143 @@ describe('CONFIRMER LE STOCK — the frozen product comes back, on the fiche he 
     expect(screen.shows("Vos produits s'affichent ici avec votre clé d'opérateur.")).toBe(true);
     expect(screen.shows('Pagne tissé')).toBe(false);
     expect(screen.canPress('Confirmer le stock')).toBe(false);
+    expect(screen.canPress('Prolonger d’un an')).toBe(false);
     expect(w.calls.filter((c) => c.path.startsWith('/offers'))).toEqual([]);
+    screen.unmount();
+  });
+});
+
+const AN = 365 * 24 * 60 * 60 * 1000;
+/** A date the walk's clock is well inside — a live product's end, a year out. */
+const FIN_VIVANTE = new Date(Date.now() + 200 * 24 * 60 * 60 * 1000).toISOString();
+/** An end long gone — the year is over. */
+const FIN_PASSEE = '2026-08-01T00:00:00.000Z';
+
+describe('STOCK-VRAI-1 (F-03) — the count takes off the parcels waiting for the rider, and says so in his numbers', () => {
+  it('two parcels waiting: the question names them → « 5 » in hand → HIS count leaves the app (never a waiting number) → « 3 en vente »', async () => {
+    const svc = livre([{ ...gele(), available: 1 }], () => 'ok', { [OFFER]: 2 });
+    const w = wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Confirmer le stock');
+
+    // The count sheet asked the service — his key, his offer — and says what to count.
+    const lus = w.calls.filter((c) => c.path === '/offers/stock/attente');
+    expect(lus).toHaveLength(1);
+    expect(lus[0]?.headers['authorization']).toBe(`Bearer ${OPS_KEY}`);
+    expect(svc.state.attenteLus).toEqual([OFFER]);
+    expect(screen.shows('2 colis vendus attendent encore le coursier')).toBe(true);
+    expect(screen.shows('Combien en avez-vous en main, colis emballés compris ?')).toBe(true);
+
+    await screen.type('5', 'Combien en avez-vous');
+    await screen.press('Envoyer');
+    const posts = w.calls.filter((c) => c.path === '/offers/stock');
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.body).toMatchObject({ offerId: OFFER, available: 5 });
+    expect(posts[0]?.body?.['enAttente'], 'the app must never say how many are waiting').toBeUndefined();
+
+    // THE NEXT STATE: what the count did, in his numbers, and the new stock.
+    expect(screen.shows('Vous avez compté 5. 2 colis vendus attendent le coursier : 3 en vente.')).toBe(true);
+    expect(screen.shows('3')).toBe(true);
+    expect(screen.canPress('Confirmer le stock')).toBe(true);
+    screen.unmount();
+  });
+
+  it('nothing waiting: the sheet says so, and no result line is added after the count', async () => {
+    const svc = livre([gele()], () => 'ok', {});
+    wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Confirmer le stock');
+    expect(screen.shows('Aucun colis vendu n’attend le coursier.')).toBe(true);
+    await screen.type('5', 'Combien en avez-vous');
+    await screen.press('Envoyer');
+    expect(screen.shows('Vous avez compté')).toBe(false);
+    expect(screen.shows('Stock confirmé le 17/09/2026')).toBe(true);
+    screen.unmount();
+  });
+
+  it('the waiting count CANNOT be read: the question still says what to count, and the count still goes out', async () => {
+    const svc = livre([gele()], () => 'ok', { [OFFER]: 1 });
+    const w = wire([(path) => (path === '/offers/stock/attente' ? { status: 503, json: { error: 'carnet_indisponible' } } : null), ...svc.routes]);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Confirmer le stock');
+    expect(screen.shows('colis vendu')).toBe(false);
+    expect(screen.shows('Combien en avez-vous en main, colis emballés compris ?')).toBe(true);
+    await screen.type('4', 'Combien en avez-vous');
+    await screen.press('Envoyer');
+    expect(w.calls.filter((c) => c.path === '/offers/stock')).toHaveLength(1);
+    // the server still took the one waiting parcel off
+    expect(screen.shows('Vous avez compté 4. 1 colis vendu attend le coursier : 3 en vente.')).toBe(true);
+    screen.unmount();
+  });
+});
+
+describe('STOCK-VRAI-1 (F-12) — the end of its year is said, and « Prolonger d’un an » brings it back', () => {
+  it('a live product says « En ligne jusqu’au » its end date', async () => {
+    const { hiddenReason: _h, ...vivant } = gele();
+    wire(livre([{ ...vivant, expiry: FIN_VIVANTE, effective: '2026-07-01T00:00:00.000Z' }], () => 'ok').routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    expect(screen.shows(`En ligne jusqu’au ${dateCourte(FIN_VIVANTE)}`)).toBe(true);
+    expect(screen.canPress('Prolonger d’un an')).toBe(true);
+    screen.unmount();
+  });
+
+  it('its year is over: the list and the fiche say since when → press → HIS key, HIS offer → back on sale, with the new end', async () => {
+    const fini: Rangee = { ...gele(), hiddenReason: 'offer_not_effective', effective: '2025-08-01T00:00:00.000Z', expiry: FIN_PASSEE };
+    const svc = livre([fini], () => 'ok');
+    const w = wire(svc.routes);
+    const screen = await monter();
+    const phrase = `Son année de vente est finie depuis le ${dateCourte(FIN_PASSEE)}.`;
+    // the tile on the list says it too (one sentence for both)
+    expect(screen.shows(phrase)).toBe(true);
+    await screen.press('Pagne tissé');
+    expect(screen.shows(phrase)).toBe(true);
+    expect(screen.shows('Prolongez-la d’un an pour la remettre en ligne.')).toBe(true);
+    expect(screen.canPress('Prolonger d’un an'), 'the way back must be reachable').toBe(true);
+
+    await screen.press('Prolonger d’un an');
+    const posts = w.calls.filter((c) => c.path === '/offers/prolonger');
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.method).toBe('POST');
+    expect(posts[0]?.headers['authorization']).toBe(`Bearer ${OPS_KEY}`);
+    expect(posts[0]?.body).toMatchObject({ offerId: OFFER });
+    expect(String(posts[0]?.body?.['commandId'] ?? '')).not.toBe('');
+
+    // THE NEXT STATE, on the same fiche: back on sale, and until when.
+    const fin = svc.state.rangees[0]!.expiry!;
+    expect(Date.parse(fin)).toBeGreaterThan(Date.now() + AN - 60_000);
+    expect(screen.shows(phrase)).toBe(false);
+    expect(screen.shows(`En ligne jusqu’au ${dateCourte(fin)}`)).toBe(true);
+    screen.unmount();
+  });
+
+  it('a FAILED renewal says so and leaves the way out: the button is pressable again, and the retry goes out', async () => {
+    let refuse = true;
+    const fini: Rangee = { ...gele(), hiddenReason: 'offer_not_effective', effective: '2025-08-01T00:00:00.000Z', expiry: FIN_PASSEE };
+    const svc = livre([fini], () => 'ok', {}, () => (refuse ? { status: 500, json: { error: 'boom' } } : 'ok'));
+    const w = wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Prolonger d’un an');
+    expect(screen.shows('La prolongation n’a pas abouti')).toBe(true);
+    expect(screen.canPress('Prolonger d’un an'), 'a failed act must leave a way out').toBe(true);
+    refuse = false;
+    await screen.press('Prolonger d’un an');
+    expect(w.calls.filter((c) => c.path === '/offers/prolonger')).toHaveLength(2);
+    expect(screen.shows('La prolongation n’a pas abouti')).toBe(false);
+    expect(screen.shows(`Son année de vente est finie`)).toBe(false);
+    screen.unmount();
+  });
+
+  it('its window has not opened yet: the fiche says when it opens', async () => {
+    const OUVRE = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    wire(livre([{ ...gele(), hiddenReason: 'offer_not_effective', effective: OUVRE, expiry: new Date(Date.parse(OUVRE) + AN).toISOString() }], () => 'ok').routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    expect(screen.shows(`Pas encore en vente : l’offre ouvre le ${dateCourte(OUVRE)}.`)).toBe(true);
     screen.unmount();
   });
 });
@@ -247,7 +417,11 @@ describe('the port — status codes read as named reasons, never as a silent suc
     }
     wire([(path) => (path === '/offers/stock' ? { status: 200, json: { status: 'adjusted', available: 3, stockConfirmedAt: '2026-09-17T10:00:00.000Z' } } : null)]);
     const ok = await ops.confirmStock(OPS_KEY, { commandId: 'c', offerId: OFFER, available: 3 });
-    expect(ok).toEqual({ ok: true, status: 'adjusted', available: 3, stockConfirmedAt: '2026-09-17T10:00:00.000Z' });
+    // A Worker older than STOCK-VRAI-1 says neither number: null, never a guess.
+    expect(ok).toEqual({ ok: true, status: 'adjusted', available: 3, stockConfirmedAt: '2026-09-17T10:00:00.000Z', compte: null, enAttente: null });
+    wire([(path) => (path === '/offers/stock' ? { status: 200, json: { status: 'adjusted', available: 3, stockConfirmedAt: '2026-09-17T10:00:00.000Z', compte: 5, enAttente: 2 } } : null)]);
+    const avecAttente = await ops.confirmStock(OPS_KEY, { commandId: 'c', offerId: OFFER, available: 5 });
+    expect(avecAttente).toMatchObject({ ok: true, available: 3, compte: 5, enAttente: 2 });
   });
 });
 

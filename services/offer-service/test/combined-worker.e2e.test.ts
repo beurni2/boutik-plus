@@ -210,6 +210,9 @@ describe('combined Worker — durable offers on real workerd', () => {
       assetRefs: [],
       // STOCK-JOURNAL-1 — when the count was last vouched for (server clock at create)
       stockConfirmedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      // STOCK-VRAI-1 (F-12) — the sale window, verbatim from the stored offer
+      effective: SEED.draft.effective,
+      expiry: SEED.draft.expiry,
     });
     // the second offer, its own live values
     expect(byOffer['offer-2']?.available).toBe(3);

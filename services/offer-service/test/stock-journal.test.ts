@@ -120,31 +120,31 @@ describe('decideConfirmStock — the challenge capture', () => {
   it('the typed count EQUAL to the counter → `confirme`, counter unchanged, clock restarted', () => {
     const e = created(10, T0);
     const later = plus(T0, 3 * DAY);
-    const d = decideConfirmStock(e, { commandId: 'act-1', available: 10 }, later);
+    const d = decideConfirmStock(e, { commandId: 'act-1', available: 10, enAttente: 0 }, later);
     expect(d.status).toBe('confirmed');
     if (d.status !== 'confirmed') return;
     expect(d.entry.available).toBe(10);
     expect(d.entry.stockConfirmedAt).toBe(later);
-    expect(d.row).toEqual({ seq: 2, at: later, kind: 'confirme', from: 10, to: 10, commandId: 'act-1' });
+    expect(d.row).toEqual({ seq: 2, at: later, kind: 'confirme', from: 10, to: 10, commandId: 'act-1', compte: 10, enAttente: 0 });
     expect(d.entry.journalSeq).toBe(2);
   });
 
   it('a DIFFERENT count → `ajuste`, the counter is SET to what he typed (not a delta), clock restarted', () => {
     const e = created(10, T0);
     const later = plus(T0, 3 * DAY);
-    const d = decideConfirmStock(e, { commandId: 'act-2', available: 4 }, later);
+    const d = decideConfirmStock(e, { commandId: 'act-2', available: 4, enAttente: 0 }, later);
     expect(d.status).toBe('adjusted');
     if (d.status !== 'adjusted') return;
     expect(d.entry.available).toBe(4);
     expect(d.entry.stockConfirmedAt).toBe(later);
-    expect(d.row).toEqual({ seq: 2, at: later, kind: 'ajuste', from: 10, to: 4, commandId: 'act-2' });
+    expect(d.row).toEqual({ seq: 2, at: later, kind: 'ajuste', from: 10, to: 4, commandId: 'act-2', compte: 4, enAttente: 0 });
   });
 
   it('zero is a legal count (he sold out at the stall); negatives, fractions and NaN are refused', () => {
     const e = created(10);
-    expect(decideConfirmStock(e, { commandId: 'z', available: 0 }, T0).status).toBe('adjusted');
+    expect(decideConfirmStock(e, { commandId: 'z', available: 0, enAttente: 0 }, T0).status).toBe('adjusted');
     for (const bad of [-1, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const d = decideConfirmStock(e, { commandId: 'bad', available: bad }, T0);
+      const d = decideConfirmStock(e, { commandId: 'bad', available: bad, enAttente: 0 }, T0);
       expect(d).toEqual({ status: 'refused', reason: 'invalid_qty' });
     }
     expect(e.available, 'a refused act mutated the entry').toBe(10);
@@ -152,7 +152,7 @@ describe('decideConfirmStock — the challenge capture', () => {
 
   it('never mutates its input', () => {
     const e = created(10, T0);
-    decideConfirmStock(e, { commandId: 'act-3', available: 2 }, plus(T0, DAY));
+    decideConfirmStock(e, { commandId: 'act-3', available: 2, enAttente: 0 }, plus(T0, DAY));
     expect(e.available).toBe(10);
     expect(e.stockConfirmedAt).toBe(T0);
     expect(e.journalSeq).toBe(1);

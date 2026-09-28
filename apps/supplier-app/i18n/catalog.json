@@ -181,7 +181,19 @@
   },
   {
     "key": "accueil.greeting_sub",
-    "fr": "Boutique ouverte · {n} produits en ligne · vous n'avancez rien, jamais.",
+    "fr": "{n} produits en ligne · vous n'avancez rien, jamais.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.greeting_sub_un",
+    "fr": "1 produit en ligne · vous n'avancez rien, jamais.",
+    "register": "selling",
+    "screenClass": "general"
+  },
+  {
+    "key": "accueil.greeting_sub_zero",
+    "fr": "Aucun produit en ligne pour l’instant · vous n'avancez rien, jamais.",
     "register": "selling",
     "screenClass": "general"
   },
@@ -1687,7 +1699,7 @@
   },
   {
     "key": "produits.stock_combien",
-    "fr": "Combien en avez-vous ?",
+    "fr": "Combien en avez-vous en main, colis emballés compris ?",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -1718,6 +1730,78 @@
   {
     "key": "produits.stock_echec",
     "fr": "La confirmation n’a pas abouti. Vérifiez le réseau et réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_attente_zero",
+    "fr": "Aucun colis vendu n’attend le coursier.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_attente_un",
+    "fr": "1 colis vendu attend encore le coursier. Comptez-le avec le reste : il sera retiré du stock en vente.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "produits.stock_attente_n",
+    "fr": "{n} colis vendus attendent encore le coursier. Comptez-les avec le reste : ils seront retirés du stock en vente.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "produits.stock_resultat_un",
+    "fr": "Vous avez compté {compte}. 1 colis vendu attend le coursier : {available} en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_resultat_n",
+    "fr": "Vous avez compté {compte}. {n} colis vendus attendent le coursier : {available} en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.en_ligne_jusqu",
+    "fr": "En ligne jusqu’au {date}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.fenetre_finie",
+    "fr": "Son année de vente est finie depuis le {date}. Les revendeuses ne voient plus cette offre.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.fenetre_pas_encore",
+    "fr": "Pas encore en vente : l’offre ouvre le {date}.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.prolonger_action",
+    "fr": "Prolongez-la d’un an pour la remettre en ligne.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "produits.prolonger",
+    "fr": "Prolonger d’un an",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.prolonger_envoi",
+    "fr": "Prolongation en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.prolonger_echec",
+    "fr": "La prolongation n’a pas abouti. Vérifiez le réseau et réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -2714,6 +2798,24 @@
   {
     "key": "fournisseur.produit_pas_encore",
     "fr": "Pas encore en vente — la date d’ouverture n’est pas arrivée.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_jusqu",
+    "fr": "En ligne jusqu’au {date}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_fenetre_finie",
+    "fr": "Plus en vente depuis le {date} : son année de vente est finie. L’équipe Boutik+ peut la prolonger.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.produit_fenetre_pas_encore",
+    "fr": "Pas encore en vente : elle ouvre le {date}.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4910,6 +5012,18 @@
   {
     "key": "gains.part_revendeuse",
     "fr": "Part de la revendeuse",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.frais_fournisseur",
+    "fr": "Frais côté fournisseur",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "gains.frais_revendeuse",
+    "fr": "Frais côté revendeuse",
     "register": "money",
     "screenClass": "label"
   },

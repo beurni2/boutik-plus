@@ -187,11 +187,16 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
       <Text style={[LIGNE_NOM, { marginTop: 10 }]}>{t('gains.total')}</Text>
       <Text style={[GROS_MONTANT, TNUM]}>{formatF(s.buyerTotal)}</Text>
 
-      {/* FRAIS-ZERO (founder 2026-08-25): no frais rows — the rate is 0, and
-          a « 0 F » fee line would name a charge that does not exist. */}
+      {/* FRAIS-ZERO (founder 2026-08-25): a « 0 F » fee line would name a
+          charge that does not exist — so none shows at today's rate. STOCK-VRAI-1
+          (AUDIT-B+2 F-54): an order quoted BEFORE that day still carries its
+          fees, and without their lines its parts fell short of « La cliente a
+          payé ». A fee line shows exactly when its frozen amount is not zero. */}
       <View style={{ marginTop: 10, gap: 6 }}>
         <LigneGain nom={t('gains.part_fournisseur')} montant={s.sellerNet} />
         <LigneGain nom={t('gains.part_revendeuse')} montant={s.resellerNet} />
+        {s.sellerPlatformFee !== 0 && <LigneGain nom={t('gains.frais_fournisseur')} montant={s.sellerPlatformFee} />}
+        {s.resellerPlatformFee !== 0 && <LigneGain nom={t('gains.frais_revendeuse')} montant={s.resellerPlatformFee} />}
         <LigneGain nom={t('gains.livraison')} montant={s.deliveryFee} />
       </View>
 

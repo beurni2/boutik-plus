@@ -17,7 +17,7 @@ import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
 import { FicheVideo } from './fiche-video';
-import { galleryPhotos, hiddenSentence, lireQuantite, photoSlot, stockEtat, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
+import { fenetreVente, galleryPhotos, lireQuantite, phraseCachee, photoSlot, stockEtat, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
   EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, Input, MoneyBreakdown, Overline, PageTitle,
@@ -205,7 +205,7 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
             stock={r.available}
             variants={r.variantsNote}
             photo={photoSlot(r.assetRefs, mediaBase)}
-            hiddenNote={r.hiddenReason === undefined ? undefined : tr(hiddenSentence(r.hiddenReason as HiddenReason))}
+            hiddenNote={r.hiddenReason === undefined ? undefined : phraseEnClair(phraseCachee({ ...r, hiddenReason: r.hiddenReason as HiddenReason }, Date.now()))}
             large
             {...(onOpen === undefined ? {} : { onPress: () => onOpen(r) })}
           />
@@ -245,7 +245,18 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
  * small » → 560 → « a little more bigger again » → 680. One word changes it. */
 const PHOTO_COLUMN_MAX = 680;
 
-export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansClePhotos, onConfirmStock }: {
+/** A catalog sentence with its date filled in (STOCK-VRAI-1 — the sale window). */
+const phraseEnClair = (p: { readonly key: string; readonly date: string }): string => tr(p.key).replace('{date}', p.date);
+
+/** STOCK-VRAI-1 (F-03) — what the count act answered: the counter it set, and the
+ *  two numbers behind it (`null` when the service did not say). */
+export interface StockConfirme {
+  readonly available: number;
+  readonly compte: number | null;
+  readonly enAttente: number | null;
+}
+
+export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansClePhotos, onConfirmStock, onAttente, onProlonger }: {
   row: SupplierOfferRow;
   mediaBase: string | null;
   onBack: () => void;
@@ -262,7 +273,15 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
    * fiche's row refreshes); false surfaces the designed failure here, with the
    * act still reachable. Absent (no ops key on this device) ⇒ the state line
    * only — the act is the founder's, never a supplier's (LISTER-POUR). */
-  onConfirmStock?: ((available: number) => Promise<boolean>) | undefined;
+  onConfirmStock?: ((available: number) => Promise<StockConfirme | false>) | undefined;
+  /** STOCK-VRAI-1 (F-03) — the sold parcels still waiting for the rider, read
+   *  when he opens the count so the question can name them; `null` when the
+   *  read failed (the count still subtracts them on the server). */
+  onAttente?: (() => Promise<number | null>) | undefined;
+  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an ». Resolves true when the
+   *  service extended it (the parent re-reads, the date line moves); false
+   *  shows the designed failure with the act still reachable. HIS act alone. */
+  onProlonger?: (() => Promise<boolean>) | undefined;
 }) {
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   // The delete walk: idle → confirm (the warning states what happens, in
@@ -282,6 +301,16 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
   const [stock, setStock] = useState<'idle' | 'saisie' | 'pending' | 'failed'>('idle');
   const [saisie, setSaisie] = useState('');
   const [saisieInvalide, setSaisieInvalide] = useState(false);
+  /** STOCK-VRAI-1 (F-03) — the parcels waiting for the rider, as read when he opened the count. */
+  const [attente, setAttente] = useState<number | null>(null);
+  const [resultat, setResultat] = useState<StockConfirme | null>(null);
+  const ouvrirSaisie = () => {
+    setSaisieInvalide(false);
+    setResultat(null);
+    setAttente(null);
+    setStock('saisie');
+    if (onAttente !== undefined) void onAttente().then(setAttente);
+  };
   const runConfirm = async () => {
     if (onConfirmStock === undefined || stock === 'pending') return;
     const n = lireQuantite(saisie);
@@ -291,10 +320,24 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
     }
     setSaisieInvalide(false);
     setStock('pending');
-    const ok = await onConfirmStock(n);
-    setStock(ok ? 'idle' : 'failed');
-    if (ok) setSaisie('');
+    const res = await onConfirmStock(n);
+    if (res === false) {
+      setStock('failed');
+      return;
+    }
+    setStock('idle');
+    setSaisie('');
+    setResultat(res);
   };
+  // STOCK-VRAI-1 (F-12) — « Prolonger d'un an »: idle → pending → failed (retryable)
+  // or back to idle, where the re-read row carries the new date.
+  const [prolonger, setProlonger] = useState<'idle' | 'pending' | 'failed'>('idle');
+  const runProlonger = async () => {
+    if (onProlonger === undefined || prolonger === 'pending') return;
+    setProlonger('pending');
+    setProlonger((await onProlonger()) ? 'idle' : 'failed');
+  };
+  const fenetre = fenetreVente(row, Date.now());
   const etat = stockEtat(row);
   const photos = galleryPhotos(row.assetRefs, mediaBase);
   // VIDEO-PARTOUT — his clip, on his own product page (founder order
@@ -308,7 +351,7 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
       <HeaderStacked title={row.name} onBack={onBack} />
       {row.hiddenReason !== undefined && (
         <View style={{ marginTop: 12 }}>
-          <Banner tone="warn">{tr(hiddenSentence(row.hiddenReason as HiddenReason))}</Banner>
+          <Banner tone="warn">{phraseEnClair(phraseCachee({ ...row, hiddenReason: row.hiddenReason as HiddenReason }, Date.now()))}</Banner>
         </View>
       )}
       <FicheVideo src={clipUri} poster={photos[0]?.uri} />
@@ -354,6 +397,12 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
         <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.5 }, P.sub), { marginTop: 6 }]}>
           {etat.kind === 'jamais' ? tr(etat.message) : `${tr(etat.message)} ${etat.date}`}
         </Text>
+        {/* STOCK-VRAI-1 (F-12) — the end of its year, said while it is live. */}
+        {fenetre?.kind === 'en_ligne' && (
+          <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.5 }, P.sub), { marginTop: 2 }]}>
+            {tr('produits.en_ligne_jusqu').replace('{date}', fenetre.date)}
+          </Text>
+        )}
       </Card>
       {/* STOCK-JOURNAL-1 — « Confirmer le stock », the challenge capture: he
           types what he has, the service journals it and restarts the clock.
@@ -371,10 +420,29 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
           {stock === 'failed' && (
             <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.stock_echec')}</Banner>
           )}
+          {/* STOCK-VRAI-1 (F-03) — what the count did with the parcels waiting
+              for the rider, said once after it, in his numbers. */}
+          {stock === 'idle' && resultat !== null && resultat.compte !== null && resultat.enAttente !== null && resultat.enAttente > 0 && (
+            <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
+              {tr(resultat.enAttente === 1 ? 'produits.stock_resultat_un' : 'produits.stock_resultat_n')
+                .replace('{compte}', String(resultat.compte))
+                .replace('{n}', String(resultat.enAttente))
+                .replace('{available}', String(resultat.available))}
+            </Text>
+          )}
           {stock === 'idle' || stock === 'failed' ? (
-            <BtnSoft label={tr('produits.stock_confirmer')} onPress={() => { setSaisieInvalide(false); setStock('saisie'); }} />
+            <BtnSoft label={tr('produits.stock_confirmer')} onPress={ouvrirSaisie} />
           ) : (
             <>
+              {/* STOCK-VRAI-1 (F-03) — the parcels already sold are on his
+                  shelf; the question says to count them, and takes them off. */}
+              {attente !== null && (
+                <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
+                  {attente === 0
+                    ? tr('produits.stock_attente_zero')
+                    : tr(attente === 1 ? 'produits.stock_attente_un' : 'produits.stock_attente_n').replace('{n}', String(attente))}
+                </Text>
+              )}
               {/* No placeholder: a challenge that displays its own answer is a
                   soft challenge (verifier note). The facts card above says the
                   current count; the field asks what he actually has. */}
@@ -398,6 +466,24 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
               )}
             </>
           )}
+        </View>
+      )}
+      {/* STOCK-VRAI-1 (F-12) — « Prolonger d'un an », his key alone. Where the
+          year is over, the way back is said beside the act that takes it. */}
+      {onProlonger !== undefined && (
+        <View style={{ marginTop: 14 }}>
+          {fenetre?.kind === 'finie' && prolonger !== 'pending' && (
+            <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
+              {tr('produits.prolonger_action')}
+            </Text>
+          )}
+          {prolonger === 'failed' && (
+            <Banner tone="warn" style={{ marginBottom: 10 }}>{tr('produits.prolonger_echec')}</Banner>
+          )}
+          <BtnSoft
+            label={tr(prolonger === 'pending' ? 'produits.prolonger_envoi' : 'produits.prolonger')}
+            onPress={() => { void runProlonger(); }}
+          />
         </View>
       )}
       {/* OFFER-DELETE-1 — the refusal path as dignified as the purchase path:

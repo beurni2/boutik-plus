@@ -93,6 +93,8 @@ interface Row {
   to: number;
   orderId?: string;
   commandId?: string;
+  compte?: number;
+  enAttente?: number;
 }
 
 async function journal(auth: string | null = `Bearer ${OPS_SECRET}`) {
@@ -219,26 +221,29 @@ describe('STOCK-JOURNAL — every movement is a row, on the real worker', () => 
     expect(j.json.available).toBe(2);
   });
 
-  it('the founder types the SAME count → `confirme` (2 → 2), counter untouched, clock restarted', async () => {
+  it('he counts 3 in hand — the paid parcel still waiting for the rider included — so the counter stays 2: `confirme` (2 → 2), clock restarted', async () => {
     const stampBefore = (await journal()).json.stockConfirmedAt!;
     await wait(20);
-    const r = await confirmer('act-sj-1', 2);
+    // STOCK-VRAI-1 (F-03) — ord-sj-1 is paid and not collected: it is on his
+    // shelf and already off the counter, so it is taken off his count.
+    const r = await confirmer('act-sj-1', 3);
     expect(r.status).toBe(200);
     expect(r.json['status']).toBe('confirmed');
+    expect(r.json).toMatchObject({ available: 2, compte: 3, enAttente: 1 });
     const j = await journal();
     expect(j.json.available).toBe(2);
-    expect(j.json.rows![2]).toMatchObject({ seq: 3, kind: 'confirme', from: 2, to: 2, commandId: 'act-sj-1' });
+    expect(j.json.rows![2]).toMatchObject({ seq: 3, kind: 'confirme', from: 2, to: 2, commandId: 'act-sj-1', compte: 3, enAttente: 1 });
     expect(Date.parse(j.json.stockConfirmedAt!)).toBeGreaterThan(Date.parse(stampBefore));
     expect((await ligneConsole()).stockConfirmedAt).toBe(j.json.stockConfirmedAt);
   });
 
-  it('he types a DIFFERENT count → `ajuste` (2 → 5), and the counter moves on BOTH roads Shop+ reads', async () => {
-    const r = await confirmer('act-sj-2', 5);
+  it('he counts 6 in hand → `ajuste` (2 → 5, the waiting parcel taken off), and the counter moves on BOTH roads Shop+ reads', async () => {
+    const r = await confirmer('act-sj-2', 6);
     expect(r.status).toBe(200);
     expect(r.json['status']).toBe('adjusted');
     expect(r.json['available']).toBe(5);
     const j = await journal();
-    expect(j.json.rows![3]).toMatchObject({ seq: 4, kind: 'ajuste', from: 2, to: 5, commandId: 'act-sj-2' });
+    expect(j.json.rows![3]).toMatchObject({ seq: 4, kind: 'ajuste', from: 2, to: 5, commandId: 'act-sj-2', compte: 6, enAttente: 1 });
     expect((await ligneConsole()).available).toBe(5);
     const p = await projection();
     expect(p.status).toBe(200);
@@ -246,7 +251,7 @@ describe('STOCK-JOURNAL — every movement is a row, on the real worker', () => 
   });
 
   it('the SAME act replayed (a retried tap) is idempotent — no fifth row, counter holds', async () => {
-    const r = await confirmer('act-sj-2', 5);
+    const r = await confirmer('act-sj-2', 6);
     expect(r.status).toBe(200);
     expect(r.json['status']).toBe('idempotent');
     expect((await journal()).json.rows).toHaveLength(4);
@@ -338,8 +343,11 @@ describe('THE FREEZE — unconfirmed past the window, Shop+ stops selling; one c
   });
 
   it('one confirmation from his console and the offer is back on EVERY road', async () => {
-    const r = await confirmer('act-sj-3', 5);
+    // 5 on the shelf plus ord-sj-1's parcel still waiting = 6 in hand; ord-sj-2
+    // came home (`rendu`), so it is NOT taken off a second time.
+    const r = await confirmer('act-sj-3', 6);
     expect(r.json['status']).toBe('confirmed');
+    expect(r.json).toMatchObject({ available: 5, compte: 6, enAttente: 1 });
     const p = await projection();
     expect(p.status).toBe(200);
     expect(p.json.value?.available).toBe(5);

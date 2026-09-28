@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { plusAnciennes, stockBas } from '../src/accueil/view';
+import { plusAnciennes, produitsEnLigne, stockBas, ventesPayees } from '../src/accueil/view';
 import type { PaidOrderRow } from '../src/operations/service';
 import type { SupplierOfferRow } from '../src/supply/service';
 
@@ -61,6 +61,32 @@ describe('RB-4 — the head of the waiting queue, oldest first, capped', () => {
   });
 });
 
+describe('STOCK-VRAI-1 (F-53) — the greeting counts only what resellers see, in a sentence for its number', () => {
+  it('frozen, lapsed and cut offers are not « en ligne »; 0, 1 and n each get their own sentence', () => {
+    const cachee = (id: string, hiddenReason: NonNullable<SupplierOfferRow['hiddenReason']>): SupplierOfferRow => ({ ...offre(id, 3), hiddenReason });
+    expect(produitsEnLigne([])).toEqual({ key: 'accueil.greeting_sub_zero', n: 0 });
+    expect(produitsEnLigne([cachee('g', 'stock_unconfirmed'), cachee('l', 'offer_not_effective')])).toEqual({ key: 'accueil.greeting_sub_zero', n: 0 });
+    expect(produitsEnLigne([offre('a', 3), cachee('g', 'stock_unconfirmed')])).toEqual({ key: 'accueil.greeting_sub_un', n: 1 });
+    expect(produitsEnLigne([offre('a', 3), offre('b', 0), cachee('c', 'offer_not_active')])).toEqual({ key: 'accueil.greeting_sub', n: 2 });
+  });
+});
+
+describe('STOCK-VRAI-1 (F-53) — « Ventes payées » counts the sales whose money stands', () => {
+  it('a refusal or a founder cancel, a refusal at pickup, and a Shop+ refund are not paid sales', () => {
+    const t = '2026-09-28T08:00:00.000Z';
+    const rows: PaidOrderRow[] = [
+      vente('ord-ok', t),
+      vente('ord-livree', t),
+      { ...vente('ord-refusee', t), fulfillment: { refusedAt: t } },
+      { ...vente('ord-annulee', t), fulfillment: { refusedAt: t, refusPar: 'fondateur' } },
+      { ...vente('ord-ramassage', t), fulfillment: { handedOverAt: t, pickupRefusedAt: t } },
+      vente('ord-remboursee', t),
+    ];
+    expect(ventesPayees(rows, new Set(['ord-remboursee']))).toBe(2);
+    expect(ventesPayees(rows, new Set())).toBe(3);
+  });
+});
+
 describe('RB-4 — [source-text checks] the demo store has no route into the shell', () => {
   const app = readFileSync(join(import.meta.dirname, '..', 'src/v2/AppV2.tsx'), 'utf8');
   const screen = readFileSync(join(import.meta.dirname, '..', 'src/accueil/screen.tsx'), 'utf8');
@@ -100,10 +126,12 @@ describe('RB-4 — [source-text checks] the demo store has no route into the she
   it('the accueil reads REAL ports and never the machine store; counts come from segmenter', () => {
     expect(screen).toContain('resolveSupplyService()');
     expect(screen).toContain('resolveOperationsService()');
-    expect(screen).toContain('segmenter(r.orders, new Set(), new Set(), new Set())');
+    // STOCK-VRAI-1 (F-53) — the road facts the Commandes tab reads ride in too
+    expect(screen).toContain('segmenter(r.orders, new Set(), faits.enRoute, faits.livrees, faits.remboursees)');
+    expect(screen).toContain('total: ventesPayees(r.orders, faits.remboursees)');
     expect(screen).not.toMatch(/from '\.\.\/v2\/seed|st\.products|st\.orders/);
-    // the product count is the real list's length, through the catalog's {n}
-    expect(screen).toContain("t('accueil.greeting_sub').replace('{n}', String(offres.rows.length))");
+    // the product count is the offers resellers see now, in a sentence for its number
+    expect(screen).toContain("((p) => t(p.key).replace('{n}', String(p.n)))(produitsEnLigne(offres.rows))");
     // no money figure is composed here — the only FCFA surfaces are Gains/Commandes
     expect(screen).not.toContain('formatF');
   });
@@ -111,5 +139,8 @@ describe('RB-4 — [source-text checks] the demo store has no route into the she
   it('a refused ops key here shows the honest line and NEVER clears the console’s slot', () => {
     expect(screen).toContain("r.reason === 'bad_key' ? { kind: 'sans_cle' }");
     expect(screen).not.toContain('clearStoredOpsKey');
+    // STOCK-VRAI-1 — the keys it now READS for the road facts are never cleared here either
+    expect(screen).not.toContain('clearStoredCleC');
+    expect(screen).not.toContain('clearStoredCleCoursiers');
   });
 });

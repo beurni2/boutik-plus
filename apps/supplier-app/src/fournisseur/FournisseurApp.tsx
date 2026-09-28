@@ -320,8 +320,14 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
             {t('fournisseur.produit_stock').replace('{n}', String(produit.available))}
           </Text>
           <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, enLigne ? P.greenDeep : P.sub), { marginTop: 5 }]}>
-            {t(produit.etatKey)}
+            {t(produit.etatKey).replace('{date}', produit.etatDate)}
           </Text>
+          {/* STOCK-VRAI-1 (F-12) — the end of its year, said while it sells. */}
+          {produit.jusqu !== null && (
+            <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>
+              {t('fournisseur.produit_jusqu').replace('{date}', produit.jusqu)}
+            </Text>
+          )}
         </View>
       </View>
       {/* …and EVERY OTHER capture, so « other photos » is not a promise the

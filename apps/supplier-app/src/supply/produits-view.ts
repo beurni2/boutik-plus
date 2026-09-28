@@ -88,11 +88,10 @@ export type { HiddenReason };
  * writes an `effective` in the future. A seller on a 3-days-fast phone would
  * have been told his minutes-old product had "passed its date".
  *
- * The wire gives one reason, so the app says the one thing that is TRUE of both
- * halves: resellers are not seeing it. **The precise sentence needs the offer's
- * `effective`/`expiry`, which the row does not carry — and carrying them is
- * exactly the visible-expiry half of the open 365-day gap. Flagged, not
- * invented.**
+ * The wire gives one reason, so this sentence says the one thing that is TRUE of
+ * both halves: resellers are not seeing it. STOCK-VRAI-1 — the row now carries
+ * `effective`/`expiry`, and `fenetreVente` below says which half; this sentence
+ * stays for the case the device clock cannot tell.
  */
 export function hiddenSentence(reason: HiddenReason): string {
   switch (reason) {
@@ -137,6 +136,50 @@ export function dateCourte(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   const p = (n: number): string => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-12) — THE SALE WINDOW, IN WORDS, chosen purely.
+ * The founder ratified the one-year window on condition that the end becomes
+ * visible and renewable; the row now carries both ends of it.
+ *
+ *   · live (no hidden reason) → « En ligne jusqu'au {fin} »;
+ *   · hidden BECAUSE of the window → which side of it: the year is over, or
+ *     the opening has not come yet — told apart on this device's clock, and
+ *     `null` when that clock cannot tell (the generic sentence then stands);
+ *   · hidden for any other reason, or no date on the row → `null`.
+ */
+export type FenetreVente =
+  | { readonly kind: 'en_ligne'; readonly date: string }
+  | { readonly kind: 'finie'; readonly date: string }
+  | { readonly kind: 'pas_encore'; readonly date: string };
+
+export function fenetreVente(
+  row: { readonly hiddenReason?: string; readonly effective?: string; readonly expiry?: string },
+  nowMs: number,
+): FenetreVente | null {
+  if (row.expiry === undefined || Number.isNaN(Date.parse(row.expiry))) return null;
+  if (row.hiddenReason === undefined) return { kind: 'en_ligne', date: dateCourte(row.expiry) };
+  if (row.hiddenReason !== 'offer_not_effective') return null;
+  if (Date.parse(row.expiry) <= nowMs) return { kind: 'finie', date: dateCourte(row.expiry) };
+  if (row.effective !== undefined && Date.parse(row.effective) > nowMs) return { kind: 'pas_encore', date: dateCourte(row.effective) };
+  return null;
+}
+
+/**
+ * A hidden offer's one sentence, as a catalog key and the date it carries:
+ * the window's side when the row and the clock can tell it, the reason's own
+ * sentence otherwise. The list tile and the fiche both read it, so they cannot
+ * disagree about the same product.
+ */
+export function phraseCachee(
+  row: { readonly hiddenReason: HiddenReason; readonly effective?: string; readonly expiry?: string },
+  nowMs: number,
+): { readonly key: string; readonly date: string } {
+  const f = fenetreVente(row, nowMs);
+  if (f?.kind === 'finie') return { key: 'produits.fenetre_finie', date: f.date };
+  if (f?.kind === 'pas_encore') return { key: 'produits.fenetre_pas_encore', date: f.date };
+  return { key: hiddenSentence(row.hiddenReason), date: '' };
 }
 
 /**

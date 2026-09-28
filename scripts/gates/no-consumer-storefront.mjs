@@ -64,6 +64,7 @@ runScanGate({
     { file: 'apps/supplier-app/test/rendu-operations-rembourser.test.tsx', pattern: 'checkout-route', ruling: 'asserts the console reads NO dispatch page (REMBOURSABLE-1, F-69)' },
     { file: 'services/offer-service/test/annuler-rembourser.e2e.test.ts', pattern: 'storefront', ruling: 'the STOREFRONT service binding the refusal fact rides (REMBOURSABLE-1)' },
     { file: 'apps/supplier-app/test/rendu-commandes-colis.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s walk over the dispatch/gains wires, a colis whose supplier refused one article (COLIS-FOURNISSEUR-1, verifier M1)' },
+    { file: 'apps/supplier-app/test/rendu-console.test.tsx', pattern: 'checkout-route', ruling: 'the home’s read-only walk over the dispatch/gains wires, its counts matching the Commandes tab (STOCK-VRAI-1, F-53)' },
     /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /

@@ -259,6 +259,48 @@ describe('F-07 · F-80 — « Mes produits » shows every product, frozen ones m
   });
 });
 
+/* ─────────────────────────── the end of its year (STOCK-VRAI-1, F-12) ─────────────────────────── */
+
+describe('STOCK-VRAI-1 (F-12) — « Mes produits » says until when each product sells, and which side of its year a hidden one is on', () => {
+  it('live: « En ligne jusqu’au » its end · year over: since when, and who can renew it · not open yet: when it opens', async () => {
+    const jour = 24 * 60 * 60 * 1000;
+    const finVivante = new Date(Date.now() + 200 * jour).toISOString();
+    const finPassee = '2026-08-01T00:00:00.000Z';
+    const ouvre = new Date(Date.now() + 10 * jour).toISOString();
+    const court = (iso: string): string => {
+      const d = new Date(iso);
+      const p = (n: number): string => String(n).padStart(2, '0');
+      return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+    };
+    storage({ 'boutik.fournisseur.code': CODE });
+    wire(lectures(monde({
+      produits: [
+        produit('o1', { name: 'Pagne wax', effective: '2026-07-01T00:00:00.000Z', expiry: finVivante }),
+        produit('o2', { name: 'Sac en cuir', hiddenReason: 'offer_not_effective', effective: '2025-08-01T00:00:00.000Z', expiry: finPassee }),
+        produit('o3', { name: 'Couffin', hiddenReason: 'offer_not_effective', effective: ouvre, expiry: new Date(Date.parse(ouvre) + 365 * jour).toISOString() }),
+      ],
+    })));
+    const screen = await mountEcran(<FournisseurApp />);
+    expect(screen.shows('Pagne wax'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows(`En ligne jusqu’au ${court(finVivante)}`)).toBe(true);
+    expect(screen.shows(`Plus en vente depuis le ${court(finPassee)} : son année de vente est finie. L’équipe Boutik+ peut la prolonger.`)).toBe(true);
+    expect(screen.shows(`Pas encore en vente : elle ouvre le ${court(ouvre)}.`)).toBe(true);
+    // the old sentence that named no date is gone for both hidden products
+    expect(screen.shows('la date d’ouverture n’est pas arrivée')).toBe(false);
+    expect(screen.shows('1 en ligne chez les revendeuses')).toBe(true);
+    screen.unmount();
+  });
+
+  it('a row from an older server, with no dates: no date is invented, the reason’s own sentence stays', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    wire(lectures(monde({ produits: [produit('o2', { name: 'Sac en cuir', hiddenReason: 'offer_not_effective' }), produit('o1')] })));
+    const screen = await mountEcran(<FournisseurApp />);
+    expect(screen.shows('Pas encore en vente — la date d’ouverture n’est pas arrivée.')).toBe(true);
+    expect(screen.shows('En ligne jusqu’au')).toBe(false);
+    screen.unmount();
+  });
+});
+
 /* ─────────────────────────── the money line (F-09, F-23, F-24) ─────────────────────────── */
 
 describe('F-09 — his price on its own line; the payment way alone, and only while the order is moving', () => {

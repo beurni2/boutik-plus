@@ -1,4 +1,5 @@
 import type { CommandeRow, ProduitRow, ReadyResult } from './service';
+import { fenetreVente } from '../supply/produits-view';
 
 /**
  * READINESS-WIRE-1b-ii — every decision the fournisseur screen renders, PURE
@@ -389,6 +390,10 @@ export interface ProduitVue extends ProduitRow {
   /** The one status sentence under the name: live, or WHY not — the wire's
    *  own reason mapped to his words, never re-derived locally. */
   readonly etatKey: string;
+  /** STOCK-VRAI-1 (F-12) — the date `etatKey` or `jusquKey` carries, '' when none. */
+  readonly etatDate: string;
+  /** STOCK-VRAI-1 (F-12) — « En ligne jusqu'au … » under a live product; null otherwise. */
+  readonly jusqu: string | null;
 }
 
 export type ProduitsVue =
@@ -418,7 +423,19 @@ export function produitEtatKey(reason: ProduitRow['hiddenReason']): string {
   }
 }
 
-export function produitsVue(read: ProduitsRead): ProduitsVue {
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-12) — the state sentence, with the side of its year
+ * when the window is why it is hidden and the row carries the dates. The same
+ * pure rule as his founder's fiche (`fenetreVente`).
+ */
+export function produitEtat(row: ProduitRow, nowMs: number): { readonly etatKey: string; readonly etatDate: string; readonly jusqu: string | null } {
+  const f = fenetreVente(row, nowMs);
+  if (f?.kind === 'finie') return { etatKey: 'fournisseur.produit_fenetre_finie', etatDate: f.date, jusqu: null };
+  if (f?.kind === 'pas_encore') return { etatKey: 'fournisseur.produit_fenetre_pas_encore', etatDate: f.date, jusqu: null };
+  return { etatKey: produitEtatKey(row.hiddenReason), etatDate: '', jusqu: f?.kind === 'en_ligne' ? f.date : null };
+}
+
+export function produitsVue(read: ProduitsRead, nowMs: number = Date.now()): ProduitsVue {
   if (read.kind === 'loading') return { kind: 'loading', message: 'fournisseur.chargement' };
   if (read.kind === 'not_configured') return { kind: 'not_configured', message: 'fournisseur.non_configure' };
   if (read.kind === 'bad_code') return { kind: 'bad_code', message: 'fournisseur.code_refuse' };
@@ -428,7 +445,7 @@ export function produitsVue(read: ProduitsRead): ProduitsVue {
   // shown, each with its reason: « SHOW THEM, MARKED » is the standing ruling
   // this list inherits from the founder's own produits screen.
   const produits = read.rows
-    .map((r) => ({ ...r, etatKey: produitEtatKey(r.hiddenReason) }))
+    .map((r) => ({ ...r, ...produitEtat(r, nowMs) }))
     .sort((a, b) => {
       const av = a.hiddenReason === undefined ? 0 : 1;
       const bv = b.hiddenReason === undefined ? 0 : 1;

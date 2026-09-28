@@ -1,4 +1,4 @@
-import { decideAttachAssets, decideConfirmStock, decideConsumeAvailable, decideCreateOffer, decideRestockAvailable, journalRow, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry, type StockJournalRow } from '../src/offer-core.js';
+import { decideAttachAssets, decideConfirmStock, decideConsumeAvailable, decideCreateOffer, decideProlonger, decideRestockAvailable, journalRow, OfferAvailableError, type AttachAssetsCommand, type AttachAssetsDecision, type CreateOfferCommand, type CreateOfferDecision, type OfferEntry, type StockJournalRow } from '../src/offer-core.js';
 import { buildFullInventory, buildSupplierList } from '../src/supplier-list.js';
 import { restaurerApresAcces, retirerPourAcces } from '../src/retrait-acces.js';
 import { stockDueMs } from '../src/stock-freeze.js';
@@ -43,6 +43,17 @@ const DELETE_BATCH_MAX = 128;
  * same batch as the counter it moves. See `src/stock-hold.ts`.
  */
 const HOLDS_KEY = 'stock-holds';
+/** Durable Object storage accepts at most 128 keys per multi-key `get`. */
+const GET_BATCH_MAX = 128;
+/** STOCK-VRAI-1 — a bound on the order ids one count may name, so the body stays bounded. */
+const ATTENTE_MAX = 5_000;
+
+/** The waiting order ids the composition root joined from the book, or null when malformed. */
+function idsEnAttente(v: unknown): string[] | null {
+  if (!Array.isArray(v) || v.length > ATTENTE_MAX) return null;
+  if (!v.every((id): id is string => typeof id === 'string' && id !== '')) return null;
+  return [...new Set(v)];
+}
 
 /** What the Durable Object reads off the Worker env: the hold-expiry knob only. */
 interface OfferDoEnv {
@@ -78,6 +89,21 @@ export class OfferDO {
     private readonly state: DurableObjectState,
     private readonly env: OfferDoEnv = {},
   ) {}
+
+  /**
+   * STOCK-VRAI-1 (F-03) — of the orders the book says are still with the
+   * supplier, the ones that took a unit off THIS counter (`vendu-`) and did not
+   * give it back (`rendu-`). An order that never consumed here left no unit to
+   * subtract.
+   */
+  private async compterEnAttente(ids: readonly string[]): Promise<number> {
+    const cles = ids.flatMap((id) => [`vendu-${id}`, `rendu-${id}`]);
+    const lus = new Set<string>();
+    for (let i = 0; i < cles.length; i += GET_BATCH_MAX) {
+      for (const k of (await this.state.storage.get(cles.slice(i, i + GET_BATCH_MAX))).keys()) lus.add(k);
+    }
+    return ids.filter((id) => lus.has(`vendu-${id}`) && !lus.has(`rendu-${id}`)).length;
+  }
 
   async fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -317,11 +343,13 @@ export class OfferDO {
      * come with it, not a speculative one here.
      */
     if (request.method === 'POST' && pathname === '/entry/stock') {
-      const body = (await request.json().catch(() => null)) as { commandId?: unknown; available?: unknown } | null;
+      const body = (await request.json().catch(() => null)) as { commandId?: unknown; available?: unknown; enAttente?: unknown } | null;
       const commandId = body?.commandId;
       if (typeof commandId !== 'string' || commandId.trim() === '') {
         return Response.json({ error: 'malformed', param: 'commandId' }, { status: 400 });
       }
+      const ids = idsEnAttente(body?.enAttente);
+      if (ids === null) return Response.json({ error: 'malformed', param: 'enAttente' }, { status: 400 });
       const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
       if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
       const marker = `ajust-${commandId}`;
@@ -329,10 +357,53 @@ export class OfferDO {
         return Response.json({ status: 'idempotent', available: entry.available, stockConfirmedAt: entry.stockConfirmedAt ?? null });
       }
       const available = typeof body?.available === 'number' ? body.available : Number.NaN;
-      const d = decideConfirmStock(entry, { commandId, available }, new Date().toISOString());
+      const enAttente = await this.compterEnAttente(ids);
+      const d = decideConfirmStock(entry, { commandId, available, enAttente }, new Date().toISOString());
       if (d.status === 'refused') return Response.json({ error: d.reason, param: 'available' }, { status: 400 });
       await this.state.storage.put({ [ENTRY_KEY]: d.entry, [marker]: true, [journalKey(d.row.seq)]: d.row });
-      return Response.json({ status: d.status, available: d.entry.available, stockConfirmedAt: d.entry.stockConfirmedAt });
+      return Response.json({
+        status: d.status,
+        available: d.entry.available,
+        stockConfirmedAt: d.entry.stockConfirmedAt,
+        compte: available,
+        enAttente,
+      });
+    }
+
+    /**
+     * STOCK-VRAI-1 (F-03) — how many of the named orders are parcels sold HERE
+     * and not come home: the number his count sheet shows before he types.
+     * Read-only; the confirm act counts again with the same rule.
+     */
+    if (request.method === 'POST' && pathname === '/entry/attente') {
+      const body = (await request.json().catch(() => null)) as { enAttente?: unknown } | null;
+      const ids = idsEnAttente(body?.enAttente);
+      if (ids === null) return Response.json({ error: 'malformed', param: 'enAttente' }, { status: 400 });
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      return Response.json({ enAttente: await this.compterEnAttente(ids) });
+    }
+
+    /**
+     * STOCK-VRAI-1 (F-12) — « Prolonger d'un an ». The decision is pure
+     * (`decideProlonger`); idempotent per `commandId` under a `prolonge-`
+     * marker written in the same batch, so a retried tap extends once.
+     */
+    if (request.method === 'POST' && pathname === '/entry/prolonger') {
+      const body = (await request.json().catch(() => null)) as { commandId?: unknown } | null;
+      const commandId = body?.commandId;
+      if (typeof commandId !== 'string' || commandId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'commandId' }, { status: 400 });
+      }
+      const entry = await this.state.storage.get<OfferEntry>(ENTRY_KEY);
+      if (!entry) return Response.json({ error: 'not_found' }, { status: 404 });
+      const marker = `prolonge-${commandId}`;
+      if ((await this.state.storage.get(marker)) !== undefined) {
+        return Response.json({ status: 'idempotent', expiry: entry.offer.expiry, version: entry.offer.version });
+      }
+      const next = decideProlonger(entry, new Date().toISOString());
+      await this.state.storage.put({ [ENTRY_KEY]: next, [marker]: true });
+      return Response.json({ status: 'prolonge', expiry: next.offer.expiry, version: next.offer.version });
     }
 
     // STOCK-JOURNAL-1 — the journal READ: every row this offer ever wrote, in
@@ -1007,6 +1078,39 @@ export default {
         new Request('https://do/entry/stock', { method: 'POST', body: raw, headers: { 'Content-Type': 'application/json' } }),
       );
       return forward(res); // status preserved — 404 unknown, 400 invalid_qty
+    }
+    /**
+     * STOCK-VRAI-1 — three INTERNAL doors for the composition root, which holds
+     * the order book this router does not: the entry (whose product and
+     * supplier the book is asked about), the waiting-parcel count his count
+     * sheet shows, and « Prolonger d'un an ». Gated there on his ops credential,
+     * like `/offers/stock`; never dispatched from outside it.
+     */
+    if (request.method === 'GET' && pathname === '/offers/entree') {
+      const offerId = new URL(request.url).searchParams.get('offerId');
+      if (offerId === null || offerId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
+      }
+      return forward(await offerStub(env, offerId).fetch(new Request('https://do/entry')));
+    }
+    if (request.method === 'POST' && (pathname === '/offers/stock/attente' || pathname === '/offers/prolonger')) {
+      const raw = await request.text();
+      const offerId = ((): unknown => {
+        try {
+          return (JSON.parse(raw) as { offerId?: unknown }).offerId;
+        } catch {
+          return undefined;
+        }
+      })();
+      if (typeof offerId !== 'string' || offerId.trim() === '') {
+        return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
+      }
+      const route = pathname === '/offers/prolonger' ? '/entry/prolonger' : '/entry/attente';
+      return forward(
+        await offerStub(env, offerId).fetch(
+          new Request(`https://do${route}`, { method: 'POST', body: raw, headers: { 'Content-Type': 'application/json' } }),
+        ),
+      );
     }
     if (request.method === 'GET' && pathname === '/offers/journal') {
       const offerId = new URL(request.url).searchParams.get('offerId');

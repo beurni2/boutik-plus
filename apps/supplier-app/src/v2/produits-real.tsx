@@ -4,7 +4,7 @@ import { P } from '../ui/v2/palette';
 import { SCROLL, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnSoft, C07BtnPrimary, PageTitle } from './components';
-import { S03Produits, SOffreFiche } from './screens1';
+import { S03Produits, SOffreFiche, type StockConfirme } from './screens1';
 import { ChipCategory } from './components';
 import { offerBaseConfigured, resolveSupplyService, type SupplierOfferRow, type SupplyServicePort } from '../supply/service';
 import { mintCommandId } from '../offline/commandId';
@@ -356,11 +356,35 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
    * older count. On success the cache is dropped and a fresh read paints the
    * new date and count into this very fiche (the sync effect below).
    */
-  const confirmOpen = async (available: number): Promise<boolean> => {
+  const confirmOpen = async (available: number): Promise<StockConfirme | false> => {
     const opsKey = readStoredOpsKey();
     const ops = resolveOperationsService();
     if (opsKey === null || ops === null || openOffer === null) return false;
     const res = await ops.confirmStock(opsKey, { commandId: mintCommandId(), offerId: openOffer.offerId, available });
+    if (!res.ok) return false;
+    cache.current = { rows: null, asOf: null };
+    void load();
+    return { available: res.available, compte: res.compte, enAttente: res.enAttente };
+  };
+
+  /** STOCK-VRAI-1 (F-03) — the count sheet's « N colis vendus attendent le
+   *  coursier »; null when the read failed (the server still subtracts them). */
+  const attenteOpen = async (): Promise<number | null> => {
+    const opsKey = readStoredOpsKey();
+    const ops = resolveOperationsService();
+    if (opsKey === null || ops === null || openOffer === null) return null;
+    const res = await ops.stockEnAttente(opsKey, openOffer.offerId);
+    return res.ok ? res.enAttente : null;
+  };
+
+  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an », HIS act: one command id per
+   *  press, then the same fresh read as the count, so the fiche shows the new
+   *  date without closing. */
+  const prolongerOpen = async (): Promise<boolean> => {
+    const opsKey = readStoredOpsKey();
+    const ops = resolveOperationsService();
+    if (opsKey === null || ops === null || openOffer === null) return false;
+    const res = await ops.prolongerOffre(opsKey, { commandId: mintCommandId(), offerId: openOffer.offerId });
     if (!res.ok) return false;
     cache.current = { rows: null, asOf: null };
     void load();
@@ -393,7 +417,7 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
         onBack={() => setOpenOffer(null)}
         {...(service === null || clePhotosManquante ? {} : { onDelete: deleteOpen })}
         {...(service !== null && clePhotosManquante ? { suppressionSansClePhotos: true } : {})}
-        {...(opsIci ? { onConfirmStock: confirmOpen } : {})}
+        {...(opsIci ? { onConfirmStock: confirmOpen, onAttente: attenteOpen, onProlonger: prolongerOpen } : {})}
       />
     );
   }

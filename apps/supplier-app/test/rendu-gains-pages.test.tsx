@@ -127,3 +127,37 @@ describe('the gains screen over pages', () => {
     screen.unmount();
   });
 });
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-54) — an order quoted BEFORE FRAIS-ZERO (2026-08-25)
+ * still carries its fees in its frozen quote. The card used to drop every fee
+ * line, so its parts fell 1 000 F short of « La cliente a payé ». A fee line
+ * now shows exactly when its amount is not zero — and a current order shows none.
+ */
+describe('STOCK-VRAI-1 (F-54) — a card adds up to the franc, fees and all', () => {
+  const AVANT_FRAIS_ZERO = {
+    sellerBasePrice: 10_000, sellerFundedCommission: 1_000, resellerMarkup: 1_500, deliveryFee: 1_000,
+    productSubtotal: 11_500, buyerTotal: 12_500, sellerPlatformFee: 500, sellerNet: 8_500,
+    resellerPlatformFee: 500, resellerNet: 2_000,
+  };
+
+  it('the older order shows both fee lines, and its parts meet « La cliente a payé »; the current one shows none', async () => {
+    const ancienne = { ...gain('ord-avant', '1'), split: AVANT_FRAIS_ZERO };
+    const { route } = pagesDeGains([{ gains: [gain('ord-apres', '3'), ancienne] }]);
+    wire([route]);
+    const screen = await mountEcran(<SGainsReel />);
+    await screen.settle();
+    const textes = screen.texts();
+    // one card each; the fee lines appear once — on the older card alone
+    expect(textes.filter((t) => t === 'Frais côté fournisseur'), `on screen: ${JSON.stringify(textes)}`).toHaveLength(1);
+    expect(textes.filter((t) => t === 'Frais côté revendeuse')).toHaveLength(1);
+    // the older card's lines, read in order after its own id, add up to the franc
+    const debut = textes.indexOf('ord-avant');
+    const carte = textes.slice(debut);
+    const montant = (nom: string): number => Number((carte[carte.indexOf(nom) + 1] ?? '').replace(/\D/g, ''));
+    const parts = ['Part du fournisseur', 'Part de la revendeuse', 'Frais côté fournisseur', 'Frais côté revendeuse', 'Livraison'].map(montant);
+    expect(parts).toEqual([8_500, 2_000, 500, 500, 1_000]);
+    expect(parts.reduce((a, b) => a + b, 0)).toBe(AVANT_FRAIS_ZERO.buyerTotal);
+    screen.unmount();
+  });
+});

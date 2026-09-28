@@ -1,4 +1,4 @@
-import { ProductAssetsSchema, ProductVersionSchema, type ProductAssets, type ProductVersion, type SupplierOffer } from '@platform/contracts';
+import { ProductAssetsSchema, ProductVersionSchema, SupplierOfferSchema, type ProductAssets, type ProductVersion, type SupplierOffer } from '@platform/contracts';
 import { OfferBook, type NetPreview, type OfferDraft } from './offer.js';
 import { ASSET_REFS_MAX, wireAssetRefs } from './projection.js';
 
@@ -143,6 +143,15 @@ export interface StockJournalRow {
   readonly orderId?: string;
   /** The act's idempotency key, on `ajuste` / `confirme` / `declare`. */
   readonly commandId?: string;
+  /**
+   * STOCK-VRAI-1 (AUDIT-B+2 F-03) — on `confirme` / `ajuste` written since:
+   * what he counted in hand (`compte`), and how many of those units are sold
+   * parcels still waiting for the rider (`enAttente`), so `to` is
+   * `max(0, compte − enAttente)`. Both numbers are kept so a reader can see why
+   * the counter is not what he typed. Absent on older rows.
+   */
+  readonly compte?: number;
+  readonly enAttente?: number;
 }
 
 /** The next row for this entry, and the entry with its counter bumped — one
@@ -153,7 +162,7 @@ export function journalRow(
   from: number,
   to: number,
   at: string,
-  extra: { orderId?: string; commandId?: string } = {},
+  extra: { orderId?: string; commandId?: string; compte?: number; enAttente?: number } = {},
 ): { row: StockJournalRow; next: OfferEntry } {
   const seq = (entry.journalSeq ?? 0) + 1;
   return {
@@ -165,6 +174,8 @@ export function journalRow(
       to,
       ...(extra.orderId !== undefined ? { orderId: extra.orderId } : {}),
       ...(extra.commandId !== undefined ? { commandId: extra.commandId } : {}),
+      ...(extra.compte !== undefined ? { compte: extra.compte } : {}),
+      ...(extra.enAttente !== undefined ? { enAttente: extra.enAttente } : {}),
     },
     next: { ...entry, journalSeq: seq },
   };
@@ -176,13 +187,23 @@ export { STOCK_RECONFIRM_DUE_MS, stockOverdue } from './stock-freeze.js';
  * « CONFIRMER LE STOCK » — the challenge capture. The founder TYPES the count
  * he has (never a one-tap « c'est bon » that would confirm without looking);
  * equal to the counter ⇒ `confirme`, different ⇒ `ajuste` (the counter is
- * SET to what he typed — an adjustment, not a delta). Both stamp
- * `stockConfirmedAt` with the server clock. PURE; idempotency (the command
- * id) is the caller's marker, exactly as consume's is.
+ * SET — an adjustment, not a delta). Both stamp `stockConfirmedAt` with the
+ * server clock. PURE; idempotency (the command id) is the caller's marker,
+ * exactly as consume's is.
+ *
+ * STOCK-VRAI-1 (AUDIT-B+2 F-03) — WHAT HE TYPES IS WHAT IS IN HIS HANDS, and a
+ * paid parcel still waiting for the rider is in his hands but already left the
+ * counter at payment. Setting the counter to the typed number sold those units
+ * a second time. So the counter becomes `max(0, typed − enAttente)`, where
+ * `enAttente` is counted by the caller from facts it holds (the sales consumed
+ * here, still with the supplier per the order book) — never from the screen.
  */
 export interface ConfirmStockCommand {
   readonly commandId: string;
+  /** What he counted in hand, waiting parcels included. */
   readonly available: number;
+  /** Sold parcels of this offer still waiting for the rider — the caller's count, never the client's. */
+  readonly enAttente: number;
 }
 
 export type ConfirmStockDecision =
@@ -191,13 +212,43 @@ export type ConfirmStockDecision =
 
 export function decideConfirmStock(entry: OfferEntry, cmd: ConfirmStockCommand, nowIso: string): ConfirmStockDecision {
   if (!Number.isInteger(cmd.available) || cmd.available < 0) return { status: 'refused', reason: 'invalid_qty' };
-  const kind: StockJournalKind = cmd.available === entry.available ? 'confirme' : 'ajuste';
-  const { row, next } = journalRow(entry, kind, entry.available, cmd.available, nowIso, { commandId: cmd.commandId });
+  const enAttente = Number.isInteger(cmd.enAttente) && cmd.enAttente > 0 ? cmd.enAttente : 0;
+  const net = Math.max(0, cmd.available - enAttente);
+  const kind: StockJournalKind = net === entry.available ? 'confirme' : 'ajuste';
+  const { row, next } = journalRow(entry, kind, entry.available, net, nowIso, {
+    commandId: cmd.commandId,
+    compte: cmd.available,
+    enAttente,
+  });
   return {
     status: kind === 'confirme' ? 'confirmed' : 'adjusted',
-    entry: { ...next, available: cmd.available, stockConfirmedAt: nowIso },
+    entry: { ...next, available: net, stockConfirmedAt: nowIso },
     row,
   };
+}
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-12) — « PROLONGER D'UN AN ». The founder ratified
+ * the 365-day window on condition of « a renewal path »; without one, every
+ * offer left every vitrine on its anniversary and the only way back was a
+ * delete and relist that broke resellers' links.
+ *
+ * The new end is one year after today or after the current end, whichever is
+ * later, on the SERVER clock. Same offer, same product version, same price and
+ * commission, same status. The offer's `version` goes up by one because B+I-04
+ * says a supplier offer change creates a new version; nothing reads the old
+ * number to decide anything, and a quote already made keeps its own terms.
+ */
+export const OFFER_RENEWAL_MS = 365 * 24 * 60 * 60 * 1000;
+
+export function decideProlonger(entry: OfferEntry, nowIso: string): OfferEntry {
+  const depart = Math.max(Date.parse(nowIso), Date.parse(entry.offer.expiry));
+  const offer = SupplierOfferSchema.parse({
+    ...entry.offer,
+    expiry: new Date(depart + OFFER_RENEWAL_MS).toISOString(),
+    version: entry.offer.version + 1,
+  });
+  return { ...entry, offer };
 }
 
 /**

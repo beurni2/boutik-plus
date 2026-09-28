@@ -28,3 +28,25 @@ export function plusAnciennes(rows: readonly PaidOrderRow[], n: number): PaidOrd
     .sort((a, b) => Date.parse(a.paidAt) - Date.parse(b.paidAt) || (a.orderId < b.orderId ? -1 : 1))
     .slice(0, n);
 }
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-53) — the greeting's count: only the offers
+ * resellers can see right now (no hidden reason), in a sentence made for its
+ * number. It used to count frozen, lapsed and cut products too, and say
+ * « 1 produits ».
+ */
+export function produitsEnLigne(rows: readonly SupplierOfferRow[]): { readonly key: string; readonly n: number } {
+  const n = rows.filter((r) => r.hiddenReason === undefined).length;
+  return { key: n === 0 ? 'accueil.greeting_sub_zero' : n === 1 ? 'accueil.greeting_sub_un' : 'accueil.greeting_sub', n };
+}
+
+/**
+ * STOCK-VRAI-1 (F-53) — « Ventes payées »: the sales whose money stands. A sale
+ * refused by its supplier or cancelled by the founder, refused by the rider at
+ * pickup, or being refunded by Shop+ (the key-C row's own word) is not one.
+ */
+export function ventesPayees(rows: readonly PaidOrderRow[], remboursees: ReadonlySet<string>): number {
+  return rows.filter(
+    (r) => r.fulfillment?.refusedAt === undefined && r.fulfillment?.pickupRefusedAt === undefined && !remboursees.has(r.orderId),
+  ).length;
+}

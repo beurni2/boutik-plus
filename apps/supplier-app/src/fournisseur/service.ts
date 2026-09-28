@@ -94,6 +94,10 @@ export interface ProduitRow {
   /** ABSENT means live to resellers right now; present names WHY it is not —
    *  the refusal ladder's own reason, never a local re-derivation. */
   readonly hiddenReason?: 'product_not_active' | 'product_not_approved' | 'offer_not_active' | 'offer_not_effective' | 'stock_unconfirmed';
+  /** STOCK-VRAI-1 (AUDIT-B+2 F-12) — the sale window as the stored offer holds
+   *  it; absent from an older Worker or unreadable (no date is then said). */
+  readonly effective?: string;
+  readonly expiry?: string;
 }
 
 export type ProduitsResult =
@@ -392,6 +396,8 @@ function readProduitRow(value: unknown): ProduitRow | null {
     ...(typeof r['videoRef'] === 'string' && r['videoRef'] !== '' ? { videoRef: r['videoRef'] } : {}),
     ...(r['variantsNote'] === undefined ? {} : { variantsNote: r['variantsNote'] as string }),
     ...(r['hiddenReason'] === undefined ? {} : { hiddenReason: r['hiddenReason'] as Exclude<ProduitRow['hiddenReason'], undefined> }),
+    ...(typeof r['effective'] === 'string' && Number.isFinite(Date.parse(r['effective'])) ? { effective: r['effective'] } : {}),
+    ...(typeof r['expiry'] === 'string' && Number.isFinite(Date.parse(r['expiry'])) ? { expiry: r['expiry'] } : {}),
   };
 }
 

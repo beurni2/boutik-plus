@@ -192,6 +192,13 @@ export interface SupplierOfferRow {
    * confirmé » and offers the act; it is not frozen.
    */
   readonly stockConfirmedAt?: string;
+  /**
+   * STOCK-VRAI-1 (AUDIT-B+2 F-12) — the sale window as the stored offer holds
+   * it. ABSENT from a Worker older than the slice (or unreadable): the fiche
+   * then says no date rather than a wrong one.
+   */
+  readonly effective?: string;
+  readonly expiry?: string;
 }
 
 /** The envelope — SERVE clock, matching the supply collection. */
@@ -243,6 +250,8 @@ export function readSupplierOfferList(raw: unknown): SupplierOfferList | null {
       ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
         ? { stockConfirmedAt: r['stockConfirmedAt'] }
         : {}),
+      ...(typeof r['effective'] === 'string' && Number.isFinite(Date.parse(r['effective'])) ? { effective: r['effective'] } : {}),
+      ...(typeof r['expiry'] === 'string' && Number.isFinite(Date.parse(r['expiry'])) ? { expiry: r['expiry'] } : {}),
     });
   }
   return { asOf: o.asOf, items };

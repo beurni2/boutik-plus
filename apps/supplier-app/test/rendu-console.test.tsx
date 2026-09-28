@@ -195,6 +195,117 @@ describe('ACCUEIL — « À faire maintenant », the head of his queue', () => {
   });
 });
 
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-53) — the home's counts claimed more than they
+ * counted: frozen products « en ligne », « 1 produits », refunded sales as
+ * « payées », a refunding order « à faire », orders Séra already carries
+ * « prêtes à confier ». With his key C and Séra key on the device, the home now
+ * reads what the Commandes tab reads — and changes neither key.
+ */
+describe('ACCUEIL — the counts count what they say (STOCK-VRAI-1, F-53)', () => {
+  const CLE_C_SLOT = 'boutik.livraisons.cle';
+  const CLE_SERA_SLOT = 'boutik.coursiers.cle';
+  const T = '2026-09-28T08:00:00.000Z';
+  const vente = (orderId: string, productName: string, fulfillment?: Record<string, string>) => ({
+    ...SANS_PHOTO, orderId, productName, paidAt: T, ...(fulfillment !== undefined ? { fulfillment } : {}),
+  });
+  const LIVRE = [
+    vente('ord-attente', 'Bazin riche'),
+    vente('ord-remboursee', 'Pagne remboursé'),
+    vente('ord-pret', 'Sac prêt', { acceptedAt: T, readyAt: T }),
+    vente('ord-confiee', 'Couffin confié', { acceptedAt: T, readyAt: T }),
+    vente('ord-refusee', 'Chapeau refusé', { refusedAt: T }),
+  ];
+  const offre = (offerId: string, over: Record<string, unknown> = {}) => ({
+    offerId, productVersionId: `pv-${offerId}`, name: `Produit ${offerId}`, category: 'mode',
+    basePrice: 10_000, resellerCommission: 1_000, available: 5, assetRefs: [], ...over,
+  });
+  const offres: Route = (path) =>
+    path === '/offers'
+      ? { status: 200, json: { asOf: T, items: [offre('o1'), offre('o2', { hiddenReason: 'stock_unconfirmed' })] as never } }
+      : null;
+  /** Shop+'s dispatch rows — certified key set (see rendu-commandes-remboursement). */
+  const ligne = (orderId: string, remboursement: unknown) => ({
+    ok: true, exists: true, orderId, state: 'confirmed', createdAt: T,
+    contact: { phone: '70 11 22 33', quartier: 'Gounghin', repere: 'Face à la pharmacie' },
+    productVersionId: 'pv', zoneTo: 'Gounghin', remboursement,
+  });
+  const dispatch = (statut = 200): Route => (path) =>
+    path === '/checkout/dispatch'
+      ? statut === 200
+        ? { status: 200, json: { ok: true, orders: LIVRE.map((o) => ligne(o.orderId, o.orderId === 'ord-remboursee' ? { etat: 'en_cours' } : null)) as never } }
+        : { status: statut, json: { error: 'unauthorized' } }
+      : null;
+  const gains: Route = (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null);
+  /** Séra's board, one live course on ord-confiee — the recorded row form. */
+  const planche: Route = (path) =>
+    path === '/ops/board'
+      ? {
+          status: 200,
+          json: {
+            ok: true,
+            board: {
+              queued: [], riders: [], aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse: {},
+              assignments: [{
+                ackDeadline: T, assignedAt: T, assignmentId: 'as-1', correlationId: 'corr-1', dispatcherId: 'fondateur',
+                lease: { riderId: 'rider-1', taskId: 'task-1', version: 1 },
+                orderId: 'ord-confiee', riderId: 'rider-1', status: 'acknowledged', taskId: 'task-1',
+              }],
+            },
+          },
+        }
+      : null;
+  /** The figure printed right after a label — a prop the app computed, no pixels. */
+  const apres = (textes: string[], label: string): string | undefined => textes[textes.indexOf(label) + 1];
+
+  beforeEach(() => {
+    process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'] = 'http://shop.test';
+    process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'] = 'http://logistics.test';
+  });
+  afterEach(() => {
+    delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
+    delete process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'];
+  });
+
+  it('one product on sale → « 1 produit en ligne »; the refund is neither « à faire » nor paid; the course Séra carries is not « prête »', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c', [CLE_SERA_SLOT]: 'cle-sera' });
+    const w = wire([livre(LIVRE), offres, dispatch(), gains, planche]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
+    await screen.settle();
+    const textes = screen.texts();
+
+    // the reads were CALLED, each with its own key
+    const dit = (path: string) => w.calls.find((c) => c.path === path)?.headers['authorization'];
+    expect(dit('/checkout/dispatch')).toBe('Bearer cle-c');
+    expect(dit('/checkout/gains')).toBe('Bearer cle-c');
+    expect(dit('/ops/board')).toBe('Bearer cle-sera');
+
+    expect(screen.shows("1 produit en ligne · vous n'avancez rien, jamais."), `on screen: ${JSON.stringify(textes)}`).toBe(true);
+    expect(screen.shows('Boutique ouverte')).toBe(false);
+    // « À faire maintenant »: the waiting order only — the refunding one is not his to prepare
+    expect(screen.shows('Bazin riche')).toBe(true);
+    expect(screen.shows('Pagne remboursé')).toBe(false);
+    expect(apres(textes, 'À faire maintenant')).toBe('1');
+    // paid sales: attente, prêt, confiée — not the refund, not the refusal
+    expect(apres(textes, 'Ventes payées')).toBe('3');
+    // prêtes à confier: the ready one Séra does not carry yet
+    expect(apres(textes, 'Prêtes à confier')).toBe('1');
+    screen.unmount();
+  });
+
+  it('Shop+ refuses his key C here: the counts fall back to the book, and the key is LEFT where it is (the home has no door)', async () => {
+    const store = storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c-perimee' });
+    wire([livre(LIVRE), offres, dispatch(401), (path) => (path === '/checkout/gains' ? { status: 401, json: { error: 'unauthorized' } } : null)]);
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
+    await screen.settle();
+    expect(screen.shows('Bazin riche'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    // without the refund fact, only the book's refusal leaves the paid count
+    expect(apres(screen.texts(), 'Ventes payées')).toBe('4');
+    expect(store.get(CLE_C_SLOT)).toBe('cle-c-perimee');
+    screen.unmount();
+  });
+});
+
 describe('COMMANDES — the board itself', () => {
   it('opens on « À traiter » with the photograph on the card, and the card opens', async () => {
     wire([livre([AVEC_PHOTO, SANS_PHOTO]), contactsVides]);

@@ -263,6 +263,48 @@ async function acteSurAcces(request: Request, env: Env, acte: 'mint' | 'revoke')
   return Response.json({ ...body, produits, ...(next !== undefined ? { suite: next } : {}) }, { status: codeRes.status });
 }
 
+function lireObjet(raw: string): Record<string, unknown> | null {
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * STOCK-VRAI-1 (AUDIT-B+2 F-03) — THE JOIN the stock count needs: the offer
+ * names its product and supplier, the order book names which of those sales
+ * are still parcels in his hands. Each read has one home; this is where both
+ * bindings live. A book that does not answer refuses the count (503) rather
+ * than let it set the counter without the subtraction.
+ */
+async function colisEnAttente(env: Env, offerId: string): Promise<{ ids: string[] } | { refus: Response }> {
+  const eRes = await offerRouter.fetch(new Request(`https://do/offers/entree?offerId=${encodeURIComponent(offerId)}`), env);
+  if (eRes.status === 404) return { refus: Response.json({ error: 'not_found' }, { status: 404 }) };
+  const entry = (await eRes.json().catch(() => null)) as { product?: { id?: unknown; supplierId?: unknown } } | null;
+  const pv = entry?.product?.id;
+  const supplierId = entry?.product?.supplierId;
+  if (eRes.status !== 200 || typeof pv !== 'string' || typeof supplierId !== 'string') {
+    return { refus: Response.json({ error: 'offre_indisponible' }, { status: 503 }) };
+  }
+  // ⚠ `BOOK_NAME`, IMPORTED — a hand-typed name would address an empty book and subtract nothing.
+  const book = env.FULFILLMENT.get(env.FULFILLMENT.idFromName(BOOK_NAME));
+  let res: Response;
+  try {
+    res = await book.fetch(
+      new Request('https://do/attente-ramassage', { method: 'POST', body: JSON.stringify({ supplierId, productVersionId: pv }) }),
+    );
+  } catch {
+    return { refus: Response.json({ error: 'carnet_indisponible' }, { status: 503 }) };
+  }
+  const body = (await res.json().catch(() => null)) as { ok?: unknown; orderIds?: unknown } | null;
+  if (res.status !== 200 || body?.ok !== true || !Array.isArray(body.orderIds)) {
+    return { refus: Response.json({ error: 'carnet_indisponible' }, { status: 503 }) };
+  }
+  return { ids: body.orderIds.filter((id): id is string => typeof id === 'string' && id !== '') };
+}
+
 interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
   OFFER: DurableObjectNamespace;
   /** ORDER-PAID-WIRE-1c — the paid-order book (one singleton instance). */
@@ -550,8 +592,53 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === 'POST' && fp === '/offers/stock') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
+      const raw = await request.text();
+      const cmd = lireObjet(raw);
+      // A body without an offer id goes on as-is: the router owns that refusal.
+      if (cmd === null || typeof cmd['offerId'] !== 'string' || cmd['offerId'].trim() === '') {
+        return offerRouter.fetch(
+          new Request('https://do/offers/stock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw }),
+          env,
+        );
+      }
+      const attente = await colisEnAttente(env, cmd['offerId']);
+      if ('refus' in attente) return attente.refus;
+      // STOCK-VRAI-1 (F-03) — the waiting parcels come from the book, here,
+      // never from the caller: any `enAttente` the request carried is replaced.
       return offerRouter.fetch(
-        new Request('https://do/offers/stock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: await request.text() }),
+        new Request('https://do/offers/stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...cmd, enAttente: attente.ids }),
+        }),
+        env,
+      );
+    }
+    // STOCK-VRAI-1 (F-03) — the count sheet's « N colis vendus attendent le
+    // coursier », by the same join and the same rule the confirm act applies.
+    if (request.method === 'GET' && fp === '/offers/stock/attente') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      const offerId = new URL(request.url).searchParams.get('offerId');
+      if (offerId === null || offerId.trim() === '') return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
+      const attente = await colisEnAttente(env, offerId);
+      if ('refus' in attente) return attente.refus;
+      return offerRouter.fetch(
+        new Request('https://do/offers/stock/attente', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offerId, enAttente: attente.ids }),
+        }),
+        env,
+      );
+    }
+    // STOCK-VRAI-1 (F-12) — « Prolonger d'un an »: HIS key alone, like the
+    // stock act (the audit's safest default: nobody else renews an offer).
+    if (request.method === 'POST' && fp === '/offers/prolonger') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return offerRouter.fetch(
+        new Request('https://do/offers/prolonger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: await request.text() }),
         env,
       );
     }

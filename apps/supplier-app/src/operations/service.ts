@@ -204,6 +204,9 @@ export interface InventaireRow {
   readonly hiddenReason?: string;
   /** STOCK-JOURNAL-1 — when the count was last vouched for; absent = never. */
   readonly stockConfirmedAt?: string;
+  /** STOCK-VRAI-1 (F-12) — the sale window; absent from an older Worker or unreadable. */
+  readonly effective?: string;
+  readonly expiry?: string;
 }
 
 export type InventaireResult =
@@ -340,6 +343,10 @@ export interface OperationsServicePort {
    *  journals `ajuste` and sets the counter; either restarts the freeze clock.
    *  His key only — the bundled write key never opens this door. */
   confirmStock(opsKey: string, cmd: ConfirmStockCommand): Promise<ConfirmStockResult>;
+  /** STOCK-VRAI-1 — sold parcels of this offer still waiting for the rider (his key). */
+  stockEnAttente(opsKey: string, offerId: string): Promise<StockEnAttenteResult>;
+  /** STOCK-VRAI-1 — one more year of sale for this offer (his key alone). */
+  prolongerOffre(opsKey: string, cmd: { readonly commandId: string; readonly offerId: string }): Promise<ProlongerResult>;
 }
 
 export interface ConfirmStockCommand {
@@ -354,8 +361,22 @@ export type ConfirmStockResult =
       readonly status: 'confirmed' | 'adjusted' | 'idempotent';
       readonly available: number;
       readonly stockConfirmedAt: string | null;
+      /** STOCK-VRAI-1 (F-03) — what he counted, and the sold parcels taken off
+       *  it. `null` on a replayed act or from a Worker older than the slice. */
+      readonly compte: number | null;
+      readonly enAttente: number | null;
     }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'invalid_qty' | 'unknown_offer' };
+
+/** STOCK-VRAI-1 (F-03) — the count sheet's number: sold parcels still waiting for the rider. */
+export type StockEnAttenteResult =
+  | { readonly ok: true; readonly enAttente: number }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'unknown_offer' };
+
+/** STOCK-VRAI-1 (F-12) — « Prolonger d'un an ». */
+export type ProlongerResult =
+  | { readonly ok: true; readonly status: 'prolonge' | 'idempotent'; readonly expiry: string }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'unknown_offer' };
 
 export type FinirProduitsResult =
   | { readonly ok: true; readonly complet: boolean }
@@ -539,7 +560,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
       if (res.status === 400) return { ok: false, reason: 'invalid_qty' };
       if (!res.ok) return { ok: false, reason: 'unreachable' };
       const body = (await res.json().catch(() => null)) as
-        | { status?: unknown; available?: unknown; stockConfirmedAt?: unknown }
+        | { status?: unknown; available?: unknown; stockConfirmedAt?: unknown; compte?: unknown; enAttente?: unknown }
         | null;
       if (
         body === null ||
@@ -548,12 +569,59 @@ export function resolveOperationsService(): OperationsServicePort | null {
       ) {
         return { ok: false, reason: 'unreachable' };
       }
+      const entier = (v: unknown): number | null => (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : null);
       return {
         ok: true,
         status: body.status,
         available: body.available,
         stockConfirmedAt: typeof body.stockConfirmedAt === 'string' ? body.stockConfirmedAt : null,
+        compte: entier(body.compte),
+        enAttente: entier(body.enAttente),
       };
+    },
+
+    async stockEnAttente(opsKey: string, offerId: string): Promise<StockEnAttenteResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/offers/stock/attente?offerId=${encodeURIComponent(offerId)}`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404) return { ok: false, reason: 'unknown_offer' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { enAttente?: unknown } | null;
+      const n = body?.enAttente;
+      if (typeof n !== 'number' || !Number.isSafeInteger(n) || n < 0) return { ok: false, reason: 'unreachable' };
+      return { ok: true, enAttente: n };
+    },
+
+    async prolongerOffre(opsKey: string, cmd: { readonly commandId: string; readonly offerId: string }): Promise<ProlongerResult> {
+      let res: Response;
+      try {
+        res = await fetch(`${trimmed}/offers/prolonger`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
+          body: JSON.stringify({ commandId: cmd.commandId, offerId: cmd.offerId }),
+        });
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (res.status === 404) return { ok: false, reason: 'unknown_offer' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { status?: unknown; expiry?: unknown } | null;
+      if (
+        body === null ||
+        (body.status !== 'prolonge' && body.status !== 'idempotent') ||
+        typeof body.expiry !== 'string' ||
+        Number.isNaN(Date.parse(body.expiry))
+      ) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, status: body.status, expiry: body.expiry };
     },
 
   async listSupplierContacts(opsKey: string): Promise<ContactsResult> {
@@ -990,6 +1058,8 @@ function lireInventaire(items: readonly unknown[]): InventaireRow[] {
       ...(typeof r['stockConfirmedAt'] === 'string' && Number.isFinite(Date.parse(r['stockConfirmedAt']))
         ? { stockConfirmedAt: r['stockConfirmedAt'] }
         : {}),
+      ...(typeof r['effective'] === 'string' && Number.isFinite(Date.parse(r['effective'])) ? { effective: r['effective'] } : {}),
+      ...(typeof r['expiry'] === 'string' && Number.isFinite(Date.parse(r['expiry'])) ? { expiry: r['expiry'] } : {}),
     });
   }
   return rows;
