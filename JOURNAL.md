@@ -3,7 +3,21 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-28 · DELAI-ACCEPTATION-1 REMOVED on the founder's word — no answer clock; « Annuler et rembourser » is the road · ON THE BRANCH, awaiting the founder's word (not merged, not deployed)
+## 2026-09-28 · POIDS-SIGNE-1 completed (the console signed at 500 KB) + ETIQUETTE-FOURNISSEUR-1 + items 10–12 without the answer clock · MERGED AND DEPLOYED 2026-09-28 on the founder's « go »
+
+**Founder order (2026-09-28).** « go, sign 500 KB for the console » — on the report of the clock removal (entry below). The « go » covers what that report and the one before it named: ETIQUETTE-FOURNISSEUR-1, items 10–12 with the clock removed, and the console's number.
+
+- **The console signed (5e46583).** `gates/web-budgets.json`: `console.firstLoadGzipBytes` **512 000 B = 500 KB** (1 KB = 1 024 B); the `_law` note dated and keeps both measures (deploy build 497.2 KB, board build 491.5 KB). Both real pages are now signed, so the gate that shows the unsigned branch (« measured and printed, never failed ») runs on a fixture, `gates/fixtures/web-size-budgets.unsigned.json`, that leaves one page unsigned — a page missing from a budgets file exits 2, so a fixture was the only honest way to keep that branch proven. Board at 5e46583: **ALL GATES GREEN** — supplier page 426.5 KB of 430, console 491.5 KB of 500.
+- **Merged.** `main` fast-forwarded `50b9483 → 5e46583` (ancestry verified first). **ci 368 green** on `5e46583`.
+- **Deployed** (media Worker unchanged, not deployed):
+  - **offer-deploy 45** — its own check: « PROVENANCE OK — live Worker is 5e465830… speaking canon 3.20.0 ».
+  - **web-deploy 81** (console) — on the exact files it uploaded: never-ships scans ✔, offline shell ✔, « console first load: **497.2 KB gzip (509 178 B)** … within the signed ceiling of 500.0 KB (512000 B) ».
+  - **fournisseur-web-deploy 23** — capability ruling holds on the deployed files, offline shell ✔, « fournisseur first load: **426.5 KB gzip (436 774 B)** … within the signed ceiling of 430.0 KB (440320 B) ».
+- **The other repos** (tests and tooling only, nothing of theirs deploys): canon `6f446a4 → c07cdfc` (ci 153 green); Shop+ `978f8a2 → 9571a6a`; Séra `9a77bba → e6be61c` — Séra's ci went red twice on two different tests hitting the 5 s default on the shared runner, neither touched by this work; both given the budget their neighbours already carry (Séra's journal).
+- **Headroom, stated:** the console's deploy build is **2.8 KB** under its ceiling (509 178 of 512 000 B). The next console change that adds weight will be refused at deploy and needs a new number from him — that is the gate doing its job, not a fault.
+- **Still open, carried:** a refusal fact for an order Shop+ does not know is retried hourly (standing outbox behaviour) · the readiness deadline (accepted, never « prêt ») has no ratified number and is not timed · the protection-fund doors' copies in the walks are not held to recordings (a fourth service) · the 5.7 KB gap between the board's and the deploy's console build is unexplained (both measured, the deploy's is the one the gate holds).
+
+## 2026-09-28 · DELAI-ACCEPTATION-1 REMOVED on the founder's word — no answer clock; « Annuler et rembourser » is the road · MERGED AND DEPLOYED 2026-09-28 on the founder's « go » (top entry)
 
 **Founder order (2026-09-28).** « remove the 2 hour answer clock, since i have the ability to cancel it and refund, that is enough » — on the report of items 10–12 (entry below). The clock never reached `main` nor any deploy.
 
@@ -14,7 +28,7 @@ Format per entry:
 - **What stays from items 10 and 12:** the supplier page's signed size (430 KB) and the recorded-answer checks, unchanged.
 - **Still his:** an unanswered paid order waits for him — Incidents and « Annuler et rembourser » are the road, as before 2026-09-27.
 
-## 2026-09-27 · POIDS-SIGNE-1 + DELAI-ACCEPTATION-1 + REPONSES-ENREGISTREES-1 (AUDIT-B+2 items 10–12; F-02 part 2, F-85, F-82) — the supplier page's size signed, the 2-hour answer clock, and the walks' copies of Shop+ and Séra held to the real doors · ON THE BRANCH, awaiting the founder's word (not merged, not deployed)
+## 2026-09-27 · POIDS-SIGNE-1 + DELAI-ACCEPTATION-1 + REPONSES-ENREGISTREES-1 (AUDIT-B+2 items 10–12; F-02 part 2, F-85, F-82) — the supplier page's size signed, the 2-hour answer clock, and the walks' copies of Shop+ and Séra held to the real doors · MERGED AND DEPLOYED 2026-09-28 on the founder's « go » (top entry)
 
 **Founder order (2026-09-27).** « all three », on my recommendations 10–12: « 10. sign the page size limits: freeze today's sizes (430 KB supplier page, 495 KB console) » · « 11. automatic cancel and refund when a supplier doesn't answer within 120 minutes » (day and night: the wall clock) · « 12. Recorded stand-ins …: yes, the lighter way. Shop+ takes the shared test package, so there is no rules-version jump. That proves our copies behave like the real ones. »
 
@@ -56,7 +70,7 @@ Given the brief (his order, the rules quoted, the five diffs, the done-when). It
 - **Disagreements:** none.
 - **Mutations on the fixes: 8 / 8 KILLED** (anchor matched once each — the knob mutation's first anchor matched twice and was NOT run, then re-run on a unique anchor — byte-identical restore, bundle rebuilt from clean source after).
 
-## 2026-09-27 · ETIQUETTE-FOURNISSEUR-1 — every order and every product labelled with its supplier · ON THE BRANCH, awaiting the founder's word (not merged, not deployed)
+## 2026-09-27 · ETIQUETTE-FOURNISSEUR-1 — every order and every product labelled with its supplier · MERGED AND DEPLOYED 2026-09-28 on the founder's « go » (top entry)
 
 **Founder order (2026-09-27).** « go, and do what you recommended for this slice, paid plan is now active » — the recommendation he took: « Label each order and product with its supplier: yes, as the next small slice, while the data is small. It adds a label next to each record and changes or deletes nothing. The old way stays in place until the counts match. After it, a supplier's page reads only his own orders forever, cutting or erasing a supplier touches only his products (so the ~10 000 limit goes away), and a new supplier's code appears at once. »
 
