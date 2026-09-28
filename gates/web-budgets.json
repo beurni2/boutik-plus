@@ -1,9 +1,9 @@
 {
-  "_law": "POIDS-WEB-1 (AUDIT-B+2 F-85). PERF-BUDGETS.md: the web numbers are ⏳ W-D3, proposed for the founder's signature. null = not signed: the first-load size is measured and printed on every board and deploy, never enforced. A number here (bytes, gzip -9, first load) is enforced by scripts/gates/web-size.mjs. Only the founder's signature puts one here. SIGNED 2026-09-27 (« all three » on « freeze today's sizes — 430 KB supplier page, 495 KB console »): fournisseur 430 KB = 440 320 B (live 426.5 KB). The console's 495 KB is NOT written: its DEPLOY build measured 497.2 KB (509 178 B) on the deploy of 50b9483, so 495 would refuse its next deploy; the board's own build of this branch measures 491.6 KB (503 446 B) — the 5.6 KB between the two builds is not yet explained. The choice (sign above the deploy size, or slim it first) is back with him.",
+  "_law": "POIDS-WEB-1 (AUDIT-B+2 F-85). PERF-BUDGETS.md: the web numbers are ⏳ W-D3, proposed for the founder's signature. null = not signed: the first-load size is measured and printed on every board and deploy, never enforced. A number here (bytes, gzip -9, first load) is enforced by scripts/gates/web-size.mjs. Only the founder's signature puts one here. SIGNED 2026-09-27 (« all three » on « freeze today's sizes — 430 KB supplier page, 495 KB console »): fournisseur 430 KB = 440 320 B (live 426.5 KB). The console was left unsigned that day: its DEPLOY build measured 497.2 KB (509 178 B) on the deploy of 50b9483, above the 495 KB he first named (the board's own build measures 491.6 KB / 503 446 B; the gap between the two builds is not explained). SIGNED 2026-09-28 (« go, sign 500 KB for the console »): console 500 KB = 512 000 B.",
   "fournisseur": {
     "firstLoadGzipBytes": 440320
   },
   "console": {
-    "firstLoadGzipBytes": null
+    "firstLoadGzipBytes": 512000
   }
 }
