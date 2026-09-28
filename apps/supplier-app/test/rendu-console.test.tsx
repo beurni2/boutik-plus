@@ -293,6 +293,33 @@ describe('ACCUEIL — the counts count what they say (STOCK-VRAI-1, F-53)', () =
     screen.unmount();
   });
 
+  // Verifier MINOR (STOCK-VRAI-1): the road facts are extra reads that may walk
+  // many pages; the home's queue must not wait on them.
+  it('a slow Shop+ read never holds back « À faire maintenant »: the book shows first, the refund leaves when Shop+ answers', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c', [CLE_SERA_SLOT]: 'cle-sera' });
+    wire([livre(LIVRE), offres, dispatch(), gains, planche]);
+    // Shop+'s dispatch read is held — only the network is doubled, as ever.
+    const reseau = globalThis.fetch;
+    let lacher!: () => void;
+    const tenu = new Promise<void>((r) => { lacher = r; });
+    globalThis.fetch = (async (input: string, init?: RequestInit) => {
+      if (new URL(input, 'http://boutik.test').pathname === '/checkout/dispatch') await tenu;
+      return reseau(input, init);
+    }) as typeof fetch;
+    const screen = await mountEcran(<SAccueilReel d={() => {}} opsKey="cle-ops" />);
+    await screen.settle();
+    expect(screen.shows('Bazin riche'), `while Shop+ is slow: ${JSON.stringify(screen.texts())}`).toBe(true);
+
+    lacher();
+    await screen.settle();
+    await screen.settle();
+    const textes = screen.texts();
+    expect(screen.shows('Pagne remboursé')).toBe(false);
+    expect(apres(textes, 'À faire maintenant')).toBe('1');
+    expect(apres(textes, 'Ventes payées')).toBe('3');
+    screen.unmount();
+  });
+
   it('Shop+ refuses his key C here: the counts fall back to the book, and the key is LEFT where it is (the home has no door)', async () => {
     const store = storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c-perimee' });
     wire([livre(LIVRE), offres, dispatch(401), (path) => (path === '/checkout/gains' ? { status: 401, json: { error: 'unauthorized' } } : null)]);

@@ -377,18 +377,25 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     return res.ok ? res.enAttente : null;
   };
 
-  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an », HIS act: one command id per
-   *  press, then the same fresh read as the count, so the fiche shows the new
-   *  date without closing. */
-  const prolongerOpen = async (): Promise<boolean> => {
+  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an », HIS act. Unlike a count, a
+   *  replayed renewal would ADD a year, so the command id outlives a failure: a
+   *  retry after a lost answer is the same act, and the server extends once.
+   *  It is spent only on success. The server's own end date is handed back so
+   *  the fiche can say it before (or without) the re-read. */
+  const prolongeEnCours = useRef<{ offerId: string; commandId: string } | null>(null);
+  const prolongerOpen = async (): Promise<string | false> => {
     const opsKey = readStoredOpsKey();
     const ops = resolveOperationsService();
     if (opsKey === null || ops === null || openOffer === null) return false;
-    const res = await ops.prolongerOffre(opsKey, { commandId: mintCommandId(), offerId: openOffer.offerId });
+    const offerId = openOffer.offerId;
+    const enCours = prolongeEnCours.current?.offerId === offerId ? prolongeEnCours.current : { offerId, commandId: mintCommandId() };
+    prolongeEnCours.current = enCours;
+    const res = await ops.prolongerOffre(opsKey, { commandId: enCours.commandId, offerId });
     if (!res.ok) return false;
+    prolongeEnCours.current = null;
     cache.current = { rows: null, asOf: null };
     void load();
-    return true;
+    return res.expiry;
   };
   const opsIci = readStoredOpsKey() !== null && resolveOperationsService() !== null;
 

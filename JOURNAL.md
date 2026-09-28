@@ -3,6 +3,37 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-28 · STOCK-VRAI-1 (AUDIT-B+2 slice 6: F-03, F-12, F-53, F-54; F-36 held for him) — stock and products stay true · ON THE BRANCH, awaiting the founder's « go »
+
+**Founder order (2026-09-28).** « continue with the next slice » — slice 6 of the AUDIT-B+2 plan.
+
+**Governing text (re-read).** B+I-03 (Build-Spec:47) « Available quantity is service-derived, never client-set » · B+I-04 (:48) « A supplier offer change creates a new version; it MUST NOT change an accepted quote or confirmed order » · §11 (:212) « concurrent reservation cannot oversell » · the 365-day ratification (JOURNAL:2219) « (1) the expiry must become visible … (2) a renewal path is required » · §5 « never fake counts » · Law 1 (to the franc).
+
+- **F-03 — the count takes off the parcels still waiting for the rider.** The book's `/attente-ramassage` names this product's orders with no handover, refusal, pickup-refusal, delivery or return mark; the offer keeps those it consumed (`vendu-`) and did not give back (`rendu-`). Counter = max(0, typed − waiting); the journal row carries both (`compte`, `enAttente`). The root REPLACES any `enAttente` a caller sends with the book's list. Two new reads on his ops key: `GET /offers/stock/attente`, and the count's answer. The count sheet names the waiting parcels, asks « colis emballés compris », and says the result in his numbers.
+- **F-12 — the end of the year is visible and renewable.** Supplier rows carry `effective`/`expiry`; the console's list and fiche say « En ligne jusqu'au … » or since when the year is over; the supplier page splits « not yet open » from « year over ». `POST /offers/prolonger`: expiry = max(now, current) + 365 days on the server clock, same product version, money and status, idempotent on its command id (`prolonge-{id}`).
+  - ⚑ **Safest default applied (the audit's), flagged:** his ops key is the ONLY renewer — no supplier button.
+  - ⚑ **Decision taken here, flagged:** a renewal bumps the offer `version` by one (B+I-04: an offer change is a new version). Checked by the verifier: Shop+ stores the version and the money on each quote/order as values and never compares versions, so no quote or order moves.
+- **F-53 — the home counts what it says.** « N produits en ligne » counts only offers with no hidden reason, with 0 / 1 / n sentences; « Boutique ouverte » dropped. The road facts (Séra's live courses, Shop+'s delivered and refunding orders) are READ with the keys already on the device, never cleared here; « Ventes payées » leaves out refused, founder-cancelled, pickup-refused and refunding sales.
+- **F-54 — each fee line shows exactly when its frozen amount is not zero**, so a card quoted before 2026-08-25 adds up to « La cliente a payé » again.
+- **F-36 HELD for him.** A door-refused unit still goes back on sale at the door (`restockOnRefusal`), unchanged. His question is in the report.
+
+**Proof.**
+- Board at the fix commit: **ALL GATES GREEN** — offer-service 458, supplier app 1 196, typecheck clean. The storefront gate lists the home's new walk with its reason (it names Shop+'s dispatch/gains routes, read-only).
+- Seam, on real workerd: `stock-vrai.e2e.test.ts` (the audit's own probe: 3 declared → 1 sold not collected → « 3 » typed keeps 2 → the sale past the real stock carries the oversold mark; delivered / refused / cancelled not taken off again; a caller's waiting list ignored; renewal lapse → renew → served on both roads Shop+ reads; retry extends once; 401 on every key but his).
+- Walks: `rendu-stock` (count sheet, renewal, lost answer, failed re-read, shortfall), `rendu-console` (home counts; a slow Shop+ read), `rendu-fournisseur-vrai` (supplier page dates), `rendu-gains-pages` (fee lines to the franc).
+- Mutations, anchors matched once, restored byte-identical: **18 / 18 KILLED** on the build (M1–M18), **4 / 4 KILLED** on the review fixes (F1–F4). M2 (« a parcel that came home still counts ») is killed by the freeze seam test's explicit case « ord-sj-2 came home, so it is NOT taken off a second time »; M14 is killed by the home walk as well as the source check.
+
+**The ONE verifier pass** (given the spec quotes, the audit findings, the DoD and the diff of 9fb15df; not re-inspected after — the NO-LOOP law):
+- **MAJOR 1 — fixed.** « Prolonger » minted a new command id per press, so a retry after a lost answer added a SECOND year, and a fiche whose re-read failed still said « finie » and invited another press. Now the command id lives until a success (a retry is the same act), and the fiche says the server's own end (« C'est fait : son année de vente va jusqu'au … ») and drops the stale invitation. The walk's fake door was made idempotent like the real one first — the old fake hid exactly this. Two walks, red before the fix.
+- **MINOR 1 — fixed.** The home waited for every Shop+/Séra page before showing « À faire maintenant ». Now the book shows the moment it answers (as on a device without those keys) and the road facts refine it, as the Commandes tab does. Walk red before the fix.
+- **MINOR 3 — words fixed, mark open.** A count below the waiting parcels floors at 0; the fiche now says « Attention : il manque N articles pour des colis déjà payés. Dans Commandes, vous pouvez annuler et rembourser. » The oversold MARK is still not placed on those paid orders (which ones would need a rule) — open.
+- **MINOR 2 — journalled, not fixed.** A sale takes the unit off the counter before the book records the order; if that book write fails, the order is missing from the book until Shop+ redelivers, and a count in that gap does not subtract it (as does a sale landing between the book read and the counter write). Closing it means reading the offer's own `vendu-` markers against the book, a larger change than the audit's fix — open.
+- **NIT — this entry** carries the two flags.
+
+**Sizes.** Supplier page 427.2 KB of 430. Console, board build 493.4 KB (505 216 B); **measured the deploy's way** (a local cold export with all five service bases set to placeholder addresses, as the deploy sets them) **499.0 KB (511 022 B) of 500 KB — 978 B left.** That also explains the 5.7 KB gap carried below: the board's export sets two of the five bases; with all five set the page is +5.8 KB. The next console change that adds weight will need a new number from him.
+
+**Still open:** MINOR 2 · the oversold mark on paid orders a count finds short · F-36 (his question) · the console's 978 B headroom.
+
 ## 2026-09-28 · POIDS-SIGNE-1 completed (the console signed at 500 KB) + ETIQUETTE-FOURNISSEUR-1 + items 10–12 without the answer clock · MERGED AND DEPLOYED 2026-09-28 on the founder's « go »
 
 **Founder order (2026-09-28).** « go, sign 500 KB for the console » — on the report of the clock removal (entry below). The « go » covers what that report and the one before it named: ETIQUETTE-FOURNISSEUR-1, items 10–12 with the clock removed, and the console's number.

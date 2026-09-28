@@ -121,7 +121,8 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
       setVentes({ kind: 'sans_cle' });
     } else {
       setVentes({ kind: 'chargement' });
-      void Promise.all([operations.listPaidOrders(opsKey), faitsDeRoute()]).then(([r, faits]) => {
+      const faitsLus = faitsDeRoute();
+      void operations.listPaidOrders(opsKey).then((r) => {
         if (!alive) return;
         if (!r.ok) {
           // bad_key included: the honest line, and the slot stays — the
@@ -134,15 +135,26 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
         // STOCK-VRAI-1 (F-53) — the road facts ARE read (above): an order Séra
         // carries is no longer « prête à confier », and one Shop+ is refunding
         // is neither « à faire » nor a paid sale.
-        const s = segmenter(r.orders, new Set(), faits.enRoute, faits.livrees, faits.remboursees);
-        setVentes({
-          kind: 'ok',
-          aTraiter: plusAnciennes(s.a_traiter, 3),
-          enAttente: s.a_traiter.length,
-          pretes: s.pret.length,
-          total: ventesPayees(r.orders, faits.remboursees),
-          // CROISSANCE-1 — counts from a book the page cap stopped are « at least ».
-          incomplet: r.incomplet === true,
+        const peindre = (faits: Awaited<ReturnType<typeof faitsDeRoute>>) => {
+          const s = segmenter(r.orders, new Set(), faits.enRoute, faits.livrees, faits.remboursees);
+          setVentes({
+            kind: 'ok',
+            aTraiter: plusAnciennes(s.a_traiter, 3),
+            enAttente: s.a_traiter.length,
+            pretes: s.pret.length,
+            total: ventesPayees(r.orders, faits.remboursees),
+            // CROISSANCE-1 — counts from a book the page cap stopped are « at least ».
+            incomplet: r.incomplet === true,
+          });
+        };
+        // The book is the home's own content and shows the moment it answers,
+        // classed by its own marks — as on a device without key C or the Séra
+        // key. The road facts (up to many pages each) refine it when they land,
+        // as the Commandes tab does: a slow Shop+ or Séra never holds back
+        // « À faire maintenant » (verifier MINOR, STOCK-VRAI-1).
+        peindre({ enRoute: new Set(), livrees: new Set(), remboursees: new Set() });
+        void faitsLus.then((faits) => {
+          if (alive) peindre(faits);
         });
       });
     }

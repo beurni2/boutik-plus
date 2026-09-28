@@ -1764,6 +1764,18 @@
     "screenClass": "status"
   },
   {
+    "key": "produits.stock_manque_un",
+    "fr": "Attention : il manque 1 article pour un colis déjà payé. Dans Commandes, vous pouvez annuler et rembourser.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_manque_n",
+    "fr": "Attention : il manque {m} articles pour des colis déjà payés. Dans Commandes, vous pouvez annuler et rembourser.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "produits.en_ligne_jusqu",
     "fr": "En ligne jusqu’au {date}",
     "register": "neutral",
@@ -1802,6 +1814,12 @@
   {
     "key": "produits.prolonger_echec",
     "fr": "La prolongation n’a pas abouti. Vérifiez le réseau et réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.prolonger_fait",
+    "fr": "C’est fait : son année de vente va jusqu’au {date}.",
     "register": "neutral",
     "screenClass": "status"
   },

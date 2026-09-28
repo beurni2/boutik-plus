@@ -53,9 +53,19 @@ function livre(
   /** STOCK-VRAI-1 — sold parcels still waiting for the rider, per offer, as
    *  the real Worker counts them from the order book (never from the caller). */
   enAttente: Record<string, number> = {},
-  prolongerDoor: () => { status: number; json: Record<string, unknown> } | 'ok' = () => 'ok',
+  /** 'perdu' — the renewal IS written, and its answer never reaches the phone. */
+  prolongerDoor: () => { status: number; json: Record<string, unknown> } | 'ok' | 'perdu' = () => 'ok',
 ) {
-  const state = { rangees, confirms: [] as Record<string, unknown>[], enAttente, attenteLus: [] as string[] };
+  const state = {
+    rangees,
+    confirms: [] as Record<string, unknown>[],
+    enAttente,
+    attenteLus: [] as string[],
+    /** the real door's `prolonge-{commandId}` markers */
+    prolonges: new Set<string>(),
+    /** the console's product read failing (a re-read after an act) */
+    inventaireEnPanne: false,
+  };
   const routes: Route[] = [
     (path, _b, search, headers) => {
       if (path !== '/offers/stock/attente') return null;
@@ -69,13 +79,19 @@ function livre(
       if (path !== '/offers/prolonger') return null;
       if (headers['authorization'] !== `Bearer ${OPS_KEY}`) return { status: 401, json: { error: 'unauthorized' } };
       const verdict = prolongerDoor();
-      if (verdict !== 'ok') return verdict;
+      if (verdict !== 'ok' && verdict !== 'perdu') return verdict;
       const r = state.rangees.find((x) => x.offerId === body?.['offerId']);
       if (r === undefined) return { status: 404, json: { error: 'not_found' } };
+      // As the real door: a command already applied answers `idempotent` with
+      // the CURRENT end, and adds nothing.
+      const commandId = String(body?.['commandId'] ?? '');
+      if (state.prolonges.has(commandId)) return { status: 200, json: { status: 'idempotent', expiry: r.expiry!, version: 2 } };
       // decideProlonger: a year after today or after the current end, whichever is later.
       const depart = Math.max(Date.now(), Date.parse(r.expiry ?? '1970-01-01T00:00:00.000Z'));
       r.expiry = new Date(depart + 365 * 24 * 60 * 60 * 1000).toISOString();
       if (r.hiddenReason === 'offer_not_effective') delete r.hiddenReason;
+      state.prolonges.add(commandId);
+      if (verdict === 'perdu') return { status: 500, json: { error: 'boom' } };
       return { status: 200, json: { status: 'prolonge', expiry: r.expiry, version: 2 } };
     },
     (path, body, _s, headers) => {
@@ -108,6 +124,7 @@ function livre(
     (path, _b, _s, headers) => {
       if (path !== '/offers/inventaire') return null;
       if (headers['authorization'] !== `Bearer ${OPS_KEY}`) return { status: 401, json: { error: 'unauthorized' } };
+      if (state.inventaireEnPanne) return { status: 503, json: { error: 'unavailable' } };
       return { status: 200, json: { asOf: '2026-09-17T09:00:00.000Z', items: state.rangees.map((r) => ({ ...r })) as never } };
     },
     (path) =>
@@ -301,6 +318,35 @@ describe('STOCK-VRAI-1 (F-03) — the count takes off the parcels waiting for th
     screen.unmount();
   });
 
+  // Verifier MINOR (STOCK-VRAI-1): the floor at 0 hid a shortfall on paid parcels.
+  it('fewer in hand than parcels already paid: 0 on sale, and the missing items are SAID, with the road to act', async () => {
+    const svc = livre([{ ...gele(), available: 1 }], () => 'ok', { [OFFER]: 3 });
+    wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Confirmer le stock');
+    await screen.type('1', 'Combien en avez-vous');
+    await screen.press('Envoyer');
+    expect(svc.state.rangees[0]!.available).toBe(0);
+    expect(screen.shows('Vous avez compté 1. 3 colis vendus attendent le coursier : 0 en vente.')).toBe(true);
+    expect(screen.shows('Attention : il manque 2 articles pour des colis déjà payés. Dans Commandes, vous pouvez annuler et rembourser.')).toBe(true);
+    expect(screen.canPress('Confirmer le stock'), 'a recount stays reachable').toBe(true);
+    screen.unmount();
+  });
+
+  it('enough in hand: no shortfall is said', async () => {
+    const svc = livre([{ ...gele(), available: 1 }], () => 'ok', { [OFFER]: 2 });
+    wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Confirmer le stock');
+    await screen.type('2', 'Combien en avez-vous');
+    await screen.press('Envoyer');
+    expect(screen.shows('Vous avez compté 2. 2 colis vendus attendent le coursier : 0 en vente.')).toBe(true);
+    expect(screen.shows('Attention : il manque')).toBe(false);
+    screen.unmount();
+  });
+
   it('nothing waiting: the sheet says so, and no result line is added after the count', async () => {
     const svc = livre([gele()], () => 'ok', {});
     wire(svc.routes);
@@ -387,6 +433,44 @@ describe('STOCK-VRAI-1 (F-12) — the end of its year is said, and « Prolonger 
     expect(w.calls.filter((c) => c.path === '/offers/prolonger')).toHaveLength(2);
     expect(screen.shows('La prolongation n’a pas abouti')).toBe(false);
     expect(screen.shows(`Son année de vente est finie`)).toBe(false);
+    screen.unmount();
+  });
+
+  // Verifier MAJOR (STOCK-VRAI-1): a renewal that is replayed ADDS another year,
+  // unlike a replayed count — so the retry must be the same act, not a new one.
+  it('the renewal went through but its answer was lost: the retry is the SAME act, and the year is added once', async () => {
+    let perdu = true;
+    const fini: Rangee = { ...gele(), hiddenReason: 'offer_not_effective', effective: '2025-08-01T00:00:00.000Z', expiry: FIN_PASSEE };
+    const svc = livre([fini], () => 'ok', {}, () => (perdu ? 'perdu' : 'ok'));
+    const w = wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    await screen.press('Prolonger d’un an');
+    expect(screen.shows('La prolongation n’a pas abouti')).toBe(true);
+    expect(screen.canPress('Prolonger d’un an'), 'a failed act must leave a way out').toBe(true);
+    perdu = false;
+    await screen.press('Prolonger d’un an');
+    const posts = w.calls.filter((c) => c.path === '/offers/prolonger');
+    expect(posts).toHaveLength(2);
+    expect(posts[1]?.body?.['commandId'], 'the retry must carry the first press’s command').toBe(posts[0]?.body?.['commandId']);
+    const fin = Date.parse(svc.state.rangees[0]!.expiry!);
+    expect(fin, 'ONE year from today, never two').toBeLessThan(Date.now() + AN + 60_000);
+    expect(screen.shows(`En ligne jusqu’au ${dateCourte(new Date(fin).toISOString())}`)).toBe(true);
+    screen.unmount();
+  });
+
+  it('renewed, but the re-read failed: the fiche says the new end from the answer and no longer invites a second year', async () => {
+    const fini: Rangee = { ...gele(), hiddenReason: 'offer_not_effective', effective: '2025-08-01T00:00:00.000Z', expiry: FIN_PASSEE };
+    const svc = livre([fini], () => 'ok');
+    wire(svc.routes);
+    const screen = await monter();
+    await screen.press('Pagne tissé');
+    svc.state.inventaireEnPanne = true;
+    await screen.press('Prolonger d’un an');
+    const fin = svc.state.rangees[0]!.expiry!;
+    expect(screen.shows(`C’est fait : son année de vente va jusqu’au ${dateCourte(fin)}.`), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.shows('Son année de vente est finie')).toBe(false);
+    expect(screen.shows('Prolongez-la d’un an pour la remettre en ligne.')).toBe(false);
     screen.unmount();
   });
 

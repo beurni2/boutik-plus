@@ -17,7 +17,7 @@ import type { Order, Product } from './seed';
 import type { SupplierOfferRow } from '../supply/service';
 import { t as tr } from '../i18n';
 import { FicheVideo } from './fiche-video';
-import { fenetreVente, galleryPhotos, lireQuantite, phraseCachee, photoSlot, stockEtat, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
+import { dateCourte, fenetreVente, galleryPhotos, lireQuantite, phraseCachee, photoSlot, stockEtat, type GalleryPhoto, type HiddenReason } from '../supply/produits-view';
 import {
   ActivityCard, Banner, BtnDemo, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChipSegment, EcheanceRow,
   EmptyState, HeaderBoutique, HeaderStacked, Icon, IconTile, Input, MoneyBreakdown, Overline, PageTitle,
@@ -278,10 +278,10 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
    *  when he opens the count so the question can name them; `null` when the
    *  read failed (the count still subtracts them on the server). */
   onAttente?: (() => Promise<number | null>) | undefined;
-  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an ». Resolves true when the
-   *  service extended it (the parent re-reads, the date line moves); false
-   *  shows the designed failure with the act still reachable. HIS act alone. */
-  onProlonger?: (() => Promise<boolean>) | undefined;
+  /** STOCK-VRAI-1 (F-12) — « Prolonger d'un an ». Resolves to the server's new
+   *  end date when it extended (the parent also re-reads); false shows the
+   *  designed failure with the act still reachable. HIS act alone. */
+  onProlonger?: (() => Promise<string | false>) | undefined;
 }) {
   const [viewing, setViewing] = useState<GalleryPhoto | null>(null);
   // The delete walk: idle → confirm (the warning states what happens, in
@@ -330,13 +330,24 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
     setResultat(res);
   };
   // STOCK-VRAI-1 (F-12) — « Prolonger d'un an »: idle → pending → failed (retryable)
-  // or back to idle, where the re-read row carries the new date.
+  // or back to idle, saying the end the SERVER answered (verifier MAJOR: a row
+  // not yet re-read still said « finie » and invited a second year).
   const [prolonger, setProlonger] = useState<'idle' | 'pending' | 'failed'>('idle');
+  const [prolongeJusqu, setProlongeJusqu] = useState<string | null>(null);
   const runProlonger = async () => {
     if (onProlonger === undefined || prolonger === 'pending') return;
     setProlonger('pending');
-    setProlonger((await onProlonger()) ? 'idle' : 'failed');
+    setProlongeJusqu(null);
+    const fin = await onProlonger();
+    if (fin === false) {
+      setProlonger('failed');
+      return;
+    }
+    setProlongeJusqu(fin);
+    setProlonger('idle');
   };
+  /** The renewal answered a later end than this row knows: the row is stale. */
+  const rangeeEnRetard = prolongeJusqu !== null && !(Date.parse(row.expiry ?? '') >= Date.parse(prolongeJusqu));
   const fenetre = fenetreVente(row, Date.now());
   const etat = stockEtat(row);
   const photos = galleryPhotos(row.assetRefs, mediaBase);
@@ -349,7 +360,7 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
       <HeaderStacked title={row.name} onBack={onBack} />
-      {row.hiddenReason !== undefined && (
+      {row.hiddenReason !== undefined && !(rangeeEnRetard && row.hiddenReason === 'offer_not_effective') && (
         <View style={{ marginTop: 12 }}>
           <Banner tone="warn">{phraseEnClair(phraseCachee({ ...row, hiddenReason: row.hiddenReason as HiddenReason }, Date.now()))}</Banner>
         </View>
@@ -430,6 +441,16 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
                 .replace('{available}', String(resultat.available))}
             </Text>
           )}
+          {/* Verifier MINOR (STOCK-VRAI-1): fewer in hand than parcels already
+              paid floors the counter at 0 — and the paid parcels with no item
+              are said, with the road that exists for them. */}
+          {stock === 'idle' && resultat !== null && resultat.compte !== null && resultat.enAttente !== null && resultat.compte < resultat.enAttente && (
+            <Banner tone="warn" style={{ marginBottom: 10 }}>
+              {resultat.enAttente - resultat.compte === 1
+                ? tr('produits.stock_manque_un')
+                : tr('produits.stock_manque_n').replace('{m}', String(resultat.enAttente - resultat.compte))}
+            </Banner>
+          )}
           {stock === 'idle' || stock === 'failed' ? (
             <BtnSoft label={tr('produits.stock_confirmer')} onPress={ouvrirSaisie} />
           ) : (
@@ -472,9 +493,14 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
           year is over, the way back is said beside the act that takes it. */}
       {onProlonger !== undefined && (
         <View style={{ marginTop: 14 }}>
-          {fenetre?.kind === 'finie' && prolonger !== 'pending' && (
+          {fenetre?.kind === 'finie' && prolonger !== 'pending' && !rangeeEnRetard && (
             <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
               {tr('produits.prolonger_action')}
+            </Text>
+          )}
+          {prolonger === 'idle' && prolongeJusqu !== null && (
+            <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginBottom: 10 }]}>
+              {tr('produits.prolonger_fait').replace('{date}', dateCourte(prolongeJusqu))}
             </Text>
           )}
           {prolonger === 'failed' && (
