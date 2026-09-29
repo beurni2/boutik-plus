@@ -24,6 +24,7 @@ import {
   aAccepterDuColis,
   fournisseurVue,
   modeVisible,
+  phraseRemise,
   pretChoisir,
   pretEnvoyer,
   pretIssue,
@@ -908,6 +909,13 @@ function VerifierRetour({ onVerifier }: { onVerifier: (dit: string) => Promise<'
 
 /* ────────────────────────────── one commande ─────────────────────────────── */
 
+/** RETOUR-RAYON-1 — where HIS refused unit stands on its way back to sale, in one sentence; nothing when nothing goes back. */
+function LigneRemise({ commande }: { commande: CommandeVue }) {
+  const cle = phraseRemise(commande);
+  if (cle === null) return null;
+  return <Text style={[role({ f: 'IS', w: 600, s: 12 }, commande.fulfillment?.remiseEnVente === 'faite' ? P.successFg : P.sub), { marginTop: 4 }]}>{t(cle)}</Text>;
+}
+
 function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, mediaBase, onAccepter, onChoisirPhoto, onEnvoyer, onVerifierRamassage, onVerifierRetour, onRefuser, refusTropTard }: {
   commande: CommandeVue;
   pret: PretUi;
@@ -989,7 +997,12 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
           either card, and each says plainly who holds the colis now. */}
       {commande.etape === 'en_route' && (
         <View style={{ marginTop: 10 }}>
-          <Banner tone="info">{t('fournisseur.etape_en_route')}</Banner>
+          {/* RETOUR-RAYON-1 — refused at the buyer's door, it is coming BACK:
+              « Séra s'occupe de la livraison » would be untrue. */}
+          <Banner tone="info">
+            {t(commande.fulfillment?.refuseePorteAt !== undefined ? 'fournisseur.etape_refusee_porte' : 'fournisseur.etape_en_route')}
+          </Banner>
+          <LigneRemise commande={commande} />
           {/* RETOUR-VIVANT-1 — a colis on the road can come BACK refused; the
               return check lives on the card that holds it, behind HIS code. */}
           <VerifierRetour onVerifier={onVerifierRetour} />
@@ -1005,6 +1018,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
       {commande.etape === 'retournee' && (
         <View style={{ marginTop: 10 }}>
           <Banner tone="info">{t('fournisseur.etape_retournee')}</Banner>
+          <LigneRemise commande={commande} />
         </View>
       )}
 
@@ -1164,7 +1178,10 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_livre')}</Text>
                 ) : a.etape === 'retournee' ? (
                   <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_revenu')}</Text>
+                ) : a.etape === 'en_route' && a.fulfillment?.refuseePorteAt !== undefined ? (
+                  <Text style={[role({ f: 'IS', w: 600, s: 12 }, P.sub), { marginTop: 2 }]}>{t('fournisseur.colis_article_refuse_porte')}</Text>
                 ) : null}
+                <LigneRemise commande={a} />
               </View>
             </View>
             {refusTropTard.has(a.orderId) && (

@@ -255,7 +255,7 @@ describe('STOCK-VENDU — a sale moves the ONE counter every surface reads', () 
   });
 });
 
-describe('STOCK-VENDU-1b — the refused unit comes home, on the real worker', () => {
+describe('STOCK-VENDU-1b · RETOUR-RAYON-1 — a refusal at the door, on the real worker', () => {
   function refusedEvent(orderId: string, faultClass?: string) {
     return {
       name: 'delivery.refused.v1',
@@ -291,37 +291,41 @@ describe('STOCK-VENDU-1b — the refused unit comes home, on the real worker', (
     expect((await postRefused(refusedEvent('ord-sv-3', 'buyer'), 'Bearer wrong')).status).toBe(401);
   });
 
-  it('a BUYER-fault refusal restocks the unit — 0 back to 1, on the road his console reads; the redelivery moves nothing', async () => {
+  // RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling 2026-09-28: « back on sale
+  // when supplier confirms it ») — a refusal at the buyer's door moves NO stock:
+  // the unit is in the rider's bag. It goes back on sale when the supplier
+  // confirms the return code — proven end to end in retour-rayon.e2e.test.ts.
+  it('a BUYER-fault refusal at the door moves nothing yet — 0 stays 0 on both roads; it waits for his return code; the redelivery says the same', async () => {
     const first = await postRefused(refusedEvent('ord-sv-3', 'buyer'));
     expect(first.status).toBe(200);
-    expect(first.json['status']).toBe('restocked');
-    expect(await stockSurConsole()).toBe(1);
-    expect(await stockSurProjection()).toBe(1);
+    expect(first.json['status']).toBe('restock_on_return');
+    expect(await stockSurConsole()).toBe(0);
+    expect(await stockSurProjection()).toBe(0);
     const again = await postRefused(refusedEvent('ord-sv-3', 'buyer'));
     expect(again.status).toBe(200);
-    expect(again.json['status']).toBe('idempotent');
-    expect(await stockSurConsole()).toBe(1);
+    expect(again.json['status']).toBe('restock_on_return');
+    expect(await stockSurConsole()).toBe(0);
   });
 
-  it('a SELLER-fault refusal restores nothing automatically (the safest default, founder-tunable)', async () => {
+  it('a SELLER-fault refusal will restore nothing, even after its return (the safest default, founder-tunable)', async () => {
     const res = await postRefused(refusedEvent('ord-sv-1', 'seller'));
     expect(res.status).toBe(200);
-    expect(res.json['status']).toBe('no_restock');
-    expect(await stockSurConsole()).toBe(1);
+    expect(res.json).toEqual({ ok: true, status: 'no_restock', faultClass: 'seller' });
+    expect(await stockSurConsole()).toBe(0);
   });
 
-  it('a refusal with NO fault class (the evidence-rejected emit) restocks nothing', async () => {
+  it('a refusal with NO fault class (the evidence-rejected emit) restores nothing', async () => {
     const res = await postRefused(refusedEvent('ord-sv-2'));
     expect(res.status).toBe(200);
-    expect(res.json['status']).toBe('no_restock');
-    expect(await stockSurConsole()).toBe(1);
+    expect(res.json).toEqual({ ok: true, status: 'no_restock', faultClass: null });
+    expect(await stockSurConsole()).toBe(0);
   });
 
   it('an UNKNOWN order answers 200 — the at-least-once emitter must stop, never wedge', async () => {
     const res = await postRefused(refusedEvent('ord-jamais-vu', 'buyer'));
     expect(res.status).toBe(200);
     expect(res.json['status']).toBe('unknown_order');
-    expect(await stockSurConsole()).toBe(1);
+    expect(await stockSurConsole()).toBe(0);
   });
 
   it("the OVERSOLD sale wears its mark on his board's own read; a clean sale does not", async () => {

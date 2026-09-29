@@ -229,7 +229,8 @@ describe('the screens exist, and the photos ride each commande (call sites)', ()
   it('the two archive screens say who holds the colis, from the catalog', () => {
     const carte = carteCommande(app);
     expect(carte).toContain("{commande.etape === 'en_route' && (");
-    expect(carte).toContain("{t('fournisseur.etape_en_route')}");
+    // RETOUR-RAYON-1 — refused at the door, the colis is coming BACK: its own sentence.
+    expect(carte).toContain("{t(commande.fulfillment?.refuseePorteAt !== undefined ? 'fournisseur.etape_refusee_porte' : 'fournisseur.etape_en_route')}");
     expect(carte).toContain("{commande.etape === 'livree' && (");
     expect(carte).toContain("{t('fournisseur.etape_livree')}");
   });

@@ -53,6 +53,12 @@ export interface CommandeRow {
     /** REMBOURSABLE-1 (F-08) — the rider refused the colis at pickup: the
      *  order is over and the colis never left his hands (→ the archive). */
     readonly pickupRefusedAt?: string;
+    /** RETOUR-RAYON-1 — the buyer refused it at her door: it left his hands
+     *  and the rider brings it back (→ « En route », with the return check). */
+    readonly refuseePorteAt?: string;
+    /** RETOUR-RAYON-1 — only for a refused unit that goes back on sale: it
+     *  waits for his return code, is on its way back to sale, or is back. */
+    readonly remiseEnVente?: 'au_retour' | 'en_cours' | 'faite';
   };
   /**
    * COLIS-FOURNISSEUR-1 — the colis this order travels in (one buyer, one
@@ -431,7 +437,7 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     // one drops the WHOLE row. A row demoted to « no handover » would re-arm
     // the ramassage check over a colis already gone (verifier N4's law, now
     // guarding two more fields).
-    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'refusedAt', 'pickupRefusedAt'] as const;
+    const marks = ['acceptedAt', 'readyAt', 'handedOverAt', 'deliveredAt', 'returnedAt', 'refusedAt', 'pickupRefusedAt', 'refuseePorteAt'] as const;
     const lus: Partial<Record<(typeof marks)[number], string>> = {};
     for (const m of marks) {
       if (fr[m] === undefined) continue;
@@ -441,7 +447,13 @@ function readCommandeRow(value: unknown): CommandeRow | null {
     if (Object.keys(lus).length === 0) return null;
     // Who refused: an unknown value reads as HIS refusal — the card it gives
     // asks for nothing, so no act can be re-armed by a word we do not know.
-    fulfillment = { ...lus, ...(lus.refusedAt !== undefined && fr['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}) };
+    // RETOUR-RAYON-1 — a word we do not know adds no sentence; it re-arms no act.
+    const remise = fr['remiseEnVente'];
+    fulfillment = {
+      ...lus,
+      ...(lus.refusedAt !== undefined && fr['refusPar'] === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+      ...(remise === 'au_retour' || remise === 'en_cours' || remise === 'faite' ? { remiseEnVente: remise } : {}),
+    };
   }
   // COLIS-FOURNISSEUR-1 — the same strictness: a malformed package drops the
   // WHOLE row, never a half-formed card asking for an act on a guessed bag.

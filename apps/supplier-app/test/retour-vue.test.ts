@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { etapeOf, fournisseurVue, type FournisseurRead } from '../src/fournisseur/view';
+import { etapeOf, fournisseurVue, phraseRemise, type FournisseurRead } from '../src/fournisseur/view';
 import { resolveFournisseurService, type CommandeRow } from '../src/fournisseur/service';
 
 /**
@@ -75,6 +75,35 @@ describe('the return mark ends the road — the colis is back in his hands', () 
     if (!res.ok) throw new Error('unreachable');
     expect(res.orders.map((o) => o.orderId)).toEqual(['ok-1']);
     expect(res.orders[0]?.fulfillment?.returnedAt).toBe(T.revenu);
+  });
+});
+
+describe('RETOUR-RAYON-1 — refused at the door: « en route » back to him, and one sentence for where the unit stands', () => {
+  it('a door refusal puts the order « en route » even without his pickup confirmation; a return, a delivery still end the road', () => {
+    expect(etapeOf(row('p1', { acceptedAt: T.accepte, readyAt: T.pret, refuseePorteAt: T.remis }))).toBe('en_route');
+    expect(etapeOf(row('p2', { acceptedAt: T.accepte, readyAt: T.pret, refuseePorteAt: T.remis, returnedAt: T.revenu }))).toBe('retournee');
+    expect(etapeOf(row('p3', { refuseePorteAt: T.remis, deliveredAt: T.revenu }))).toBe('livree');
+  });
+
+  it('the sentence follows the book: waiting for his code, on its way back to sale, back on sale — and nothing when nothing goes back', () => {
+    expect(phraseRemise(row('r1', { refuseePorteAt: T.remis, remiseEnVente: 'au_retour' }))).toBe('fournisseur.remise_au_retour');
+    expect(phraseRemise(row('r2', { refuseePorteAt: T.remis, returnedAt: T.revenu, remiseEnVente: 'en_cours' }))).toBe('fournisseur.remise_en_cours');
+    expect(phraseRemise(row('r3', { refuseePorteAt: T.remis, returnedAt: T.revenu, remiseEnVente: 'faite' }))).toBe('fournisseur.remise_faite');
+    expect(phraseRemise(row('r4', { refuseePorteAt: T.remis }))).toBeNull();
+    expect(phraseRemise(row('r5', { handedOverAt: T.remis }))).toBeNull();
+  });
+
+  it('a malformed door-refusal mark drops the WHOLE row; an unknown « remise » word is dropped alone (it re-arms no act)', async () => {
+    vi.stubEnv('EXPO_PUBLIC_OFFER_BASE', 'https://offers.example.dev');
+    const bon = { ...row('ok-2'), fulfillment: { acceptedAt: T.accepte, refuseePorteAt: T.remis, remiseEnVente: 'au_retour' } };
+    const inconnu = { ...row('ok-3'), fulfillment: { acceptedAt: T.accepte, refuseePorteAt: T.remis, remiseEnVente: 'peut-etre' } };
+    const casse = { ...row('casse-2'), fulfillment: { acceptedAt: T.accepte, refuseePorteAt: 'hier' } };
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ ok: true, orders: [bon, inconnu, casse] }), { status: 200 }));
+    const res = await resolveFournisseurService()!.listMine('BF-AAAA-BBBB-CCCC-DDDD');
+    if (!res.ok) throw new Error('unreachable');
+    expect(res.orders.map((o) => o.orderId)).toEqual(['ok-2', 'ok-3']);
+    expect(res.orders[0]?.fulfillment).toEqual({ acceptedAt: T.accepte, refuseePorteAt: T.remis, remiseEnVente: 'au_retour' });
+    expect(res.orders[1]?.fulfillment).toEqual({ acceptedAt: T.accepte, refuseePorteAt: T.remis });
   });
 });
 

@@ -323,7 +323,10 @@ describe('THE FREEZE — unconfirmed past the window, Shop+ stops selling; one c
     expect((await projection()).status).toBe(409);
   });
 
-  it('the refused unit comes home through the REAL refused intake → `rendu` 4 → 5 naming the order (the fifth kind, read off the ledger)', async () => {
+  // RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling 2026-09-28) — a refusal at
+  // the buyer's door moves no stock: the unit is in the rider's bag. Its
+  // return to sale on the supplier's return code is proven in retour-rayon.e2e.
+  it('a refusal at the buyer\'s door through the REAL refused intake moves nothing yet: no `rendu`, 4 stays 4, it waits for his return code', async () => {
     const res = await mf.dispatchFetch('http://o/fulfillment/delivery-refused', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FULFILL_SECRET}` },
@@ -334,23 +337,23 @@ describe('THE FREEZE — unconfirmed past the window, Shop+ stops selling; one c
       }),
     });
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { status?: string }).status).toBe('restocked');
+    expect(((await res.json()) as { status?: string }).status).toBe('restock_on_return');
     const j = await journal();
-    expect(j.json.available).toBe(5);
-    expect(j.json.rows![5]).toMatchObject({ seq: 6, kind: 'rendu', from: 4, to: 5, orderId: 'ord-sj-2' });
-    // a unit coming home is not a human vouching either — still frozen
+    expect(j.json.available).toBe(4);
+    expect(j.json.rows).toHaveLength(5);
     expect((await projection()).status).toBe(409);
   });
 
   it('one confirmation from his console and the offer is back on EVERY road', async () => {
-    // 5 on the shelf plus ord-sj-1's parcel still waiting = 6 in hand; ord-sj-2
-    // came home (`rendu`), so it is NOT taken off a second time.
-    const r = await confirmer('act-sj-3', 6);
+    // 4 on the shelf plus ord-sj-1's parcel still waiting = 5 in hand. ord-sj-2
+    // is in the rider's bag: refused at the door, it left his hands, so it is
+    // neither on his shelf nor taken off as a parcel waiting there.
+    const r = await confirmer('act-sj-3', 5);
     expect(r.json['status']).toBe('confirmed');
-    expect(r.json).toMatchObject({ available: 5, compte: 6, enAttente: 1 });
+    expect(r.json).toMatchObject({ available: 4, compte: 5, enAttente: 1 });
     const p = await projection();
     expect(p.status).toBe(200);
-    expect(p.json.value?.available).toBe(5);
+    expect(p.json.value?.available).toBe(4);
     expect(await collectionHasIt()).toBe(true);
     expect((await ligneConsole()).hiddenReason).toBeUndefined();
   });
@@ -363,8 +366,7 @@ describe('THE FREEZE — unconfirmed past the window, Shop+ stops selling; one c
       [3, 'confirme', 2, 2],
       [4, 'ajuste', 2, 5],
       [5, 'vendu', 5, 4],
-      [6, 'rendu', 4, 5],
-      [7, 'confirme', 5, 5],
+      [6, 'confirme', 4, 4],
     ]);
     // every stamp is a real server instant, monotone non-decreasing
     for (let i = 1; i < rows.length; i += 1) {

@@ -157,10 +157,27 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
   // A return ends the road after the handover, as a delivery does: the
   // colis is back in his hands, and « en route » would be a lie.
   if (row.fulfillment?.returnedAt !== undefined) return 'retournee';
-  if (row.fulfillment?.handedOverAt !== undefined) return 'en_route';
+  // RETOUR-RAYON-1 — refused at the buyer's door, it left his hands even when
+  // he never confirmed the pickup: « en route » back to him, where his return
+  // code is asked for (and is what puts the unit back on sale).
+  if (row.fulfillment?.handedOverAt !== undefined || row.fulfillment?.refuseePorteAt !== undefined) return 'en_route';
   if (row.fulfillment?.readyAt !== undefined) return 'prete';
   if (row.fulfillment?.acceptedAt !== undefined) return 'a_preparer';
   return 'a_accepter';
+}
+
+/**
+ * RETOUR-RAYON-1 (founder ruling 2026-09-28: « back on sale when supplier
+ * confirms it ») — the one sentence for where a refused unit stands on its way
+ * back to sale, or null when nothing goes back (a fault that never sends it
+ * home, or an order never refused at the door).
+ */
+export function phraseRemise(row: CommandeRow): string | null {
+  const r = row.fulfillment?.remiseEnVente;
+  return r === 'au_retour' ? 'fournisseur.remise_au_retour'
+    : r === 'en_cours' ? 'fournisseur.remise_en_cours'
+      : r === 'faite' ? 'fournisseur.remise_faite'
+        : null;
 }
 
 /**

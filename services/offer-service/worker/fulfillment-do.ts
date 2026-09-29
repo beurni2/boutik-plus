@@ -10,7 +10,8 @@ import {
 } from '@platform/contracts';
 import { provenance } from '@boutik/observability';
 import { restockOnRefusal } from '../src/offer-core.js';
-import type { OfferStore } from '../src/offer-store.js';
+import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
+import offerRouter from './offer-do.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -101,6 +102,18 @@ const LIVRAISON_PREFIX = 'livraison:';
  * a fact that TRAVELLED here, never one this book witnessed.
  */
 const PICKUP_REFUS_PREFIX = 'ramassagerefus:';
+/**
+ * RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling 2026-09-28: « back on sale
+ * when supplier confirms it ») — the buyer REFUSED the colis at her door
+ * (Séra's `delivery.refused.v1`, any rejection but one at pickup, relayed by
+ * Shop+): it left his hands and travels back in the rider's bag. `remettre`
+ * is the fault-class policy's word (`restockOnRefusal`), taken when the fact
+ * lands. The unit goes back on sale only once HE confirms the return code —
+ * the rider's bag is not his shelf. Séra's instant, first-wins.
+ */
+const PORTE_REFUS_PREFIX = 'porterefus:';
+/** RETOUR-RAYON-1 — the unit's return to sale rides the book's one keyed ladder. */
+const rayonDe = (orderId: string): string => `${PROGRESS_OUTBOX_PREFIX}${orderId}:rayon`;
 /** RB-1 — the founder's own contact card per supplier (name + phone), behind
  *  his ops key on both verbs. See the /supplier-contact handler for why this
  *  exists at all (founder decision 2026-08-08). */
@@ -378,6 +391,13 @@ interface HandoverRecord {
 }
 
 /** RETOUR-VIVANT-1 — the confirmed return code, one row per order. */
+interface PorteRefusRecord {
+  readonly orderId: string;
+  /** Séra's instant when readable, this Worker's clock otherwise (as the pickup refusal). */
+  readonly refuseePorteAt: string;
+  readonly remettre: boolean;
+}
+
 interface RetourRecord {
   readonly orderId: string;
   /** THIS Worker's clock at the moment Séra answered `confirme` on the
@@ -502,6 +522,12 @@ export class FulfillmentDO {
        */
       readonly SERA_INTAKE_BASE?: string;
       readonly SERA_INTAKE_SECRET?: string;
+      /**
+       * RETOUR-RAYON-1 — the offers' namespace, the same binding the
+       * composition root composes its store from. Absent ⇒ a queued return
+       * to sale stays pending and the ladder retries; never a fabricated one.
+       */
+      readonly OFFER?: DurableObjectNamespace;
     },
   ) {}
 
@@ -730,7 +756,9 @@ export class FulfillmentDO {
       const seraRow = (row as { target?: string }).target === 'sera';
       const res = seraRow
         ? await this.deliverToSera(row.event)
-        : await this.deliverToStorefront(row.event);
+        : (row as { target?: string }).target === 'rayon'
+          ? await this.deliverToRayon(row.event)
+          : await this.deliverToStorefront(row.event);
       if (res !== undefined) {
         delivered = res.ok;
         /**
@@ -825,6 +853,48 @@ export class FulfillmentDO {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
       body: JSON.stringify(fact),
     }).catch(() => undefined);
+  }
+
+  /**
+   * RETOUR-RAYON-1 — the counter leg: the offer's own restock door, through
+   * the SAME router and store the composition root composes (one road to the
+   * counter). That door adds one only for an order that consumed there, once
+   * (its `rendu-` marker), so a replay never adds twice. `undefined` = not
+   * attempted (no binding): the row waits. An offer gone, or an order that
+   * never took a unit there, answers 409 — nothing will ever go back, and the
+   * ladder parks the row rather than retrying it forever.
+   */
+  private async deliverToRayon(event: unknown): Promise<Response | undefined> {
+    const env = this.env;
+    if (env?.OFFER === undefined) return undefined;
+    const orderId = (event as { orderId?: unknown } | null)?.orderId;
+    if (typeof orderId !== 'string' || orderId === '') return Response.json({ ok: false }, { status: 400 });
+    const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
+    if (order === undefined) return Response.json({ ok: false, reason: 'unknown_order' }, { status: 409 });
+    const store = resolveOfferStore({
+      OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env as unknown as Parameters<typeof offerRouter.fetch>[1]) },
+    });
+    try {
+      const out = await store.restockAvailable(order.productVersionId, orderId);
+      const fait = out.status === 'restocked' || out.status === 'idempotent';
+      return Response.json({ ok: fait, status: out.status }, { status: fait ? 200 : 409 });
+    } catch {
+      return Response.json({ ok: false, reason: 'stock_unavailable' }, { status: 503 });
+    }
+  }
+
+  /**
+   * RETOUR-RAYON-1 — the row that puts one refused unit back on sale, on the
+   * book's one ladder (per-row backoff, the pointer in the same write, the
+   * first-wins key). Only its orderId travels: the product is read from the
+   * order row when it is delivered.
+   */
+  private static rangeeRayon(orderId: string): Record<string, unknown> {
+    const key = rayonDe(orderId);
+    return {
+      [key]: { status: 'pending' as const, target: 'rayon' as const, event: { orderId }, attempts: 0, nextAttemptAt: 0 },
+      [pointeurDe(key)]: 1,
+    };
   }
 
   /** The 10-minute canon TTL, and CANON IS THE CEILING BY CONSTRUCTION: the
@@ -999,7 +1069,7 @@ export class FulfillmentDO {
         const r = lus.get(`${ORDER_PREFIX}${id}`) as PaidOrderRecord | undefined;
         return r !== undefined && r.supplierResolved && r.supplierId === supplierId && r.productVersionId === pv;
       });
-      const sorties = [HANDOVER_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX];
+      const sorties = [HANDOVER_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, PORTE_REFUS_PREFIX];
       const marques = await this.lireParCles(siennes.flatMap((id) => sorties.map((p) => `${p}${id}`)));
       return Response.json({ ok: true, orderIds: siennes.filter((id) => !sorties.some((p) => marques.has(`${p}${id}`))) });
     }
@@ -1364,8 +1434,10 @@ export class FulfillmentDO {
       // at pickup. One map serves every lookup below: its keys carry the prefix.
       const marques = await this.lireParCles(
         siennes.flatMap((r) =>
-          [ACCEPT_PREFIX, READY_PREFIX, HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX]
-            .map((p) => `${p}${r.orderId}`),
+          [ACCEPT_PREFIX, READY_PREFIX, HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, PORTE_REFUS_PREFIX]
+            .map((p) => `${p}${r.orderId}`)
+            // RETOUR-RAYON-1 — and where his refused unit stands on its way back to sale.
+            .concat(rayonDe(r.orderId)),
         ),
       );
       const accepts = marques as Map<string, FulfillmentAcceptanceRecord>;
@@ -1385,6 +1457,17 @@ export class FulfillmentDO {
           const retour = retours.get(`${RETOUR_PREFIX}${r.orderId}`);
           const refusee = refus.get(`${REFUS_PREFIX}${r.orderId}`);
           const pickup = pickups.get(`${PICKUP_REFUS_PREFIX}${r.orderId}`);
+          const porte = marques.get(`${PORTE_REFUS_PREFIX}${r.orderId}`) as PorteRefusRecord | undefined;
+          // RETOUR-RAYON-1 — only for a unit that goes back: waiting for his
+          // return code, on its way back to the counter, or back on sale. A row
+          // parked because nothing could go back says nothing.
+          const rayon = (marques.get(rayonDe(r.orderId)) as { status?: string } | undefined)?.status;
+          const remise =
+            porte?.remettre !== true ? undefined
+              : rayon === undefined ? (retour === undefined ? ('au_retour' as const) : undefined)
+                : rayon === 'pending' ? ('en_cours' as const)
+                  : rayon === 'delivered' ? ('faite' as const)
+                    : undefined;
           return {
             orderId: r.orderId,
             productName: r.productName,
@@ -1405,7 +1488,7 @@ export class FulfillmentDO {
             sellerBasePrice: r.sellerBasePrice,
             // COLIS-FOURNISSEUR-1 — which of HIS orders travel in one colis.
             ...(r.colis !== undefined ? { colis: r.colis } : {}),
-            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined || pickup !== undefined
+            ...(accepted !== undefined || ready !== undefined || handed !== undefined || livree !== undefined || retour !== undefined || refusee !== undefined || pickup !== undefined || porte !== undefined
               ? {
                   fulfillment: {
                     ...(accepted !== undefined ? { acceptedAt: accepted.acceptedAt } : {}),
@@ -1416,6 +1499,8 @@ export class FulfillmentDO {
                     ...(pickup !== undefined ? { pickupRefusedAt: pickup.pickupRefusedAt } : {}),
                     ...(refusee !== undefined ? { refusedAt: refusee.refusedAt } : {}),
                     ...(refusee?.par === 'fondateur' ? { refusPar: 'fondateur' as const } : {}),
+                    ...(porte !== undefined ? { refuseePorteAt: porte.refuseePorteAt } : {}),
+                    ...(remise !== undefined ? { remiseEnVente: remise } : {}),
                   },
                 }
               : {}),
@@ -1566,6 +1651,49 @@ export class FulfillmentDO {
      * fact — Shop+ retries any non-OK answer forever, and that would also hold
      * back every restock on the same wire.
      */
+    /**
+     * RETOUR-RAYON-1 — THE BUYER REFUSED IT AT HER DOOR. Internal: only the
+     * refused-course intake calls it, for every refusal but one at pickup.
+     * First-wins. If HE already confirmed the return (Shop+'s relay retries on
+     * its own clock, so the fact can land after the rider is back), the unit
+     * goes back on sale now, in the same write; otherwise it waits for his
+     * confirmation. A delivered order never goes back.
+     */
+    if (request.method === 'POST' && pathname === '/porte-refusee') {
+      const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+      const orderId = body?.['orderId'];
+      const at = body?.['at'];
+      const remettre = body?.['remettre'];
+      if (typeof orderId !== 'string' || orderId === '' || typeof remettre !== 'boolean') {
+        return Response.json({ ok: false, reason: 'malformed' }, { status: 400 });
+      }
+      if ((await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`)) === undefined) {
+        return Response.json({ ok: false, reason: 'unknown_order' }, { status: 404 });
+      }
+      const key = `${PORTE_REFUS_PREFIX}${orderId}`;
+      const lus = await this.lireParCles([key, `${RETOUR_PREFIX}${orderId}`, `${LIVRAISON_PREFIX}${orderId}`, rayonDe(orderId)]);
+      const existant = lus.get(key) as PorteRefusRecord | undefined;
+      const refus: PorteRefusRecord = existant ?? {
+        orderId,
+        refuseePorteAt: typeof at === 'string' && at !== '' && !Number.isNaN(Date.parse(at)) ? at : new Date().toISOString(),
+        remettre,
+      };
+      const retourne = lus.has(`${RETOUR_PREFIX}${orderId}`);
+      const livree = lus.has(`${LIVRAISON_PREFIX}${orderId}`);
+      const rendre = refus.remettre && retourne && !livree && !lus.has(rayonDe(orderId));
+      const ecrire: Record<string, unknown> = {
+        ...(existant === undefined ? { [key]: refus } : {}),
+        ...(rendre ? FulfillmentDO.rangeeRayon(orderId) : {}),
+      };
+      if (Object.keys(ecrire).length > 0) await this.state.storage.put(ecrire);
+      if (rendre) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+      const rayon = (lus.get(rayonDe(orderId)) as { status?: string } | undefined)?.status;
+      return Response.json({
+        ok: true,
+        status: !refus.remettre || livree ? 'no_restock' : !retourne ? 'restock_on_return' : rayon === 'delivered' ? 'restocked' : 'restock_queued',
+      });
+    }
+
     if (request.method === 'POST' && pathname === '/pickup-refused') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
       const orderId = body?.['orderId'];
@@ -1720,13 +1848,32 @@ export class FulfillmentDO {
         // it. A delivery that lands later still wins on his screen (a
         // delivered article reads « livré » whatever this row says).
         const returnedAt = new Date().toISOString();
-        for (const id of await this.membresDuColis(order, resolved.supplierId)) {
-          if (id !== orderId && (await this.state.storage.get(`${HANDOVER_PREFIX}${id}`)) === undefined) continue;
-          if (id !== orderId && (await this.state.storage.get(`${LIVRAISON_PREFIX}${id}`)) !== undefined) continue;
-          const key = `${RETOUR_PREFIX}${id}`;
-          if ((await this.state.storage.get<RetourRecord>(key)) === undefined) {
-            await this.state.storage.put(key, { orderId: id, returnedAt } satisfies RetourRecord);
-          }
+        const membres = await this.membresDuColis(order, resolved.supplierId);
+        const lus = await this.lireParCles(
+          membres.flatMap((id) => [HANDOVER_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, PORTE_REFUS_PREFIX].map((p) => `${p}${id}`).concat(rayonDe(id))),
+        );
+        const ecrire: Record<string, unknown> = {};
+        const aRearmer: string[] = [];
+        for (const id of membres) {
+          const refus = lus.get(`${PORTE_REFUS_PREFIX}${id}`) as PorteRefusRecord | undefined;
+          const livree = lus.has(`${LIVRAISON_PREFIX}${id}`);
+          // RETOUR-RAYON-1 — an article the buyer refused at her door left his
+          // hands even when he never confirmed its pickup.
+          if (id !== orderId && !lus.has(`${HANDOVER_PREFIX}${id}`) && refus === undefined) continue;
+          if (id !== orderId && livree) continue;
+          if (!lus.has(`${RETOUR_PREFIX}${id}`)) ecrire[`${RETOUR_PREFIX}${id}`] = { orderId: id, returnedAt } satisfies RetourRecord;
+          // RETOUR-RAYON-1 — HIS confirmation is what puts it back on sale:
+          // refused at the door on a fault that sends the unit home, and never
+          // delivered. In the SAME write as the return mark.
+          if (refus?.remettre !== true || livree) continue;
+          const rangee = lus.get(rayonDe(id)) as { status?: string } | undefined;
+          if (rangee === undefined) Object.assign(ecrire, FulfillmentDO.rangeeRayon(id));
+          else if (rangee.status === 'pending') aRearmer.push(pointeurDe(rayonDe(id)));
+        }
+        for (const p of aRearmer) ecrire[p] = 1;
+        if (Object.keys(ecrire).length > 0) await this.state.storage.put(ecrire);
+        if (Object.keys(ecrire).some((k) => k.endsWith(':rayon')) || aRearmer.length > 0) {
+          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
         }
       }
       return Response.json({ ok: true, verdict });
@@ -1992,6 +2139,7 @@ export class FulfillmentDO {
         `${RETOUR_PREFIX}${orderId}`,
         `${REFUS_PREFIX}${orderId}`,
         `${PICKUP_REFUS_PREFIX}${orderId}`,
+        `${PORTE_REFUS_PREFIX}${orderId}`,
         ...outbox.keys(),
         // CROISSANCE-1 — a fact that dies with its order stops waiting too.
         ...[...outbox.keys()].map(pointeurDe),
@@ -2157,6 +2305,31 @@ export async function handleRefusedIntake(
       }),
     );
     if (mark.status !== 200) return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
+  }
+
+  // RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling 2026-09-28: « back on
+  // sale when supplier confirms it ») — A REFUSAL AT THE BUYER'S DOOR moves no
+  // stock here: the unit is in the rider's bag, not on his shelf. The book
+  // records it, with the policy's word on whether it may go back, and the
+  // unit goes back on sale when HE confirms the return code (the book's own
+  // ladder, see `/porte-refusee` and `/retour/verify`). A refusal AT PICKUP
+  // never left his hands, and keeps the policy below.
+  if (p['rejection'] !== 'pickup_refusal') {
+    const mark = await stub.fetch(
+      new Request('https://do/porte-refusee', {
+        method: 'POST',
+        body: JSON.stringify({ orderId, at: parsed.data.envelope.serverTime, remettre: restockOnRefusal(p['fault_class']) }),
+      }),
+    );
+    if (mark.status === 404) return Response.json({ ok: true, status: 'unknown_order' });
+    if (mark.status !== 200) return Response.json({ ok: false, reason: 'book_unavailable' }, { status: 503 });
+    const out = (await mark.json().catch(() => null)) as { status?: unknown } | null;
+    const status = typeof out?.status === 'string' ? out.status : 'restock_on_return';
+    return Response.json({
+      ok: true,
+      status,
+      ...(status === 'no_restock' ? { faultClass: typeof p['fault_class'] === 'string' ? p['fault_class'] : null } : {}),
+    });
   }
 
   const row = (await res.json().catch(() => null)) as { productVersionId?: unknown } | null;

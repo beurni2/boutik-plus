@@ -15,8 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * order is his and only then asks Séra — server-side, over the intake secret
  * no browser holds — and relays the verdict. A `confirme` is the supplier
  * accepting the colis back: it marks `returnedAt` on his own list (the row
- * leaves « En route »), and NOTHING else — custody moves on the coursier's
- * two-key act on Séra, never on this door.
+ * leaves « En route ») — custody moves on the coursier's two-key act on Séra,
+ * never on this door. RETOUR-RAYON-1: it is also the moment a unit refused at
+ * the buyer's door goes back on sale (proven in retour-rayon.e2e.test.ts).
  *
  * ⚠ THE DOUBLE IS CONTRACT-CERTIFIED to Séra's actual door (sera:
  * services/logistics-service, `POST /intake/retour/verify`, pinned by that

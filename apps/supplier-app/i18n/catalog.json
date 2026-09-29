@@ -5562,6 +5562,36 @@
     "screenClass": "status"
   },
   {
+    "key": "fournisseur.etape_refusee_porte",
+    "fr": "Le client l'a refusé à la porte. Le coursier vous le ramène.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.colis_article_refuse_porte",
+    "fr": "Refusé à la porte. Le coursier le ramène.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.remise_au_retour",
+    "fr": "Tapez son code de retour quand il arrive : l'article sera remis en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.remise_en_cours",
+    "fr": "L'article est en train d'être remis en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fournisseur.remise_faite",
+    "fr": "L'article est remis en vente.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "fournisseur.colis_titre",
     "fr": "Colis",
     "register": "neutral",
