@@ -3,6 +3,19 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-29 · MEDIA-PORTE-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-29).** « Go » — on the MEDIA-PORTE-1 report (entry below).
+
+- **Merged.** Boutik+ `main` fast-forwarded `be52f1a → bb7af22` (ancestry verified); **ci 374 green**.
+- **Deployed, in the order the slice set (the photo server's preflight must allow `X-Thumb-Token` before a page sends it):**
+  - **media-deploy 13** — « PROVENANCE OK — live media Worker is bb7af224… speaking canon 3.26.0 » (it had been `46a186a`, canon 3.20.0).
+  - **offer-deploy 50** — « PROVENANCE OK — live Worker is bb7af224… speaking canon 3.26.0 ».
+  - **web-deploy 84 (console)** — « web-size OK — console first load: 499.6 KB gzip (**511 564 B**) … within the signed ceiling of 500.0 KB (512 000 B) »: **436 B left** (the report's estimate was ≈ 440).
+  - **fournisseur-web-deploy 28** — « web-size OK — fournisseur first load: 428.2 KB gzip (**438 496 B**) … within the signed ceiling of 430.0 KB (440 320 B) »: 1 824 B left.
+  - **expo-preview 252** (the OTA on every push to `main`) green — it carries `papier.ts`, the phone's half that never reaches for the web-only `extent`.
+- **Still open** — as in the entry below: F-13 and F-31 wait for his decisions; on a phone a see-through picture is not laid on paper; the paper check in a real browser is a one-off proof; the console has 436 B of room.
+
 ## 2026-09-29 · MEDIA-PORTE-1 (AUDIT-B+2 slice 8: F-41 · F-42 · F-43 · F-44 · F-49) — photos and clips stay private and tidy · F-13 and F-31 HELD for the founder · on the branch, NOT merged, NOT deployed
 
 **Founder order (2026-09-29).** « Continue » — slice 8 of the ten-slice plan (« Photos and videos stay private and tidy », closes 13, 31, 41, 42, 43, 44, 49). Its decisions are unanswered, so **F-13** (clean a clip's filming place, against the canon's « stored and played, never processed »; what to do with clips already live; two real phone clips) and **F-31** (suppliers upload through their own code, with a budget — Tier 4 « media upload proxy and budget ») are NOT built. The five that need no decision are.
