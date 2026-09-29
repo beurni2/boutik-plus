@@ -3,7 +3,18 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-28 · STOCK-VRAI-1 (AUDIT-B+2 slice 6: F-03, F-12, F-53, F-54; F-36 held for him) — stock and products stay true · ON THE BRANCH, awaiting the founder's « go »
+## 2026-09-29 · STOCK-VRAI-1 MERGED AND DEPLOYED on the founder's « go » — and F-36 ruled
+
+**Founder order (2026-09-28).** « go, back on sale when supplier confirms it » — the « go » covers STOCK-VRAI-1 as reported (entry below); the second half rules F-36 (its own slice, RETOUR-RAYON-1, next entry when built).
+
+- **Merged.** `main` fast-forwarded `d488269 → 2b56bd9` (ancestry verified first; canon, Shop+ and Séra had nothing ahead of their mains). **ci 370 green** on `2b56bd9`.
+- **Deployed** (media Worker unchanged, not deployed):
+  - **offer-deploy 46** — its own check: « PROVENANCE OK — live Worker is 2b56bd99… speaking canon 3.20.0 ».
+  - **web-deploy 82** (console) — never-ships scans ✔, offline shell ✔, « console first load: **499.1 KB gzip (511 048 B)** … within the signed ceiling of 500.0 KB (512000 B) ». My local deploy-way measure said 511 022 B: 26 B off.
+  - **fournisseur-web-deploy 24** — capability ruling ✔, offline shell ✔, « fournisseur first load: **427.3 KB gzip (437 576 B)** … within the signed ceiling of 430.0 KB (440320 B) ».
+- **Headroom, stated:** console **952 B** under its ceiling; supplier page 2.7 KB. The next console change that adds weight needs a new number from him.
+
+## 2026-09-28 · STOCK-VRAI-1 (AUDIT-B+2 slice 6: F-03, F-12, F-53, F-54; F-36 held for him) — stock and products stay true · MERGED AND DEPLOYED 2026-09-29 on the founder's « go » (top entry)
 
 **Founder order (2026-09-28).** « continue with the next slice » — slice 6 of the AUDIT-B+2 plan.
 
