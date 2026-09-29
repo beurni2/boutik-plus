@@ -115,7 +115,9 @@ describe('an authorised upload stores the real bytes and returns the opaque ref'
     const up = await worker.fetch(uploadReq(png(), { 'X-Write-Key': SECRET }), { BUCKET: bucket, MEDIA_WRITE_SECRET: SECRET });
     const raw = await up.text();
     expect(raw).not.toMatch(/bucket|r2|beurni|cloudflare|account/i);
-    expect(Object.keys(JSON.parse(raw)).sort()).toEqual(['byteLength', 'contentType', 'height', 'ref', 'width']);
+    // MEDIA-PORTE-1 (F-41) — plus the photograph's one-time vignette token, the
+    // uploader's alone; still nothing about where or how it is stored.
+    expect(Object.keys(JSON.parse(raw)).sort()).toEqual(['byteLength', 'contentType', 'height', 'ref', 'thumbToken', 'width']);
   });
 });
 

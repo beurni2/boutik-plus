@@ -42,6 +42,8 @@ const PHOTOS_SLOT = 'boutik.photos.cle';
 const MOI = 'supplier-founder-001';
 const REF = 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const REF2 = 'media/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+/** MEDIA-PORTE-1 (F-42) — the product's ≤ 6 s clip. */
+const CLIP = 'media/cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 /** The offer Worker's door, as the slice's server half keeps it. */
 function porteOffres(handler: Route): Route {
@@ -69,7 +71,7 @@ const roster: Route = (path, _b, _s, headers) =>
       : { status: 401, json: { error: 'unauthorized' } }
     : null;
 
-const ligne = (offerId: string, name: string, assetRefs: string[]) => ({
+const ligne = (offerId: string, name: string, assetRefs: string[], videoRef?: string) => ({
   offerId,
   productVersionId: `pv-${offerId}`,
   name,
@@ -78,6 +80,7 @@ const ligne = (offerId: string, name: string, assetRefs: string[]) => ({
   resellerCommission: 1_000,
   available: 4,
   assetRefs,
+  ...(videoRef !== undefined ? { videoRef } : {}),
   supplierId: MOI,
 });
 
@@ -312,6 +315,54 @@ describe('PRODUITS — his list and his delete on his key', () => {
     expect(store.has('boutik.photos.restantes'), 'nothing left to remember').toBe(false);
     expect(retour.shows('Bazin'), 'the rest of his list is untouched').toBe(true);
     retour.unmount();
+  });
+});
+
+describe('PRODUITS — MEDIA-PORTE-1 (AUDIT-B+2 F-42): the clip goes with the product', () => {
+  it('photos AND a clip: « Supprimer » destroys the clip on the same key — nothing of it stays public', async () => {
+    storage({ [OPS_SLOT]: OPS, [PHOTOS_SLOT]: PHOTOS });
+    const w = wire([catalogue([ligne('o1', 'Pagne wax', [REF, REF2], CLIP)]), porteRevoke({ valeur: PHOTOS }), roster]);
+    const screen = await monterProduits();
+    await screen.press('Pagne wax');
+    expect(screen.canPress('Supprimer ce produit'), 'the delete must be reachable').toBe(true);
+    await screen.press('Supprimer ce produit');
+    await screen.press('Oui, supprimer');
+    await screen.settle();
+
+    const revokes = w.calls.filter((c) => c.path === '/media/revoke');
+    expect(revokes.map((c) => c.body?.['ref']), 'the clip is destroyed with the photos').toEqual([REF, REF2, CLIP]);
+    expect(revokes.every((c) => c.headers['x-write-key'] === PHOTOS)).toBe(true);
+    expect(screen.texts().join(' '), 'the product left the list').not.toContain('Pagne wax');
+    expect(screen.shows("n'ont pas pu être effacées"), 'every revoke went: nothing to say').toBe(false);
+    screen.unmount();
+  });
+
+  it('a refused clip is counted and retried like a photo — never orphaned in silence', async () => {
+    const store = storage({ [OPS_SLOT]: OPS, [PHOTOS_SLOT]: 'mauvaise-cle-photos' });
+    const w = wire([catalogue([ligne('o1', 'Pagne wax', [REF], CLIP)]), porteRevoke({ valeur: PHOTOS }), roster]);
+    const screen = await monterProduits();
+    await screen.press('Pagne wax');
+    await screen.press('Supprimer ce produit');
+    await screen.press('Oui, supprimer');
+    await screen.settle();
+    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    store.set(PHOTOS_SLOT, PHOTOS);
+    await screen.press("Réessayer d'effacer les photos");
+    await screen.settle();
+    expect(w.calls.filter((c) => c.path === '/media/revoke').slice(2).map((c) => c.body?.['ref'])).toEqual([REF, CLIP]);
+    expect(screen.shows("n'ont pas pu être effacées")).toBe(false);
+    screen.unmount();
+  });
+
+  it('a product with only a clip and no photo key here: the delete waits for the key, exactly as for photos', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    const w = wire([catalogue([ligne('o1', 'Pagne wax', [], CLIP)]), roster]);
+    const screen = await monterProduits();
+    await screen.press('Pagne wax');
+    expect(screen.shows('Supprimer ce produit')).toBe(false);
+    expect(screen.shows("Pour supprimer ce produit et ses photos, enregistrez d'abord la clé des photos dans Opérations.")).toBe(true);
+    expect(sansFetch(w, '/offers/delete')).toBe(true);
+    screen.unmount();
   });
 });
 

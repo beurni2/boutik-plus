@@ -323,8 +323,15 @@ export function makeSupplyFetch(
       const entries = await store.listEntries();
       return Response.json(serveProjections(service, entries, now(), attested, dueMs), { status: 200, headers });
     }
-    const productVersionId = decodeURIComponent(match![1]!);
-    const entry = await store.getEntryByProductVersion(productVersionId);
+    // MEDIA-PORTE-1 (AUDIT-B+2 F-44) — a malformed escape names no product this
+    // service could hold: the unknown-product 404, never an uncaught URIError.
+    let productVersionId: string | null;
+    try {
+      productVersionId = decodeURIComponent(match![1]!);
+    } catch {
+      productVersionId = null;
+    }
+    const entry = productVersionId === null ? undefined : await store.getEntryByProductVersion(productVersionId);
     const outcome = serveProjection(service, entry, now(), attested, dueMs);
     return Response.json(outcome.body, { status: outcome.status, headers });
   };

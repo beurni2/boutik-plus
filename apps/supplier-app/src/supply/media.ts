@@ -31,6 +31,7 @@
 import * as Crypto from 'expo-crypto';
 import {
   hexOfDigest,
+  MEDIA_THUMB_TOKEN_HEADER,
   MEDIA_WRITE_KEY_HEADER,
   readRevokeResult,
   readThumbResult,
@@ -44,8 +45,15 @@ import type { MediaRefInput } from './assets';
 import { fetchBorne, CLIP_MS, PHOTO_MS } from '../reseau';
 
 export interface MediaServicePort {
-  /** Upload one image's bytes; the returned MediaRef carries the ON-DEVICE sha256. */
-  uploadImage(bytes: Uint8Array): Promise<ServiceResult<MediaRefInput>>;
+  /**
+   * Upload one image's bytes; the returned MediaRef carries the ON-DEVICE
+   * sha256. MEDIA-PORTE-1 (F-41) — beside it, NOT inside it, the one-time
+   * token that alone opens this photograph's vignette slot (`null` from an
+   * older media service). Kept out of the MediaRef on purpose: canon
+   * `ProductAssets` is strict and the token is nobody's business but the
+   * vignette upload's.
+   */
+  uploadImage(bytes: Uint8Array): Promise<ServiceResult<UploadedPhoto>>;
   /**
    * MEDIA-REVOKE-1 (founder 2026-07-27: *"continue the cleaning of the bytes
    * after the delete"*). Destroys a deleted product's photograph at the origin
@@ -71,7 +79,14 @@ export interface MediaServicePort {
    * service's honest 409 « already there » — as « the photograph still ships,
    * the row is just heavier ». A vignette is an optimisation; a product is not.
    */
-  uploadThumb(parentRef: string, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>>;
+  uploadThumb(parentRef: string, thumbToken: string | null, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>>;
+}
+
+/** MEDIA-PORTE-1 — what a photograph's upload hands back: its canon MediaRef,
+ *  and the vignette token that must never ride inside it. */
+export interface UploadedPhoto {
+  readonly media: MediaRefInput;
+  readonly thumbToken: string | null;
 }
 
 /** What the video door answers: the MediaRef fields + the MEASURED duration. */
@@ -107,7 +122,7 @@ export class HttpMediaService implements MediaServicePort {
    */
   constructor(private readonly base: string, private readonly writeKey: string, private readonly revokeKey: string = '') {}
 
-  async uploadImage(bytes: Uint8Array): Promise<ServiceResult<MediaRefInput>> {
+  async uploadImage(bytes: Uint8Array): Promise<ServiceResult<UploadedPhoto>> {
     // The hash is computed BEFORE the upload, over the same bytes handed to
     // fetch — so a transport that mangled the body would be caught by the
     // service's own sniff/decode, never papered over by hashing what came back.
@@ -147,7 +162,10 @@ export class HttpMediaService implements MediaServicePort {
     if (image === null) {
       return { ok: false, cause: 'unreadable', reason: `réponse inattendue: ${text.slice(0, 300)}` };
     }
-    return { ok: true, value: { ref: image.ref, sha256, mimeType: image.contentType } };
+    return {
+      ok: true,
+      value: { media: { ref: image.ref, sha256, mimeType: image.contentType }, thumbToken: image.thumbToken ?? null },
+    };
   }
 
   async uploadVideo(bytes: Uint8Array): Promise<ServiceResult<VideoRefInput>> {
@@ -193,7 +211,7 @@ export class HttpMediaService implements MediaServicePort {
     return { ok: true, value: { ref: r['ref'], sha256, mimeType: r['contentType'], durationSeconds: r['durationSeconds'] } };
   }
 
-  async uploadThumb(parentRef: string, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>> {
+  async uploadThumb(parentRef: string, thumbToken: string | null, bytes: Uint8Array): Promise<ServiceResult<StoredThumb>> {
     // NO HASH HERE, and that is deliberate: a vignette is not a canon `MediaRef`
     // and never enters `ProductAssets` — it is addressed FROM its parent
     // (`?v=thumb`), so there is nothing for a sha256 to be recorded on. Hashing
@@ -213,7 +231,13 @@ export class HttpMediaService implements MediaServicePort {
         `${this.base.replace(/\/+$/, '')}/media/thumb?for=${encodeURIComponent(parentRef)}`,
         {
           method: 'POST',
-          headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
+          // MEDIA-PORTE-1 (F-41) — the photograph's own token opens its slot.
+          // No token (an older media service answered none): sent headerless,
+          // and the service decides.
+          headers: {
+            [MEDIA_WRITE_KEY_HEADER]: this.writeKey,
+            ...(thumbToken !== null ? { [MEDIA_THUMB_TOKEN_HEADER]: thumbToken } : {}),
+          },
           body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
         },
         THUMB_TIMEOUT_MS,
@@ -228,8 +252,8 @@ export class HttpMediaService implements MediaServicePort {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
     if (!res.ok) {
-      // 409 already_set · 404 no_parent · 400 typed validator reason · 401 — all
-      // travel verbatim. The call site does not branch on them; they are here so
+      // 409 already_set · 404 no_parent · 403 wrong_token · 400 typed validator
+      // reason · 401 — all travel verbatim. The call site does not branch on them; they are here so
       // a failure is READABLE rather than invisible.
       return { ok: false, cause: 'http', reason: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     }

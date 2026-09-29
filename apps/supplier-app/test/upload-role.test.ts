@@ -22,25 +22,31 @@ const SOURCE: RoleSource = {
   height: 1280,
 };
 const REF: MediaRefInput = { ref: 'media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' };
+/** MEDIA-PORTE-1 (F-41) — the one-time token the photograph's upload answered. */
+const JETON = 'jeton-de-cette-photo';
 
 /** A port whose two calls are recorded, so « was it CALLED, and with what » is assertable. */
-function port(over: Partial<MediaServicePort> = {}): MediaServicePort & { calls: string[]; thumbFor: string[] } {
+function port(
+  over: Partial<MediaServicePort> = {},
+): MediaServicePort & { calls: string[]; thumbFor: string[]; thumbTokens: (string | null)[] } {
   const calls: string[] = [];
   const thumbFor: string[] = [];
+  const thumbTokens: (string | null)[] = [];
   const base: MediaServicePort = {
     uploadImage: async () => {
       calls.push('image');
-      return { ok: true, value: REF };
+      return { ok: true, value: { media: REF, thumbToken: JETON } };
     },
-    uploadThumb: async (parentRef) => {
+    uploadThumb: async (parentRef, thumbToken) => {
       calls.push('thumb');
       thumbFor.push(parentRef);
+      thumbTokens.push(thumbToken);
       return { ok: true, value: { status: 'stored', for: parentRef, byteLength: 8_000 } };
     },
     uploadVideo: async () => ({ ok: false, cause: 'network', reason: 'not used here' }),
     revokeImage: async () => ({ ok: false, cause: 'network', reason: 'not used here' }),
   };
-  return Object.assign(base, over, { calls, thumbFor });
+  return Object.assign(base, over, { calls, thumbFor, thumbTokens });
 }
 
 const vignette: RenderThumb = async () => ({ bytes: new Uint8Array([9, 9, 9, 9]) });
@@ -55,6 +61,28 @@ describe('uploadRole — the photograph is the outcome, always', () => {
     // right — it would answer 404 forever, invisibly.
     expect(p.thumbFor).toEqual([REF.ref]);
     expect(out.vignette).toBe('stored');
+  });
+
+  it('MEDIA-PORTE-1 (F-41) — the vignette presents THIS photograph’s token, and the token never rides into the product', async () => {
+    const p = port();
+    const out = await uploadRole(p, SOURCE, vignette);
+    // Without it the media service refuses the vignette (403 wrong_token): the
+    // token is the only thing a stranger holding the bundled key lacks.
+    expect(p.thumbTokens).toEqual([JETON]);
+    // The role's ref is the canon MediaRef and nothing else — a stray field in
+    // ProductAssets would be refused by the strict schema at publish.
+    expect(out.upload).toStrictEqual({ ok: true, ref: REF });
+  });
+
+  it('an answer without a token (an older media service) still tries, headerless', async () => {
+    const p = port();
+    p.uploadImage = async () => {
+      p.calls.push('image');
+      return { ok: true, value: { media: REF, thumbToken: null } };
+    };
+    const out = await uploadRole(p, SOURCE, vignette);
+    expect(p.thumbTokens).toEqual([null]);
+    expect(out.upload).toStrictEqual({ ok: true, ref: REF });
   });
 
   it('a vignette the SERVICE refuses does not touch the role’s outcome', async () => {

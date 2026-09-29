@@ -1,4 +1,4 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import type { CameraView } from 'expo-camera';
 import {
   DERIVATIVE_SPEC_V1,
@@ -6,6 +6,7 @@ import {
   base64ToBytes,
   bytesToBase64,
   derivativeActions,
+  fondPapier,
   metricsActions,
   stripJpegMetadata,
   thumbActions,
@@ -100,6 +101,21 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
   };
 }
 
+/**
+ * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — lay a rendered picture on paper before it
+ * becomes a JPEG (see `fondPapier`). Every path that starts from a file he
+ * PICKED passes through here — a gallery PNG or WebP can be see-through; the
+ * camera's own frames cannot, and the vignette starts from a JPEG already laid.
+ *
+ * AFTER the resize, at the RENDERED image's own size: the library's second
+ * pass is derivative-sized, never another full-resolution canvas on a 1 GB
+ * phone, and the fill can never disagree with the resize's rounding by a row.
+ */
+export async function surPapier(image: ImageRef): Promise<ImageRef> {
+  const { extent } = fondPapier(image.width, image.height);
+  return ImageManipulator.manipulate(image).extent(extent).renderAsync();
+}
+
 // ─── COMBINED SLICE — the hero's TWO CROPS (square + vertical) ───────────────
 
 /** One stripped, upload-ready derivative: the exact bytes AND their preview URI. */
@@ -123,7 +139,8 @@ export async function renderCropDerivative(
   const ctx = ImageManipulator.manipulate(masterUri);
   ctx.crop(rect);
   for (const action of derivativeActions(rect.width, rect.height)) ctx.resize(action.resize);
-  const image = await ctx.renderAsync();
+  // The master is the file he picked: it can be see-through (F-49).
+  const image = await surPapier(await ctx.renderAsync());
   const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
   const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
   assertExifFree(stripped); // fail-closed — a crop that cannot be proven clean does not exist

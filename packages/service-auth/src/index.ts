@@ -58,8 +58,11 @@ export function isWrite(method: string): boolean {
  * both inputs are HMAC-SHA-256'd under a fresh per-call random key, then the two
  * fixed 32-byte digests are compared with a branch-free XOR fold. WebCrypto is
  * present in both workerd (prod / Miniflare) and Node 20+.
+ *
+ * Exported for MEDIA-PORTE-1 (F-41): the media vignette door compares a
+ * one-time token with this same primitive rather than a second one.
  */
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   const enc = new TextEncoder();
   const keyBytes = crypto.getRandomValues(new Uint8Array(32));
   const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);

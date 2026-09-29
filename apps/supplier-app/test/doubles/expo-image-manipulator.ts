@@ -40,8 +40,21 @@ export const SaveFormat = {
  */
 let arme: { readonly base64: string; readonly width: number; readonly height: number } | null = null;
 
+/**
+ * MEDIA-PORTE-1 (F-49) — THE VERBS ASKED FOR, IN ORDER, with their arguments:
+ * what the app told the library to do, never what the library would draw. It
+ * is how a test proves the paper is laid at the rendered size, after the
+ * resize and before the JPEG. Cleared on every arming.
+ */
+let journal: [string, ...unknown[]][] = [];
+
 export function armerManipulateur(encode: { readonly base64: string; readonly width: number; readonly height: number } | null): void {
   arme = encode;
+  journal = [];
+}
+
+export function journalManipulateur(): readonly (readonly [string, ...unknown[]])[] {
+  return journal;
 }
 
 export const ImageManipulator = {
@@ -53,13 +66,31 @@ export const ImageManipulator = {
           'A walk that means to exercise capture must arm this double explicitly.',
       );
     }
+    journal.push(['manipulate']);
     const ctx = {
-      resize: () => ctx,
-      renderAsync: async () => ({
-        width: sortie.width,
-        height: sortie.height,
-        saveAsync: async () => ({ base64: sortie.base64, width: sortie.width, height: sortie.height }),
-      }),
+      resize: (size: unknown) => {
+        journal.push(['resize', size]);
+        return ctx;
+      },
+      crop: (rect: unknown) => {
+        journal.push(['crop', rect]);
+        return ctx;
+      },
+      extent: (options: unknown) => {
+        journal.push(['extent', options]);
+        return ctx;
+      },
+      renderAsync: async () => {
+        journal.push(['renderAsync']);
+        return {
+          width: sortie.width,
+          height: sortie.height,
+          saveAsync: async (options: unknown) => {
+            journal.push(['saveAsync', options]);
+            return { base64: sortie.base64, width: sortie.width, height: sortie.height };
+          },
+        };
+      },
     };
     return ctx;
   },

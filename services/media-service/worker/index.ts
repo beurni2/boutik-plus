@@ -127,7 +127,9 @@ export const makeEdgeCachePurge = (origin: string) => async (key: string): Promi
  */
 async function stillOpen(env: MediaWorkerEnv, key: string): Promise<boolean> {
   try {
-    const parent = await resolveMediaStore(env).stat(key);
+    const store = resolveMediaStore(env);
+    if (store === null) return false;
+    const parent = await store.stat(key);
     if (parent === null) return false;
     return Date.now() - parent.uploadedAt.getTime() <= THUMB_WRITE_WINDOW_MS;
   } catch {
@@ -137,6 +139,15 @@ async function stillOpen(env: MediaWorkerEnv, key: string): Promise<boolean> {
 
 const notFound = (): Response =>
   Response.json({ service: 'media-service', status: 'not_found', reason: 'unknown_media_key' }, { status: 404 });
+
+/**
+ * MEDIA-PORTE-1 (AUDIT-B+2 F-43) — no R2 binding, no write. Before, the store
+ * fell back to memory and every writing door answered 201 with a ref the next
+ * read 404ed: a deploy missing its binding looked healthy while losing every
+ * photograph, clip and voice note. Reads keep their honest 404 (step 3 below).
+ */
+const storageUnbound = (): Response =>
+  Response.json({ service: 'media-service', status: 'unavailable', reason: 'storage_unbound' }, { status: 503 });
 
 /**
  * ═══ PORTÉE-MEDIA — THE iPHONE'S PLAYER ASKS IN RANGES ═══
@@ -368,6 +379,7 @@ export const UPLOAD_PATH = '/media';
  */
 export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
   const store = resolveMediaStore(env);
+  if (store === null) return storageUnbound();
   const service = new ProductMediaService(store);
   const bytes = new Uint8Array(await request.arrayBuffer());
   const outcome = await service.upload(bytes, now);
@@ -376,8 +388,10 @@ export async function handleMediaUpload(request: Request, env: MediaWorkerEnv, n
     // (empty · unsupported_type · too_large · bad_dimensions), never a bare 400.
     return Response.json({ error: 'rejected', reason: outcome.reason }, { status: 400 });
   }
-  const { key, contentType, width, height, byteLength } = outcome.image;
-  return Response.json({ ref: key, contentType, width, height, byteLength }, { status: 201 });
+  // MEDIA-PORTE-1 — `thumbToken` goes to the uploader only: it is the one key to
+  // this photograph's vignette slot, and no route ever serves it again.
+  const { key, contentType, width, height, byteLength, thumbToken } = outcome.image;
+  return Response.json({ ref: key, contentType, width, height, byteLength, thumbToken }, { status: 201 });
 }
 
 /** VIDEO-PRODUIT-1b — the video upload path. Like `/media/revoke`, `video`
@@ -399,6 +413,7 @@ export const VIDEO_UPLOAD_PATH = '/media/video';
  */
 export async function handleVideoUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
   const store = resolveMediaStore(env);
+  if (store === null) return storageUnbound();
   const service = new ProductMediaService(store);
   const bytes = new Uint8Array(await request.arrayBuffer());
   const outcome = await service.uploadVideo(bytes, now);
@@ -426,6 +441,7 @@ export const AUDIO_UPLOAD_PATH = '/media/audio';
  */
 export async function handleAudioUpload(request: Request, env: MediaWorkerEnv, now = new Date().toISOString()): Promise<Response> {
   const store = resolveMediaStore(env);
+  if (store === null) return storageUnbound();
   const service = new ProductMediaService(store);
   const bytes = new Uint8Array(await request.arrayBuffer());
   const outcome = await service.uploadAudio(bytes, now);
@@ -442,6 +458,11 @@ export async function handleAudioUpload(request: Request, env: MediaWorkerEnv, n
  *  shape (`media/{uuid}`), and the method differs anyway. */
 export const THUMB_UPLOAD_PATH = '/media/thumb';
 
+/** MEDIA-PORTE-1 (F-41) — the header the vignette's uploader presents the
+ *  photograph's one-time token in. A header, not a query parameter, so the
+ *  token never lands in a URL log. */
+export const THUMB_TOKEN_HEADER = 'X-Thumb-Token';
+
 /**
  * `POST /media/thumb?for=media/{token}` — the 320 px vignette of an existing
  * photograph. Same laws as every other door: the body IS the image (raw bytes,
@@ -451,9 +472,11 @@ export const THUMB_UPLOAD_PATH = '/media/thumb';
  * ONE THING IS DIFFERENT, AND IT IS THE POINT: this is the only route in the
  * service that writes at a key it did not mint. What makes that safe is stated
  * at `putThumb` — the parent must be the opaque shape, the parent must EXIST,
- * and the slot must be EMPTY (write-once), so the door can neither address
- * anything outside the minted namespace nor overwrite a vignette that is
- * already there.
+ * the caller must present the parent's own one-time token in
+ * `X-Thumb-Token` (MEDIA-PORTE-1, F-41: 403 `wrong_token` otherwise), and the
+ * slot must be EMPTY (write-once), so the door can neither address anything
+ * outside the minted namespace, nor be opened by anyone but the photograph's
+ * uploader, nor overwrite a vignette that is already there.
  *
  * `already_set` IS A 409, NOT AN ERROR THE APP SHOULD SHOUT ABOUT: a retried
  * publish re-uploading a vignette that already landed is the normal case, and
@@ -467,15 +490,18 @@ export async function handleThumbUpload(request: Request, env: MediaWorkerEnv, n
     // enters this answer at all.
     return Response.json({ error: 'malformed', param: 'for' }, { status: 400 });
   }
-  const service = new ProductMediaService(resolveMediaStore(env));
+  const store = resolveMediaStore(env);
+  if (store === null) return storageUnbound();
+  const service = new ProductMediaService(store);
   const bytes = new Uint8Array(await request.arrayBuffer());
+  const token = request.headers.get(THUMB_TOKEN_HEADER) ?? '';
   // THE ROUTE MAKES ITS OWN DOC TRUE (verifier MINOR): `putThumb` derives the
   // key and THROWS a MediaKeyError on a non-opaque parent. That is unreachable
   // behind the guard above — but a claim that a throw is "caught by the route"
   // must be backed by a catch, not by an argument about reachability.
   let outcome: Awaited<ReturnType<typeof service.putThumb>>;
   try {
-    outcome = await service.putThumb(parent, bytes, now);
+    outcome = await service.putThumb(parent, bytes, now, token);
   } catch {
     return Response.json({ error: 'malformed', param: 'for' }, { status: 400 });
   }
@@ -485,9 +511,12 @@ export async function handleThumbUpload(request: Request, env: MediaWorkerEnv, n
         ? 409
         : outcome.reason === 'no_parent'
           ? 404
-          : 400;
+          : outcome.reason === 'wrong_token'
+            ? 403
+            : 400;
     // The validator's TYPED reason, verbatim — empty · too_large ·
-    // unsupported_type · bad_dimensions · no_parent · window_closed · already_set.
+    // unsupported_type · bad_dimensions · no_parent · wrong_token ·
+    // window_closed · already_set.
     return Response.json({ error: 'rejected', reason: outcome.reason }, { status });
   }
   // THE FALLBACK'S CACHE ENTRY DIES HERE. A read that arrived between the
@@ -538,9 +567,13 @@ export async function handleMediaRevoke(request: Request, env: MediaWorkerEnv): 
   if (typeof ref !== 'string' || !isOpaqueMediaKey(ref)) {
     return Response.json({ error: 'malformed', param: 'ref' }, { status: 400 });
   }
+  // No binding: « revoked » would be a claim about bytes nothing holds, and the
+  // founder's erase counts it as destroyed (MEDIA-PORTE-1, F-43).
+  const store = resolveMediaStore(env);
+  if (store === null) return storageUnbound();
   // The service's own serving origin — the cache key the read route populated.
   const origin = new URL(request.url).origin;
-  const service = new ProductMediaService(resolveMediaStore(env), makeEdgeCachePurge(origin));
+  const service = new ProductMediaService(store, makeEdgeCachePurge(origin));
   await service.revoke(ref);
   return Response.json({ status: 'revoked', ref });
 }
@@ -556,7 +589,7 @@ export async function handleMediaRevoke(request: Request, env: MediaWorkerEnv): 
 const CORS_HEADERS: Readonly<Record<string, string>> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Write-Key',
+  'Access-Control-Allow-Headers': `Content-Type, X-Write-Key, ${THUMB_TOKEN_HEADER}`,
   'Access-Control-Max-Age': '86400',
 };
 
@@ -610,8 +643,16 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
       return handleThumbUpload(request, env);
     }
     if (request.method === 'GET' && pathname.startsWith(`/${MEDIA_KEY_PREFIX}`)) {
-      // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`
-      return handleMediaRead(request, decodeURIComponent(pathname.slice(1)), env, ctx);
+      // strip the leading slash — the key is `media/{token}`, the path is `/media/{token}`.
+      // MEDIA-PORTE-1 (F-44) — a malformed escape names no minted key: the same
+      // honest 404 as any other, never an uncaught URIError without CORS.
+      let key: string;
+      try {
+        key = decodeURIComponent(pathname.slice(1));
+      } catch {
+        return notFound();
+      }
+      return handleMediaRead(request, key, env, ctx);
     }
     return health(request);
 }

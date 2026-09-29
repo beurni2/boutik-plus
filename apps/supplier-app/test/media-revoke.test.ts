@@ -108,7 +108,10 @@ describe('the delete flow cleans the bytes [source-text checks on produits-real.
     const returnTrue = afterRevoke.indexOf('return true');
     expect(returnTrue).toBeGreaterThan(-1);
     expect(nextReturnFalse === -1 || nextReturnFalse > returnTrue).toBe(true);
-    expect(deleteBlock).toContain('const restantes = await effacerPhotos(openOffer.assetRefs);');
+    // MEDIA-PORTE-1 (F-42) — the photographs AND the clip; this pin once held
+    // `openOffer.assetRefs` alone, which left every clip public after a delete.
+    // The behaviour is walked in rendu-cle-fondateur (« the clip goes with the product »).
+    expect(deleteBlock).toContain('const restantes = await effacerPhotos(octetsDuProduit(openOffer));');
     // kept by the DEVICE (verifier BLOCKER), not by the screen that dies on a tab switch
     expect(deleteBlock).toContain('if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));');
   });

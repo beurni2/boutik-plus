@@ -224,7 +224,7 @@ describe('CLE-FONDATEUR-1 — the console’s ports meet the real Workers on the
   it('F-68 across the seam — a WRONG photo key leaves the photo LIVE and counted; the right key destroys it', async () => {
     const up = await resolveMediaService()!.uploadImage(png());
     expect(up.ok, up.ok ? '' : up.reason).toBe(true);
-    const ref = up.ok ? up.value.ref : '';
+    const ref = up.ok ? up.value.media.ref : '';
     const lu = async (): Promise<number> => (await media.dispatchFetch(`http://media/${ref}`)).status;
     expect(await lu()).toBe(200);
 

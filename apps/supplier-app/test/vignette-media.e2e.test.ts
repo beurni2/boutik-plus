@@ -132,8 +132,22 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
         // ── the photograph, through the app's own uploadImage ────────────────
         const up = await port.uploadImage(PHOTO);
         expect(up.ok, up.ok ? '' : up.reason).toBe(true);
-        const ref = up.ok ? up.value.ref : '';
+        const ref = up.ok ? up.value.media.ref : '';
+        const jeton = up.ok ? up.value.thumbToken : null;
         expect(ref.startsWith('media/')).toBe(true);
+        // MEDIA-PORTE-1 (F-41) — the real Worker answers this photograph's token.
+        expect(typeof jeton, 'the upload must hand back the vignette token').toBe('string');
+
+        // ── F-41 THE STRANGER, on real workerd with real R2 metadata: the
+        //    bundled key and this very ref, seconds after the upload — the
+        //    window is wide open, and the slot must still refuse him ────────
+        const etranger = await mf.dispatchFetch(`http://media/media/thumb?for=${encodeURIComponent(ref)}`, {
+          method: 'POST',
+          headers: { 'X-Write-Key': WRITE },
+          body: AUTRE_VIGNETTE,
+        });
+        expect(etranger.status, 'the bundled key alone opens no vignette slot').toBe(403);
+        expect(await etranger.json()).toEqual({ error: 'rejected', reason: 'wrong_token' });
 
         // BEFORE THE VIGNETTE EXISTS: `?v=thumb` must ALREADY answer — with the
         // photograph. This is the state every ref he owns today is in.
@@ -142,7 +156,7 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
         expect((await avant.arrayBuffer()).byteLength).toBe(PHOTO.byteLength);
 
         // ── the vignette, through the app's own uploadThumb ──────────────────
-        const stored = await port.uploadThumb(ref, VIGNETTE);
+        const stored = await port.uploadThumb(ref, jeton, VIGNETTE);
         expect(stored.ok, stored.ok ? '' : stored.reason).toBe(true);
         expect(stored.ok && stored.value.for).toBe(ref);
 
@@ -178,7 +192,7 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
         expect(beyond.headers.get('Content-Range')).toBe(`bytes */${PHOTO.byteLength}`);
 
         // ── WRITE-ONCE, the whole anti-defacement story ──────────────────────
-        const encore = await port.uploadThumb(ref, AUTRE_VIGNETTE);
+        const encore = await port.uploadThumb(ref, jeton, AUTRE_VIGNETTE);
         expect(encore.ok, 'a filled slot must be refused').toBe(false);
         expect(!encore.ok && encore.reason).toContain('409');
         // Proven by CONTENT, because a 409 that had still written would be worse
@@ -189,7 +203,7 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
 
         // ── a vignette for a photograph that does not exist is a 404, never a
         //    write to nowhere (the parent check, at the real store) ───────────
-        const orphelin = await port.uploadThumb('media/00000000-0000-4000-8000-999999999999', VIGNETTE);
+        const orphelin = await port.uploadThumb('media/00000000-0000-4000-8000-999999999999', jeton, VIGNETTE);
         expect(orphelin.ok).toBe(false);
         expect(!orphelin.ok && orphelin.reason).toContain('404');
 
@@ -215,7 +229,7 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
         // version used a 300 KB fixture, so it was refused by the BYTE ceiling
         // and the label « a full photograph is not a vignette » was proven by
         // the wrong bound entirely.
-        const tropGrand = await port.uploadThumb(ref, png(1280, 1280, 4_000, 0xd4));
+        const tropGrand = await port.uploadThumb(ref, jeton, png(1280, 1280, 4_000, 0xd4));
         expect(tropGrand.ok, 'a full-size FRAME is not a vignette, whatever it weighs').toBe(false);
         expect(!tropGrand.ok && tropGrand.reason).toContain('bad_dimensions');
       } finally {
@@ -241,8 +255,8 @@ describe('VIGNETTE-MEDIA — the 54 px row stops pulling the whole photograph', 
       try {
         const port = new HttpMediaService('http://media', WRITE, REVOKE);
         const up = await port.uploadImage(PHOTO);
-        const ref = up.ok ? up.value.ref : '';
-        expect((await port.uploadThumb(ref, VIGNETTE)).ok).toBe(true);
+        const ref = up.ok ? up.value.media.ref : '';
+        expect((await port.uploadThumb(ref, up.ok ? up.value.thumbToken : null, VIGNETTE)).ok).toBe(true);
         expect(
           new Uint8Array(await (await mf.dispatchFetch(`http://media/${ref}?v=thumb`)).arrayBuffer()).byteLength,
         ).toBe(VIGNETTE.byteLength);

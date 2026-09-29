@@ -1,4 +1,5 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { surPapier } from './capture';
 import { DERIVATIVE_SPEC_V1, type ResizeAction } from './normalization';
 import type { ImageSourcePort } from './pick';
 
@@ -13,7 +14,8 @@ import type { ImageSourcePort } from './pick';
  * differently should be a function that returns a value, not a shape a test
  * can only describe"*). So `pick.ts` holds the orchestration and every decision
  * and imports nothing native; this file holds three native calls and no
- * branching at all, and is deliberately the untested part.
+ * branching at all. Its verbs are proven against the library's boundary in
+ * `test/fond-papier.test.ts` (MEDIA-PORTE-1); the pixels are the device's.
  *
  * **`expo-image-picker` IS REQUIRED LAZILY, AND THAT IS A CORRECTNESS RULE, NOT
  * A PERFORMANCE ONE** (device incident 2026-07-25, white screen at boot).
@@ -78,7 +80,8 @@ export const nativeImageSource: ImageSourcePort = {
   async encode(image: unknown, actions: readonly ResizeAction[]) {
     const ctx = ImageManipulator.manipulate(image as Parameters<typeof ImageManipulator.manipulate>[0]);
     for (const action of actions) ctx.resize(action.resize);
-    const rendered = await ctx.renderAsync();
+    // A gallery PNG or WebP can be see-through: laid on paper, never black (F-49).
+    const rendered = await surPapier(await ctx.renderAsync());
     const saved = await rendered.saveAsync({
       compress: DERIVATIVE_SPEC_V1.compress,
       format: SaveFormat.JPEG,

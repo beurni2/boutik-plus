@@ -60,7 +60,9 @@ export async function uploadRole(
   let vignette: VignetteOutcome;
   try {
     const petite = await renderThumb(source.uri, source.width, source.height);
-    const stored = await media.uploadThumb(res.value.ref, petite.bytes);
+    // MEDIA-PORTE-1 (F-41) — this photograph's own token: the media service
+    // opens its vignette slot to nobody else.
+    const stored = await media.uploadThumb(res.value.media.ref, res.value.thumbToken, petite.bytes);
     vignette = stored.ok ? 'stored' : 'refused';
   } catch {
     // A device that cannot re-encode — `expo-image-manipulator` refusing this
@@ -68,5 +70,6 @@ export async function uploadRole(
     // is simply heavier.
     vignette = 'device';
   }
-  return { upload: { ok: true, ref: res.value }, vignette };
+  // The canon MediaRef alone — the token stays out of the product.
+  return { upload: { ok: true, ref: res.value.media }, vignette };
 }

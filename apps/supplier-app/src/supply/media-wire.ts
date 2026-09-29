@@ -8,6 +8,9 @@
 /** Must equal WRITE_KEY_HEADER in packages/service-auth. */
 export const MEDIA_WRITE_KEY_HEADER = 'X-Write-Key';
 
+/** MEDIA-PORTE-1 (F-41) — must equal THUMB_TOKEN_HEADER in the media worker. */
+export const MEDIA_THUMB_TOKEN_HEADER = 'X-Thumb-Token';
+
 /** What a 201 carries (media worker `handleMediaUpload`), mirrored. */
 export interface UploadedImage {
   readonly ref: string;
@@ -15,6 +18,9 @@ export interface UploadedImage {
   readonly width: number;
   readonly height: number;
   readonly byteLength: number;
+  /** MEDIA-PORTE-1 — the one-time key to this photograph's vignette slot.
+   *  ABSENT from a media service older than the slice. */
+  readonly thumbToken?: string;
 }
 
 /**
@@ -35,6 +41,7 @@ export function readUploadResult(body: unknown): UploadedImage | null {
     width: b['width'] as number,
     height: b['height'] as number,
     byteLength: b['byteLength'] as number,
+    ...(typeof b['thumbToken'] === 'string' && b['thumbToken'] !== '' ? { thumbToken: b['thumbToken'] } : {}),
   };
 }
 

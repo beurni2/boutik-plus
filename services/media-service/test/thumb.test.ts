@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import worker, { THUMB_UPLOAD_PATH, handleThumbUpload, FALLBACK_CACHE_CONTROL, CACHE_CONTROL } from '../worker/index.js';
+import worker, { THUMB_UPLOAD_PATH, THUMB_TOKEN_HEADER, handleThumbUpload, FALLBACK_CACHE_CONTROL, CACHE_CONTROL } from '../worker/index.js';
 import { InMemoryMediaStore, type R2BucketLike, type R2ObjectBodyLike } from '../src/media-store.js';
 import { ProductMediaService, THUMB_MAX_BYTES, THUMB_MAX_DIM, THUMB_MIN_DIM, thumbKeyFor } from '../src/media.js';
 import { isOpaqueMediaKey } from '../src/media-key.js';
@@ -22,6 +22,8 @@ const AT = '2026-08-11T09:00:05.000Z';
 /** Past `THUMB_WRITE_WINDOW_MS` — a ref harvested off a page, days later. */
 const TROP_TARD = '2026-08-13T09:00:00.000Z';
 const PARENT = 'media/11111111-1111-4111-8111-111111111111';
+/** MEDIA-PORTE-1 (F-41) — the parent's one-time token, as its upload would have minted it. */
+const JETON = 'abcdef99-9999-4999-8999-99999999abcd';
 
 /** A real PNG header — the service sniffs magic bytes and reads the IHDR. */
 function png(w: number, h: number, bytes = 64): Uint8Array {
@@ -38,7 +40,7 @@ async function withParent(): Promise<{ store: InMemoryMediaStore; service: Produ
   // The store's clock is INJECTED so the freshness window can be aged without
   // sleeping — the window is a time decision and must be tested as one.
   const store = new InMemoryMediaStore('https://media.boutik.test', () => UPLOADED_AT);
-  await store.put(PARENT, png(1280, 1280), 'image/png');
+  await store.put(PARENT, png(1280, 1280), 'image/png', { thumbToken: JETON });
   return { store, service: new ProductMediaService(store) };
 }
 
@@ -61,10 +63,10 @@ describe('THUMB-PRODUIT-1 — the derived key', () => {
   });
 });
 
-describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
+describe('THUMB-PRODUIT-1 — putThumb, the checks in order', () => {
   it('stores a real vignette at the derived key, and only there', async () => {
     const { store, service } = await withParent();
-    const out = await service.putThumb(PARENT, png(320, 320, 8_000), AT);
+    const out = await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
     expect(out.ok && out.key).toBe(`${PARENT}~t`);
     expect(store.objects.has(`${PARENT}~t`)).toBe(true);
     // The photograph is untouched — a vignette write is never a replace.
@@ -73,8 +75,8 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
 
   it('WRITE-ONCE: a filled slot is refused and the FIRST vignette survives', async () => {
     const { store, service } = await withParent();
-    await service.putThumb(PARENT, png(320, 320, 8_000), AT);
-    const again = await service.putThumb(PARENT, png(320, 320, 9_000), AT);
+    await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
+    const again = await service.putThumb(PARENT, png(320, 320, 9_000), AT, JETON);
     expect(again.ok).toBe(false);
     expect(!again.ok && again.reason).toBe('already_set');
     // Asserted by CONTENT: a refusal that had still written would be worse than
@@ -84,7 +86,7 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
 
   it('a vignette for a photograph that does not exist is refused, never a write to nowhere', async () => {
     const store = new InMemoryMediaStore();
-    const out = await new ProductMediaService(store).putThumb(PARENT, png(320, 320, 8_000), AT);
+    const out = await new ProductMediaService(store).putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
     expect(!out.ok && out.reason).toBe('no_parent');
     expect(store.objects.size).toBe(0);
   });
@@ -100,7 +102,7 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
       ['bad_dimensions', png(THUMB_MIN_DIM - 1, 320)],
     ];
     for (const [reason, bytes] of cases) {
-      const out = await service.putThumb(PARENT, bytes, AT);
+      const out = await service.putThumb(PARENT, bytes, AT, JETON);
       expect(out.ok, reason).toBe(false);
       expect(!out.ok && out.reason, reason).toBe(reason);
     }
@@ -112,24 +114,43 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
     // must not be able to put an image on his board. It cannot: by the time a
     // ref is public, the parent is long past the window.
     const { store, service } = await withParent();
-    const tard = await service.putThumb(PARENT, png(320, 320, 8_000), TROP_TARD);
+    const tard = await service.putThumb(PARENT, png(320, 320, 8_000), TROP_TARD, JETON);
     expect(!tard.ok && tard.reason).toBe('window_closed');
     expect(store.objects.has(`${PARENT}~t`), 'nothing was written').toBe(false);
     // …and the same bytes, seconds after the upload, are accepted.
-    expect((await service.putThumb(PARENT, png(320, 320, 8_000), AT)).ok).toBe(true);
+    expect((await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON)).ok).toBe(true);
+  });
+
+  it('MEDIA-PORTE-1 (F-41) — inside the window, only the parent’s own token opens the slot', async () => {
+    // The hole freshness left open: a founder product is public the moment it
+    // publishes, so a ref can be read off a page seconds after its upload.
+    const { store, service } = await withParent();
+    for (const autre of ['', 'x', JETON.toUpperCase(), `${JETON} `, '00000000-0000-4000-8000-000000000000']) {
+      const out = await service.putThumb(PARENT, png(320, 320, 8_000), AT, autre);
+      expect(!out.ok && out.reason, JSON.stringify(autre)).toBe('wrong_token');
+    }
+    expect(store.objects.has(`${PARENT}~t`), 'nothing was written').toBe(false);
+    // A parent stored with no token at all matches nothing — not even ''.
+    const nu = new InMemoryMediaStore('https://media.boutik.test', () => UPLOADED_AT);
+    await nu.put(PARENT, png(1280, 1280), 'image/png');
+    const vide = await new ProductMediaService(nu).putThumb(PARENT, png(320, 320, 8_000), AT, '');
+    expect(!vide.ok && vide.reason).toBe('wrong_token');
+    // The right token still meets the window: it is worth nothing once shut.
+    expect((await service.putThumb(PARENT, png(320, 320, 8_000), TROP_TARD, JETON)).ok).toBe(false);
+    expect((await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON)).ok).toBe(true);
   });
 
   it('a clock that cannot be read is treated as CLOSED, never as open', async () => {
     const { store, service } = await withParent();
-    const out = await service.putThumb(PARENT, png(320, 320, 8_000), 'pas une date');
+    const out = await service.putThumb(PARENT, png(320, 320, 8_000), 'pas une date', JETON);
     expect(!out.ok && out.reason).toBe('window_closed');
     expect(store.objects.has(`${PARENT}~t`)).toBe(false);
   });
 
   it('a parent uploaded in the FUTURE is refused too — a negative age is not a fresh one', async () => {
     const store = new InMemoryMediaStore('https://media.boutik.test', () => new Date('2026-08-12T00:00:00.000Z'));
-    await store.put(PARENT, png(1280, 1280), 'image/png');
-    const out = await new ProductMediaService(store).putThumb(PARENT, png(320, 320, 8_000), AT);
+    await store.put(PARENT, png(1280, 1280), 'image/png', { thumbToken: JETON });
+    const out = await new ProductMediaService(store).putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
     expect(!out.ok && out.reason).toBe('window_closed');
   });
 
@@ -137,7 +158,7 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
     // Same body, absent parent: the answer must be the VALIDATOR's, not
     // `no_parent`, or the door becomes an existence oracle for anyone with the
     // bundled write key.
-    const out = await new ProductMediaService(new InMemoryMediaStore()).putThumb(PARENT, new Uint8Array(0), AT);
+    const out = await new ProductMediaService(new InMemoryMediaStore()).putThumb(PARENT, new Uint8Array(0), AT, JETON);
     expect(!out.ok && out.reason).toBe('empty');
   });
 });
@@ -145,7 +166,7 @@ describe('THUMB-PRODUIT-1 — putThumb, the four checks in order', () => {
 describe('THUMB-PRODUIT-1 — a revoked photograph takes its vignette', () => {
   it('revoke removes both objects', async () => {
     const { store, service } = await withParent();
-    await service.putThumb(PARENT, png(320, 320, 8_000), AT);
+    await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
     await service.revoke(PARENT);
     expect(store.objects.has(PARENT)).toBe(false);
     expect(store.objects.has(`${PARENT}~t`), 'a 320px copy of a taken-down image is still that image').toBe(false);
@@ -153,7 +174,7 @@ describe('THUMB-PRODUIT-1 — a revoked photograph takes its vignette', () => {
 
   it('replace removes the OLD photograph’s vignette, so the new one starts empty', async () => {
     const { store, service } = await withParent();
-    await service.putThumb(PARENT, png(320, 320, 8_000), AT);
+    await service.putThumb(PARENT, png(320, 320, 8_000), AT, JETON);
     const out = await service.replace(PARENT, png(1280, 1280, 1_000), AT);
     expect(out.ok).toBe(true);
     expect(store.objects.has(`${PARENT}~t`)).toBe(false);
@@ -173,20 +194,23 @@ describe('THUMB-PRODUIT-1 — the route', () => {
 
   it('maps the typed refusals onto honest statuses', async () => {
     const bucket = stubBucket();
-    await bucket.store.put(PARENT, png(1280, 1280), { httpMetadata: { contentType: 'image/png' } });
+    await bucket.store.put(PARENT, png(1280, 1280), { httpMetadata: { contentType: 'image/png' }, customMetadata: { thumbToken: JETON } });
     const env = { BUCKET: bucket.bucket };
-    const ok = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(320, 320, 8_000) }), env);
+    const avec = { [THUMB_TOKEN_HEADER]: JETON };
+    const sans = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(320, 320, 8_000) }), env);
+    expect(sans.status, 'MEDIA-PORTE-1 — no token, no vignette').toBe(403);
+    const ok = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(320, 320, 8_000), headers: avec }), env);
     expect(ok.status).toBe(201);
     expect(await ok.json()).toEqual({ status: 'stored', for: PARENT, byteLength: 8_000 });
 
-    const dup = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(320, 320, 8_000) }), env);
+    const dup = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(320, 320, 8_000), headers: avec }), env);
     expect(dup.status, 'a slot already filled is 409, not an error to shout about').toBe(409);
 
     const ABSENT = 'media/22222222-2222-4222-8222-222222222222';
-    const none = await handleThumbUpload(new Request(url(ABSENT), { method: 'POST', body: png(320, 320, 8_000) }), env);
+    const none = await handleThumbUpload(new Request(url(ABSENT), { method: 'POST', body: png(320, 320, 8_000), headers: avec }), env);
     expect(none.status).toBe(404);
 
-    const bad = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(1280, 1280, 8_000) }), env);
+    const bad = await handleThumbUpload(new Request(url(PARENT), { method: 'POST', body: png(1280, 1280, 8_000), headers: avec }), env);
     expect(bad.status).toBe(400);
   });
 
@@ -241,12 +265,13 @@ describe('THUMB-PRODUIT-1 — the read route’s variant', () => {
 
 /** An R2-shaped stub that records what was written — the house pattern here. */
 function stubBucket(uploadedAt: Date = new Date()): { bucket: R2BucketLike; store: R2BucketLike } {
-  const objects = new Map<string, { bytes: Uint8Array; contentType?: string }>();
+  const objects = new Map<string, { bytes: Uint8Array; contentType?: string; meta?: Record<string, string> }>();
   const bucket: R2BucketLike = {
     put: async (key, value, options) => {
       objects.set(key, {
         bytes: value,
         ...(options?.httpMetadata?.contentType !== undefined ? { contentType: options.httpMetadata.contentType } : {}),
+        ...(options?.customMetadata !== undefined ? { meta: options.customMetadata } : {}),
       });
       return undefined;
     },
@@ -261,7 +286,10 @@ function stubBucket(uploadedAt: Date = new Date()): { bucket: R2BucketLike; stor
         ...(o.contentType !== undefined ? { httpMetadata: { contentType: o.contentType } } : {}),
       };
     },
-    head: async (key) => (objects.has(key) ? { uploaded: uploadedAt } : null),
+    head: async (key) => {
+      const o = objects.get(key);
+      return o === undefined ? null : { uploaded: uploadedAt, ...(o.meta !== undefined ? { customMetadata: o.meta } : {}) };
+    },
   };
   return { bucket, store: bucket };
 }

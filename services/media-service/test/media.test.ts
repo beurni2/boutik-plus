@@ -123,8 +123,10 @@ describe('REVOCATION — what makes the deferred read-route gate survivable', ()
 });
 
 describe('the store resolver — CI can never reach real storage', () => {
-  it('no binding ⇒ the in-memory fake, by construction', () => {
-    expect(resolveMediaStore({})).toBeInstanceOf(InMemoryMediaStore);
+  it('no binding ⇒ NO store, never the in-memory fake (MEDIA-PORTE-1, AUDIT-B+2 F-43)', () => {
+    // The fake answered 201 with refs that 404ed on a deploy missing its
+    // binding. Unset resolves to null; the doors turn that into a 503.
+    expect(resolveMediaStore({})).toBeNull();
   });
 
   it('an R2 binding ⇒ the R2 store, and put/delete go to the binding', async () => {

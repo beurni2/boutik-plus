@@ -10,6 +10,7 @@
  * deterministic: same input → same output, no inference anywhere
  * (imaging gate: "no segmentation/generative/classification/inference").
  */
+import { sharedColour } from '@platform/ui-tokens';
 
 /** The canonical derivative spec (v1) — the ONE transform both the preview
  * and the stored derivative come from (WYSIWYG by construction). */
@@ -41,6 +42,27 @@ export function derivativeActions(sourceWidth: number, sourceHeight: number): Re
   return sourceWidth >= sourceHeight
     ? [{ resize: { width: DERIVATIVE_SPEC_V1.maxEdgePx } }]
     : [{ resize: { height: DERIVATIVE_SPEC_V1.maxEdgePx } }];
+}
+
+/**
+ * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — THE PAPER A SEE-THROUGH PICTURE IS LAID ON.
+ *
+ * JPEG has no transparency, and on the web the image library draws onto an
+ * unfilled canvas before encoding one: every clear pixel of a PNG or WebP
+ * cut-out came out black. So the picture is laid on the Boutik+ paper token
+ * first. It is a FILL, not a geometry step: origin 0,0 at exactly the image's
+ * own size, so nothing moves, and over an opaque picture no pixel changes.
+ * Deterministic (loi 5); kept OUT of `derivativeActions`, whose resize-only
+ * list is a tested law.
+ */
+export const FOND_PAPIER: string = sharedColour.paper;
+
+export interface FondAction {
+  extent: { backgroundColor: string; originX: 0; originY: 0; width: number; height: number };
+}
+
+export function fondPapier(width: number, height: number): FondAction {
+  return { extent: { backgroundColor: FOND_PAPIER, originX: 0, originY: 0, width, height } };
 }
 
 /** The metrics frame action — a tiny downscale for the guidance engine. */

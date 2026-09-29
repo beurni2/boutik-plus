@@ -45,6 +45,9 @@ export interface ProduitsCache {
   asOf: string | null;
 }
 
+/** Every stored byte a product names — its photographs, and its clip when it has one. */
+const octetsDuProduit = (row: SupplierOfferRow): readonly string[] =>
+  row.videoRef === undefined ? row.assetRefs : [...row.assetRefs, row.videoRef];
 
 export function SProduitsReal({ st, d, supplierId, cache }: {
   st: S;
@@ -340,7 +343,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
     if (!res.ok) return false;
     // F-68 — the photos that did not go are KEPT and SAID (see `photosRestantes`),
     // never silently orphaned. A failed revoke still never un-deletes the product.
-    const restantes = await effacerPhotos(openOffer.assetRefs);
+    // MEDIA-PORTE-1 (F-42) — the clip with them: after the delete no record
+    // names it, so this is its one chance to go.
+    const restantes = await effacerPhotos(octetsDuProduit(openOffer));
     if (restantes.length > 0) setPhotosRestantes(garderPhotosRestantes(restantes));
     setOpenOffer(null);
     cache.current = { rows: null, asOf: null };
@@ -414,8 +419,9 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
   if (openOffer !== null) {
     // CLE-FONDATEUR-1 — a product WITH photographs is deleted only when the
     // photo key is on this device: deleting it without the key would leave
-    // every photo readable at its url with no way left to reach it.
-    const aDesPhotos = openOffer.assetRefs.some((r) => r.startsWith('media/'));
+    // every photo readable at its url with no way left to reach it. Its clip
+    // counts the same (MEDIA-PORTE-1, F-42).
+    const aDesPhotos = octetsDuProduit(openOffer).some((r) => r.startsWith('media/'));
     const clePhotosManquante = aDesPhotos && readStoredClePhotos() === null;
     return (
       <SOffreFiche

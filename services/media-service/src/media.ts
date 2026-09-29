@@ -1,4 +1,5 @@
 import { PRODUCT_VIDEO_MAX_SEC } from '@platform/contracts';
+import { timingSafeEqual } from '@boutik/service-auth';
 import { assertOpaqueMediaKey, mintMediaKey } from './media-key.js';
 import type { MediaStore, StoredObject } from './media-store.js';
 
@@ -74,19 +75,25 @@ export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
  *   · NO REGISTRY — derivation is arithmetic. This service still holds no index,
  *     exactly as its header has always claimed.
  *
- * ⚠ WHAT MAKES A DERIVED-KEY WRITE SAFE — TWO GATES, AND THE FIRST ONE IS THE
- * LOAD-BEARING ONE. This is the only route in the service that writes at a key
- * it did not mint, and the write key SHIPS INSIDE APP BUNDLES while a published
- * product's refs are PUBLIC. So the pair « bundled key + a ref off a vitrine
- * page » must not be able to put an image on the founder's board:
+ * ⚠ WHAT MAKES A DERIVED-KEY WRITE SAFE — THREE GATES, AND THE FIRST ONE IS
+ * THE LOAD-BEARING ONE. This is the only route in the service that writes at a
+ * key it did not mint, and the write key SHIPS INSIDE APP BUNDLES while a
+ * published product's refs are PUBLIC. So the pair « bundled key + a ref off a
+ * vitrine page » must not be able to put an image on the founder's board:
  *
- *   1. FRESHNESS — the parent photograph must have been uploaded within
+ *   1. THE PHOTOGRAPH'S OWN TOKEN (MEDIA-PORTE-1, AUDIT-B+2 F-41) — `upload`
+ *      mints a one-time random token, stores it in the photograph's R2 custom
+ *      metadata and answers it to the uploader ONLY. The vignette door demands
+ *      it, compared in constant time. Freshness alone did not close the hole:
+ *      the founder's products go public the moment they publish, so a ref
+ *      could be read off a page while the window below was still open, and a
+ *      vignette whose upload had failed left the slot empty for a stranger.
+ *      A photograph stored before the token existed carries none and can
+ *      never gain a vignette — its window shut long ago anyway.
+ *   2. FRESHNESS — the parent photograph must have been uploaded within
  *      {@link THUMB_WRITE_WINDOW_MS}. The app posts its vignette seconds after
- *      the photograph, while the ref exists only in its own memory; a ref
- *      harvested from a page is minutes-to-months past that window and is
- *      refused. This is what closes the defacement primitive, including for
- *      every photograph that predates this slice — their window shut long ago.
- *   2. WRITE-ONCE — a filled slot is refused, so nothing can be replaced even
+ *      the photograph; the window bounds how long a token is worth anything.
+ *   3. WRITE-ONCE — a filled slot is refused, so nothing can be replaced even
  *      inside the window (two racing writers, the second loses).
  *
  * The cost is stated plainly and it is the right cost: a vignette that does not
@@ -121,7 +128,10 @@ export function thumbKeyFor(parentKey: string): string {
   return `${assertOpaqueMediaKey(parentKey)}~t`;
 }
 
-export type ThumbRejectReason = RejectReason | 'no_parent' | 'already_set' | 'window_closed';
+export type ThumbRejectReason = RejectReason | 'no_parent' | 'wrong_token' | 'already_set' | 'window_closed';
+
+/** Where the photograph's one-time vignette token lives in its R2 custom metadata. */
+export const THUMB_TOKEN_META = 'thumbToken';
 
 export type ThumbOutcome =
   | { readonly ok: true; readonly key: string; readonly byteLength: number }
@@ -364,6 +374,9 @@ export interface StoredImage {
   readonly height: number;
   readonly byteLength: number;
   readonly uploadedAt: string;
+  /** MEDIA-PORTE-1 — the one-time key to THIS photograph's vignette slot,
+   *  answered to the uploader and never served again (see `putThumb`). */
+  readonly thumbToken: string;
 }
 
 export type UploadOutcome =
@@ -402,7 +415,8 @@ export class ProductMediaService {
 
     const contentType = fmt === 'png' ? 'image/png' : 'image/jpeg';
     const key = mintMediaKey(); // fresh CSPRNG token — never derived, never sequential
-    const stored: StoredObject = await this.store.put(key, bytes, contentType); // SERVER-SIDE write
+    const thumbToken = crypto.randomUUID(); // the same CSPRNG, and unrelated to the key
+    const stored: StoredObject = await this.store.put(key, bytes, contentType, { [THUMB_TOKEN_META]: thumbToken }); // SERVER-SIDE write
     return {
       ok: true,
       image: {
@@ -413,6 +427,7 @@ export class ProductMediaService {
         height: dims.height,
         byteLength: bytes.length,
         uploadedAt: at,
+        thumbToken,
       },
     };
   }
@@ -428,18 +443,19 @@ export class ProductMediaService {
    *   2. the bytes must be a real, small image — same magic sniff and pure-JS
    *      dimension read as every other door, with the vignette's own bounds;
    *   3. the PARENT must exist — a vignette for nothing is a write to nowhere;
-   *   4. the parent must be FRESH — the gate that closes the defacement
-   *      primitive (see the bounds block above);
-   *   5. the slot must be EMPTY — write-once.
+   *   4. the caller must hold the PARENT'S OWN TOKEN — the one its upload
+   *      answered (MEDIA-PORTE-1, F-41; the load-bearing gate, see above);
+   *   5. the parent must be FRESH — the window bounds a token's life;
+   *   6. the slot must be EMPTY — write-once.
    *
-   * Validation runs BEFORE the three storage questions on purpose: a malformed
-   * body is refused without the route ever revealing whether a ref exists.
+   * Validation runs BEFORE the storage questions on purpose: a malformed body
+   * is refused without the route ever revealing whether a ref exists.
    *
    * `at` IS THE CALLER'S CLOCK — the Worker's, on the request being served, not
    * the device's. It is compared against R2's own `uploaded` time, so both sides
    * of the window come from the server.
    */
-  async putThumb(parentKey: string, bytes: Uint8Array, at: string): Promise<ThumbOutcome> {
+  async putThumb(parentKey: string, bytes: Uint8Array, at: string, token: string): Promise<ThumbOutcome> {
     const key = thumbKeyFor(parentKey); // throws MediaKeyError on a non-opaque parent
     if (bytes.length === 0) return { ok: false, reason: 'empty' };
     if (bytes.length > THUMB_MAX_BYTES) return { ok: false, reason: 'too_large' };
@@ -452,6 +468,12 @@ export class ProductMediaService {
 
     const parent = await this.store.stat(parentKey);
     if (parent === null) return { ok: false, reason: 'no_parent' };
+    // The compare runs whatever was stored; a parent with no token (stored
+    // before MEDIA-PORTE-1, or read through the no-`head` fallback) matches
+    // nothing, not even an empty token.
+    const attendu = parent.meta[THUMB_TOKEN_META] ?? '';
+    const egal = await timingSafeEqual(token, attendu);
+    if (attendu === '' || !egal) return { ok: false, reason: 'wrong_token' };
     // An unparseable clock is treated as CLOSED, never open — the safe direction.
     const now = Date.parse(at);
     const age = Number.isFinite(now) ? now - parent.uploadedAt.getTime() : Number.POSITIVE_INFINITY;

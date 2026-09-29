@@ -100,7 +100,18 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     // not enhancement. The rect is data (`ctx.crop(rect)`) — no free-hand
     // parameters, no filters. rotate/flip/extent and everything ML stay banned.
     expect(capture).toMatch(/ctx\.crop\(rect\);/); // the ONE allowed call shape
-    expect(capture).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(/);
+    expect(capture).not.toMatch(/\.rotate\(|\.flip\(/);
+    // MEDIA-PORTE-1 (AUDIT-B+2 F-49) — `extent` enters in ONE shape only: the
+    // paper fill at origin 0,0 at the rendered image's own size (a fill, not a
+    // geometry step — `fondPapier`'s shape is pinned by value in
+    // fond-papier.test.ts). JPEG has no transparency, and without it a
+    // see-through PNG or WebP shipped black. Any other extent stays banned.
+    expect(capture.match(/\.extent\(/g) ?? []).toHaveLength(1);
+    expect(capture).toMatch(
+      /const \{ extent \} = fondPapier\(image\.width, image\.height\);\s*return ImageManipulator\.manipulate\(image\)\.extent\(extent\)\.renderAsync\(\);/,
+    );
+    const pickNative = read('src/studio/pick-native.ts');
+    expect(pickNative).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(|\.crop\(/);
     // and the crop verb appears nowhere else in the pipeline
     for (const f of ['src/studio/normalization.ts', 'src/studio/guidance.ts']) {
       expect(read(f)).not.toMatch(/\.crop\(/);
