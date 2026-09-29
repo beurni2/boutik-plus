@@ -1922,7 +1922,20 @@ export class FulfillmentDO {
         challenge: `srch-${crypto.randomUUID()}`,
         expiresAt: new Date(Date.now() + this.readinessTtlMs()).toISOString(),
       };
-      await this.state.storage.put(`${CHALLENGE_PREFIX}${orderId}`, issued);
+      // CODE-COLIS-1 (founder ruling 2026-09-29, canon 3.26.0: « one code per
+      // parcel ») — naming any article of HIS colis mints ONE challenge for the
+      // bag: every article of it he accepted, did not refuse and has not yet
+      // made ready carries it, so one act readies the parcel. Each article's
+      // « prêt » still consumes its own copy; a single order is a bag of one.
+      const copies: Record<string, IssuedChallengeRecord> = { [`${CHALLENGE_PREFIX}${orderId}`]: issued };
+      for (const id of await this.membresDuColis(order, resolved.supplierId)) {
+        if (id === orderId) continue;
+        if ((await this.state.storage.get(`${ACCEPT_PREFIX}${id}`)) === undefined) continue;
+        if ((await this.state.storage.get(`${READY_PREFIX}${id}`)) !== undefined) continue;
+        if ((await this.state.storage.get(`${REFUS_PREFIX}${id}`)) !== undefined) continue;
+        copies[`${CHALLENGE_PREFIX}${id}`] = issued;
+      }
+      await this.state.storage.put(copies);
       return Response.json({ ok: true, challenge: issued.challenge, expiresAt: issued.expiresAt });
     }
 

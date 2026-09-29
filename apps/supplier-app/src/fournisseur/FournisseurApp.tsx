@@ -671,11 +671,12 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
   };
 
   /**
-   * COLIS-FOURNISSEUR-1 — « Colis prêt » in ONE act (B6.2 as amended: one
-   * photo, one confirmation per order under it, each with its own
-   * challenge). The photo is uploaded ONCE; then, for every article still to
-   * make ready, a fresh short-TTL challenge and the strict canon confirmation
-   * repeating THAT article's locked terms, with the same photo as evidence.
+   * COLIS-FOURNISSEUR-1 — « Colis prêt » in ONE act (B6.2 as amended by
+   * canon 3.26.0: one photo and ONE challenge for the package, one
+   * confirmation per order under it). The photo is uploaded ONCE, the
+   * short-TTL challenge asked ONCE; then, for every article still to make
+   * ready, the strict canon confirmation repeating THAT article's locked
+   * terms, with the same challenge and photo.
    * The first refusal stops the loop with its own sentence; articles already
    * confirmed stay confirmed (the book is first-wins), and the next send
    * readies what is left.

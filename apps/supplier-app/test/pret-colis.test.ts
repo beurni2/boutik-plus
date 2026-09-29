@@ -5,12 +5,13 @@ import { pretColis } from '../src/fournisseur/pret-colis';
 
 /**
  * COLIS-FOURNISSEUR-1 — « Colis prêt » after the one photo is uploaded, by
- * value. The capture pipeline in front of it cannot be walked on the screen
- * harness (no image picker double), so this half is driven here through the
- * app's own port shape: every article still to make ready gets ITS OWN fresh
- * challenge and ITS OWN confirmation repeating ITS locked terms, all under the
- * SAME photo; a refusal stops with its own sentence; an article the book
- * already holds as ready is skipped, never a stop.
+ * value, through the app's own port shape (the screen walk of the whole send is
+ * `rendu-fournisseur-preuve.test.tsx`): ONE challenge for the parcel
+ * (CODE-COLIS-1, founder ruling 2026-09-29: « one code per parcel »), then
+ * every article still to make ready gets ITS OWN confirmation repeating ITS
+ * locked terms, all under that SAME challenge and the SAME photo; a refusal
+ * stops with its own sentence; an article the book already holds as ready is
+ * skipped, never a stop.
  */
 
 const PHOTO = { assetId: 'asset-colis-1', role: 'readiness' } as never;
@@ -49,18 +50,18 @@ function port(opts: {
   };
 }
 
-describe('COLIS-FOURNISSEUR-1 — one photo, one confirmation per article', () => {
-  it('readies EVERY article still to prepare: its own challenge, its own terms, the same photo — then refreshes', async () => {
+describe('COLIS-FOURNISSEUR-1 · CODE-COLIS-1 — one photo, one code, one confirmation per article', () => {
+  it('readies EVERY article still to prepare: ONE challenge for the parcel, each its own terms, the same photo — then refreshes', async () => {
     const { service, appels } = port();
     const articles = [article('o1', 'pv-a', ACCEPTE), article('o2', 'pv-b', ACCEPTE)];
     const issue = await pretColis(service, 'CODE-F', 'pkg-1', articles, PHOTO);
     expect(issue.then).toBe('refresh');
-    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'ready:o1', 'challenge:o2', 'ready:o2']);
+    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'ready:o1', 'ready:o2']);
     expect(appels.every((a) => a.code === 'CODE-F')).toBe(true);
     const readies = appels.filter((a) => a.acte === 'ready');
-    // Each confirmation repeats ITS article's locked terms and ITS challenge.
+    // Each confirmation repeats ITS article's locked terms, under the parcel's ONE challenge.
     expect(readies[0]!.body).toMatchObject({ orderId: 'o1', variant: 'pv-a', readinessChallenge: 'defi-o1', qty: 1, availableConfirmed: true });
-    expect(readies[1]!.body).toMatchObject({ orderId: 'o2', variant: 'pv-b', readinessChallenge: 'defi-o2', qty: 1, availableConfirmed: true });
+    expect(readies[1]!.body).toMatchObject({ orderId: 'o2', variant: 'pv-b', readinessChallenge: 'defi-o1', qty: 1, availableConfirmed: true });
     // One photo, the same evidence under both.
     expect(readies[0]!.body!['photoRef']).toBe(PHOTO);
     expect(readies[1]!.body!['photoRef']).toBe(PHOTO);
@@ -98,9 +99,15 @@ describe('COLIS-FOURNISSEUR-1 — one photo, one confirmation per article', () =
   it('AFTER A HALF-DONE SEND, the next tap finishes the bag: « already ready » is skipped, not a stop', async () => {
     // o1 was confirmed on the first try; the card still lists it as to prepare
     // because a failure never refreshes.
-    const { service, appels } = port({ challenge: (o) => (o === 'o1' ? { ok: false, reason: 'already_ready' } : { ok: true, challenge: `defi-${o}`, expiresAt: 'x' }) });
+    // The book answers as it does: the parcel's code is asked naming o2, and
+    // o1's own « prêt » answers already_ready.
+    const { service, appels } = port({
+      challenge: (o) => (o === 'o1' ? { ok: false, reason: 'already_ready' } : { ok: true, challenge: `defi-${o}`, expiresAt: 'x' }),
+      ready: (o) => (o === 'o1' ? { ok: false, reason: 'already_ready' } : { ok: true, status: 'ready', confirmedAt: 'x' }),
+    });
     const issue = await pretColis(service, 'CODE-F', 'pkg-1', [article('o1', 'pv-a', ACCEPTE), article('o2', 'pv-b', ACCEPTE)], PHOTO);
     expect(issue.then).toBe('refresh');
-    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'challenge:o2', 'ready:o2']);
+    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'challenge:o2', 'ready:o1', 'ready:o2']);
+    expect(appels.find((a) => a.acte === 'ready' && a.orderId === 'o2')?.body).toMatchObject({ readinessChallenge: 'defi-o2' });
   });
 });

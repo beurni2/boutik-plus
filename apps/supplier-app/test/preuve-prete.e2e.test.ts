@@ -234,7 +234,7 @@ describe('PREUVE-PRETE-1 — « Envoyer la preuve » through his own code, on th
     expect(ligne?.fulfillment?.readyAt).toEqual(expect.any(String));
   });
 
-  it('a colis: ONE upload, then the parcel loop the screen calls — every article ready in the book, all under the same stored photo', async () => {
+  it('a colis: ONE upload, ONE code, then the parcel loop the screen calls — every article ready in the book, all under the same stored photo', async () => {
     const colis = { packageId: 'col-preuve-1', orderIds: ['ord-preuve-c1', 'ord-preuve-c2'] };
     for (const [o, pv] of [['ord-preuve-c1', 'pv-preuve-c1'], ['ord-preuve-c2', 'pv-preuve-c2']] as const) {
       const intake = await opsPost('/fulfillment/order-confirmed', paye(o, pv, colis), INTAKE);
@@ -255,8 +255,12 @@ describe('PREUVE-PRETE-1 — « Envoyer la preuve » through his own code, on th
     const up = await resolveReadinessUpload()!(PHOTO);
     expect(up.ok).toBe(true);
     if (!up.ok) return;
-    const issue = await pretColis(svc, code, carte.packageId, carte.articles, up.value);
+    // CODE-COLIS-1 — his own port, counted as it passes: ONE code for the parcel
+    let codesDemandes = 0;
+    const compte = { ...svc, challenge: (c: string, o: string) => ((codesDemandes += 1), svc.challenge(c, o)) };
+    const issue = await pretColis(compte, code, carte.packageId, carte.articles, up.value);
     expect(issue.then, JSON.stringify(issue)).toBe('refresh');
+    expect(codesDemandes, 'one code per parcel').toBe(1);
 
     for (const o of colis.orderIds) {
       expect(await readyAtDe(o), `${o} is not ready in the book`).toEqual(expect.any(String));

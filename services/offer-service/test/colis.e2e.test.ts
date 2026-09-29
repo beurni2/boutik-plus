@@ -200,17 +200,20 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
       expect(lignes.find((l) => l['orderId'] === o)?.['colis'], o).toEqual(COLIS);
     }
 
-    // Ready both (one photo, one confirmation per order under it — B6.2).
-    for (const [o, pv] of [[ORD1, PV1], [ORD2, PV2]] as const) {
+    // Ready both — one photo, ONE code for the parcel (CODE-COLIS-1, canon
+    // 3.26.0 B6.2), one confirmation per order under it.
+    for (const o of [ORD1, ORD2]) {
       expect((await post('/fulfillment/accept', { orderId: o }, { Authorization: `Bearer ${codeA}` })).json['ok']).toBe(true);
-      const ch = await post('/fulfillment/ready/challenge', { orderId: o }, { Authorization: `Bearer ${codeA}` });
-      expect(ch.json['ok'], ch.text).toBe(true);
+    }
+    const ch = await post('/fulfillment/ready/challenge', { orderId: ORD1 }, { Authorization: `Bearer ${codeA}` });
+    expect(ch.json['ok'], ch.text).toBe(true);
+    for (const [o, pv] of [[ORD1, PV1], [ORD2, PV2]] as const) {
       const ready = await post('/fulfillment/ready', {
         orderId: o,
         photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: ch.json['challenge'], qty: 1, variant: pv, availableConfirmed: true, at: T0,
       }, { Authorization: `Bearer ${codeA}` });
-      expect(ready.json['ok'], ready.text).toBe(true);
+      expect(ready.json['status'], `${o}: ${ready.text}`).toBe('ready');
     }
 
     // ONE code at the stall, typed on EITHER article's card: both leave.
@@ -238,6 +241,31 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
     const sandales = lignes.find((l) => l['orderId'] === ORD2)?.['fulfillment'] as Record<string, unknown>;
     expect(sandales['returnedAt'], 'the refused article came back').toEqual(expect.any(String));
     expect(pagne['deliveredAt'], 'the kept article stays delivered').toEqual(expect.any(String));
+  });
+
+  it('CODE-COLIS-1 — one code per parcel covers only what is still to prepare: an article accepted after it was minted needs a fresh one, and a fresh one covers only the rest', async () => {
+    const PAQUET = { packageId: 'col-bk-code', orderIds: ['ord-colis-code-1', 'ord-colis-code-2'] };
+    for (const [o, pv] of [['ord-colis-code-1', PV1], ['ord-colis-code-2', PV2]] as const) {
+      expect((await post('/fulfillment/order-confirmed', paye(o, pv, PAQUET), { Authorization: `Bearer ${FULFILL_SECRET}` })).status).toBe(200);
+    }
+    const lui = { Authorization: `Bearer ${codeA}` };
+    const pret = (o: string, pv: string, challenge: unknown) => post('/fulfillment/ready', {
+      orderId: o,
+      photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+      readinessChallenge: challenge, qty: 1, variant: pv, availableConfirmed: true, at: T0,
+    }, lui);
+    // Only the first article is accepted when the code is minted: it is not the second's.
+    expect((await post('/fulfillment/accept', { orderId: 'ord-colis-code-1' }, lui)).json['ok']).toBe(true);
+    const premier = (await post('/fulfillment/ready/challenge', { orderId: 'ord-colis-code-1' }, lui)).json['challenge'];
+    expect((await post('/fulfillment/accept', { orderId: 'ord-colis-code-2' }, lui)).json['ok']).toBe(true);
+    expect((await pret('ord-colis-code-2', PV2, premier)).json['reason']).toBe('challenge_missing_or_mismatched');
+    expect((await pret('ord-colis-code-1', PV1, premier)).json['status']).toBe('ready');
+    // A fresh code, named on either card, covers the article still to prepare — and moves nothing already ready.
+    const second = (await post('/fulfillment/ready/challenge', { orderId: 'ord-colis-code-2' }, lui)).json['challenge'];
+    expect(second).not.toBe(premier);
+    expect((await pret('ord-colis-code-2', PV2, second)).json['status']).toBe('ready');
+    const replay = await pret('ord-colis-code-1', PV1, premier);
+    expect(replay.json['status'], 'the first article keeps its own confirmation').toBe('already_ready');
   });
 
   it('⚠ another supplier’s code never moves this colis — the book proves ownership before Séra is asked', async () => {

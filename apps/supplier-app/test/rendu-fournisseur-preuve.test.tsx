@@ -58,7 +58,9 @@ interface Article {
 
 /**
  * The book and the photo store, answering as the real doors answer: a
- * challenge is minted per order and REPLACES the last one; the photo store
+ * challenge REPLACES the last one and, named on any article of a colis, is
+ * minted for every article of it accepted and not yet ready (CODE-COLIS-1 —
+ * one code per parcel, as the real door mints it); the photo store
  * refuses any key but the upload key with its one identical 401, and mints a
  * fresh `media/<uuid v4>` per upload; « prêt » is accepted only for the
  * order's live challenge and a ref of the minted SHAPE with an image type (the
@@ -91,7 +93,13 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
       if (path !== '/fulfillment/ready/challenge') return null;
       n += 1;
       const challenge = `srch-00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-      defis.set(String(body?.['orderId']), challenge);
+      const nomme = articles.find((a) => a.orderId === body?.['orderId']);
+      for (const a of articles) {
+        const duSac = a === nomme || (nomme?.colis !== undefined && nomme.colis.orderIds.includes(a.orderId));
+        if (duSac && (a === nomme || (a.fulfillment.acceptedAt !== undefined && a.fulfillment.readyAt === undefined))) {
+          defis.set(a.orderId, challenge);
+        }
+      }
       return { status: 200, json: { ok: true, challenge, expiresAt: '2026-09-29T08:10:00.000Z' } };
     },
     (path, _b, _s, headers) => {
@@ -190,7 +198,7 @@ describe('F-16 — « Envoyer la preuve » pressed for real: the proof goes, in 
     screen.unmount();
   });
 
-  it('a colis: ONE photo uploaded, then for EACH article its own challenge and its own « prêt » under that same photo → the card says « Prêt, preuve reçue »', async () => {
+  it('a colis (CODE-COLIS-1): ONE photo uploaded, ONE code for the parcel, then for EACH article its own « prêt » under that same code and photo → the card says « Prêt, preuve reçue »', async () => {
     const colis = { packageId: 'col-p', orderIds: ['ord-c1', 'ord-c2'] };
     const articles: Article[] = [
       { orderId: 'ord-c1', productName: 'Pagne', productVersionId: 'pv-pagne', colis, fulfillment: { acceptedAt: T } },
@@ -206,14 +214,18 @@ describe('F-16 — « Envoyer la preuve » pressed for real: the proof goes, in 
 
     expect(w.calls.filter((c) => c.path === '/media'), 'a colis sends its photo once').toHaveLength(1);
     const photo = rang(w, '/media');
+    const defis = w.calls.filter((c) => c.path === '/fulfillment/ready/challenge');
+    expect(defis, 'one code for the parcel, not one per article').toHaveLength(1);
+    const defi = rang(w, '/fulfillment/ready/challenge');
+    expect(defi, 'no code was asked after the photo').toBeGreaterThan(photo);
+    const code = b.defis.get('ord-c1');
+    expect(code).toBeDefined();
     for (const [o, pv] of [['ord-c1', 'pv-pagne'], ['ord-c2', 'pv-sandales']] as const) {
-      const defi = rang(w, '/fulfillment/ready/challenge', o);
       const pret = rang(w, '/fulfillment/ready', o);
-      expect(defi, `${o}: no challenge`).toBeGreaterThan(photo);
       expect(pret, `${o}: « prêt » never sent`).toBeGreaterThan(defi);
       expect(w.calls[pret]!.body, o).toMatchObject({
         orderId: o, variant: pv, qty: 1, availableConfirmed: true,
-        photoRef: { ref: b.photos[0] }, readinessChallenge: b.defis.get(o),
+        photoRef: { ref: b.photos[0] }, readinessChallenge: code,
       });
     }
     expect(articles.every((a) => a.fulfillment.readyAt !== undefined), 'an article of the bag was left not ready').toBe(true);
