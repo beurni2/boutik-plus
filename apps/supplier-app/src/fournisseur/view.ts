@@ -167,6 +167,16 @@ export function etapeOf(row: CommandeRow): EtapeCommande {
 }
 
 /**
+ * RETOUR-RAYON-1 (verifier MAJOR) — a colis on the road whose every article
+ * still on it was refused at the buyer's door is coming BACK: « Séra s'occupe
+ * de la livraison » would be untrue of it.
+ */
+export function colisRevient(articles: readonly CommandeVue[]): boolean {
+  const surLaRoute = articles.filter((a) => a.etape === 'en_route');
+  return surLaRoute.length > 0 && surLaRoute.every((a) => a.fulfillment?.refuseePorteAt !== undefined);
+}
+
+/**
  * RETOUR-RAYON-1 (founder ruling 2026-09-28: « back on sale when supplier
  * confirms it ») — the one sentence for where a refused unit stands on its way
  * back to sale, or null when nothing goes back (a fault that never sends it

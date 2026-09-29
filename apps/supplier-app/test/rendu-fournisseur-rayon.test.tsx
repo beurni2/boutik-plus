@@ -157,6 +157,10 @@ describe('RETOUR-RAYON-1 — refused at the door: his return code is what puts i
     await screen.settle();
     expect(screen.shows('Refusé à la porte. Le coursier le ramène.'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.texts().filter((x) => x === AU_RETOUR)).toHaveLength(1);
+    // verifier MAJOR — the bag's headline says it is coming BACK: the only
+    // article still on the road was refused at the door
+    expect(screen.shows("Le client l'a refusé à la porte. Le coursier vous le ramène.")).toBe(true);
+    expect(screen.shows('Remis au coursier.'), 'a colis coming back is not being delivered').toBe(false);
     await screen.type(CODE_RETOUR, 'Code de retour du coursier');
     await screen.press('Vérifier le code de retour');
     await screen.settle();

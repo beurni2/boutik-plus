@@ -390,7 +390,7 @@ interface HandoverRecord {
   readonly handedOverAt: string;
 }
 
-/** RETOUR-VIVANT-1 — the confirmed return code, one row per order. */
+/** RETOUR-RAYON-1 — the buyer's refusal at her door, one row per order. */
 interface PorteRefusRecord {
   readonly orderId: string;
   /** Séra's instant when readable, this Worker's clock otherwise (as the pickup refusal). */
@@ -398,6 +398,7 @@ interface PorteRefusRecord {
   readonly remettre: boolean;
 }
 
+/** RETOUR-VIVANT-1 — the confirmed return code, one row per order. */
 interface RetourRecord {
   readonly orderId: string;
   /** THIS Worker's clock at the moment Séra answered `confirme` on the
@@ -1070,8 +1071,19 @@ export class FulfillmentDO {
         return r !== undefined && r.supplierResolved && r.supplierId === supplierId && r.productVersionId === pv;
       });
       const sorties = [HANDOVER_PREFIX, REFUS_PREFIX, PICKUP_REFUS_PREFIX, LIVRAISON_PREFIX, RETOUR_PREFIX, PORTE_REFUS_PREFIX];
-      const marques = await this.lireParCles(siennes.flatMap((id) => sorties.map((p) => `${p}${id}`)));
-      return Response.json({ ok: true, orderIds: siennes.filter((id) => !sorties.some((p) => marques.has(`${p}${id}`))) });
+      const marques = await this.lireParCles(siennes.flatMap((id) => sorties.map((p) => `${p}${id}`).concat(rayonDe(id))));
+      return Response.json({
+        ok: true,
+        orderIds: siennes.filter(
+          (id) =>
+            !sorties.some((p) => marques.has(`${p}${id}`)) ||
+            // RETOUR-RAYON-1 (verifier MINOR) — back in his hands, so in what he
+            // counts, but not yet back on the counter: taken off like a waiting
+            // parcel, or the credit landing after the count adds it twice. The
+            // offer stops counting it the moment its `rendu-` is written.
+            (marques.get(rayonDe(id)) as { status?: string } | undefined)?.status === 'pending',
+        ),
+      });
     }
 
     /** THE OPS READ — every paid order, supplier ids included. The ROUTER
@@ -1463,7 +1475,7 @@ export class FulfillmentDO {
           // parked because nothing could go back says nothing.
           const rayon = (marques.get(rayonDe(r.orderId)) as { status?: string } | undefined)?.status;
           const remise =
-            porte?.remettre !== true ? undefined
+            porte?.remettre !== true || livree !== undefined ? undefined
               : rayon === undefined ? (retour === undefined ? ('au_retour' as const) : undefined)
                 : rayon === 'pending' ? ('en_cours' as const)
                   : rayon === 'delivered' ? ('faite' as const)
@@ -1643,15 +1655,6 @@ export class FulfillmentDO {
     }
 
     /**
-     * REMBOURSABLE-1 (AUDIT-B+2 F-08) — THE RIDER REFUSED THE COLIS AT PICKUP.
-     * Internal: only the refused-course intake below calls it, once Séra's
-     * canon fact names `rejection: 'pickup_refusal'`. First-wins, so a
-     * redelivery never moves the instant a supplier already read. An
-     * unreadable instant takes this Worker's clock rather than refusing the
-     * fact — Shop+ retries any non-OK answer forever, and that would also hold
-     * back every restock on the same wire.
-     */
-    /**
      * RETOUR-RAYON-1 — THE BUYER REFUSED IT AT HER DOOR. Internal: only the
      * refused-course intake calls it, for every refusal but one at pickup.
      * First-wins. If HE already confirmed the return (Shop+'s relay retries on
@@ -1694,6 +1697,15 @@ export class FulfillmentDO {
       });
     }
 
+    /**
+     * REMBOURSABLE-1 (AUDIT-B+2 F-08) — THE RIDER REFUSED THE COLIS AT PICKUP.
+     * Internal: only the refused-course intake below calls it, once Séra's
+     * canon fact names `rejection: 'pickup_refusal'`. First-wins, so a
+     * redelivery never moves the instant a supplier already read. An
+     * unreadable instant takes this Worker's clock rather than refusing the
+     * fact — Shop+ retries any non-OK answer forever, and that would also hold
+     * back every restock on the same wire.
+     */
     if (request.method === 'POST' && pathname === '/pickup-refused') {
       const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
       const orderId = body?.['orderId'];
@@ -2262,9 +2274,11 @@ export async function handleOrderConfirmedIntake(
  * the same road the delivered fact already rides — no new event is minted
  * anywhere. This side re-parses with the same canon schema, resolves the
  * order's product from ITS OWN book (the wire never needs to carry a pv), and
- * restocks per the fault-class policy (`restockOnRefusal` — buyer fault and
+ * applies the fault-class policy (`restockOnRefusal` — buyer fault and
  * provider failure send the sealed product home; a seller fault restores
  * nothing automatically; an event with no fault class restocks nothing).
+ * RETOUR-RAYON-1: a refusal at the buyer's DOOR goes back on sale only when
+ * the supplier confirms the return code; a refusal AT PICKUP restocks here.
  *
  * NEVER A WEDGE: an unknown order or a not-consumed order answers 200 — there
  * is nothing to move and the at-least-once emitter must stop. Only a store

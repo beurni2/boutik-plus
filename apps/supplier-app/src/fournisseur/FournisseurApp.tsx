@@ -23,6 +23,7 @@ import {
   PRET_REPOS,
   aAccepterDuColis,
   fournisseurVue,
+  colisRevient,
   modeVisible,
   phraseRemise,
   pretChoisir,
@@ -1253,7 +1254,7 @@ function CarteColis({ carte, pret, accepting, acceptEchec, photos, mediaBase, on
 
       {carte.etape === 'en_route' && (
         <View style={{ marginTop: 12 }}>
-          <Banner tone="info">{t('fournisseur.etape_en_route')}</Banner>
+          <Banner tone="info">{t(colisRevient(carte.articles) ? 'fournisseur.etape_refusee_porte' : 'fournisseur.etape_en_route')}</Banner>
           <VerifierRetour onVerifier={onVerifierRetour} />
         </View>
       )}

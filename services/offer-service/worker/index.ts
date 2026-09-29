@@ -452,7 +452,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
      * delivered one: Séra proved it, Shop+ relays the canon
      * `delivery.refused.v1` verbatim, the same intake secret gates the door.
      * The refused unit comes home to the offer's counter per the fault-class
-     * policy; no new event name, no new secret, no third road.
+     * policy — RETOUR-RAYON-1: for a refusal at the buyer's door, only once the
+     * supplier confirms the return code; no new event name, no new secret, no
+     * third road.
      */
     if (request.method === 'POST' && fp === '/fulfillment/delivery-refused') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);

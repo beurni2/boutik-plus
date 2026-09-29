@@ -82,6 +82,11 @@ describe('RETOUR-RAYON-1 — the counter unreachable: the unit waits on the ladd
     espace.plafond = Number.POSITIVE_INFINITY;
     expect(await disponible('pv-ry-u1')).toBe(2);
     expect(await remise('ord-ry-u1')).toBe('en_cours');
+    // verifier MINOR — back in his hands (so in what he counts) but not yet
+    // credited: the stock count takes it off, or the credit adds it twice
+    const attente = async () =>
+      ((await (await livre('/attente-ramassage', { supplierId: SUPPLIER, productVersionId: 'pv-ry-u1' })).json()) as { orderIds: string[] }).orderIds;
+    expect(await attente()).toEqual(['ord-ry-u1']);
 
     // the ladder's own due time, then the next wake
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -89,6 +94,7 @@ describe('RETOUR-RAYON-1 — the counter unreachable: the unit waits on the ladd
     await book.alarm();
     expect(rangee('ord-ry-u1')).toMatchObject({ status: 'delivered' });
     expect(await disponible('pv-ry-u1')).toBe(3);
+    expect(await attente(), 'credited: no longer taken off').toEqual([]);
     expect(await remise('ord-ry-u1')).toBe('faite');
     // a stray later wake adds nothing: the row is done, and the offer's marker holds
     await book.alarm();
@@ -132,7 +138,7 @@ describe('RETOUR-RAYON-1 — the counter unreachable: the unit waits on the ladd
     vi.stubGlobal('fetch', async () => Response.json({ ok: true, verdict: 'confirme' }));
     try {
       const seraBook = new FulfillmentDO({ storage } as unknown as DurableObjectState, {
-        OFFER: espace as unknown as DurableObjectNamespace, SERA_INTAKE_BASE: 'https://sera.test', SERA_INTAKE_SECRET: 'sera-secret',
+        OFFER: espace as unknown as DurableObjectNamespace, SERA_INTAKE_BASE: 'https://sera.test', SERA_INTAKE_SECRET: 'test-sera-intake-secret-rayon-u',
       });
       const v = await seraBook.fetch(new Request('https://do/retour/verify', { method: 'POST', body: JSON.stringify({ code, orderId: 'ord-ry-u6', codeRetour: 'RTR-1' }) }));
       expect(((await v.json()) as { verdict: string }).verdict).toBe('confirme');
@@ -142,6 +148,13 @@ describe('RETOUR-RAYON-1 — the counter unreachable: the unit waits on the ladd
     expect(storage.data.has('retour:ord-ry-u6')).toBe(true);
     expect(rangee('ord-ry-u6')).toBeUndefined();
     expect(await disponible('pv-ry-u6')).toBe(2);
+
+    // …and his list never asks him for a code that would put a delivered unit back
+    await vendueEtRetournee('pv-ry-u7', 'ord-ry-u7');
+    await storage.delete('retour:ord-ry-u7');
+    await storage.put('livraison:ord-ry-u7', { orderId: 'ord-ry-u7', deliveredAt: T0 });
+    await livre('/porte-refusee', { orderId: 'ord-ry-u7', at: T0, remettre: true });
+    expect(await remise('ord-ry-u7')).toBeUndefined();
   });
 
   it('a refusal the policy does not send home queues nothing, returned or not', async () => {

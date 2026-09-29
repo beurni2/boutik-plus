@@ -3,6 +3,37 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-29 · RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling) — a unit refused at the buyer's door goes back on sale only when the supplier confirms the return · ON THE BRANCH, awaiting the founder's « go »
+
+**Founder order (2026-09-28).** « go, back on sale when supplier confirms it » — his answer to the F-36 question in the STOCK-VRAI-1 report.
+
+**Governing text (re-read).** Audit F-36 (« Restock when the supplier confirms the return code, per returned article, idempotent on the same `rendu-` marker. Fix risk: a supplier who never types the code never gets his unit back. ») · B+I-03 « Available quantity is service-derived, never client-set » · §11 « concurrent reservation cannot oversell ». A read-only map of Boutik+, Séra, Shop+ and canon found **no canon text on WHEN a refused unit goes back on sale**: restock-at-the-door was my own default (JOURNAL: « the safest reading of spec silence … founder-tunable in one function: `restockOnRefusal` »). No contracts/ shape or event schema changes. The Execution Contract §7.2 flags « new return policy » for a remote switch; I read that as the buyer's return rules, not internal stock timing (STOCK-VENDU-1b's door restock also shipped unflagged) — said to him in the report.
+
+**Built.**
+- **The refusal intake** no longer restocks a refusal at the buyer's DOOR: the book records it (`porterefus:{orderId}`, first-wins, Séra's instant) with the unchanged policy's word (`remettre` = buyer / payment_provider). A refusal AT PICKUP keeps its old road (the colis never left). Its answer: `restock_on_return` · `restock_queued` · `restocked` · `no_restock` (+ faultClass) · `unknown_order`.
+- **His confirmed return code** (`/retour/verify` `confirme`) queues the unit's return to sale in the SAME write as the return mark, on the book's one keyed ladder — a new `rayon` destination beside Shop+ and Séra (per-row backoff, pointer in the same write, first-wins key). Delivery calls the offer's own restock door through the same router the composition root uses (the book gained the `OFFER` binding it already had at runtime): `restocked`/`idempotent` end the row; an offer gone or an order never consumed there is parked (nothing can go back); a failure retries; no binding = not attempted. If the refusal fact lands AFTER his code, it goes back then.
+- Never for a **delivered** article; a door-refused colis article he never handed over still comes back with the bag; a door-refused parcel is no longer counted as waiting on his shelf, and one back in his hands but not yet credited IS taken off a stock count (verifier MINOR, below).
+- **His page:** a door-refused order reaches « En route » with the return-code field even without his pickup confirmation; « Le client l'a refusé à la porte. Le coursier vous le ramène. » (the colis card too, when every article still on the road was refused); « Tapez son code de retour quand il arrive : l'article sera remis en vente. » → « L'article est en train d'être remis en vente. » → « L'article est remis en vente. » — only when something actually goes back. `/mine` carries `refuseePorteAt` and `remiseEnVente`.
+- **Shop+** (0db6353, tests only): the three Boutik+ stand-ins that answered `restocked` to every refusal give the real door's answers. Shop+ reads only the OK; its code is untouched.
+
+**Proof.**
+- Seam, real workerd (`retour-rayon.e2e.test.ts`, 9): the audit's story (sold → refused at the door → counter holds on both roads → his code → ONE `rendu` row, counter back on both roads, his list « faite »); re-typed code and redelivered fact move nothing; a wrong code puts nothing back; his code BEFORE the fact; seller fault never goes back; a colis with one delivered and one refused article, code typed on the delivered one's card, pickup never confirmed.
+- Real objects over the counting doubles (`retour-rayon.test.ts`, 5): a failed counter write waits (« en cours », taken off a count) then goes back on the next wake; no binding → nothing invented; product deleted → parked, no « remis en vente »; delivered never goes back either way round; a non-sending fault queues nothing.
+- Walks (`rendu-fournisseur-rayon.test.tsx`, 3) on the real page: reach the return field, the code CALLS the door with his Bearer, the archive's honest states; plus unit checks in `retour-vue.test.ts`. Rewritten to the new rule: `stock-vendu.e2e`, `stock-journal.e2e` (the freeze story), `croissance-carnet` (his list reads 9 marks per order, still his orders only).
+- Mutations, anchors matched once, restored byte-identical: **16 / 16 KILLED** on the build, **3 / 3 KILLED** on the review fixes.
+- Boards: Boutik+ **ALL GATES GREEN** (offer-service 472, supplier app 1 202, typecheck clean); Shop+ **ALL GATES GREEN**. One Boutik+ run lost `sera-readiness.e2e` « BOUTIK+ DEPLOYED BEFORE SÉRA » (expected 2 posts, got 3) while Shop+'s board ran on the same machine: a late retry from the file's previous test landed in its half-second window; 3 / 3 green alone, green in the next full board — untouched by this slice. Another run caught a test credential I wrote in a non-placeholder form; renamed to the `test-…` form, scan clean.
+
+**The ONE verifier pass** (given the ruling, the rules, the DoD and the diff of 7882886 + Shop+'s edits; not re-inspected after):
+- **MAJOR 1 — fixed.** The colis card still said « Séra s'occupe de la livraison » over a bag coming back. Now the refused-at-the-door sentence when every article still on the road was refused; walk 3 checks it.
+- **MINOR 2 — fixed.** A stock count in the seconds between his code and the credit counted the unit twice. The waiting-parcel list now includes a returned unit whose credit is still queued; the offer stops counting it the moment `rendu-` lands.
+- **MINOR 3 — journalled.** A ROLLBACK to a build before this one would post a still-queued `rayon` row to Shop+'s door and park it: that unit would not go back on sale (his stock count restores it). Only rows queued at that moment — normally seconds.
+- **MINOR 4 — journalled, not a regression.** Door refusals from before this deploy carry no `porterefus:` record: one whose pickup he never confirmed does not reach the return field, and a non-sending one still counts as waiting. They were already restocked at the door (rendu-), so nothing goes back twice.
+- **NITs 5, 6 fixed** (misplaced and stale comments; the Shop+ relay comment is still true and is left). **NIT 7** (« tapez son code » on a delivered article) was unreachable; guarded anyway and pinned.
+
+**Sizes.** Supplier page 427.6 KB (437 907 B) of 430. Console **unchanged in behaviour**; its bundle carries the shared catalog's five new strings (+95 B on the board build; deploy-way measure 499.1 KB, 511 113 B of 512 000 — 887 B left). On « go »: offer-deploy + fournisseur-web-deploy; the console needs no deploy.
+
+**Still open:** the audit's named risk — a supplier who never types the code never gets his unit back (his stock count is the recovery; the console does not yet list returns waiting for his code) · Séra sends no lost-parcel signal · MINOR 3 and MINOR 4 above.
+
 ## 2026-09-29 · STOCK-VRAI-1 MERGED AND DEPLOYED on the founder's « go » — and F-36 ruled
 
 **Founder order (2026-09-28).** « go, back on sale when supplier confirms it » — the « go » covers STOCK-VRAI-1 as reported (entry below); the second half rules F-36 (its own slice, RETOUR-RAYON-1, next entry when built).
