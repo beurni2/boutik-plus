@@ -112,6 +112,7 @@ describe('the « Produit prêt » reducer — one flow at a time, Law-7 honest, 
       ['not_yours_or_unknown', 'fournisseur.pret_impossible'],
       ['not_canonical_or_foreign_secret', 'fournisseur.pret_impossible'],
       ['unreachable', 'fournisseur.pret_echec'],
+      ['photo_not_uploaded', 'fournisseur.pret_photo_echec'],
     ] as const) {
       expect(pretRefusKey(reason), reason).toBe(key);
       expect(keys.has(key), `${key} missing from catalog`).toBe(true);
@@ -136,7 +137,7 @@ describe('FOURNISSEUR-VRAI-1 — the photo stays in his hand, a refusal never cr
   });
 
   it('F-22 — a refusal a retry can cure keeps the photo, and the send can start again from it; one no retry can cure drops it', () => {
-    for (const reason of ['unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used'] as const) {
+    for (const reason of ['unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used', 'photo_not_uploaded'] as const) {
       const ui = pretIssue('o1', { ok: false, reason }, 'data:photo').ui;
       expect(pretPhotoEnMain(ui), reason).toBe('data:photo');
       expect(pretEnvoyer(ui), reason).toEqual({ etat: 'envoi', orderId: 'o1' });
@@ -238,7 +239,7 @@ describe('the port — Bearer code, refusals by status, malformed rows dropped',
       orderId: 'o1', photoRef: { ref: 'media/x', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
       readinessChallenge: 'srch-x', qty: 1, variant: 'pv-1', availableConfirmed: true, at: '2026-08-02T08:00:00.000Z',
     };
-    for (const reason of ['challenge_expired', 'locked_terms_mismatch', 'not_accepted'] as const) {
+    for (const reason of ['challenge_expired', 'locked_terms_mismatch', 'not_accepted', 'photo_not_uploaded'] as const) {
       stubFetch(async () => new Response(JSON.stringify({ ok: false, reason }), { status: 409 }));
       expect(await port.ready('c', conf), reason).toEqual({ ok: false, reason });
     }
@@ -292,7 +293,12 @@ describe('[source-text checks] the screen’s wiring the pure tests cannot see (
       "import * as Crypto from 'expo-crypto';",
       "import { MEDIA_WRITE_KEY_HEADER, hexOfDigest, readUploadResult } from '../supply/media-wire';",
       "import type { MediaRefInput } from '../supply/assets';",
+      // PREUVE-PRETE-1 (F-27) — the call's time limit. The module imports
+      // nothing at all (pinned below), so it cannot carry a revoke client.
+      "import { fetchBorne, PHOTO_MS } from '../reseau';",
     ]);
+    const reseau = readFileSync(join(import.meta.dirname, '..', 'src', 'reseau.ts'), 'utf8');
+    expect(reseau.split('\n').filter((l) => l.startsWith('import '))).toEqual([]);
   });
 
   it('the challenge is fetched at SEND, before the upload — the whole act sits inside one 10-minute window', () => {

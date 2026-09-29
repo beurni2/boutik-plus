@@ -181,7 +181,7 @@ async function driveToReady(m: Miniflare, orderId: string): Promise<{ confirmedA
     '/fulfillment/ready',
     {
       orderId,
-      photoRef: { ref: `media/readiness/${orderId}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+      photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
       readinessChallenge: challenge.json['challenge'],
       qty: 1,
       variant: PV,
@@ -236,7 +236,7 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
       'srch-',              // the readiness challenge's own prefix (§5.4 secret)
       'readinessChallenge', // the field name itself
       'photoRef',           // seller-side evidence
-      'media/readiness',    // the photo's ref
+      '0f8fad5b-d9cb-469f-a165-70867728950e',    // the photo's ref (its uploaded key)
       'dropCode',           // Ten Laws #3 — never in anything seller-side
       // The supplier's IDENTITY rides this wire since VRAI-ROUTE (ruling 3,
       // asserted above); his CODE — the credential — still never does.
@@ -288,7 +288,7 @@ describe('SE-LIVE-2b — the readiness fact leaves Boutik+ for Séra, and nothin
       '/fulfillment/ready',
       {
         orderId: ORDER,
-        photoRef: { ref: `media/readiness/${ORDER}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: firstDrive.challenge, // the REAL one — the only re-entering branch
         qty: 1,
         variant: PV,

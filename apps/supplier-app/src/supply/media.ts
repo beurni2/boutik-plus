@@ -41,6 +41,7 @@ import {
 import type { FailureCause, ServiceResult } from './service';
 import { readStoredClePhotos } from '../operations/service';
 import type { MediaRefInput } from './assets';
+import { fetchBorne, CLIP_MS, PHOTO_MS } from '../reseau';
 
 export interface MediaServicePort {
   /** Upload one image's bytes; the returned MediaRef carries the ON-DEVICE sha256. */
@@ -113,13 +114,13 @@ export class HttpMediaService implements MediaServicePort {
     const sha256 = await sha256Hex(bytes);
     let res: Response;
     try {
-      res = await fetch(`${this.base.replace(/\/+$/, '')}/media`, {
+      res = await fetchBorne(`${this.base.replace(/\/+$/, '')}/media`, {
         method: 'POST',
         headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
         // raw bytes — no multipart, no filename (the route reads no name). RN's
         // fetch types predate BufferSource bodies; the runtime accepts them.
         body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
-      });
+      }, PHOTO_MS);
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
@@ -156,11 +157,11 @@ export class HttpMediaService implements MediaServicePort {
     const sha256 = await sha256Hex(bytes);
     let res: Response;
     try {
-      res = await fetch(`${this.base.replace(/\/+$/, '')}/media/video`, {
+      res = await fetchBorne(`${this.base.replace(/\/+$/, '')}/media/video`, {
         method: 'POST',
         headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
         body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
-      });
+      }, CLIP_MS);
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }

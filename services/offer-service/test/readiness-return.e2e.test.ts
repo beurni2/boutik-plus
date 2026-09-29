@@ -161,7 +161,7 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
       // posted bare, exactly as the fournisseur surface posts it.
       {
         orderId: ORDER,
-        photoRef: { ref: `media/readiness/${ORDER}`, sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: challenge.json['challenge'],
         qty: 1,
         variant: PV,
@@ -190,7 +190,7 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
       'sellerReadinessChallenge',
       'srch-',                        // the challenge's own prefix
       'photoRef',
-      'media/readiness',              // the evidence location
+      '0f8fad5b-d9cb-469f-a165-70867728950e', // the evidence location (its uploaded key)
       'a'.repeat(64),                 // the evidence digest
       'buyerDropCode',
       'pickupVerificationCode',
@@ -213,7 +213,7 @@ describe('READINESS-RETURN-1b — the two facts leave Boutik+, and nothing else 
       '/fulfillment/ready',
       {
         orderId: ORDER,
-        photoRef: { ref: `media/readiness/${ORDER}`, sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: lastChallenge,
         qty: 1,
         variant: PV,
@@ -337,7 +337,7 @@ describe('REMBOURSEMENT-2 — the supplier refuses a paid order: the canon fact 
       '/fulfillment/ready',
       {
         orderId: PRETE,
-        photoRef: { ref: `media/readiness/${PRETE}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: challenge.json['challenge'],
         qty: 1,
         variant: PV,
@@ -372,7 +372,7 @@ describe('REMBOURSEMENT-2 — the supplier refuses a paid order: the canon fact 
       '/fulfillment/ready',
       {
         orderId: ACCEPTEE,
-        photoRef: { ref: `media/readiness/${ACCEPTEE}`, sha256: 'c'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'c'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: tenu.json['challenge'],
         qty: 1,
         variant: PV,

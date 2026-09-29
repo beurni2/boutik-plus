@@ -14,11 +14,10 @@ import { FournisseurApp } from '../src/fournisseur/FournisseurApp';
  * WIRED (the book is called for EVERY article, with his code); a failed act
  * leaves the button there to try again; and the card reaches its next step.
  *
- * ⚠ WHAT THIS WALK CANNOT DRIVE: the photo. Choosing it runs the native
- * picker and the image pipeline, which the doubles refuse on purpose (they
- * make pixels; a fake answer would make the imaging path look proven). The
- * walk stops at « the photo button is there and pressable »; the send that
- * follows is driven by value in `pret-colis.test.ts`.
+ * ⚠ WHAT THIS WALK DOES NOT DRIVE: the photo. It stops at « the photo button
+ * is there and pressable »; choosing the photo and pressing « Envoyer la
+ * preuve » are walked in `rendu-fournisseur-preuve.test.tsx` (PREUVE-PRETE-1),
+ * over the armed picker, image and file-reader stand-ins.
  *
  * Only `fetch` is faked. The fake book is certified to `readCommandeRow`
  * (every required field present, the colis block well formed — a malformed

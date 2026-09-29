@@ -166,7 +166,7 @@ async function world(): Promise<{ codeA: string; codeB: string }> {
 function readyPayload(orderId: string, challenge: string, over: Record<string, unknown> = {}, pv: string = PV_A) {
   return {
     orderId,
-    photoRef: { ref: `media/readiness/${orderId}`, sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+    photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
     readinessChallenge: challenge,
     qty: 1,
     variant: pv,
@@ -445,6 +445,25 @@ describe('B6.2 — the challenge and « Produit prêt » through the code door',
     expect(res.json['reason']).toBe('not_canonical_or_foreign_secret');
     const ok = await act('/fulfillment/ready', readyPayload('ord-r-foreign-1', challenge), codeA);
     expect(ok.json['status']).toBe('ready');
+  });
+
+  it('PREUVE-PRETE-1 (F-39) — ONLY AN UPLOADED PHOTO COUNTS: a ref the media Worker never minted, or a non-image type, is refused by name and consumes nothing', async () => {
+    const { codeA, challenge } = await acceptAndChallenge('ord-r-photo-1');
+    const faux = [
+      { ref: `x${'a'.repeat(20_000)}`, sha256: 'a'.repeat(64), mimeType: 'text/html' }, // the audit's measured case
+      { ref: 'media/readiness/ord-r-photo-1', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' }, // the old test data's shape
+      { ref: 'media/0f8fad5b-d9cb-169f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' }, // a v1 uuid: not minted
+      { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e/../x', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+      { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'text/html' },
+    ];
+    for (const photoRef of faux) {
+      const res = await act('/fulfillment/ready', readyPayload('ord-r-photo-1', challenge, { photoRef }), codeA);
+      expect(res.status, photoRef.ref.slice(0, 60)).toBe(400);
+      expect(res.json['reason']).toBe('photo_not_uploaded');
+    }
+    // nothing was consumed or recorded: the SAME challenge still makes it ready with a real photo
+    const ok = await act('/fulfillment/ready', readyPayload('ord-r-photo-1', challenge), codeA);
+    expect(ok.json['status'], ok.text).toBe('ready');
   });
 
   it('EVERY refusal answers BY NAME: no acceptance · mismatched · locked-terms', async () => {
@@ -756,7 +775,7 @@ describe('RB-1 — the readiness evidence reaches the FOUNDER alone, one order a
     const list = await opsGet('/fulfillment/orders');
     expect(list.status).toBe(200);
     expect(list.text).not.toContain('photoRef');
-    expect(list.text).not.toContain('media/readiness/');
+    expect(list.text).not.toContain('0f8fad5b-d9cb-469f-a165-70867728950e');
   });
 });
 

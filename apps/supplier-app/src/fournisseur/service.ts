@@ -18,6 +18,7 @@
  */
 
 import type { MediaRefInput } from '../supply/assets';
+import { fetchBorne, LECTURE_MS, RELAIS_MS } from '../reseau';
 
 /** Mirrors the /mine ALLOWLIST (offer-service fulfillment-do.ts) — nothing
  *  else ever arrives, and the reader drops anything malformed. */
@@ -139,7 +140,8 @@ export type ReadyRefusal =
   | 'challenge_already_used'
   | 'locked_terms_mismatch'
   | 'already_ready'
-  | 'not_yours_or_unknown';
+  | 'not_yours_or_unknown'
+  | 'photo_not_uploaded';
 
 export type ReadyResult =
   | { readonly ok: true; readonly status: 'ready' | 'already_ready'; readonly confirmedAt: string }
@@ -189,7 +191,7 @@ export interface FournisseurServicePort {
 const READY_REFUSALS: readonly ReadyRefusal[] = [
   'not_canonical_or_foreign_secret', 'not_accepted', 'challenge_missing_or_mismatched',
   'challenge_expired', 'challenge_already_used', 'locked_terms_mismatch',
-  'already_ready', 'not_yours_or_unknown',
+  'already_ready', 'not_yours_or_unknown', 'photo_not_uploaded',
 ];
 
 /**
@@ -212,11 +214,11 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
 
   const post = async (path: string, code: string, body: unknown): Promise<{ status: number; json: Record<string, unknown> } | null> => {
     try {
-      const res = await fetch(`${trimmed}${path}`, {
+      const res = await fetchBorne(`${trimmed}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: enTete(code) },
         body: JSON.stringify(body),
-      });
+      }, path.endsWith('/verify') ? RELAIS_MS : LECTURE_MS);
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       return { status: res.status, json };
     } catch {
@@ -228,9 +230,9 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
     async listMine(code: string): Promise<MineResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/mine`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/mine`, {
           headers: { Accept: 'application/json', Authorization: enTete(code) },
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -259,9 +261,10 @@ export function resolveFournisseurService(): FournisseurServicePort | null {
       for (let tour = 0; tour < PAGES_MAX_PRODUITS; tour += 1) {
         let res: Response;
         try {
-          res = await fetch(
+          res = await fetchBorne(
             `${trimmed}/offers/mine?limit=${PAGE_PRODUITS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
             { headers: { Accept: 'application/json', Authorization: enTete(code) } },
+            LECTURE_MS,
           );
         } catch {
           return { ok: false, reason: 'unreachable' };

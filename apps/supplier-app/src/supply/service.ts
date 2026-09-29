@@ -33,6 +33,7 @@
  */
 
 import { readStoredOpsKey } from '../operations/service';
+import { fetchBorne, LECTURE_MS } from '../reseau';
 
 /** Mirrors `ProductVersion` (canon §5.6) — the fields the create command carries. */
 export interface ProductVersionInput {
@@ -366,11 +367,11 @@ export class HttpSupplyService implements SupplyServicePort {
     const url = `${this.base.replace(/\/+$/, '')}/offers`;
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetchBorne(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
-      });
+      }, LECTURE_MS);
     } catch (err) {
       // Offline / DNS / TLS — named, because « échec réseau » with no cause is
       // undiagnosable from a phone in Ouagadougou. NOTHING was sent.
@@ -408,11 +409,11 @@ export class HttpSupplyService implements SupplyServicePort {
     const url = `${this.base.replace(/\/+$/, '')}/offers/assets`;
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetchBorne(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
-      });
+      }, LECTURE_MS);
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
@@ -441,11 +442,11 @@ export class HttpSupplyService implements SupplyServicePort {
     const url = `${this.base.replace(/\/+$/, '')}/offers/delete`;
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetchBorne(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.cle() },
         body: JSON.stringify(cmd),
-      });
+      }, LECTURE_MS);
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
     }
@@ -492,7 +493,7 @@ export class HttpSupplyService implements SupplyServicePort {
       const url = cursor === undefined ? base : `${base}&cursor=${encodeURIComponent(cursor)}`;
       let res: Response;
       try {
-        res = await fetch(url, { method: 'GET', headers: this.cle() });
+        res = await fetchBorne(url, { method: 'GET', headers: this.cle() }, LECTURE_MS);
       } catch (err) {
         return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
       }

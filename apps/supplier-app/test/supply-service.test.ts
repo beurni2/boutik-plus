@@ -329,11 +329,11 @@ describe('OFFER-DELETE-1 — the DESTRUCTIVE write held to the same boundary law
     // fix, that rejection escaped every client method into the UI — in the
     // delete flow it stranded the fiche on « en cours » AFTER the delete had
     // already succeeded server-side.
-    vi.stubGlobal('fetch', async () => {
-      const res = new Response('x', { status: 200 });
-      Object.defineProperty(res, 'text', { value: () => Promise.reject(new Error('body stream reset')) });
-      return res;
-    });
+    // PREUVE-PRETE-1 (F-27) — the death is in the body STREAM itself, where a
+    // reset happens: the time-limited read buffers the reply inside its
+    // ceiling, so a stubbed `text()` would no longer be where it dies.
+    vi.stubGlobal('fetch', async () =>
+      new Response(new ReadableStream({ start: (c) => c.error(new Error('body stream reset')) }) as never, { status: 200 }));
     const svc = new HttpSupplyService('https://o.example', 'k');
     for (const [name, p] of [
       ['createOffer', svc.createOffer(CMD)],

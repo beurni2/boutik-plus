@@ -111,7 +111,7 @@ export function sweepIdentityKeys(obj: Record<string, unknown>): void {
  */
 /** The media Worker's minted key, mirrored from its `isOpaqueMediaKey` (a
  *  different deployable, so the shape is restated rather than imported). */
-const OPAQUE_MEDIA_REF = /^media\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export const OPAQUE_MEDIA_REF = /^media\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export function assertAssetRefsIdentityFree(assetRefs: readonly string[], supplierId: string): void {
   const needle = supplierId.trim();

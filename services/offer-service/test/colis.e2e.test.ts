@@ -207,7 +207,7 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
       expect(ch.json['ok'], ch.text).toBe(true);
       const ready = await post('/fulfillment/ready', {
         orderId: o,
-        photoRef: { ref: 'media/readiness/colis-bk-1', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: ch.json['challenge'], qty: 1, variant: pv, availableConfirmed: true, at: T0,
       }, { Authorization: `Bearer ${codeA}` });
       expect(ready.json['ok'], ready.text).toBe(true);

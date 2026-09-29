@@ -220,9 +220,12 @@ describe('the screens exist, and the photos ride each commande (call sites)', ()
 
   it('the photo read is BEST-EFFORT: a products failure leaves the list and the last thumbnails alone', () => {
     const charge = bloc(app, 'const load = async', 'useEffect(() => {');
-    expect(charge).toContain('Promise.all([service.listMine(code), service.listProduits(code)])');
+    // PREUVE-PRETE-1 (F-27) — and it never HOLDS the list: the two reads are
+    // not awaited together (walked in `rendu-fournisseur-delai.test.tsx`)
+    expect(charge).not.toContain('Promise.all(');
+    expect(charge).toContain('const res = await service.listMine(code);');
     // the list state is set from listMine ALONE; photos only on their own ok
-    expect(charge).toContain('if (prods.ok) {');
+    expect(charge).toContain('if (seq === readSeq.current && prods.ok) {');
     expect(charge).not.toContain('if (res.ok && prods.ok)');
   });
 

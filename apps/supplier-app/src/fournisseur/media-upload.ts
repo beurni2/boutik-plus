@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { MEDIA_WRITE_KEY_HEADER, hexOfDigest, readUploadResult } from '../supply/media-wire';
 import type { MediaRefInput } from '../supply/assets';
+import { fetchBorne, PHOTO_MS } from '../reseau';
 
 /**
  * READINESS-WIRE-1b-ii verifier M1 — UPLOAD, AND NOTHING ELSE.
@@ -42,11 +43,11 @@ export function resolveReadinessUpload(): ((bytes: Uint8Array) => Promise<Upload
     let res: Response;
     let text: string;
     try {
-      res = await fetch(`${trimmed}/media`, {
+      res = await fetchBorne(`${trimmed}/media`, {
         method: 'POST',
         headers: { [MEDIA_WRITE_KEY_HEADER]: key },
         body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
-      });
+      }, PHOTO_MS);
       text = await res.text();
     } catch {
       return { ok: false };

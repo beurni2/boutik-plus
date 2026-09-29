@@ -194,6 +194,24 @@ describe('the picker and font stand-ins are CERTIFIED to where the app looks', (
     expect(typeof r('../../assets/fonts/faso-premium/InstrumentSans-Regular.ttf')).toBe('number');
   });
 
+  it('PREUVE-PRETE-1 — the armed file reader reads a `data:` photo byte for byte as the shipped web page does, and still reads nothing else', async () => {
+    const photo = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x03, 0x01, 0xff, 0xd9, 0x00, 0x80, 0xfe]);
+    const uri = `data:image/jpeg;base64,${Buffer.from(photo).toString('base64')}`;
+    // the web build's own reader, over the platform's real fetch
+    const { bytesFromUri: web } = await import('../src/supply/uri-bytes.web');
+    const parWeb = await web(uri);
+    fsDouble.armerLectureDataUri();
+    try {
+      const parDouble = await new fsDouble.File(uri).bytes();
+      expect(parDouble).toEqual(parWeb);
+      expect(parDouble).toEqual(photo);
+      await expect(new fsDouble.File('file:///DCIM/colis.jpg').bytes()).rejects.toThrow('no file system');
+    } finally {
+      fsDouble.desarmerLecture();
+    }
+    await expect(new fsDouble.File(uri).bytes(), 'unarmed, it reads nothing').rejects.toThrow('no file system');
+  });
+
   it('and each states its own bound — no walk may claim a photo was decoded, or a face was shown', () => {
     const picker = readFileSync(join(appDir, 'test/doubles/expo-image-picker.ts'), 'utf8');
     expect(picker).toContain('It decodes nothing and makes no\n *   pixels');

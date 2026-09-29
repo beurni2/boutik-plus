@@ -119,7 +119,7 @@ async function orderComplet(orderId: string, code: string): Promise<void> {
     '/fulfillment/ready',
     {
       orderId,
-      photoRef: { ref: `media/readiness/${orderId}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+      photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
       readinessChallenge: chall.json['challenge'],
       qty: 1, variant: PV, availableConfirmed: true, at: new Date().toISOString(),
     },
@@ -207,7 +207,7 @@ describe('PURGE-ESSAI — one named order leaves both consoles, and nothing else
       '/fulfillment/ready',
       {
         orderId: A,
-        photoRef: { ref: `media/readiness/${A}`, sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
+        photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'b'.repeat(64), mimeType: 'image/jpeg' },
         readinessChallenge: 'srch-quelque-chose',
         qty: 1, variant: PV, availableConfirmed: true, at: new Date().toISOString(),
       },

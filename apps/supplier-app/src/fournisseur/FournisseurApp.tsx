@@ -453,8 +453,17 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
     inFlight.current = true;
     readSeq.current += 1;
     const seq = readSeq.current;
+    // The photo join never speaks for the list — and never HOLDS it either
+    // (AUDIT-B+2 F-27): his orders land when the book answers, however long
+    // his products take. A products failure leaves the previous map alone
+    // (his thumbnails do not blink on one bad read).
+    void service.listProduits(code).then((prods) => {
+      if (seq === readSeq.current && prods.ok) {
+        setPhotos(new Map(prods.produits.map((p) => [p.productVersionId, p.assetRefs] as const)));
+      }
+    });
     try {
-      const [res, prods] = await Promise.all([service.listMine(code), service.listProduits(code)]);
+      const res = await service.listMine(code);
       if (seq !== readSeq.current) return; // a newer read owns the screen
       if (res.ok) {
         setRead({ kind: 'ok', rows: res.orders });
@@ -468,11 +477,6 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
         // survives a failed refresh. The wall is for « never read at all ».
         setRead((prev) => (prev.kind === 'ok' ? prev : { kind: 'failed' }));
         setPerimee(true);
-      }
-      // The photo join never speaks for the list: a products failure leaves
-      // the previous map alone (his thumbnails do not blink on one bad read).
-      if (prods.ok) {
-        setPhotos(new Map(prods.produits.map((p) => [p.productVersionId, p.assetRefs] as const)));
       }
     } finally {
       inFlight.current = false;

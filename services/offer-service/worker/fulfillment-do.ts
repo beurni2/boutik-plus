@@ -10,6 +10,7 @@ import {
 } from '@platform/contracts';
 import { provenance } from '@boutik/observability';
 import { restockOnRefusal } from '../src/offer-core.js';
+import { OPAQUE_MEDIA_REF } from '../src/supply-endpoint.js';
 import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
 import offerRouter from './offer-do.js';
 
@@ -1970,6 +1971,15 @@ export class FulfillmentDO {
           return Response.json({ ok: true, status: 'already_ready', confirmedAt: already.confirmedAt });
         }
         return Response.json({ ok: false, reason: 'already_ready' }, { status: 409 });
+      }
+      // PREUVE-PRETE-1 (AUDIT-B+2 F-39) — canon's MediaRef takes any string,
+      // so without this any text of any length and type reached Séra (which
+      // opens dispatch on it) and the founder's evidence card. Only a key the
+      // media Worker minted — its exact `media/<uuid v4>` — is a photo that
+      // was uploaded. Checked after the replay branch so an act confirmed
+      // before this rule is still absorbed, never re-judged.
+      if (!OPAQUE_MEDIA_REF.test(confirmation.photoRef.ref) || !confirmation.photoRef.mimeType.startsWith('image/')) {
+        return Response.json({ ok: false, reason: 'photo_not_uploaded' }, { status: 400 });
       }
 
       const acceptance = await this.state.storage.get<FulfillmentAcceptanceRecord>(`${ACCEPT_PREFIX}${orderId}`);

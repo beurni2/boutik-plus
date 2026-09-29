@@ -371,6 +371,10 @@ export function pretRefusKey(reason: Exclude<ReadyResult, { ok: true }>['reason'
     case 'not_yours_or_unknown':
     case 'not_canonical_or_foreign_secret':
       return 'fournisseur.pret_impossible';
+    // PREUVE-PRETE-1 (F-39) — the door did not find an uploaded photo; the
+    // next send uploads it afresh, so it is the photo sentence and a retry
+    case 'photo_not_uploaded':
+      return 'fournisseur.pret_photo_echec';
     case 'bad_code':
     case 'unreachable':
       return 'fournisseur.pret_echec';
@@ -379,7 +383,7 @@ export function pretRefusKey(reason: Exclude<ReadyResult, { ok: true }>['reason'
 
 /** The refusals another send can cure — the photo stays in his hand (F-22). */
 const PRET_RETENTABLE: readonly string[] = [
-  'photo_echec', 'unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used',
+  'photo_echec', 'photo_not_uploaded', 'unreachable', 'challenge_expired', 'challenge_missing_or_mismatched', 'challenge_already_used',
 ];
 
 export function pretIssue(

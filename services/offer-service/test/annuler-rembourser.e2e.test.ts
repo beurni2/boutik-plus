@@ -173,7 +173,7 @@ async function pret(orderId: string, pv: string, code: string) {
     '/fulfillment/ready',
     {
       orderId,
-      photoRef: { ref: `media/readiness/${orderId}`, sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
+      photoRef: { ref: 'media/0f8fad5b-d9cb-469f-a165-70867728950e', sha256: 'a'.repeat(64), mimeType: 'image/jpeg' },
       readinessChallenge: ch.json['challenge'], qty: 1, variant: pv, availableConfirmed: true,
       at: new Date().toISOString(),
     },

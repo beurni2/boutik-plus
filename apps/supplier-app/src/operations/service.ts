@@ -24,6 +24,8 @@
  * this port reads is already refused-or-true.
  */
 
+import { fetchBorne, LECTURE_MS } from '../reseau';
+
 /**
  * CONSOLE-2 — the operator's own chase mark, merged onto the row by the book.
  * « J'ai appelé le fournisseur », with the SERVER's clock. Never readiness:
@@ -429,11 +431,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
   ): Promise<{ ok: true; suite?: string } | { ok: false; reason: 'bad_key' | 'unreachable' | 'acces_change' | 'curseur_perdu' }> {
     let res: Response;
     try {
-      res = await fetch(`${trimmed}/fulfillment/supplier-acces/suite`, {
+      res = await fetchBorne(`${trimmed}/fulfillment/supplier-acces/suite`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
         body: JSON.stringify({ supplierId, acte, ...(cursor !== undefined ? { cursor } : {}) }),
-      });
+      }, LECTURE_MS);
     } catch {
       return { ok: false, reason: 'unreachable' };
     }
@@ -484,9 +486,10 @@ export function resolveOperationsService(): OperationsServicePort | null {
       for (let tour = 0; tour < PAGES_MAX_CARNET; tour += 1) {
         let res: Response;
         try {
-          res = await fetch(
+          res = await fetchBorne(
             `${trimmed}/fulfillment/orders?limit=${PAGE_CARNET}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
             { headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` } },
+            LECTURE_MS,
           );
         } catch {
           return { ok: false, reason: 'unreachable' };
@@ -518,9 +521,10 @@ export function resolveOperationsService(): OperationsServicePort | null {
       for (let tour = 0; tour < PAGES_MAX_CATALOGUE; tour += 1) {
         let res: Response;
         try {
-          res = await fetch(
+          res = await fetchBorne(
             `${trimmed}/offers/inventaire?limit=${PAGE_CATALOGUE}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
             { headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` } },
+            LECTURE_MS,
           );
         } catch {
           return { ok: false, reason: 'unreachable' };
@@ -547,11 +551,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async confirmStock(opsKey: string, cmd: ConfirmStockCommand): Promise<ConfirmStockResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/offers/stock`, {
+        res = await fetchBorne(`${trimmed}/offers/stock`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           body: JSON.stringify({ commandId: cmd.commandId, offerId: cmd.offerId, available: cmd.available }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -583,9 +587,9 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async stockEnAttente(opsKey: string, offerId: string): Promise<StockEnAttenteResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/offers/stock/attente?offerId=${encodeURIComponent(offerId)}`, {
+        res = await fetchBorne(`${trimmed}/offers/stock/attente?offerId=${encodeURIComponent(offerId)}`, {
           headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -601,11 +605,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async prolongerOffre(opsKey: string, cmd: { readonly commandId: string; readonly offerId: string }): Promise<ProlongerResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/offers/prolonger`, {
+        res = await fetchBorne(`${trimmed}/offers/prolonger`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           body: JSON.stringify({ commandId: cmd.commandId, offerId: cmd.offerId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -627,9 +631,9 @@ export function resolveOperationsService(): OperationsServicePort | null {
   async listSupplierContacts(opsKey: string): Promise<ContactsResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-contacts`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-contacts`, {
           headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -657,7 +661,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async saveSupplierContact(opsKey: string, card: SupplierContact): Promise<SaveContactResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-contact`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-contact`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -665,7 +669,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
             Authorization: `Bearer ${opsKey}`,
           },
           body: JSON.stringify(card),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -678,9 +682,9 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async orderEvidence(opsKey: string, orderId: string): Promise<EvidenceResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/order-evidence?orderId=${encodeURIComponent(orderId)}`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/order-evidence?orderId=${encodeURIComponent(orderId)}`, {
           headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -714,7 +718,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async recordRelance(opsKey: string, orderId: string): Promise<RelanceResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/relance`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/relance`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -724,7 +728,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
           // ONLY the id. The Worker stamps the time — a client-claimed clock
           // is exactly the class of defect the emitter's `paidAt` round taught.
           body: JSON.stringify({ orderId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -737,7 +741,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async retirerCommande(opsKey: string, orderId: string): Promise<RetraitResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/order/retirer`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/order/retirer`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -747,7 +751,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
           // ONLY the id — the same envelope discipline as the relance beside
           // it: nothing a caller invents reaches the object's delete path.
           body: JSON.stringify({ orderId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -765,7 +769,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async annulerCommande(opsKey: string, orderId: string): Promise<AnnulerResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/order/annuler`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/order/annuler`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -774,7 +778,7 @@ export function resolveOperationsService(): OperationsServicePort | null {
           },
           // ONLY the id: the book refuses any other field by name.
           body: JSON.stringify({ orderId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -791,9 +795,9 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async listCodes(opsKey: string): Promise<CodesResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-codes`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-codes`, {
           headers: { Accept: 'application/json', Authorization: `Bearer ${opsKey}` },
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -814,13 +818,13 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async mintCode(opsKey: string, supplierId: string): Promise<MintResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-code?limit=20`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-code?limit=20`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           // EXACTLY {supplierId} — the book's exact-key check refuses anything
           // more, and this port will not learn to smuggle.
           body: JSON.stringify({ supplierId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -847,11 +851,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async revealCode(opsKey: string, supplierId: string): Promise<RevealResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-code/reveal`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-code/reveal`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           body: JSON.stringify({ supplierId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
@@ -877,11 +881,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
        */
       const appel = async (corps: Record<string, unknown>): Promise<Response | null> => {
         try {
-          return await fetch(`${trimmed}/fulfillment/supplier/effacer`, {
+          return await fetchBorne(`${trimmed}/fulfillment/supplier/effacer`, {
             method: 'POST',
             headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
             body: JSON.stringify({ supplierId, ...corps }),
-          });
+          }, LECTURE_MS);
         } catch {
           return null;
         }
@@ -941,11 +945,11 @@ export function resolveOperationsService(): OperationsServicePort | null {
     async revokeCode(opsKey: string, supplierId: string): Promise<RevokeResult> {
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/fulfillment/supplier-code/revoke?limit=20`, {
+        res = await fetchBorne(`${trimmed}/fulfillment/supplier-code/revoke?limit=20`, {
           method: 'POST',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${opsKey}` },
           body: JSON.stringify({ supplierId }),
-        });
+        }, LECTURE_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
       }
