@@ -3,6 +3,18 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-29 · PREUVE-PRETE-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-29).** « go, option b, one code per parcel » — « go » on the PREUVE-PRETE-1 report (entry below); « option b, one code per parcel » rules F-11 (next slice, CODE-COLIS-1).
+
+- **Merged.** Boutik+ `main` fast-forwarded `7449006 → fb11227` (ancestry verified first). **ci 372 green** on `fb11227`. Canon, Shop+ and Séra had nothing in this slice.
+- **Deployed** (the media Worker is unchanged, not deployed):
+  - **offer-deploy 48** — its own check: « PROVENANCE OK — live Worker is fb112279… speaking canon 3.20.0 ».
+  - **fournisseur-web-deploy 26** — « fournisseur first load: **428.0 KB gzip (438 245 B)** … within the signed ceiling of 430.0 KB (440320 B) ».
+  - **web-deploy 83** (the console) — « console first load: **499.3 KB gzip (511 282 B)** … within the signed ceiling of 500.0 KB (512000 B) ».
+- **Live from now:** « prêt » only with a photo of the media Worker's minted shape; every call on the three surfaces ends on its ceiling; his order list no longer waits on his product read.
+- **Headroom:** supplier page 2.0 KB; console **718 B**. The next console change that adds weight needs a new number from him.
+
 ## 2026-09-29 · PREUVE-PRETE-1 (AUDIT-B+2 slice 7: F-39 · F-16 · F-27) — only an uploaded photo proves readiness, « Envoyer la preuve » is pressed for real, no screen waits forever · F-11 HELD for the founder's two decisions · on the branch, NOT merged, NOT deployed
 
 **Founder order (2026-09-29).** « continue with next slice » — slice 7 of the ten-slice plan (« The « ready » photo proves the parcel is ready », closes 11, 16, 27, 39). Its two decisions (option a or b; one code per article or per parcel) are unanswered, so F-11 is NOT built; the three findings that need no decision are.
