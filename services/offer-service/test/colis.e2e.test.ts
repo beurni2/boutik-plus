@@ -243,7 +243,7 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
     expect(pagne['deliveredAt'], 'the kept article stays delivered').toEqual(expect.any(String));
   });
 
-  it('CODE-COLIS-1 — one code per parcel covers only what is still to prepare: an article accepted after it was minted needs a fresh one, and a fresh one covers only the rest', async () => {
+  it('CODE-COLIS-1 — one code per parcel covers what is accepted and still to prepare: an article accepted after it was minted needs a fresh one, and the article already ready keeps its own confirmation', async () => {
     const PAQUET = { packageId: 'col-bk-code', orderIds: ['ord-colis-code-1', 'ord-colis-code-2'] };
     for (const [o, pv] of [['ord-colis-code-1', PV1], ['ord-colis-code-2', PV2]] as const) {
       expect((await post('/fulfillment/order-confirmed', paye(o, pv, PAQUET), { Authorization: `Bearer ${FULFILL_SECRET}` })).status).toBe(200);
@@ -260,7 +260,7 @@ describe('COLIS-FOURNISSEUR-1 — Boutik+ groups a panier by supplier (never nam
     expect((await post('/fulfillment/accept', { orderId: 'ord-colis-code-2' }, lui)).json['ok']).toBe(true);
     expect((await pret('ord-colis-code-2', PV2, premier)).json['reason']).toBe('challenge_missing_or_mismatched');
     expect((await pret('ord-colis-code-1', PV1, premier)).json['status']).toBe('ready');
-    // A fresh code, named on either card, covers the article still to prepare — and moves nothing already ready.
+    // A fresh code, named on either card, covers the article still to prepare; the ready one keeps its confirmation.
     const second = (await post('/fulfillment/ready/challenge', { orderId: 'ord-colis-code-2' }, lui)).json['challenge'];
     expect(second).not.toBe(premier);
     expect((await pret('ord-colis-code-2', PV2, second)).json['status']).toBe('ready');

@@ -11,12 +11,14 @@ import { pretIssue, type CommandeVue, type PretIssue } from './view';
  * the screen because the capture pipeline in front of it cannot be walked;
  * this half can be driven whole.
  *
- * An article the book already holds as ready is skipped, not a stop: after a
- * send that failed half-way, the card still lists the confirmed ones (it
- * refreshes only on success), and the next tap must finish the bag in one go.
- * The challenge is asked naming the first article still to prepare; if the
- * book says that one is already ready, the next is named. Any other refusal
- * stops with its own sentence.
+ * An article the book already holds as ready is not a stop: after a send that
+ * failed half-way, the card still lists the confirmed ones (it refreshes only
+ * on success), and the next tap must finish the bag in one go. The challenge
+ * is asked naming the first article still to prepare; one the book answers
+ * `already_ready` for is passed over — named for no code and sent no « prêt » —
+ * and the next is named. A ready article the card lists AFTER the named one
+ * is sent its « prêt » and answers `already_ready`, which moves on too. Any
+ * other refusal stops with its own sentence.
  */
 export async function pretColis(
   service: Pick<FournisseurServicePort, 'challenge' | 'ready'>,
@@ -30,6 +32,7 @@ export async function pretColis(
   let issue = pretIssue(packageId, { ok: false, reason: 'unreachable' }, previewUri);
   const aPreparer = articles.filter((x) => x.etape === 'a_preparer');
   let challenge: string | null = null;
+  const dejaPrets = new Set<string>();
   for (const a of aPreparer) {
     const ch = await service.challenge(code, a.orderId);
     if (ch.ok) {
@@ -38,9 +41,12 @@ export async function pretColis(
     }
     issue = pretIssue(packageId, { ok: false, reason: ch.reason }, previewUri);
     if (ch.reason !== 'already_ready') return issue;
+    dejaPrets.add(a.orderId);
   }
+  // every article was already ready: the bag is done, and the card re-reads it
   if (challenge === null) return issue;
   for (const a of aPreparer) {
+    if (dejaPrets.has(a.orderId)) continue;
     issue = pretIssue(
       packageId,
       await service.ready(code, {

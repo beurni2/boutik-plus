@@ -68,9 +68,14 @@ interface Article {
  * then marks the order ready — which the next list read shows. That « prêt »
  * names THIS upload is asserted on the call itself, not left to this copy.
  */
-function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis: Map<string, string> } {
+function livre(
+  articles: Article[],
+  /** Orders whose next « prêt » is lost on the way (the network), once each. */
+  perdus: Set<string> = new Set(),
+): { routes: Route[]; photos: string[]; defis: Map<string, string> } {
   const photos: string[] = [];
   const defis = new Map<string, string>();
+  const confirmes = new Map<string, string>();
   let n = 0;
   const routes: Route[] = [
     (path) =>
@@ -91,6 +96,10 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
     (path) => (path === '/offers/mine' ? { status: 200, json: { items: [] } } : null),
     (path, body) => {
       if (path !== '/fulfillment/ready/challenge') return null;
+      // the real door: an order already ready is refused by name, no code minted
+      if (articles.find((a) => a.orderId === body?.['orderId'])?.fulfillment.readyAt !== undefined) {
+        return { status: 409, json: { ok: false, reason: 'already_ready' } };
+      }
       n += 1;
       const challenge = `srch-00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
       const nomme = articles.find((a) => a.orderId === body?.['orderId']);
@@ -113,6 +122,14 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
       if (path !== '/fulfillment/ready') return null;
       const orderId = String(body?.['orderId']);
       const photoRef = body?.['photoRef'] as { ref?: string } | undefined;
+      if (perdus.delete(orderId)) return { status: 503, json: { ok: false } };
+      // the real door: a replay of the confirmed act is absorbed, any other act on a ready order refused
+      const deja = articles.find((x) => x.orderId === orderId)?.fulfillment.readyAt;
+      if (deja !== undefined) {
+        return confirmes.get(orderId) === body?.['readinessChallenge']
+          ? { status: 200, json: { ok: true, status: 'already_ready', confirmedAt: deja } }
+          : { status: 409, json: { ok: false, reason: 'already_ready' } };
+      }
       if (defis.get(orderId) !== body?.['readinessChallenge']) {
         return { status: 409, json: { ok: false, reason: 'challenge_missing_or_mismatched' } };
       }
@@ -122,6 +139,7 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
       }
       const a = articles.find((x) => x.orderId === orderId)!;
       a.fulfillment.readyAt = '2026-09-29T08:02:00.000Z';
+      confirmes.set(orderId, String(body?.['readinessChallenge']));
       return { status: 200, json: { ok: true, status: 'ready', confirmedAt: a.fulfillment.readyAt } };
     },
   ];
@@ -231,6 +249,36 @@ describe('F-16 — « Envoyer la preuve » pressed for real: the proof goes, in 
     expect(articles.every((a) => a.fulfillment.readyAt !== undefined), 'an article of the bag was left not ready').toBe(true);
     expect(screen.shows('Prêt, preuve reçue'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     expect(screen.canPress('Envoyer la preuve')).toBe(false);
+    screen.unmount();
+  });
+  it('verifier MINOR 1 — a colis whose second « prêt » was lost: « Réessayer » keeps the photo, the next tap asks a code for what is LEFT and finishes the bag → « Prêt, preuve reçue »', async () => {
+    const colis = { packageId: 'col-q', orderIds: ['ord-q1', 'ord-q2'] };
+    const articles: Article[] = [
+      { orderId: 'ord-q1', productName: 'Pagne', productVersionId: 'pv-pagne', colis, fulfillment: { acceptedAt: T } },
+      { orderId: 'ord-q2', productName: 'Sandales', productVersionId: 'pv-sandales', colis, fulfillment: { acceptedAt: T } },
+    ];
+    const b = livre(articles, new Set(['ord-q2']));
+    const w = wire(b.routes);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.press('Choisir la photo du colis');
+    await screen.press('Envoyer la preuve');
+    await screen.settle();
+    // the first tap readied the pagne; the sandals' « prêt » was lost
+    expect(articles[0]!.fulfillment.readyAt, 'the first article was not readied').toBeDefined();
+    expect(articles[1]!.fulfillment.readyAt).toBeUndefined();
+    expect(screen.shows("L'envoi n'a pas marché. Réessayez."), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.canPress('Envoyer la preuve'), 'no way to finish the bag').toBe(true);
+
+    const avant = w.calls.length;
+    await screen.press('Envoyer la preuve');
+    await screen.settle();
+    const retry = w.calls.slice(avant).filter((c) => c.path !== '/fulfillment/mine' && c.path !== '/offers/mine')
+      .map((c) => `${c.path}${c.body?.['orderId'] !== undefined ? `:${String(c.body['orderId'])}` : ''}`);
+    // the ready pagne is named, refused by name, and sent no second « prêt »
+    expect(retry).toEqual(['/media', '/fulfillment/ready/challenge:ord-q1', '/fulfillment/ready/challenge:ord-q2', '/fulfillment/ready:ord-q2']);
+    expect(articles.every((a) => a.fulfillment.readyAt !== undefined), 'the bag was left half ready').toBe(true);
+    expect(screen.shows('Prêt, preuve reçue'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     screen.unmount();
   });
 });

@@ -3,6 +3,38 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-29 · CODE-COLIS-1 (AUDIT-B+2 F-11, founder ruling) — the readiness code stays hidden, and a parcel carries one · canon 3.26.0 · on the branch, NOT merged, NOT deployed
+
+**Founder ruling (2026-09-29).** « go, option b, one code per parcel » — his two answers on F-11 in the PREUVE-PRETE-1 report. Option (b): the readiness challenge is not shown or copied; it stays the server's single-use proof that a « prêt » is one fresh act, and the canon sentence « displayed beside the product » changes. One code per parcel: a package carries ONE challenge (the plan said « each with its own »).
+
+**Governing text (re-read, then amended by his ruling).** Build-Spec B+6 (:179, « photo + `sellerReadinessChallenge` displayed beside the product, short-TTL ») · Building Plan B6.2 (« one photo, one confirmation per order under it, each with its own challenge ») · Master Reference, the secrets table (« Readiness challenge | Supplier → server | The package is genuinely prepared ») · B+I-06 · the four distinct secrets (Build-Spec :154) — unchanged.
+
+**Built.**
+- **Canon 3.26.0 (`c43c236`; first cut `4f5c188`, refined once on the review — see below).** The three sentences above now say the ruling (and, after the review, the master reference's B+6 flow line too); lockstep 3.25.0 → 3.26.0, both manifests regenerated, lockfile labels, snapshot re-stamped. No shape, event or money-waterfall change. Canon board ALL GATES GREEN.
+- **Repin.** Boutik+ moves from 3.20.0 to 3.26.0: contracts, kernel-types and certification in every consumer and the overrides; the 12 docs copied (3.21–3.25 were Shop+ and Séra texts, now carried too); `EXPECTED_CANON` 3.26.0; `CI=true pnpm install --frozen-lockfile` passes cold. Shop+ and Séra keep their pins.
+- **The book (`/ready/challenge`).** Naming any article of HIS colis mints ONE challenge written to every article of it he accepted, did not refuse and has not made ready (one atomic put). `/ready` is unchanged: each article's « prêt » consumes its own copy. A single order is a bag of one. An older page that asks one code per article still works (each ask re-mints for what is left).
+- **His page (`pretColis`).** Asks ONE code — naming the first article still to prepare, the next one if the book says that one is already ready (that one is then sent no « prêt ») — then sends each article's « prêt » under it; a bag the book finds all ready re-reads as « Prêt ». No screen text changed: the code was never shown and still is not.
+
+**Proof.**
+- Seam, real workerd: `colis.e2e` — one code readies the whole bag; a code minted before an article was accepted does not cover it; a fresh code covers what is left and the ready article keeps its own confirmation. `preuve-prete.e2e` (the supplier's own ports on the real offer and media Workers) counts ONE code for the parcel and asks the ledger; and (review MINOR 1 · 2) a parcel whose second « prêt » was lost is finished by the next tap on the same stale card, then a tap after that finds it all ready and re-reads.
+- Walk: `rendu-fournisseur-preuve` (3) — the parcel sends one photo, ONE code call, then « prêt » for each article under that code → « Prêt, preuve reçue »; the half-sent parcel: « L'envoi n'a pas marché. Réessayez. », the photo kept, the next tap asks a code for what is left and finishes. Its stand-in mints, refuses a ready order's code and absorbs a replay the way the real door does.
+- Unit: `pret-colis.test.ts` (7) rewritten to the ruling (one code; the half-done bag finishes; a bag found all ready refreshes; a ready article listed after the named one moves on; refusals stop with their sentence).
+- Mutations, anchors matched once, restored byte-identical: **4 / 4 KILLED** on the build (the code given to the named article only; an unaccepted article covered; the page asking one code per article; an already-ready article stopping the bag) and **2 / 2 KILLED** on the review fixes (a bag found all ready answering a failure; a ready article sent a second « prêt »).
+- Board on canon 3.26.0 (`c43c236`), after the review fixes: **ALL GATES GREEN** — supplier app 1 224, offer-service 475, typecheck clean, « drift-check OK: 12 canonical docs match manifest (packageVersion 3.26.0) ». `CI=true pnpm install --frozen-lockfile` passes.
+
+**Sizes.** Supplier page 427.9 KB (438 202 B) on the board build; console unchanged (505 560 B board build). On « go »: canon `main` fast-forwarded FIRST (Boutik+ pins `c43c236`, on its branch only); then offer-deploy (the book) BEFORE fournisseur-web-deploy (his page) — a new page meeting the old book would see the second article's « prêt » refused and need a second tap; the console and media Worker need nothing. The live Worker will then report canon 3.26.0.
+
+**The ONE verifier pass** (given the ruling, the rules, the DoD and both diffs — canon 4f5c188, Boutik+ 828b995; not re-inspected after). Verdict: no BLOCKER or MAJOR; it drove eight adversarial probes on real workerd (an older one-code-per-article page, the half-sent retry, another supplier's order listed in the package, a missing member record, a refused sibling, one expiry across the bag, a single order) — all behaved; it confirmed a cold frozen install fetching the new canon.
+- **MINOR 1 — fixed.** The half-sent parcel's retry was proven only against a unit double: now on the real door (seam) and on the real page (walk), whose stand-in now answers « already ready » as the real door does.
+- **MINOR 2 — fixed.** The « whole bag already ready » branch was untested (a mutant answering a failure survived): unit + seam now pin it.
+- **NIT 3 — fixed.** A test title claimed a fresh code « moves nothing already ready »; the ready and refused skips are invisible at every door today. Title corrected; the book's comment says what the skips are for.
+- **NIT 4 — fixed.** An article the book answered « already ready » for was still sent a « prêt »; it is now passed over (one fewer round trip per such article on a retry over 2G).
+- **NIT 5 — fixed.** The master reference's B+6 flow line (« photo + challenge response ») — canon refined to `c43c236`, Boutik+ re-pinned.
+- **NIT 6 — taken into the merge order.** The book deploys before his page.
+- **NIT 7 — taken into the merge order.** Canon `main` is fast-forwarded with the Boutik+ merge (the pin is on the canon branch only).
+
+**Still open:** nothing new from F-11. Carried from PREUVE-PRETE-1: the Worker's own call to Séra during a code check has no ceiling · the photo rule checks the key's shape, not the store · the publish and stock-send waits have no stall walk of their own.
+
 ## 2026-09-29 · PREUVE-PRETE-1 MERGED AND DEPLOYED on the founder's « go »
 
 **Founder order (2026-09-29).** « go, option b, one code per parcel » — « go » on the PREUVE-PRETE-1 report (entry below); « option b, one code per parcel » rules F-11 (next slice, CODE-COLIS-1).

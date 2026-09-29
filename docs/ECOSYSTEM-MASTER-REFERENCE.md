@@ -241,7 +241,7 @@ The supplier sets **B** and **C**, and sees the whole waterfall before committin
 
 ## B+6 — Fulfillment & package readiness *(the first secret)*
 
-**Flow:** funded order arrives → supplier prepares → **confirms "Produit prêt"** with readiness evidence (photo + challenge response) → the order becomes dispatchable.
+**Flow:** funded order arrives → supplier prepares → **confirms "Produit prêt"** with readiness evidence (the photo, sent with the server's single-use readiness challenge — never displayed or typed; one per package) → the order becomes dispatchable.
 
 **B+I-06:** Séra is **not** called until readiness is confirmed. A rider sent to a supplier who hasn't packed is a wasted trip charged to nobody — so it must not happen.
 **The forbidden shortcut:** readiness evidence **must never contain the `buyerDropCode`**.

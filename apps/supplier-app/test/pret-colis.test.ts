@@ -107,7 +107,23 @@ describe('COLIS-FOURNISSEUR-1 · CODE-COLIS-1 — one photo, one code, one confi
     });
     const issue = await pretColis(service, 'CODE-F', 'pkg-1', [article('o1', 'pv-a', ACCEPTE), article('o2', 'pv-b', ACCEPTE)], PHOTO);
     expect(issue.then).toBe('refresh');
-    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'challenge:o2', 'ready:o1', 'ready:o2']);
+    // o1, which the book said is ready, is sent no second « prêt »
+    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'challenge:o2', 'ready:o2']);
     expect(appels.find((a) => a.acte === 'ready' && a.orderId === 'o2')?.body).toMatchObject({ readinessChallenge: 'defi-o2' });
+  });
+
+  it('verifier MINOR 2 — every « prêt » landed but the answer was lost: the next tap finds the whole bag ready and re-reads it (« Prêt »), never a failure', async () => {
+    const { service, appels } = port({ challenge: () => ({ ok: false, reason: 'already_ready' }) });
+    const issue = await pretColis(service, 'CODE-F', 'pkg-1', [article('o1', 'pv-a', ACCEPTE), article('o2', 'pv-b', ACCEPTE)], PHOTO);
+    expect(issue.then).toBe('refresh');
+    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'challenge:o2']);
+  });
+
+  it('a ready article listed AFTER the one the code was asked for answers already_ready on its « prêt » — and the bag goes on', async () => {
+    const { service, appels } = port({ ready: (o) => (o === 'o2' ? { ok: false, reason: 'already_ready' } : { ok: true, status: 'ready', confirmedAt: 'x' }) });
+    const issue = await pretColis(service, 'CODE-F', 'pkg-1',
+      [article('o1', 'pv-a', ACCEPTE), article('o2', 'pv-b', ACCEPTE), article('o3', 'pv-c', ACCEPTE)], PHOTO);
+    expect(issue.then).toBe('refresh');
+    expect(appels.map((a) => `${a.acte}:${a.orderId}`)).toEqual(['challenge:o1', 'ready:o1', 'ready:o2', 'ready:o3']);
   });
 });

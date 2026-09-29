@@ -1927,6 +1927,10 @@ export class FulfillmentDO {
       // bag: every article of it he accepted, did not refuse and has not yet
       // made ready carries it, so one act readies the parcel. Each article's
       // « prêt » still consumes its own copy; a single order is a bag of one.
+      // The ready and refused skips are not visible at any door today (a ready
+      // order's « prêt » answers from its readiness first, a refused one
+      // `refusee`); they keep a consumed code consumed for the day correction
+      // reopens a ready order.
       const copies: Record<string, IssuedChallengeRecord> = { [`${CHALLENGE_PREFIX}${orderId}`]: issued };
       for (const id of await this.membresDuColis(order, resolved.supplierId)) {
         if (id === orderId) continue;

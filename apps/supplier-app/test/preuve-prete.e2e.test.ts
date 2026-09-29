@@ -269,6 +269,48 @@ describe('PREUVE-PRETE-1 — « Envoyer la preuve » through his own code, on th
     expect(await photoStockee(up.value.ref)).toEqual(PHOTO);
   });
 
+  it('verifier MINOR 1 · 2 — a colis whose second « prêt » was lost: the next tap on the SAME (stale) card finishes it on the real door, and a tap after that finds it all ready', async () => {
+    const colis = { packageId: 'col-preuve-2', orderIds: ['ord-preuve-h1', 'ord-preuve-h2'] };
+    for (const [o, pv] of [['ord-preuve-h1', 'pv-preuve-c1'], ['ord-preuve-h2', 'pv-preuve-c2']] as const) {
+      expect((await opsPost('/fulfillment/order-confirmed', paye(o, pv, colis), INTAKE)).status).toBe(200);
+    }
+    const svc = port();
+    for (const o of colis.orderIds) expect((await svc.accept(code, o)).ok, o).toBe(true);
+    const mine = await svc.listMine(code);
+    const vue = fournisseurVue(mine.ok ? { kind: 'ok', rows: mine.orders } : { kind: 'failed' });
+    const carte = vue.kind === 'liste' ? vue.cartes.find((c) => c.kind === 'colis' && c.packageId === 'col-preuve-2') : undefined;
+    if (carte?.kind !== 'colis') throw new Error(`no colis card: ${JSON.stringify(vue)}`);
+    const up = await resolveReadinessUpload()!(PHOTO);
+    if (!up.ok) throw new Error('upload refused');
+
+    // the first tap: the pagne's « prêt » lands, the sandals' is lost on the way
+    const ch = await svc.challenge(code, 'ord-preuve-h1');
+    if (!ch.ok) throw new Error(JSON.stringify(ch));
+    expect(await svc.ready(code, {
+      orderId: 'ord-preuve-h1', photoRef: up.value, readinessChallenge: ch.challenge,
+      qty: 1, variant: 'pv-preuve-c1', availableConfirmed: true, at: new Date().toISOString(),
+    })).toMatchObject({ ok: true, status: 'ready' });
+    expect(await readyAtDe('ord-preuve-h2')).toBeUndefined();
+
+    // the next tap, from the card as it still reads (both « à préparer »), counted as it passes
+    const appels: string[] = [];
+    const compte = {
+      challenge: (c: string, o: string) => (appels.push(`challenge:${o}`), svc.challenge(c, o)),
+      ready: (c: string, body: Parameters<FournisseurServicePort['ready']>[1]) => (appels.push(`ready:${body.orderId}`), svc.ready(c, body)),
+    };
+    expect(carte.articles.map((a) => a.etape)).toEqual(['a_preparer', 'a_preparer']);
+    const issue = await pretColis(compte, code, carte.packageId, carte.articles, up.value);
+    expect(issue.then, JSON.stringify(issue)).toBe('refresh');
+    expect(appels).toEqual(['challenge:ord-preuve-h1', 'challenge:ord-preuve-h2', 'ready:ord-preuve-h2']);
+    for (const o of colis.orderIds) expect(await readyAtDe(o), o).toEqual(expect.any(String));
+
+    // and a tap after THAT (its answer lost too): the book says all ready, the card re-reads — never a failure
+    appels.length = 0;
+    const encore = await pretColis(compte, code, carte.packageId, carte.articles, up.value);
+    expect(encore.then, JSON.stringify(encore)).toBe('refresh');
+    expect(appels).toEqual(['challenge:ord-preuve-h1', 'challenge:ord-preuve-h2']);
+  });
+
   it('the upload under a WRONG key is refused by the real media Worker — his app says « photo », and the book stays not ready', async () => {
     const intake = await opsPost('/fulfillment/order-confirmed', paye('ord-preuve-2', 'pv-preuve-seul'), INTAKE);
     expect(intake.status).toBe(200);
