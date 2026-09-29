@@ -3,6 +3,17 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-29 · CODE-COLIS-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-29).** « go » — on the CODE-COLIS-1 report (entry below).
+
+- **Merged in the order the review set.** Canon `main` fast-forwarded `9b78ecb → ac03562` first (carries `c43c236`, the pin); **canon ci 155 green**. Then Boutik+ `main` `c725bef → be52f1a` (ancestry verified for both); **Boutik+ ci 373 green** — its frozen install fetched canon 3.26.0 cold. Shop+ and Séra had nothing in this slice.
+- **Deployed, the book before his page:**
+  - **offer-deploy 49** — « PROVENANCE OK — live Worker is be52f1a7… speaking **canon 3.26.0** ».
+  - **fournisseur-web-deploy 27** — « fournisseur first load: **428.0 KB gzip (438 281 B)** … within the signed ceiling of 430.0 KB (440320 B) ».
+  - The console and the media Worker are unchanged, not deployed (the console's code did not move; it stays at 499.3 KB of 500 from web-deploy 83).
+- **Live from now:** a parcel is made ready under ONE code; the code is never shown; a half-sent parcel finishes on the next tap.
+
 ## 2026-09-29 · CODE-COLIS-1 (AUDIT-B+2 F-11, founder ruling) — the readiness code stays hidden, and a parcel carries one · canon 3.26.0 · on the branch, NOT merged, NOT deployed
 
 **Founder ruling (2026-09-29).** « go, option b, one code per parcel » — his two answers on F-11 in the PREUVE-PRETE-1 report. Option (b): the readiness challenge is not shown or copied; it stays the server's single-use proof that a « prêt » is one fresh act, and the canon sentence « displayed beside the product » changes. One code per parcel: a package carries ONE challenge (the plan said « each with its own »).
