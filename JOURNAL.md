@@ -3,7 +3,18 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-29 · RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling) — a unit refused at the buyer's door goes back on sale only when the supplier confirms the return · ON THE BRANCH, awaiting the founder's « go »
+## 2026-09-29 · RETOUR-RAYON-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-29).** « go » — on the RETOUR-RAYON-1 report (entry below).
+
+- **Merged.** Boutik+ `main` fast-forwarded `2b56bd9 → 7449006`; Shop+ `main` `309d896 → 0db6353` (ancestry verified first; canon and Séra had nothing ahead). **Boutik+ ci 371 green** on `7449006`; **Shop+ ci 716 green** on `0db6353`.
+- **Deployed** (console and media Worker unchanged, not deployed; Shop+ is tests only, nothing of it deploys):
+  - **offer-deploy 47** — its own check: « PROVENANCE OK — live Worker is 7449006a… speaking canon 3.20.0 ».
+  - **fournisseur-web-deploy 25** — capability ruling ✔, offline shell ✔, « fournisseur first load: **427.7 KB gzip (437 978 B)** … within the signed ceiling of 430.0 KB (440320 B) ».
+- **Live from now:** a refusal at the buyer's door moves no stock; the unit goes back on sale when the supplier's return code is confirmed. Door refusals from before this deploy were already restocked at the door (`rendu-`), so none goes back twice.
+- **Headroom:** supplier page 2.3 KB; console unchanged at its last deploy (499.1 KB of 500).
+
+## 2026-09-29 · RETOUR-RAYON-1 (AUDIT-B+2 F-36, founder ruling) — a unit refused at the buyer's door goes back on sale only when the supplier confirms the return · MERGED AND DEPLOYED 2026-09-29 on the founder's « go » (top entry)
 
 **Founder order (2026-09-28).** « go, back on sale when supplier confirms it » — his answer to the F-36 question in the STOCK-VRAI-1 report.
 
