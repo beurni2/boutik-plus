@@ -1,5 +1,5 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { surPapier } from './capture';
+import { surPapier } from './papier';
 import { DERIVATIVE_SPEC_V1, type ResizeAction } from './normalization';
 import type { ImageSourcePort } from './pick';
 

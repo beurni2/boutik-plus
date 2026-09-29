@@ -1,4 +1,4 @@
-import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import type { CameraView } from 'expo-camera';
 import {
   DERIVATIVE_SPEC_V1,
@@ -6,11 +6,11 @@ import {
   base64ToBytes,
   bytesToBase64,
   derivativeActions,
-  fondPapier,
   metricsActions,
   stripJpegMetadata,
   thumbActions,
 } from './normalization';
+import { surPapier } from './papier';
 import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance';
 
 /**
@@ -99,21 +99,6 @@ export async function captureShot(camera: CameraView): Promise<CaptureResult> {
     source: 'camera',
     guidance: guidanceFor(metrics),
   };
-}
-
-/**
- * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — lay a rendered picture on paper before it
- * becomes a JPEG (see `fondPapier`). Every path that starts from a file he
- * PICKED passes through here — a gallery PNG or WebP can be see-through; the
- * camera's own frames cannot, and the vignette starts from a JPEG already laid.
- *
- * AFTER the resize, at the RENDERED image's own size: the library's second
- * pass is derivative-sized, never another full-resolution canvas on a 1 GB
- * phone, and the fill can never disagree with the resize's rounding by a row.
- */
-export async function surPapier(image: ImageRef): Promise<ImageRef> {
-  const { extent } = fondPapier(image.width, image.height);
-  return ImageManipulator.manipulate(image).extent(extent).renderAsync();
 }
 
 // ─── COMBINED SLICE — the hero's TWO CROPS (square + vertical) ───────────────

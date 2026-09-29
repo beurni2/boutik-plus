@@ -106,12 +106,17 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     // geometry step — `fondPapier`'s shape is pinned by value in
     // fond-papier.test.ts). JPEG has no transparency, and without it a
     // see-through PNG or WebP shipped black. Any other extent stays banned.
-    expect(capture.match(/\.extent\(/g) ?? []).toHaveLength(1);
-    expect(capture).toMatch(
+    // It lives in `papier.ts` alone (the supplier's page picks but never shoots).
+    const papier = read('src/studio/papier.ts');
+    expect(papier.match(/\.extent\(/g) ?? []).toHaveLength(1);
+    expect(papier).toMatch(
       /const \{ extent \} = fondPapier\(image\.width, image\.height\);\s*return ImageManipulator\.manipulate\(image\)\.extent\(extent\)\.renderAsync\(\);/,
     );
-    const pickNative = read('src/studio/pick-native.ts');
-    expect(pickNative).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(|\.crop\(/);
+    expect(papier).not.toMatch(/\.rotate\(|\.flip\(|\.crop\(|\.resize\(/);
+    for (const f of ['src/studio/capture.ts', 'src/studio/pick-native.ts']) {
+      expect(read(f), f).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(/);
+    }
+    expect(read('src/studio/pick-native.ts')).not.toMatch(/\.crop\(/);
     // and the crop verb appears nowhere else in the pipeline
     for (const f of ['src/studio/normalization.ts', 'src/studio/guidance.ts']) {
       expect(read(f)).not.toMatch(/\.crop\(/);
