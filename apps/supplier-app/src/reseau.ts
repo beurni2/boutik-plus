@@ -26,11 +26,16 @@ export const RELAIS_MS = 25_000;
 /** Statuses whose Response may carry no body at all. */
 const SANS_CORPS = [204, 205, 304];
 
-export async function fetchBorne(url: string, init: RequestInit, ms: number): Promise<Response> {
+export async function fetchBorne(
+  url: string,
+  init: RequestInit,
+  ms: number,
+  fetchFn: (input: string, init?: RequestInit) => Promise<Response> = fetch,
+): Promise<Response> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), ms);
   try {
-    const res = await fetch(url, { ...init, signal: ctl.signal });
+    const res = await fetchFn(url, { ...init, signal: ctl.signal });
     const corps = await res.arrayBuffer();
     return new Response(SANS_CORPS.includes(res.status) ? null : corps, { status: res.status, headers: res.headers });
   } finally {

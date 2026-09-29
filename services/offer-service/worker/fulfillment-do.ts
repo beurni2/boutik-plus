@@ -1931,7 +1931,10 @@ export class FulfillmentDO {
      *  failure); the challenge must match, be unexpired and UNCONSUMED; the
      *  locked terms must be repeated exactly. Consumption and the readiness
      *  record land in ONE atomic batch. Reason names mirror the reference
-     *  FulfillmentBook so the two implementations can never drift silently.
+     *  FulfillmentBook so the two implementations can never drift silently —
+     *  save one, this door's own: `photo_not_uploaded` (PREUVE-PRETE-1). The
+     *  reference models the canon shape; only this door sits beside a media
+     *  service whose minted key it can recognise.
      *  ENVELOPE (1b-i): { code, confirmation } — the code authenticates and
      *  binds the supplier; the confirmation stays byte-for-byte the canon
      *  shape, strict-parsed on its own. */

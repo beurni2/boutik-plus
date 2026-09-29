@@ -1,7 +1,11 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { fetchBorne } from '../src/reseau';
+import { httpSeraDispatch } from '../src/commandes/sera-service';
+import { httpCoursiersService } from '../src/coursiers/service';
 
 /**
  * PREUVE-PRETE-1 (AUDIT-B+2 F-27) — the ceiling, on REAL sockets.
@@ -20,7 +24,7 @@ const ouverts = new Set<import('node:net').Socket>();
 beforeAll(async () => {
   server = createServer((req, res) => {
     if (req.url === '/muet') return; // never answers at all
-    if (req.url === '/coupe') {
+    if (req.url?.startsWith('/coupe') === true) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.write('{"ok":'); // …and never the rest
       return;
@@ -67,6 +71,24 @@ describe('fetchBorne — every call ends', () => {
     expect(res.ok).toBe(false);
     expect(res.headers.get('x-trace')).toBe('t-1');
     expect(await res.json()).toEqual({ ok: false, reason: 'already_ready' });
+  });
+
+  it('verifier MINOR 1 — the calls that had their own clock read the body inside it now: the Séra board and the rider registry end on a half-sent reply', async () => {
+    const t0 = Date.now();
+    expect((await httpSeraDispatch(`${base}/coupe`, fetch, 300).board('cle-test')).kind).toBe('unreachable');
+    expect((await httpCoursiersService(`${base}/coupe`, 'cle-test', fetch, 300).liste()).kind).toBe('unreachable');
+    expect(Date.now() - t0).toBeLessThan(3_000);
+  });
+
+  it('and no call sets up a clock of its own again: every AbortController in the app is the helper\'s', () => {
+    const src = join(import.meta.dirname, '..', 'src');
+    const fichiers = (d: string): string[] =>
+      readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? fichiers(join(d, n)) : /\.tsx?$/.test(n) ? [join(d, n)] : []));
+    const horsHelper = fichiers(src)
+      .filter((f) => !f.endsWith('reseau.ts'))
+      .filter((f) => /new AbortController|signal:/.test(readFileSync(f, 'utf8')))
+      .map((f) => f.slice(src.length + 1));
+    expect(horsHelper).toEqual([]);
   });
 
   it('a reply with no body (204) stays a valid answer', async () => {

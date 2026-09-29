@@ -17,6 +17,7 @@
  */
 
 import { COURSIERS_TIMEOUT_MS, type CoursierAnswer } from '../coursiers/service';
+import { fetchBorne } from '../reseau';
 
 export interface TacheEnFile {
   readonly taskId: string;
@@ -93,14 +94,11 @@ export interface SeraDispatchPort {
 type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
 async function within(fetchFn: FetchFn, url: string, init: RequestInit, ms: number): Promise<Response | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+  // PREUVE-PRETE-1 — the reply's body is read inside the ceiling too.
   try {
-    return await fetchFn(url, { ...init, signal: controller.signal });
+    return await fetchBorne(url, init, ms, fetchFn);
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

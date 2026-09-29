@@ -15,6 +15,8 @@
  * siblings. UNSET RESOLVES TO NOTHING, NEVER TO DEMO.
  */
 
+import { fetchBorne } from '../reseau';
+
 /** Mirrors OrderDO's /entry/dispatch ALLOWLIST projection — nothing else
  *  arrives, and the reader drops anything malformed. */
 export interface LivraisonRow {
@@ -115,24 +117,20 @@ export function resolveDispatchService(): DispatchServicePort | null {
       const rows: LivraisonRow[] = [];
       let cursor: string | undefined;
       for (let tour = 0; tour < PAGES_MAX; tour += 1) {
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
         let res: Response;
         try {
-          res = await fetch(
+          res = await fetchBorne(
             `${trimmed}/checkout/dispatch?limit=${PAGE_LIVRAISONS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
             {
               headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
-              signal: ctl.signal,
             },
+            DISPATCH_TIMEOUT_MS,
           );
         } catch {
           // a refused connection, a blocked CORS answer, or OUR OWN abort — all
           // the same honest sentence: we could not read, try again. Mid-sweep
           // too: rows already fetched are NOT served as the board.
           return { ok: false, reason: 'unreachable' };
-        } finally {
-          clearTimeout(timer);
         }
         if (res.status === 401) return { ok: false, reason: 'bad_key' };
         if (!res.ok) return { ok: false, reason: 'unreachable' };
@@ -341,11 +339,9 @@ export function resolveRefusService(): RefusServicePort | null {
     async signalerRefus(cleC: string, orderId: string, motif: MotifRefus): Promise<RefusResult> {
       // The same bound the dispatch read carries, for the same reason: a write
       // that never answers leaves the screen claiming « un instant » forever.
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
       let res: Response;
       try {
-        res = await fetch(`${trimmed}/checkout/dispatch/${encodeURIComponent(orderId)}/refusal`, {
+        res = await fetchBorne(`${trimmed}/checkout/dispatch/${encodeURIComponent(orderId)}/refusal`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -355,12 +351,9 @@ export function resolveRefusService(): RefusServicePort | null {
           // EXACTLY ONE FIELD. The route's allowlist refuses anything else BY
           // NAME — including a `phone`, which is the whole point of its shape.
           body: JSON.stringify({ reason: motif }),
-          signal: ctl.signal,
-        });
+        }, DISPATCH_TIMEOUT_MS);
       } catch {
         return { ok: false, reason: 'unreachable' };
-      } finally {
-        clearTimeout(timer);
       }
       if (res.status === 401) return { ok: false, reason: 'bad_key' };
       // 422 IS THE ROUTE'S « THIS ORDER HAS NO USABLE NUMBER » — both of its
@@ -461,23 +454,18 @@ export function resolveAccesService(): AccesServicePort | null {
     cleC: string,
     init: RequestInit = {},
   ): Promise<{ status: number; body: unknown } | null> {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
     try {
-      const res = await fetch(`${trimmed}${chemin}`, {
+      const res = await fetchBorne(`${trimmed}${chemin}`, {
         ...init,
         headers: {
           Accept: 'application/json',
           ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
           Authorization: `Bearer ${cleC}`,
         },
-        signal: ctl.signal,
-      });
+      }, DISPATCH_TIMEOUT_MS);
       return { status: res.status, body: await res.json().catch(() => null) };
     } catch {
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -651,21 +639,17 @@ export function resolveGainsService(): GainsServicePort | null {
       const rows: GainRow[] = [];
       let cursor: string | undefined;
       for (let tour = 0; tour < PAGES_MAX; tour += 1) {
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
         let res: Response;
         try {
-          res = await fetch(
+          res = await fetchBorne(
             `${trimmed}/checkout/gains?limit=${PAGE_LIVRAISONS}${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
             {
               headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` },
-              signal: ctl.signal,
             },
+            DISPATCH_TIMEOUT_MS,
           );
         } catch {
           return { ok: false, reason: 'unreachable' };
-        } finally {
-          clearTimeout(timer);
         }
         if (res.status === 401) return { ok: false, reason: 'bad_key' };
         if (!res.ok) return { ok: false, reason: 'unreachable' };
@@ -799,23 +783,18 @@ export function resolveComptesService(): ComptesServicePort | null {
   const trimmed = base.replace(/\/+$/, '');
 
   async function appel(chemin: string, cleC: string, init: RequestInit = {}) {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), DISPATCH_TIMEOUT_MS);
     try {
-      const res = await fetch(`${trimmed}${chemin}`, {
+      const res = await fetchBorne(`${trimmed}${chemin}`, {
         ...init,
         headers: {
           Accept: 'application/json',
           ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
           Authorization: `Bearer ${cleC}`,
         },
-        signal: ctl.signal,
-      });
+      }, DISPATCH_TIMEOUT_MS);
       return { status: res.status, body: (await res.json().catch(() => null)) as Record<string, unknown> | null };
     } catch {
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 

@@ -27,6 +27,8 @@
  * port reads is already refused-or-true.
  */
 
+import { fetchBorne } from '../reseau';
+
 export const FONDS_TIMEOUT_MS = 12_000;
 
 /**
@@ -212,10 +214,8 @@ export function resolveFondsService(): FondsServicePort | null {
     path: string,
     init?: { method?: string; body?: Record<string, unknown> },
   ): Promise<{ status: number; body: unknown } | { status: 0 }> {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), FONDS_TIMEOUT_MS);
     try {
-      const res = await fetch(`${trimmed}${path}`, {
+      const res = await fetchBorne(`${trimmed}${path}`, {
         method: init?.method ?? 'GET',
         headers: {
           Accept: 'application/json',
@@ -223,16 +223,13 @@ export function resolveFondsService(): FondsServicePort | null {
           ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
-        signal: ctl.signal,
-      });
+      }, FONDS_TIMEOUT_MS);
       const body: unknown = await res.json().catch(() => null);
       return { status: res.status, body };
     } catch {
       // refused connection, blocked CORS answer, or our own abort — the same
       // honest sentence: we could not reach the book, try again
       return { status: 0 };
-    } finally {
-      clearTimeout(timer);
     }
   }
 

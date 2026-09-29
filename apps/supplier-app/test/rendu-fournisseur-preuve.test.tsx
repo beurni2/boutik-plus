@@ -59,9 +59,12 @@ interface Article {
 /**
  * The book and the photo store, answering as the real doors answer: a
  * challenge is minted per order and REPLACES the last one; the photo store
- * mints a fresh `media/<uuid v4>` per upload; « prêt » is accepted only for
- * the order's live challenge and a photo the store minted (the real door's
- * F-39 rule), and then marks the order ready — which the next list read shows.
+ * refuses any key but the upload key with its one identical 401, and mints a
+ * fresh `media/<uuid v4>` per upload; « prêt » is accepted only for the
+ * order's live challenge and a ref of the minted SHAPE with an image type (the
+ * real door's F-39 rule — it checks the shape, it does not ask the store), and
+ * then marks the order ready — which the next list read shows. That « prêt »
+ * names THIS upload is asserted on the call itself, not left to this copy.
  */
 function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis: Map<string, string> } {
   const photos: string[] = [];
@@ -91,8 +94,9 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
       defis.set(String(body?.['orderId']), challenge);
       return { status: 200, json: { ok: true, challenge, expiresAt: '2026-09-29T08:10:00.000Z' } };
     },
-    (path) => {
+    (path, _b, _s, headers) => {
       if (path !== '/media') return null;
+      if (headers['x-write-key'] !== CLE_MEDIA) return { status: 401, json: { error: 'unauthorized' } };
       const ref = `media/0f8fad5b-d9cb-469f-a165-${String(photos.length + 1).padStart(12, '0')}`;
       photos.push(ref);
       return { status: 201, json: { ref, contentType: 'image/jpeg', width: 16, height: 16, byteLength: JPEG.length } };
@@ -104,7 +108,10 @@ function livre(articles: Article[]): { routes: Route[]; photos: string[]; defis:
       if (defis.get(orderId) !== body?.['readinessChallenge']) {
         return { status: 409, json: { ok: false, reason: 'challenge_missing_or_mismatched' } };
       }
-      if (!photos.includes(String(photoRef?.ref))) return { status: 400, json: { ok: false, reason: 'photo_not_uploaded' } };
+      const minted = /^media\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(String(photoRef?.ref));
+      if (!minted || !String((photoRef as { mimeType?: string } | undefined)?.mimeType).startsWith('image/')) {
+        return { status: 400, json: { ok: false, reason: 'photo_not_uploaded' } };
+      }
       const a = articles.find((x) => x.orderId === orderId)!;
       a.fulfillment.readyAt = '2026-09-29T08:02:00.000Z';
       return { status: 200, json: { ok: true, status: 'ready', confirmedAt: a.fulfillment.readyAt } };

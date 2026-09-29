@@ -26,6 +26,7 @@ import { bytesToBase64 } from '../src/studio/normalization';
  */
 
 const CODE = 'FOURN-DELAI-1';
+const ACCEPTER = 'Accepter la commande';
 const T = '2026-09-29T08:00:00.000Z';
 
 const seg = (marker: number, payload: number[]): number[] => {
@@ -141,6 +142,23 @@ describe('F-27 — his page: every wait ends, on a sentence and a button that tr
     expect(screen.canPress('Vérifier le code')).toBe(true);
     await screen.press('Vérifier le code');
     expect(bloques).toHaveLength(2);
+    screen.unmount();
+  });
+
+  it('his « Accepter » never answers (verifier NIT 6): « Acceptation… » gives up with its sentence, and the button accepts again', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    wire(sonLivre([commande('ord-d4', {})]));
+    const { bloques } = bloquer(new Set(['/fulfillment/accept']));
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.press(ACCEPTER);
+    expect(screen.shows('Acceptation…'), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    await attendre(screen, 12_000);
+    expect(screen.shows('Acceptation…'), 'still « Acceptation… » after the ceiling').toBe(false);
+    expect(screen.shows("L'acceptation n'a pas marché. Réessayez.")).toBe(true);
+    expect(screen.canPress(ACCEPTER)).toBe(true);
+    await screen.press(ACCEPTER);
+    expect(bloques, 'the retry sent nothing').toEqual(['/fulfillment/accept', '/fulfillment/accept']);
     screen.unmount();
   });
 

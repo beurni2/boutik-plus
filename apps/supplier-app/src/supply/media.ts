@@ -205,23 +205,21 @@ export class HttpMediaService implements MediaServicePort {
     // `inFlight` true forever and « Publier » dead on the screen, with the
     // photographs already in R2 and the product never published. An
     // optimisation that can cost him the publish is the worse bug.
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), THUMB_TIMEOUT_MS);
+    // PREUVE-PRETE-1 (verifier MINOR 1) — the reply's body is read inside
+    // the ceiling too: a thumb answer that stalls halfway held the publish.
     let res: Response;
     try {
-      res = await fetch(
+      res = await fetchBorne(
         `${this.base.replace(/\/+$/, '')}/media/thumb?for=${encodeURIComponent(parentRef)}`,
         {
           method: 'POST',
           headers: { [MEDIA_WRITE_KEY_HEADER]: this.writeKey },
           body: bytes as unknown as Parameters<typeof fetch>[1] extends { body?: infer B } ? B : never,
-          signal: ctl.signal,
         },
+        THUMB_TIMEOUT_MS,
       );
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
-    } finally {
-      clearTimeout(timer);
     }
     let text: string;
     try {
@@ -255,22 +253,17 @@ export class HttpMediaService implements MediaServicePort {
     // media service must not hold a SUCCESSFUL delete's UI hostage for
     // minutes. Ten seconds, then a typed network failure and the flow moves
     // on; the bytes orphan exactly as any other failed revoke leaves them.
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), REVOKE_TIMEOUT_MS);
     let res: Response;
     try {
-      res = await fetch(`${this.base.replace(/\/+$/, '')}/media/revoke`, {
+      res = await fetchBorne(`${this.base.replace(/\/+$/, '')}/media/revoke`, {
         method: 'POST',
         // The REVOKE credential — never the upload key (which the service now
         // refuses on this route; MEDIA-KEY-SPLIT).
         headers: { 'Content-Type': 'application/json', [MEDIA_WRITE_KEY_HEADER]: this.revokeKey },
         body: JSON.stringify({ ref }),
-        signal: ctl.signal,
-      });
+      }, REVOKE_TIMEOUT_MS);
     } catch (err) {
       return { ok: false, cause: 'network', reason: `réseau: ${String((err as Error)?.message ?? err)}` };
-    } finally {
-      clearTimeout(timer);
     }
     let text: string;
     try {

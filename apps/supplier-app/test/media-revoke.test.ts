@@ -76,11 +76,12 @@ describe('the fetch shell [source-text checks — media.ts is expo-bound, unimpo
     // strands the fiche on « en cours » after a successful delete.
     expect(revokeBlock).toContain('let text: string;');
     expect(revokeBlock).toContain('text = await res.text();');
-    // bounded wait: the fetch aborts after the timeout, and the timer is
-    // always cleared.
+    // bounded wait: the call goes through the one time-limited fetch
+    // (PREUVE-PRETE-1 — its clock now also covers the body; the helper is
+    // proven on real sockets in `reseau.test.ts`).
     expect(media).toContain('const REVOKE_TIMEOUT_MS = 10_000;');
-    expect(revokeBlock).toContain('signal: ctl.signal');
-    expect(revokeBlock).toContain('clearTimeout(timer);');
+    expect(revokeBlock).toContain('await fetchBorne(');
+    expect(revokeBlock).toContain('}, REVOKE_TIMEOUT_MS);');
   });
 });
 
