@@ -297,7 +297,7 @@ describe('PRODUITS — his list and his delete on his key', () => {
     expect(revokes.every((c) => c.headers['x-write-key'] === 'mauvaise-cle-photos'), 'the TYPED key, not a bundled one').toBe(true);
     // The product is gone — and the two photos that were not are SAID, with a way out.
     expect(screen.texts().join(' ')).not.toContain('Pagne wax');
-    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("2 photos ou vidéos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
     expect(screen.canPress("Réessayer d'effacer les photos")).toBe(true);
 
     // He does what the sentence says (verifier BLOCKER): he LEAVES for
@@ -305,7 +305,7 @@ describe('PRODUITS — his list and his delete on his key', () => {
     screen.unmount();
     store.set(PHOTOS_SLOT, PHOTOS);
     const retour = await monterProduits();
-    expect(retour.shows("2 photos n'ont pas pu être effacées"), 'the photos are still remembered').toBe(true);
+    expect(retour.shows("2 photos ou vidéos n'ont pas pu être effacées"), 'the photos are still remembered').toBe(true);
     await retour.press("Réessayer d'effacer les photos");
     await retour.settle();
     const apres = w.calls.filter((c) => c.path === '/media/revoke').slice(2);
@@ -345,7 +345,7 @@ describe('PRODUITS — MEDIA-PORTE-1 (AUDIT-B+2 F-42): the clip goes with the pr
     await screen.press('Supprimer ce produit');
     await screen.press('Oui, supprimer');
     await screen.settle();
-    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("2 photos ou vidéos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
     store.set(PHOTOS_SLOT, PHOTOS);
     await screen.press("Réessayer d'effacer les photos");
     await screen.settle();
@@ -442,13 +442,13 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     await screen.settle();
 
     expect(w.calls.filter((c) => c.path === '/media/revoke')).toHaveLength(2);
-    expect(screen.shows("2 photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("2 photos ou vidéos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
 
     // Leaving the board and coming back loses nothing (the device remembers).
     screen.unmount();
     store.set(PHOTOS_SLOT, PHOTOS);
     const retour = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
-    expect(retour.shows("2 photos n'ont pas pu être effacées")).toBe(true);
+    expect(retour.shows("2 photos ou vidéos n'ont pas pu être effacées")).toBe(true);
     await retour.press("Réessayer d'effacer les photos");
     await retour.settle();
     const apres = w.calls.filter((c) => c.path === '/media/revoke').slice(2);
@@ -472,7 +472,7 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
     await screen.press('Oui, tout effacer');
     await screen.settle();
     expect(screen.shows("Les produits sont effacés, mais le fournisseur est resté. Appuyez encore pour l'enlever.")).toBe(true);
-    expect(screen.shows("1 photo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
+    expect(screen.shows("1 photo ou vidéo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.")).toBe(true);
     screen.unmount();
   });
 

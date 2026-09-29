@@ -5779,13 +5779,13 @@
   },
   {
     "key": "photos.restantes_une",
-    "fr": "1 photo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
+    "fr": "1 photo ou vidéo n'a pas pu être effacée. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "photos.restantes_n",
-    "fr": "{n} photos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
+    "fr": "{n} photos ou vidéos n'ont pas pu être effacées. Vérifiez le réseau et la clé des photos dans Opérations, puis réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },

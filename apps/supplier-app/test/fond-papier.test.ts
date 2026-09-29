@@ -1,23 +1,27 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { sharedColour } from '@platform/ui-tokens';
-import { armerManipulateur, journalManipulateur } from './doubles/expo-image-manipulator';
+import { ImageManipulator, armerManipulateur, journalManipulateur } from './doubles/expo-image-manipulator';
 import { FOND_PAPIER, derivativeActions, fondPapier } from '../src/studio/normalization';
 import { nativeImageSource } from '../src/studio/pick-native';
 import { renderCropDerivative } from '../src/studio/capture';
+import { surPapier as surPapierNatif } from '../src/studio/papier';
+import { shotFromAsset } from '../src/studio/pick';
+import { surPapier as surPapierWeb } from '../src/studio/papier.web';
 
 /**
- * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — A SEE-THROUGH PICTURE IS LAID ON PAPER.
+ * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — A SEE-THROUGH PICTURE IS LAID ON PAPER, ON
+ * THE WEB; ON A PHONE NOTHING REACHES FOR A VERB THE PHONE LACKS.
  *
  * JPEG has no transparency. On the web the image library draws the picture on
  * an unfilled canvas and encodes a JPEG, so every clear pixel of a PNG or WebP
  * cut-out came out BLACK — and the preview showed it before « Publier ».
  *
- * What these tests hold, against the library's native boundary (the double
- * records the verbs it is asked for and makes no pixels — its bounds are at
- * its top): both renderers that start from a file he picked lay the result on
- * the paper token, at the rendered image's OWN size and origin, AFTER the
- * resize and BEFORE the JPEG. The pixels themselves were checked once in a
- * real Chromium (journal); a stand-in cannot claim them.
+ * The library's `extent` exists on the WEB only. The double is certified to
+ * that (its bounds are at its top): armed `'native'` it has no `extent`, as a
+ * phone has none. Vitest resolves `papier.ts` — the phone's half — so the
+ * app's own renderers below run as they run on a phone; the web half is
+ * driven through its own file. The pixels were checked once in a real
+ * Chromium on the web resolution (journal); a stand-in cannot claim them.
  */
 
 // A JPEG the app's own strip and EXIF assert accept: SOI · APP0 JFIF · EOI.
@@ -40,8 +44,18 @@ describe('the paper fill is a fill — never a geometry change', () => {
   });
 });
 
-describe('the picked picture — `nativeImageSource.encode`', () => {
-  it('resize → render → paper at the RENDERED size → render → JPEG', async () => {
+describe('the double is the platform’s — a phone has no `extent`', () => {
+  it('armed native, calling `extent` throws as a phone does; armed web, it answers', () => {
+    armerManipulateur({ base64: JPEG_B64, width: 10, height: 10 });
+    const natif = ImageManipulator.manipulate('x') as Record<string, unknown>;
+    expect(natif['extent']).toBeUndefined();
+    armerManipulateur({ base64: JPEG_B64, width: 10, height: 10 }, 'web');
+    expect(typeof (ImageManipulator.manipulate('x') as Record<string, unknown>)['extent']).toBe('function');
+  });
+});
+
+describe('ON A PHONE — the picked picture and the hero crop reach no web-only verb (verifier BLOCKER)', () => {
+  it('a gallery pick encodes: resize → render → JPEG, nothing else', async () => {
     armerManipulateur({ base64: JPEG_B64, width: 1280, height: 853 });
     const out = await nativeImageSource.encode('decoded-image', derivativeActions(4000, 2666));
     expect(out).toEqual({ base64: JPEG_B64, width: 1280, height: 853 });
@@ -49,37 +63,60 @@ describe('the picked picture — `nativeImageSource.encode`', () => {
       ['manipulate'],
       ['resize', { width: 1280 }],
       ['renderAsync'],
-      ['manipulate'],
-      ['extent', fondPapier(1280, 853).extent],
-      ['renderAsync'],
       ['saveAsync', { compress: 0.8, format: 'jpeg', base64: true }],
     ]);
   });
 
-  it('a picture already within the box is still laid on paper', async () => {
-    armerManipulateur({ base64: JPEG_B64, width: 800, height: 600 });
-    await nativeImageSource.encode('decoded-image', derivativeActions(800, 600));
-    const verbes = journalManipulateur().map((e) => e[0]);
-    expect(verbes).toEqual(['manipulate', 'renderAsync', 'manipulate', 'extent', 'renderAsync', 'saveAsync']);
-    expect(journalManipulateur().find((e) => e[0] === 'extent')?.[1]).toStrictEqual(fondPapier(800, 600).extent);
-  });
-});
-
-describe('the hero crops — `renderCropDerivative` starts from the file he picked too', () => {
-  it('crop → resize → render → paper at the RENDERED size → render → JPEG', async () => {
+  it('a hero crop (a camera shot included) renders: crop → resize → render → JPEG', async () => {
     armerManipulateur({ base64: JPEG_B64, width: 1280, height: 1280 });
     const rect = { originX: 0, originY: 500, width: 3000, height: 3000 };
-    const out = await renderCropDerivative('blob:master', rect);
+    const out = await renderCropDerivative('file:///master.jpg', rect);
     expect(out.width).toBe(1280);
     expect(journalManipulateur()).toEqual([
       ['manipulate'],
       ['crop', rect],
       ['resize', { width: 1280 }],
       ['renderAsync'],
-      ['manipulate'],
-      ['extent', fondPapier(1280, 1280).extent],
-      ['renderAsync'],
       ['saveAsync', { compress: 0.8, format: 'jpeg', base64: true }],
     ]);
+  });
+
+  it('THE VERIFIER’S CASE — a gallery JPEG on a phone is PICKED, never refused as unreadable', async () => {
+    armerManipulateur({ base64: JPEG_B64, width: 1280, height: 853 });
+    const out = await shotFromAsset(nativeImageSource, { uri: 'file:///galerie/sac.jpg', mimeType: 'image/jpeg' });
+    expect(out.kind).toBe('picked');
+  });
+
+  it('the phone’s half hands the picture back as it is and asks the library for nothing', async () => {
+    armerManipulateur({ base64: JPEG_B64, width: 1280, height: 853 });
+    const image = { width: 1280, height: 853 } as never;
+    expect(await surPapierNatif(image)).toBe(image);
+    expect(journalManipulateur()).toEqual([]);
+  });
+});
+
+describe('ON THE WEB — `papier.web.ts` lays the picture on paper at its rendered size', () => {
+  it('manipulate → paper at the image’s OWN size → render', async () => {
+    armerManipulateur({ base64: JPEG_B64, width: 1280, height: 853 }, 'web');
+    const rendu = { width: 1280, height: 853, uri: 'data:image/png;base64,AAAA' } as never;
+    const pose = (await surPapierWeb(rendu)) as unknown as { width: number; height: number };
+    expect(pose.width).toBe(1280);
+    expect(journalManipulateur()).toEqual([['manipulate'], ['extent', fondPapier(1280, 853).extent], ['renderAsync']]);
+  });
+
+  it('frees the input render’s blob once the paper version exists — the fill adds no blob per photograph', async () => {
+    armerManipulateur({ base64: JPEG_B64, width: 320, height: 240 }, 'web');
+    const liberes: string[] = [];
+    const avant = globalThis.URL.revokeObjectURL;
+    globalThis.URL.revokeObjectURL = (u: string) => {
+      liberes.push(u);
+    };
+    try {
+      await surPapierWeb({ width: 320, height: 240, uri: 'blob:page/abc' } as never);
+      await surPapierWeb({ width: 320, height: 240, uri: 'data:image/png;base64,AAAA' } as never);
+    } finally {
+      globalThis.URL.revokeObjectURL = avant;
+    }
+    expect(liberes, 'only the blob, never a data URI').toEqual(['blob:page/abc']);
   });
 });

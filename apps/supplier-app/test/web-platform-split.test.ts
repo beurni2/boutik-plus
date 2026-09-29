@@ -59,6 +59,7 @@ describe('every .web module has its native sibling — a missing base file break
       ['src/v2/studio-shoot.tsx', 'src/v2/studio-shoot.web.tsx'],
       ['src/supply/uri-bytes.ts', 'src/supply/uri-bytes.web.ts'],
       ['src/offline/coquille.ts', 'src/offline/coquille.web.ts'],
+      ['src/studio/papier.ts', 'src/studio/papier.web.ts'],
     ] as const;
     for (const [native, web] of pairs) {
       const names = (f: string) =>

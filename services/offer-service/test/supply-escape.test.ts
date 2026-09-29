@@ -14,7 +14,9 @@ describe('F-44 — a broken escape on the supply read', () => {
     const casse = await read(new Request('https://o/supply-projection/%E0%A4%A'));
     const inconnu = await read(new Request('https://o/supply-projection/pv-absent'));
     expect(casse.status).toBe(404);
-    expect(await casse.json()).toEqual({ service: SERVICE_NAME, status: 'not_found', reason: 'unknown_product_version' });
+    const corps = await casse.json();
+    expect(corps).toEqual({ service: SERVICE_NAME, status: 'not_found', reason: 'unknown_product_version' });
     expect(inconnu.status).toBe(404);
+    expect(await inconnu.json(), 'the same answer, word for word').toEqual(corps);
   });
 });

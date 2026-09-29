@@ -23,6 +23,14 @@
  * · `SaveFormat` carries the REAL enum values — pinned by name at the capture
  *   sites, and a drifted string is exactly what a double must not hide.
  * · APPEARANCE: nothing. This module makes pixels; this file makes none.
+ * · THE VERBS ARE THE PLATFORM'S (MEDIA-PORTE-1, verifier MAJOR). In
+ *   expo-image-manipulator 57, `extent` exists on the WEB only
+ *   (`src/ImageManipulatorContext.ts` tags it `@platform web`; the iOS and
+ *   Android Context classes have resize, rotate, flip, crop and render, no
+ *   more). So the context offers `extent` ONLY when armed as `'web'`; armed as
+ *   `'native'` (the default, what vitest resolves) calling it throws the same
+ *   TypeError a phone throws. A double that answered every verb everywhere
+ *   proved a web-only path on the phone and hid a dead publish.
  */
 
 export const SaveFormat = {
@@ -39,6 +47,7 @@ export const SaveFormat = {
  * refusal. Unarmed, it throws as before.
  */
 let arme: { readonly base64: string; readonly width: number; readonly height: number } | null = null;
+let plateforme: 'native' | 'web' = 'native';
 
 /**
  * MEDIA-PORTE-1 (F-49) — THE VERBS ASKED FOR, IN ORDER, with their arguments:
@@ -48,8 +57,12 @@ let arme: { readonly base64: string; readonly width: number; readonly height: nu
  */
 let journal: [string, ...unknown[]][] = [];
 
-export function armerManipulateur(encode: { readonly base64: string; readonly width: number; readonly height: number } | null): void {
+export function armerManipulateur(
+  encode: { readonly base64: string; readonly width: number; readonly height: number } | null,
+  surface: 'native' | 'web' = 'native',
+): void {
   arme = encode;
+  plateforme = surface;
   journal = [];
 }
 
@@ -67,7 +80,7 @@ export const ImageManipulator = {
       );
     }
     journal.push(['manipulate']);
-    const ctx = {
+    const ctx: Record<string, unknown> = {
       resize: (size: unknown) => {
         journal.push(['resize', size]);
         return ctx;
@@ -76,10 +89,14 @@ export const ImageManipulator = {
         journal.push(['crop', rect]);
         return ctx;
       },
-      extent: (options: unknown) => {
-        journal.push(['extent', options]);
-        return ctx;
-      },
+      ...(plateforme === 'web'
+        ? {
+            extent: (options: unknown) => {
+              journal.push(['extent', options]);
+              return ctx;
+            },
+          }
+        : {}),
       renderAsync: async () => {
         journal.push(['renderAsync']);
         return {

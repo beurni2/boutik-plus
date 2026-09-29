@@ -85,7 +85,7 @@ function stubBucket() {
   return { bucket, objects };
 }
 
-const service = (bucket: R2BucketLike) => new ProductMediaService(resolveMediaStore({ BUCKET: bucket }));
+const service = (bucket: R2BucketLike) => new ProductMediaService(resolveMediaStore({ BUCKET: bucket })!);
 
 const audioReq = (body: BodyInit, headers: Record<string, string> = {}): Request =>
   new Request(`https://media.boutik.test${AUDIO_UPLOAD_PATH}`, { method: 'POST', body, headers });

@@ -87,7 +87,7 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     expect(derivativeActions(800, 600)).toEqual([]); // never upscale
     expect(derivativeActions(4000, 3000)).toEqual(derivativeActions(4000, 3000)); // same in → same out
   });
-  it('ONLY resize and a RECT CROP exist in the action vocabulary — no enhancement, no filters, no generative anything', () => {
+  it('ONLY resize, a RECT CROP and the web paper fill exist in the action vocabulary — no enhancement, no filters, no generative anything', () => {
     for (const a of [...derivativeActions(4000, 3000), ...metricsActions()]) {
       expect(Object.keys(a)).toEqual(['resize']);
     }
@@ -98,7 +98,8 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     // exist without cropping something, and a centred rect crop is DETERMINISTIC
     // GEOMETRY (same rect in → same pixels out; property-tested in crops.ts),
     // not enhancement. The rect is data (`ctx.crop(rect)`) — no free-hand
-    // parameters, no filters. rotate/flip/extent and everything ML stay banned.
+    // parameters, no filters. rotate/flip and everything ML stay banned; extent
+    // is admitted in ONE shape only, on the web only (below).
     expect(capture).toMatch(/ctx\.crop\(rect\);/); // the ONE allowed call shape
     expect(capture).not.toMatch(/\.rotate\(|\.flip\(/);
     // MEDIA-PORTE-1 (AUDIT-B+2 F-49) — `extent` enters in ONE shape only: the
@@ -106,17 +107,26 @@ describe('B1.2 — deterministic derivatives; hooks are declared identity seams'
     // geometry step — `fondPapier`'s shape is pinned by value in
     // fond-papier.test.ts). JPEG has no transparency, and without it a
     // see-through PNG or WebP shipped black. Any other extent stays banned.
-    // It lives in `papier.ts` alone (the supplier's page picks but never shoots).
-    const papier = read('src/studio/papier.ts');
+    // It lives in `papier.web.ts` alone: the library has `extent` on the WEB
+    // only, and the phone's half (`papier.ts`) must never reach for it — a
+    // call there refused every gallery pick on a phone (verifier BLOCKER).
+    const papier = read('src/studio/papier.web.ts');
     expect(papier.match(/\.extent\(/g) ?? []).toHaveLength(1);
+    const natif = read('src/studio/papier.ts');
+    expect(natif).not.toMatch(/\.extent\(|manipulate\(/);
     expect(papier).toMatch(
-      /const \{ extent \} = fondPapier\(image\.width, image\.height\);\s*return ImageManipulator\.manipulate\(image\)\.extent\(extent\)\.renderAsync\(\);/,
+      /const \{ extent \} = fondPapier\(image\.width, image\.height\);\s*const pose = await ImageManipulator\.manipulate\(image\)\.extent\(extent\)\.renderAsync\(\);/,
     );
     expect(papier).not.toMatch(/\.rotate\(|\.flip\(|\.crop\(|\.resize\(/);
-    for (const f of ['src/studio/capture.ts', 'src/studio/pick-native.ts']) {
+    for (const f of ['src/studio/capture.ts', 'src/studio/pick-native.ts', 'src/studio/normalization.ts', 'src/studio/pick.ts']) {
       expect(read(f), f).not.toMatch(/\.rotate\(|\.flip\(|\.extent\(/);
     }
     expect(read('src/studio/pick-native.ts')).not.toMatch(/\.crop\(/);
+    // THE CALL SITES (vitest resolves the phone's half, where the fill is a
+    // no-op, so only these pins and the real-Chromium proof see them): the
+    // picked picture and the hero crop each lay the render on paper, once.
+    expect(read('src/studio/pick-native.ts').match(/await surPapier\(await ctx\.renderAsync\(\)\)/g) ?? []).toHaveLength(1);
+    expect(read('src/studio/capture.ts').match(/await surPapier\(await ctx\.renderAsync\(\)\)/g) ?? []).toHaveLength(1);
     // and the crop verb appears nowhere else in the pipeline
     for (const f of ['src/studio/normalization.ts', 'src/studio/guidance.ts']) {
       expect(read(f)).not.toMatch(/\.crop\(/);

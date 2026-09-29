@@ -124,7 +124,7 @@ export async function renderCropDerivative(
   const ctx = ImageManipulator.manipulate(masterUri);
   ctx.crop(rect);
   for (const action of derivativeActions(rect.width, rect.height)) ctx.resize(action.resize);
-  // The master is the file he picked: it can be see-through (F-49).
+  // A picked master can be see-through: on the web it is laid on paper (F-49).
   const image = await surPapier(await ctx.renderAsync());
   const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
   const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));

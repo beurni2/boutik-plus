@@ -100,7 +100,7 @@ function stubBucket() {
   return { bucket, objects };
 }
 
-const service = (bucket: R2BucketLike) => new ProductMediaService(resolveMediaStore({ BUCKET: bucket }));
+const service = (bucket: R2BucketLike) => new ProductMediaService(resolveMediaStore({ BUCKET: bucket })!);
 
 const videoReq = (body: BodyInit, headers: Record<string, string> = {}): Request =>
   new Request(`https://media.boutik.test${VIDEO_UPLOAD_PATH}`, { method: 'POST', body, headers });

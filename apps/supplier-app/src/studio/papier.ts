@@ -1,21 +1,20 @@
-import { ImageManipulator, type ImageRef } from 'expo-image-manipulator';
-import { fondPapier } from './normalization';
+import type { ImageRef } from 'expo-image-manipulator';
 
 /**
- * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — lay a rendered picture on paper before it
- * becomes a JPEG (see `fondPapier`). Every path that starts from a file he
- * PICKED passes through here — a gallery PNG or WebP can be see-through; the
- * camera's own frames cannot, and the vignette starts from a JPEG already laid.
+ * MEDIA-PORTE-1 (AUDIT-B+2 F-49) — THE NATIVE HALF: the picture goes on as it
+ * is. Metro resolves `papier.web.ts` in a web bundle; this file on a phone.
  *
- * AFTER the resize, at the RENDERED image's own size: the library's second
- * pass is derivative-sized, never another full-resolution canvas on a 1 GB
- * phone, and the fill can never disagree with the resize's rounding by a row.
+ * ⚠ WHY NOTHING HAPPENS HERE (verifier BLOCKER): expo-image-manipulator 57 has
+ * `extent` on the WEB only — `src/ImageManipulatorContext.ts` tags it
+ * `@platform web`, and the iOS and Android Context classes define resize,
+ * rotate, flip, crop and render, nothing else. Calling it here threw on every
+ * phone: every gallery pick was refused as unreadable and every publish with a
+ * hero failed, camera shots included — shipped by OTA with no rebuild.
  *
- * Its own module on purpose: the supplier's page picks photos but never
- * shoots, so importing this from `capture.ts` would ship the camera's
- * guidance code to every supplier for one fill.
+ * F-49 is a WEB finding (the browser encodes an unfilled canvas). On a phone a
+ * see-through picture is NOT laid on paper yet; that is said in the journal
+ * rather than pretended here.
  */
 export async function surPapier(image: ImageRef): Promise<ImageRef> {
-  const { extent } = fondPapier(image.width, image.height);
-  return ImageManipulator.manipulate(image).extent(extent).renderAsync();
+  return image;
 }
