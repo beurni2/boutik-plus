@@ -1082,6 +1082,15 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
   /** AUDIT-B+2 F-74 — the row whose « Donner un nouveau code » was armed: a
    *  code she already holds dies with the second tap, so it asks first. */
   const [arme, setArme] = useState<string | null>(null);
+  // Slice 10 verifier — the roster is read again after every act on this tab:
+  // a row whose code is no longer waiting (she typed it, or it was cut) is
+  // disarmed, so a left-over « Oui » can never fire that row's other act.
+  const armable = vue !== null && vue.kind === 'liste'
+    ? vue.comptes.some((c) => c.accountId === arme && c.state === 'pending_access' && c.accessCodePending)
+    : true;
+  useEffect(() => {
+    if (arme !== null && !armable) setArme(null);
+  }, [arme, armable]);
   if (vue === null) return null;
   return (
     <View>
@@ -1108,6 +1117,7 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
         // AUDIT-B+2 F-74 — a code already given: a new one kills it, so the
         // act says « nouveau » and asks before it acts.
         const remplace = c.state === 'pending_access' && c.accessCodePending;
+        const armee = arme === c.accountId && remplace;
         const label =
           c.state === 'pending_access'
             ? t(remplace ? 'comptes.nouveau_code' : 'comptes.donner_code')
@@ -1148,7 +1158,7 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                   {c.accessCodePending && c.accessCodeRevelable ? (
                     <BtnSoft label={t('comptes.voir_code')} onPress={() => onActe(`voir:${c.accountId}`, c.accountId)} />
                   ) : null}
-                  {arme === c.accountId ? null : (
+                  {armee ? null : (
                     <BtnSoft
                       label={label}
                       onPress={() => {
@@ -1160,7 +1170,7 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                 </View>
               )}
             </View>
-            {arme === c.accountId && ui.busy === null && ui.nouveau === null ? (
+            {armee && ui.busy === null && ui.nouveau === null ? (
               <View style={{ marginTop: 10, gap: 8 }}>
                 <Banner tone="warn">{t('comptes.nouveau_code_question')}</Banner>
                 <BtnSoft
@@ -1272,10 +1282,14 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
                   {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
                 </Text>
                 {/* AUDIT-B+2 F-71 — held commissions, apart: her book's Held rung. */}
+                {/* A row read only in part (F-72) says « au moins » and no
+                    amount: a sum nobody finished is never shown as whole. */}
                 {l.misesDeCote !== undefined ? (
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
-                    {(l.misesDeCote.n === 1 ? t('suivi.mise_de_cote_une') : t('suivi.mises_de_cote_n').replace('{n}', String(l.misesDeCote.n)))
-                      .replace('{f}', formatF(l.misesDeCote.netFcfa))}
+                    {l.incomplet
+                      ? (l.misesDeCote.n === 1 ? t('suivi.mise_de_cote_au_moins_une') : t('suivi.mises_de_cote_au_moins_n').replace('{n}', String(l.misesDeCote.n)))
+                      : (l.misesDeCote.n === 1 ? t('suivi.mise_de_cote_une') : t('suivi.mises_de_cote_n').replace('{n}', String(l.misesDeCote.n)))
+                          .replace('{f}', formatF(l.misesDeCote.netFcfa))}
                   </Text>
                 ) : null}
               </View>

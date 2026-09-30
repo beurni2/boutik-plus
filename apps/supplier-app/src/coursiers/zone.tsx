@@ -732,6 +732,12 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
                     <Banner tone="warn">{t('coursiers.course_garde')}</Banner>
                   </>
                 ) : null}
+                {/* Slice 10 verifier — a waiting package leaves by its first
+                    article alone (COLIS-2); its mates go back to « Prêt à
+                    livrer », as the single retire already says. */}
+                {read.courses.some((c) => !c.confiee && c.colis !== undefined) ? (
+                  <Text style={CORPS}>{t('coursiers.courses_balayage_colis')}</Text>
+                ) : null}
                 <BtnGhost
                   label={t('coursiers.courses_balayage_oui')}
                   onPress={() => {

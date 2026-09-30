@@ -81,7 +81,7 @@ type Retrait =
   | { kind: 'propose' }
   | { kind: 'question' }
   | { kind: 'encours' }
-  | { kind: 'retiree' };
+  | { kind: 'retiree'; quoi: 'course' | 'article' | 'colis' };
 
 export function ConfierCoursier({
   row,
@@ -178,6 +178,11 @@ function ConfierAvecService({
   const [zoneSaisie, setZoneSaisie] = useState(row.zoneTo);
   /** REFUS-NOMMÉ — the retire road, offered ONLY on `order_already_has_task`. */
   const [retrait, setRetrait] = useState<Retrait>({ kind: 'aucun' });
+  /** Slice 10 verifier — Séra retires ONE article of a package alone (COLIS-2):
+   *  the words name the article, never « la course ». `entier` arms the whole
+   *  bag, offered only after Séra refused the lone article by name. */
+  const article = row.colis !== undefined && row.colis.orderIds.length > 1;
+  const [entier, setEntier] = useState(false);
   /** VILLE (founder ruling 2026-08-09, « for the quartier section add the
    *  ouagadougou »): single-city operation — the quartier she gave carries
    *  the city into the section AND onto the rider's task line, unless she
@@ -263,6 +268,7 @@ function ConfierAvecService({
     // A compose that is actually SENT resets the retire road: its answer —
     // not this screen's memory — decides whether the act is offered again.
     setRetrait({ kind: 'aucun' });
+    setEntier(false);
     const start = new Date();
     const end = new Date(start.getTime() + FENETRE_HEURES * 3_600_000);
     const answer = await service.composerTache(
@@ -383,7 +389,7 @@ function ConfierAvecService({
     setBusy(true);
     setAvis(null);
     setRetrait({ kind: 'encours' });
-    const answer = await desk.retirerCourse(row.orderId, mintCommandId());
+    const answer = await desk.retirerCourse(row.orderId, mintCommandId(), entier);
     setBusy(false);
     if (answer.kind === 'bad_key') {
       clearStoredCleCoursiers();
@@ -399,11 +405,18 @@ function ConfierAvecService({
       return;
     }
     if (answer.kind === 'refused' && answer.reason === 'colis_en_course') {
-      // AUDIT-B+2 F-64 — Séra refuses one article of a package a rider
-      // carries. Here that means a rider took the bag between the read and
-      // the tap: said by name, and the board read again shows who has it.
-      setAvis(t('confier.colis_en_mains'));
-      setRetrait({ kind: 'aucun' });
+      // AUDIT-B+2 F-64 — Séra refuses one article of a package whose course
+      // holds several (carried, or finished and still on its book). Said by
+      // name; the bag this screen knows is offered whole, in the desk's own
+      // words, and the board read again shows who has it if it is live.
+      if (row.colis !== undefined) {
+        setAvis(t('confier.colis_en_course'));
+        setEntier(true);
+        setRetrait({ kind: 'propose' });
+      } else {
+        setAvis(t('confier.colis_en_mains'));
+        setRetrait({ kind: 'aucun' });
+      }
       await charger();
       return;
     }
@@ -416,7 +429,7 @@ function ConfierAvecService({
     }
     // `retire` or `inconnu` — the board holds nothing for this order now.
     setAvis(null);
-    setRetrait({ kind: 'retiree' });
+    setRetrait({ kind: 'retiree', quoi: entier ? 'colis' : article ? 'article' : 'course' });
   };
 
   return (
@@ -437,11 +450,18 @@ function ConfierAvecService({
           so nothing can be tapped into silence. */}
       {retrait.kind === 'propose' ? (
         <View style={{ marginTop: 8 }}>
-          <BtnGhost label={t('confier.retirer')} onPress={() => setRetrait({ kind: 'question' })} />
+          <BtnGhost label={t(entier ? 'coursiers.course_retirer_colis' : 'confier.retirer')} onPress={() => setRetrait({ kind: 'question' })} />
         </View>
       ) : retrait.kind === 'question' ? (
         <View style={{ marginTop: 8, gap: 8 }}>
-          <Text style={CORPS}>{t('confier.retirer_question')}</Text>
+          {entier && row.colis !== undefined ? (
+            <>
+              <Text style={CORPS}>{t('coursiers.course_question_colis').replace('{n}', String(row.colis.orderIds.length))}</Text>
+              <Text style={PETIT}>{t('coursiers.course_colis_articles').replace('{ids}', row.colis.orderIds.join(', '))}</Text>
+            </>
+          ) : (
+            <Text style={CORPS}>{t(article ? 'confier.retirer_question_article' : 'confier.retirer_question')}</Text>
+          )}
           {/* AUDIT-B+2 F-65 — the desk's own custody sentence, word for word:
               what Séra does to a carried course (it leaves the rider's app). */}
           <Banner tone="warn">{t('coursiers.course_garde')}</Banner>
@@ -453,7 +473,7 @@ function ConfierAvecService({
       ) : retrait.kind === 'retiree' ? (
         <View style={{ marginTop: 10 }}>
           <Banner tone="success" check>
-            {t('confier.retiree')}
+            {t(retrait.quoi === 'colis' ? 'confier.retiree_colis' : retrait.quoi === 'article' ? 'confier.retiree_article' : 'confier.retiree')}
           </Banner>
         </View>
       ) : null}

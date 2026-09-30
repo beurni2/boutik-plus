@@ -542,7 +542,8 @@ const s = StyleSheet.create({
   tileNoPhoto: C26.noPhoto, tileNoPhotoTxt: C26.noPhotoTxt, tileVariants: C26.variants, tileHidden: C26.hidden,
   vignette: C49.box, vignetteImg: C49.img,
   // PhotoViewer — an inspection overlay; near-black so the photograph is the
-  // only light on screen. rgba, not a palette tone: this is a scrim, not a surface.
+  // only light on screen. The palette's ink (AUDIT-B+2 F-59): the old 96 %
+  // rgba was a tone the handoff never names, and the docket admits none else.
   viewerFill: { flex: 1, backgroundColor: P.ink, alignItems: 'center' as const, justifyContent: 'center' as const },
   viewerImg: { width: '100%' as const, height: '80%' as const },
   viewerLabel: { ...role({ f: 'IS', w: 700, s: 13 }, P.cream), marginTop: 14 },

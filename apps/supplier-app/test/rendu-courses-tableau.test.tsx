@@ -288,3 +288,29 @@ describe('F-64 — the desk follows Séra’s package rules (COLIS-2)', () => {
     screen.unmount();
   });
 });
+
+describe('slice 10 verifier — the desk says the cost, and what a waiting package leaves behind', () => {
+  it('the single retire and the sweep both say the order can no longer be given to a rider from here', async () => {
+    const { routes } = livre({ queued: [file('ord-attente', 'task-2')], assignments: [] });
+    wire(routes);
+    const screen = await mountEcran(<SZoneCoursiers />);
+    await screen.settle();
+    await screen.press('Retirer cette course');
+    expect(screen.shows('ne pourra plus être confiée à un coursier')).toBe(true);
+    await screen.press('Annuler');
+    await screen.press("Retirer les courses d'essai");
+    expect(screen.shows('ne pourront plus être confiées à un coursier')).toBe(true);
+    expect(screen.shows('Vos commandes et vos produits ne bougent pas'), 'the orders DO change').toBe(false);
+    screen.unmount();
+  });
+
+  it('a sweep over a waiting package says its other articles come back to « Prêt à livrer »', async () => {
+    const { routes } = livre({ queued: [file('ord-c-a', 'task-c', ['ord-c-a', 'ord-c-b'])], assignments: [] });
+    wire(routes);
+    const screen = await mountEcran(<SZoneCoursiers />);
+    await screen.settle();
+    await screen.press("Retirer les courses d'essai");
+    expect(screen.shows('reviennent dans « Prêt à livrer »')).toBe(true);
+    screen.unmount();
+  });
+});

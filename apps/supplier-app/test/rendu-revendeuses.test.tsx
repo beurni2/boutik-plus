@@ -41,8 +41,8 @@ const FATI = compte('rs-0002', 'Fati', 'pending_access', true);
 const MARIAM = compte('rs-0003', 'Mariam', 'paused');
 
 /** One book: the roster and the board move together, as Shop+'s do. */
-function livre(): { routes: Route[] } {
-  const etat = { awa: 'active' };
+function livre(o: { fatiActiveApresPause?: boolean; awaIncomplete?: boolean } = {}): { routes: Route[] } {
+  const etat = { awa: 'active', fati: FATI as Record<string, unknown> };
   const autour: Route[] = [
     (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [] } } : null),
     (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
@@ -55,7 +55,7 @@ function livre(): { routes: Route[] } {
       (path, _b, _s, h) =>
         path === '/reseller/accounts'
           ? cle(h)
-            ? { status: 200, json: { ok: true, accounts: [{ ...AWA, state: etat.awa }, FATI, MARIAM] } }
+            ? { status: 200, json: { ok: true, accounts: [{ ...AWA, state: etat.awa }, etat.fati, MARIAM] } }
             : { status: 401, json: { error: 'unauthorized' } }
           : null,
       (path, _b, _s, h) =>
@@ -68,7 +68,7 @@ function livre(): { routes: Route[] } {
                   total: 3,
                   lignes: [
                     // Awa: one clean sale and one HELD — the held one is apart.
-                    { accountId: 'rs-0001', incomplet: false, name: 'Awa', netFcfa: 2_500, misesDeCote: { n: 1, netFcfa: 2_500 }, state: 'active', ventes: 1 },
+                    { accountId: 'rs-0001', incomplet: o.awaIncomplete === true, name: 'Awa', netFcfa: 2_500, misesDeCote: { n: 1, netFcfa: 2_500 }, state: 'active', ventes: 1 },
                     { accountId: 'rs-0003', incomplet: false, name: 'Mariam', netFcfa: 3_000, state: 'paused', ventes: 2 },
                     { accountId: 'rs-0002', incomplet: false, name: 'Fati', netFcfa: 0, state: 'pending_access', ventes: 0 },
                   ],
@@ -88,6 +88,8 @@ function livre(): { routes: Route[] } {
         if (!cle(h)) return { status: 401, json: { error: 'unauthorized' } };
         if (body?.['accountId'] !== 'rs-0001') return { status: 409, json: { ok: false, reason: 'wrong_state', state: 'pending_access' } };
         etat.awa = 'paused';
+        // She typed her code on her phone meanwhile: the roster moves under him.
+        if (o.fatiActiveApresPause === true) etat.fati = { ...FATI, state: 'active', accessCodePending: false, accessCodeRevelable: false };
         return { status: 200, json: { ok: true, accountId: 'rs-0001', state: 'paused' } };
       },
       (path, body, _s, h) => {
@@ -213,6 +215,30 @@ describe('F-73 — the old desk says what it is, and mints for nobody', () => {
     const sent = w.calls.filter((c) => c.path === '/reseller/code');
     expect(sent.length).toBe(1);
     expect(sent[0]!.body).toEqual({ resellerId: 'rs-0001' });
+    screen.unmount();
+  });
+});
+
+describe('slice 10 verifier — the reseller cards stay true when the roster moves', () => {
+  it('F-74 — armed, then her code is used: the question folds away and can never fire another act', async () => {
+    const w = wire(livre({ fatiActiveApresPause: true }).routes);
+    const screen = await vers('Revendeuses Shop+');
+    await screen.press('Donner un nouveau code');
+    expect(screen.shows("l'ancien ne marchera plus")).toBe(true);
+    // Another act on the tab reads the roster again: Fati is active now.
+    await screen.press('Couper l\'accès');
+    expect(screen.shows("l'ancien ne marchera plus"), 'the question belonged to a code that is no longer waiting').toBe(false);
+    expect(screen.canPress('Oui, un nouveau code'), 'a confirm left over would cut HER access').toBe(false);
+    expect(w.calls.filter((c) => c.path === '/reseller/accounts/pause').map((c) => c.body)).toEqual([{ accountId: 'rs-0001' }]);
+    expect(w.calls.filter((c) => c.path === '/reseller/accounts/access-code').length).toBe(0);
+    screen.unmount();
+  });
+
+  it('F-71 — on a row read only in part, the held count says « au moins » and shows no amount', async () => {
+    wire(livre({ awaIncomplete: true }).routes);
+    const screen = await vers('Suivi des revendeuses');
+    expect(screen.shows('au moins 1 commission mise de côté'), JSON.stringify(screen.texts())).toBe(true);
+    expect(screen.shows('commission mise de côté :'), 'an amount nobody finished reading is never shown as whole').toBe(false);
     screen.unmount();
   });
 });

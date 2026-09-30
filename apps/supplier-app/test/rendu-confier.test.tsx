@@ -353,7 +353,7 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
 
     await screen.press('Créer la course');
 
-    expect(screen.shows('pas encore reçu le paiement de cette commande'), 'the funding refusal must be NAMED').toBe(true);
+    expect(screen.shows('pas reçu le paiement de cette commande'), 'the funding refusal must be NAMED').toBe(true);
     expect(screen.shows('colis prêt')).toBe(false);
     expect(screen.shows('Séra a refusé. Réessayez')).toBe(false);
     // The retire act belongs to `order_already_has_task` ALONE — a projection
@@ -371,7 +371,7 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     await screen.press('Créer la course');
 
     expect(screen.shows('colis prêt'), 'the readiness refusal must be NAMED').toBe(true);
-    expect(screen.shows('pas encore reçu le paiement de cette commande')).toBe(false);
+    expect(screen.shows('pas reçu le paiement de cette commande')).toBe(false);
     expect(screen.shows('Séra a refusé. Réessayez')).toBe(false);
     expect(screen.canPress('Retirer la course')).toBe(false);
     screen.unmount();
@@ -881,5 +881,80 @@ describe('AUDIT-B+2 F-79 — the web touch style that keeps a drag on the map', 
     const element = src.slice(debut, fin);
     expect(element).toContain("touchAction: 'none'");
     expect(element).toContain("userSelect: 'none'");
+  });
+});
+
+/* ═══ SLICE 10 VERIFIER (handled once) — the fold says what a retire really
+ * took. Séra's retire door (`logistics-do.ts /ops/order/retirer`, COLIS-2):
+ * one article of a package leaves ALONE (its mates stay to deliver); one
+ * article of a package whose course holds several is refused by name,
+ * `colis_en_course`, and only `colisEntier: true` takes the whole bag. A
+ * retired order's payment fact is gone for good, so a later compose answers
+ * `funding_projection_stale` for ever. ═══ */
+describe('slice 10 verifier — the fold names what the retire took', () => {
+  const ARTICLE: PaidOrderRow = { ...ROW, orderId: 'ord-colis-b', colis: { packageId: 'col-1', orderIds: ['ord-colis-a', 'ord-colis-b'] } } as PaidOrderRow;
+  const RETIRE = {
+    status: 200,
+    json: { ok: true, status: 'retire', removed: { tasks: 0, assignments: 0, leases: 0, briefs: 0, ramassage: 0, codesVerification: 0, custodyOutbox: 0, funding: 1, readiness: 1 } },
+  };
+  const malforme = (body: Record<string, unknown> | null): boolean =>
+    typeof body?.['command_id'] !== 'string' || typeof body?.['orderId'] !== 'string' ||
+    (body['colisEntier'] !== undefined && typeof body['colisEntier'] !== 'boolean');
+
+  it('one article of a package: the question and the outcome name the ARTICLE — never « La course est retirée »', async () => {
+    const retirer: Route = (path, body) =>
+      path !== '/ops/order/retirer' ? null : malforme(body) ? { status: 400, json: { ok: false, reason: 'malformed' } } : RETIRE;
+    const w = wire([planche, porteCompose(REFUS_COURSE_EXISTANTE), retirer]);
+    const screen = await mountEcran(<ConfierCoursier row={ARTICLE} buyer={BUYER} />);
+    await screen.settle();
+    await screen.press('Créer la course');
+    await screen.press('Retirer la course');
+    expect(screen.shows('Retirer cet article du tableau Séra ?'), 'the question names what leaves').toBe(true);
+    await screen.press('Oui, retirer');
+    const sent = w.calls.filter((c) => c.path === '/ops/order/retirer');
+    expect(sent.length).toBe(1);
+    expect(sent[0]!.body?.['orderId']).toBe('ord-colis-b');
+    expect(sent[0]!.body?.['colisEntier'], 'one article leaves alone (COLIS-2)').toBeUndefined();
+    expect(screen.shows('Cet article est retiré du tableau Séra')).toBe(true);
+    expect(screen.shows('Les autres articles du colis restent à livrer')).toBe(true);
+    expect(screen.shows('La course est retirée'), 'the course still carries the others').toBe(false);
+    screen.unmount();
+  });
+
+  it('a package whose course holds several: the article is refused by name, and « Retirer tout le colis » takes the bag', async () => {
+    const retirer: Route = (path, body) => {
+      if (path !== '/ops/order/retirer') return null;
+      if (malforme(body)) return { status: 400, json: { ok: false, reason: 'malformed' } };
+      return body?.['colisEntier'] === true ? RETIRE : { status: 409, json: { ok: false, reason: 'colis_en_course', orderIds: ['ord-colis-a', 'ord-colis-b'] } };
+    };
+    const w = wire([planche, porteCompose(REFUS_COURSE_EXISTANTE), retirer]);
+    const screen = await mountEcran(<ConfierCoursier row={ARTICLE} buyer={BUYER} />);
+    await screen.settle();
+    await screen.press('Créer la course');
+    await screen.press('Retirer la course');
+    await screen.press('Oui, retirer');
+    expect(screen.shows("Un article seul n'en sort pas"), 'the refusal is named, true for a finished course too').toBe(true);
+    expect(screen.canPress('Retirer tout le colis'), 'the way out is on this screen').toBe(true);
+    await screen.press('Retirer tout le colis');
+    expect(screen.shows('Retirer tout ce colis du tableau ?')).toBe(true);
+    expect(screen.shows('ord-colis-a'), 'every article is named before the tap').toBe(true);
+    await screen.press('Oui, retirer');
+    const sent = w.calls.filter((c) => c.path === '/ops/order/retirer');
+    expect(sent.length).toBe(2);
+    expect(sent[1]!.body?.['colisEntier']).toBe(true);
+    expect(screen.shows('Le colis est retiré du tableau Séra')).toBe(true);
+    expect(screen.canPress('Créer la course')).toBe(false);
+    screen.unmount();
+  });
+
+  it('F-63 — reopened after a retire: the payment refusal also says the retired case, never only « dans une minute »', async () => {
+    const livre = livreSera();
+    livre.etat.retiree = true;
+    wire(livre.routes);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    await screen.settle();
+    await screen.press('Créer la course');
+    expect(screen.shows('Si sa course a été retirée du tableau'), 'the permanent case is said').toBe(true);
+    screen.unmount();
   });
 });

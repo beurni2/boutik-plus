@@ -2796,6 +2796,18 @@
     "screenClass": "status"
   },
   {
+    "key": "suivi.mise_de_cote_au_moins_une",
+    "fr": "+ au moins 1 commission mise de côté",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.mises_de_cote_au_moins_n",
+    "fr": "+ au moins {n} commissions mises de côté",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "suivi.mises_de_cote_sens",
     "fr": "Une commission mise de côté n'est pas comptée dans les ventes ni dans les gains.",
     "register": "money",
@@ -4147,7 +4159,7 @@
   },
   {
     "key": "confier.pas_finance",
-    "fr": "Séra n’a pas encore reçu le paiement de cette commande. Réessayez dans une minute.",
+    "fr": "Séra n’a pas reçu le paiement de cette commande. Si elle vient d’être payée, réessayez dans une minute. Si sa course a été retirée du tableau, elle ne peut plus être confiée d’ici.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4182,14 +4194,38 @@
     "screenClass": "status"
   },
   {
+    "key": "confier.retirer_question_article",
+    "fr": "Retirer cet article du tableau Séra ? Il ne pourra plus être confié à un coursier depuis ici. Les autres articles du colis restent à livrer.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "confier.retiree",
     "fr": "La course est retirée du tableau Séra. Cette commande ne peut plus être confiée à un coursier depuis ici.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
+    "key": "confier.retiree_article",
+    "fr": "Cet article est retiré du tableau Séra. Il ne peut plus être confié à un coursier depuis ici. Les autres articles du colis restent à livrer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.retiree_colis",
+    "fr": "Le colis est retiré du tableau Séra. Ses articles ne peuvent plus être confiés à un coursier depuis ici.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "confier.colis_en_mains",
     "fr": "Entre-temps, un coursier a pris ce colis : la course n'a pas été retirée.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.colis_en_course",
+    "fr": "Cet article voyage dans un colis confié à un coursier. Un article seul n'en sort pas : rien n'a été retiré.",
     "register": "money",
     "screenClass": "status"
   },
@@ -4555,7 +4591,7 @@
   },
   {
     "key": "coursiers.course_question",
-    "fr": "Retirer cette course d'essai du tableau ?",
+    "fr": "Retirer cette course d'essai du tableau ? Sa commande ne pourra plus être confiée à un coursier depuis ici.",
     "register": "money",
     "screenClass": "status"
   },
@@ -4621,7 +4657,13 @@
   },
   {
     "key": "coursiers.courses_balayage_question",
-    "fr": "Retirer les {n} courses du tableau ? Vos commandes et vos produits ne bougent pas.",
+    "fr": "Retirer les {n} courses du tableau ? Vos produits ne bougent pas. Ces commandes ne pourront plus être confiées à un coursier depuis ici.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_colis",
+    "fr": "Pour un colis qui attend, seul son premier article est retiré. Les autres reviennent dans « Prêt à livrer », pour une nouvelle course.",
     "register": "money",
     "screenClass": "status"
   },
