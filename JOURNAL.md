@@ -3,7 +3,20 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
-## 2026-09-30 · LISTER-VRAI-1 (AUDIT-B+2 slice 9: F-14 · F-15 · F-45 · F-46 · F-47 · F-48 · F-50 · F-51 · F-52 · F-56 · F-57 · F-90 · F-91 · F-98) — the listing flow says only what is true · F-58 KEPT by his word · on the branch, NOT merged, NOT deployed
+## 2026-09-30 · LISTER-VRAI-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-30).** « go » — on the LISTER-VRAI-1 report (entry below).
+
+- **Merged, canon first.** platform-contracts `main` fast-forwarded `ac03562 → cfff2c5` (the i18n pin), **canon ci 156 green**; then Boutik+ `main` `bb7af22 → 1c31003` (ancestry verified), **ci 375 green**. Shop+ `main` `0db6353 → e185b10` and Séra `main` `ab12697 → 01724a9` (their repins; see their journals).
+- **Deployed** (the product and photo Workers are unchanged by this slice — not redeployed):
+  - **web-deploy 85 (console)** — « web-size OK — console first load: 488.8 KB gzip (**500 541 B**) … within the signed ceiling of 500.0 KB (512 000 B) »: **11 459 B left** (the report's estimate was ≈ 11.5 KB). Every demo string (CMD-2417, Wendkuni, Compte provisoire, Rood Woko, « Issa (S ») ABSENT from the deployed page.
+  - **fournisseur-web-deploy 29** — « web-size OK — fournisseur first load: 427.1 KB gzip (**437 329 B**) … within the signed ceiling of 430.0 KB (440 320 B) »: 2 991 B left; the same demo strings absent.
+  - **expo-preview 253** (the OTA on every push to `main`) green.
+- **Still open** — as in the entry below: the web Studio's file pick is not walked end to end; his photo confirmation is not recorded on the wire (a §7 question if he wants it); the confirmation's placement (the final check screen) awaits his word if he wants step 3; F-13 and F-31 wait for his decisions.
+
+---
+
+## 2026-09-30 · LISTER-VRAI-1 (AUDIT-B+2 slice 9: F-14 · F-15 · F-45 · F-46 · F-47 · F-48 · F-50 · F-51 · F-52 · F-56 · F-57 · F-90 · F-91 · F-98) — the listing flow says only what is true · F-58 KEPT by his word · MERGED AND DEPLOYED 2026-09-30 (entry above)
 
 **Founder decisions (2026-09-30, asked before building).** Unlink both demo screens (« Notre engagement », the sign-up walkthrough) · add ONE sentence on the photo step that HE confirms (« Aucun prix, aucun numéro, aucune enseigne sur les photos ») · the price and commission start EMPTY · console size: « make room, then up to 505 KB » — room was made, no ceiling moved. The ¾-second boot wait stays (F-58 not done, by his word).
 
