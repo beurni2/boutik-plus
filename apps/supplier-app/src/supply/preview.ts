@@ -30,15 +30,19 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
  * NO try/catch — and the reason stated precisely, because a loose version of
  * this sentence was wrong (verifier finding, MEDIUM). `computeWaterfall` throws
  * `RangeError` on non-integer or negative inputs. Today no such input is
- * reachable: `WIZ_SET` is dispatched for B/C at exactly two places
- * (`screens2.tsx` steps 2 minus-handlers), and BOTH are wrapped in
- * `!disabled.wizB(w)` / `!disabled.wizC(w)`, so B floors at 500 and C at 0.
+ * reachable, and not because of the steppers' predicates (CORRECTED,
+ * LISTER-VRAI-1 / AUDIT-B+2 F-48 — this comment used to credit
+ * `disabled.wizB`/`wizC` with flooring B at 500 and C at 0; a TYPED 50 and one
+ * « − » put C at −50). `WIZ_SET` is dispatched for B/C at six places in
+ * `screens2.tsx` step 2: the two « − » clamp at 0 (`Math.max`), the two « + »
+ * only add, and the two boxes read digits only (`montantSaisi`, never a sign).
+ * And independently, `netLineRefusal` refuses any negative or non-integer pair
+ * BEFORE this function is called.
  *
  * **THE BOUND IS ENFORCED AT THOSE CALL SITES, NOT IN THE REDUCER.**
- * `machine.ts` declares `disabled.wizB`/`wizC` as predicates but its `WIZ_SET`
- * case is a plain spread with no validation. So the guarantee is a property of
- * the current dispatchers, not of the state machine — a future dispatcher that
- * omits the guard reintroduces it.
+ * `machine.ts`'s `WIZ_SET` case is a plain spread with no validation. So the
+ * guarantee is a property of the current dispatchers, not of the state
+ * machine — a future dispatcher that skips the clamp reintroduces it.
  *
  * THAT MATTERS BECAUSE THIS CALL CHANGES THE FAILURE MODE: before, a negative B
  * rendered a wrong number; now it throws during render, and the app has no
@@ -67,7 +71,10 @@ export interface SellerPreview {
 export type SellerNetLine =
   | { readonly kind: 'figure'; readonly net: SellerPreview }
   /** `reasonKey` is an i18n catalog key — the screen states it, never invents it. */
-  | { readonly kind: 'refused'; readonly reasonKey: string };
+  | { readonly kind: 'refused'; readonly reasonKey: string }
+  /** LISTER-VRAI-1 (F-98): he has not typed the price or the commission yet —
+   *  nothing to state and nothing wrong, so no warning either. */
+  | { readonly kind: 'vide' };
 
 export function previewSellerNet(basePrice: number, resellerCommission: number): SellerPreview {
   // Markup and delivery belong to other domains; zero here isolates the

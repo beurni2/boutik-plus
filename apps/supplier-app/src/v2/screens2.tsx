@@ -13,7 +13,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
 import { C21, C43, SCROLL, TNUM, role } from '../ui/v2/styles';
-import { digitsToAmount, formatF } from './money';
+import { formatF, montantSaisi } from './money';
 import { RAYONS, detailChamps } from './categorie-details';
 import { chipChoisi, pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
@@ -74,7 +74,15 @@ const wizScroll = SCROLL.wizard;
 // The union rather than a number is how the absence is carried, so a screen
 // cannot accidentally print one — and the reason travels with it, so this
 // screen never has to assume which rule refused.
-export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur, video }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[]; readonly onRetry: () => void; readonly sienId: string } | undefined; video?: { readonly etat: VideoEtat; readonly onPick: () => void; readonly onRetirer: () => void } | undefined }) {
+//
+// `photosConfirmees` — HIS CONFIRMATION (LISTER-VRAI-1, AUDIT-B+2 F-46;
+// founder 2026-09-30, « Add the line »: « one sentence on the photo check step
+// that you confirm before going on »). Canon B+I-02 keeps product images free
+// of prices and supplier contact, and B2.1 names a « seller confirmation »;
+// nothing on this path checks a photograph, so the three sentences that
+// promised a check are gone and HE states it instead. The wrapper holds the
+// answer; « Publier » waits for it.
+export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisseur, video, photosConfirmees }: { st: S; d: D; money: SellerNetLine; heroUri?: string | undefined; photos?: readonly { readonly label: string; readonly uri: string; readonly onRole?: (() => void) | undefined }[] | undefined; photosHint?: string | undefined; fournisseur?: { readonly value: string; readonly onChange: (v: string) => void; readonly read: FournisseursRead; readonly chips: readonly ChoixFournisseur[]; readonly onRetry: () => void; readonly sienId: string } | undefined; video?: { readonly etat: VideoEtat; readonly onPick: () => void; readonly onRetirer: () => void } | undefined; photosConfirmees?: { readonly faite: boolean; readonly basculer: () => void } | undefined }) {
   const w = st.wiz;
   // The wrapper owns the publish rules AND the predicate (`authoring.ts`
   // `netLineRefusal`), so this frozen screen learns no product rule and no
@@ -87,12 +95,13 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
   // — measured with `tsc --strict`, not assumed.
   //
   // The real reason is readability at the point of use: the JSX branches read
-  // better naming the case they render (`money.kind === 'refused'`), while the
-  // footer reads better naming the state it disables on. `noNet` IS that same
-  // comparison, defined on this line, so they cannot diverge without editing
-  // it — and if the union ever grows a third case, the compiler will force
-  // every direct comparison to be revisited while a boolean alias would not.
-  const noNet = money.kind === 'refused';
+  // better naming the case they render, while the footer reads better naming
+  // the state it disables on. The union DID grow a third case (`vide`, F-98),
+  // so `noNet` now names what it always meant — no figure to state — rather
+  // than one of the ways there can be none.
+  const noNet = money.kind !== 'figure';
+  /** An amount he typed, or « — » for a box he has not filled (F-98). */
+  const montant = (v: number | null): string => (v === null ? '—' : formatF(v));
   /** The verify step's full-screen photo inspection (founder ruling 2026-07-26). */
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
@@ -177,20 +186,22 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
             <Text style={C43.titleStep}>Prix & commission</Text>
             <Overline style={{ marginTop: 18 }}>Prix de base (ce que vaut le produit)</Overline>
             <View style={{ marginTop: 8 }}>
+              {/* F-48: « − » clamps at 0 — a typed amount below one step can
+                  never become a negative box. F-98: an empty box stays empty. */}
               <Stepper
-                value={String(w.B)}
-                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { B: digitsToAmount(text) } })}
-                onMinus={() => !disabled.wizB(w) && d({ t: 'WIZ_SET', patch: { B: w.B - 500 } })}
-                onPlus={() => d({ t: 'WIZ_SET', patch: { B: w.B + 500 } })}
+                value={w.B === null ? '' : String(w.B)}
+                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { B: montantSaisi(text) } })}
+                onMinus={() => !disabled.wizB(w) && d({ t: 'WIZ_SET', patch: { B: Math.max(0, (w.B ?? 0) - 500) } })}
+                onPlus={() => d({ t: 'WIZ_SET', patch: { B: (w.B ?? 0) + 500 } })}
               />
             </View>
             <Overline style={{ marginTop: 16 }}>Commission revendeuse (vous la financez)</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
-                value={String(w.C)}
-                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { C: digitsToAmount(text) } })}
-                onMinus={() => !disabled.wizC(w) && d({ t: 'WIZ_SET', patch: { C: w.C - 100 } })}
-                onPlus={() => d({ t: 'WIZ_SET', patch: { C: w.C + 100 } })}
+                value={w.C === null ? '' : String(w.C)}
+                onChangeText={(text) => d({ t: 'WIZ_SET', patch: { C: montantSaisi(text) } })}
+                onMinus={() => !disabled.wizC(w) && d({ t: 'WIZ_SET', patch: { C: Math.max(0, (w.C ?? 0) - 100) } })}
+                onPlus={() => d({ t: 'WIZ_SET', patch: { C: (w.C ?? 0) + 100 } })}
               />
             </View>
             <View style={{ marginTop: 16 }}>
@@ -202,10 +213,13 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 // The reason comes from the wrapper, so this screen states which
                 // rule refused rather than assuming there is only one.
                 <Banner tone="warn">{tr(money.reasonKey)}</Banner>
+              ) : money.kind === 'vide' ? (
+                // F-98: nothing typed yet is not an error — a calm line, no warning.
+                <Text style={role({ f: 'IS', w: 400, s: 14, lh: 1.55 }, P.inkSoft)}>{tr('publier.prix_a_saisir')}</Text>
               ) : (
                 <MoneyBreakdown
-                  B={formatF(w.B)}
-                  C={formatF(w.C)}
+                  B={montant(w.B)}
+                  C={montant(w.C)}
                   netV={formatF(money.net.sellerNetFcfa)}
                   netSize="XL"
                 />
@@ -219,16 +233,23 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         {w.step === 3 && (
           <>
             <Text style={C43.titleStep}>Photos — Studio</Text>
-            <Text style={[role({ f: 'IS', w: 400, s: 14, lh: 1.55 }, P.inkSoft), { marginTop: 10 }]}>
-              {tr('fp.studio_guide')}
-            </Text>
+            {/* F-46: the « nettes, honnêtes et sans prix incrusté » guide is
+                gone — the web Studio gives no such guidance, so the sentence
+                promised a check that never ran. */}
             {w.photos ? (
-              <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: P.successBg }}>
-                <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
-                <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
-                  {tr('publier.photos_validees')}
-                </Text>
-              </View>
+              <>
+                <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: GEO.r.banner, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: P.successBg }}>
+                  <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
+                  <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.successFg), { flex: 1 }]}>
+                    {tr('publier.photos_validees')}
+                  </Text>
+                </View>
+                {/* F-47: a wrong photo no longer means starting the listing
+                    over — the same Studio, and its back returns here. */}
+                <View style={{ marginTop: 10 }}>
+                  <BtnSoft label={tr('publier.photos_changer')} icon="camera" onPress={() => d({ t: 'OPEN_STUDIO' })} />
+                </View>
+              </>
             ) : (
               <View style={{ marginTop: 14 }}>
                 <C07BtnPrimary label="Ouvrir Boutik+ Studio" icon="camera" onPress={() => d({ t: 'OPEN_STUDIO' })} />
@@ -297,7 +318,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   (w.details[i] ?? '').trim() === '' ? '—' : (w.details[i] ?? '').trim(),
                 ]),
                 ['Stock disponible', `${w.stock}`],
-                ['Prix de base', formatF(w.B)],
+                ['Prix de base', montant(w.B)],
               ] as readonly (readonly [string, string])[]).map(([label, value]) => (
                 <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
                   <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>
@@ -308,17 +329,17 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               {/* Unreachable when no net may be stated — continue is blocked on
                   step 2 — but the type makes the case explicit rather than
                   letting a number be printed for an offer that cannot exist. */}
-              {money.kind === 'refused' ? (
-                <Banner tone="warn">{tr(money.reasonKey)}</Banner>
-              ) : (
+              {money.kind === 'figure' ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
                   <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>Vous recevez / vente</Text>
                   <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(money.net.sellerNetFcfa)}</Text>
                 </View>
+              ) : (
+                <Banner tone="warn">{tr(money.kind === 'refused' ? money.reasonKey : 'publier.prix_a_saisir')}</Banner>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
                 <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>Commission revendeuse</Text>
-                <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{formatF(w.C)}</Text>
+                <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{montant(w.C)}</Text>
               </View>
             </Card>
             {/* LISTER-POUR-1b/2 — WHOM THIS PUBLICATION IS FOR (founder orders
@@ -422,14 +443,28 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 )}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={role({ f: 'IS', w: 700, s: 14 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
-                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{`${w.cat} · photo premium, sans prix incrusté`}</Text>
-                  <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), TNUM, { marginTop: 3 }]}>{`Commission revendeuse ${formatF(w.C)}`}</Text>
+                  {/* F-46: « photo premium, sans prix incrusté » was a claim nothing checked. */}
+                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{w.cat}</Text>
+                  <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), TNUM, { marginTop: 3 }]}>{`Commission revendeuse ${montant(w.C)}`}</Text>
                 </View>
               </View>
             </Card>
-            <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-              {tr('fp.moderation_note')}
-            </Text>
+            {/* F-46: the moderation note is gone — authoring self-approves, so
+                « la modération vérifie … avant mise en ligne » never happened.
+                In its place, HIS confirmation, pressed before « Publier ». */}
+            {photosConfirmees !== undefined && (
+              <Pressable
+                onPress={photosConfirmees.basculer}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: photosConfirmees.faite }}
+                style={{ marginTop: 14, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: GEO.r.banner, borderWidth: 1, borderColor: photosConfirmees.faite ? P.green : P.borderCtl, backgroundColor: photosConfirmees.faite ? P.greenSoft : P.surface, paddingVertical: 12, paddingHorizontal: 14 }}
+              >
+                <View style={{ width: 24, height: 24, borderRadius: GEO.r.echTime / 2, borderWidth: 1.5, borderColor: photosConfirmees.faite ? P.green : P.borderCtl, backgroundColor: photosConfirmees.faite ? P.green : P.surface, alignItems: 'center', justifyContent: 'center' }}>
+                  {photosConfirmees.faite && <Icon name="check" size={15} stroke={P.surface} strokeWidth={2.4} />}
+                </View>
+                <Text style={[role({ f: 'IS', w: 600, s: 14, lh: 1.45 }, P.ink), { flex: 1 }]}>{tr('publier.photos_confirmation')}</Text>
+              </Pressable>
+            )}
           </>
         )}
       </ScrollView>
@@ -449,7 +484,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
             less, not more. */}
         <C07BtnPrimary
           label={footerLabel}
-          disabled={disabled.wizContinue(st) || (w.step === 2 && noNet)}
+          disabled={disabled.wizContinue(st) || (w.step === 2 && noNet) || (w.step === 4 && photosConfirmees !== undefined && !photosConfirmees.faite)}
           onPress={() => d({ t: 'WIZ_NEXT' })}
         />
       </WizardFooter>

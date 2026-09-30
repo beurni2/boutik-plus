@@ -50,6 +50,10 @@ export default defineConfig({
       // loads no font and states so; it also gives Node the `.ttf` asset
       // loader Metro provides.
       'expo-font': at('./test/doubles/expo-font.ts'),
+      // LISTER-VRAI-1 (AUDIT-B+2 F-47) — the growth rule once more: the first
+      // walk to open the real Studio from the wizard reaches the camera module.
+      // The double has no camera and grants nothing on its own.
+      'expo-camera': at('./test/doubles/expo-camera.tsx'),
     },
   },
 });

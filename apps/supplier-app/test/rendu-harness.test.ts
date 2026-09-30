@@ -8,6 +8,7 @@ import * as cryptoDouble from './doubles/expo-crypto';
 import * as imgDouble from './doubles/expo-image-manipulator';
 import * as fsDouble from './doubles/expo-file-system';
 import * as fontDouble from './doubles/expo-font';
+import * as cameraDouble from './doubles/expo-camera';
 import { cheminResolu as cheminSelecteur } from './doubles/expo-image-picker';
 import { createRequire } from 'node:module';
 import { ENREGISTREMENTS } from '@platform/recorded-answers';
@@ -67,6 +68,7 @@ const DOUBLED: readonly { readonly spec: string; readonly mod: Record<string, un
   { spec: 'expo-image-manipulator', mod: imgDouble as unknown as Record<string, unknown> },
   { spec: 'expo-file-system', mod: fsDouble as unknown as Record<string, unknown> },
   { spec: 'expo-font', mod: fontDouble as unknown as Record<string, unknown> },
+  { spec: 'expo-camera', mod: cameraDouble as unknown as Record<string, unknown> },
 ];
 
 describe('every double is CERTIFIED to what the app imports', () => {

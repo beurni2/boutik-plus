@@ -161,6 +161,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
       banner={phase.banner}
       busy={busy}
       subtitle={counter}
+      assezDePhotos={shots.length >= PHOTOS_MIN}
       onPick={() => { void pickBatch(); }}
       onDropAssets={(assets) => { void dropBatch(assets); }}
       onShot={onShot}

@@ -1291,7 +1291,7 @@
   },
   {
     "key": "publier.echec_reseau",
-    "fr": "Pas de réseau. Rien n'a été envoyé. Réessayez quand la connexion revient.",
+    "fr": "La réponse n'est pas arrivée. Le produit est peut-être déjà enregistré. Réessayez : il ne sera jamais publié deux fois.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3453,18 +3453,6 @@
     "key": "fp.accueil_gratuite_note",
     "fr": "S’inscrire ne coûte rien. Publier ne coûte rien. Et pour le moment, vendre ne coûte rien : Boutik+ ne prend aucun frais sur vos ventes.",
     "register": "money",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.studio_guide",
-    "fr": "Le Studio vous guide pour des photos nettes, honnêtes et sans prix incrusté.",
-    "register": "selling",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.moderation_note",
-    "fr": "La modération vérifie catégorie, allégations et photos avant mise en ligne (quelques instants dans la démo).",
-    "register": "neutral",
     "screenClass": "instruction"
   },
   {
@@ -5698,5 +5686,41 @@
     "fr": "Enregistrer la clé et publier",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "publier.photos_confirmation",
+    "fr": "Aucun prix, aucun numéro, aucune enseigne sur les photos",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.prix_a_saisir",
+    "fr": "Tapez votre prix de base et la commission. Vous verrez ici ce que vous recevez.",
+    "register": "money",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "publier.photos_changer",
+    "fr": "Changer les photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.photos_echec_reseau",
+    "fr": "La réponse n'est pas arrivée. Les photos sont peut-être déjà jointes. Réessayez : elles ne seront jamais jointes deux fois.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.details_perdus_un",
+    "fr": "1 photo de détail n'est pas partie. Le produit est en ligne avec les autres photos.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "publier.details_perdus_n",
+    "fr": "{n} photos de détail ne sont pas parties. Le produit est en ligne avec les autres photos.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

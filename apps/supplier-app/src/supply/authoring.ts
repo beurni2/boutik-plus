@@ -328,6 +328,9 @@ export type PublishState =
       readonly sellerNetFcfa?: number;
       /** true ⇒ this offer was stored by an EARLIER attempt; what is live is that version. */
       readonly alreadyRegistered: boolean;
+      /** Whether the stored product carries photographs, when the answer says
+       *  (F-45b) — the earlier attempt may have gone without them. */
+      readonly photosEnLigne?: boolean;
     }
   /** The service answered, and declined — its own words, never a generic message. */
   | { readonly kind: 'refused'; readonly reason: string }
@@ -368,6 +371,7 @@ export async function publish(
       kind: 'published' as const,
       offerId: built.command.offerId,
       alreadyRegistered: status === 'idempotent',
+      ...(res.value.photosPresentes !== undefined ? { photosEnLigne: res.value.photosPresentes } : {}),
     };
     return net === undefined ? base : { ...base, sellerNetFcfa: net };
   }

@@ -11,8 +11,8 @@ export type Product = {
   id: string;
   name: string;
   cat: string;
-  B: number;
-  C: number;
+  B: number | null; // the wizard's own, empty until typed (LISTER-VRAI-1, F-98)
+  C: number | null;
   stock: number;
   sizes: string | null;
   glyph: string;

@@ -143,8 +143,9 @@ function formFromWiz(wiz: S['wiz']): AuthoringForm {
     productCode: wiz.code,
     category: wiz.cat,
     zone: SUPPLIER_ZONE, // his BOUTIQUE's zone — no longer asked per listing
-    basePrice: String(wiz.B),
-    resellerCommission: String(wiz.C),
+    // F-98: an untyped box is an empty field — the core refuses it by name.
+    basePrice: wiz.B === null ? '' : String(wiz.B),
+    resellerCommission: wiz.C === null ? '' : String(wiz.C),
     available: String(wiz.stock),
     // RAYONS-1: the category's structured answers become the ONE canon note —
     // single-field categories byte-identical to what always published.
@@ -171,6 +172,11 @@ export interface ListingSession {
    *  round-trip. `durationSec` is the device's ceiling — the service re-measures
    *  at upload and canon re-refuses at parse. */
   video: { bytes: Uint8Array; durationSec: number } | null;
+  /** The photo roles he chose on the verify step, keyed to the set they were
+   *  chosen for. Shell-owned since LISTER-VRAI-1 (F-47): « Changer les photos »
+   *  makes the studio round-trip reachable AFTER he chose, and a trip that
+   *  changes no photograph must not quietly reset his choice. */
+  roles: { set: CaptureSet; roles: readonly PhotoRole[] } | null;
 }
 
 export function SListerReal({ st, d, captures, session, onKeySaved }: {
@@ -278,14 +284,25 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
    * ITSELF: a fresh studio round-trip hands up a new object, so a stale
    * assignment can never map onto new photographs — it silently falls back to
    * the default (pick order). */
-  const [roleChoice, setRoleChoice] = useState<{ set: CaptureSet; roles: readonly PhotoRole[] } | null>(null);
+  const [roleChoice, setRoleChoice] = useState<{ set: CaptureSet; roles: readonly PhotoRole[] } | null>(session.current.roles);
   const rolesFor = (set: CaptureSet): readonly PhotoRole[] =>
     roleChoice !== null && roleChoice.set === set && roleChoice.roles.length === set.photos.length
       ? roleChoice.roles
       : defaultRoles(set.photos.length);
   const setRoles = (next: readonly PhotoRole[]): void => {
-    if (captures.current !== null) setRoleChoice({ set: captures.current, roles: next });
+    if (captures.current === null) return;
+    const choix = { set: captures.current, roles: next };
+    session.current.roles = choix; // the shell's copy — survives the studio
+    setRoleChoice(choix);
   };
+  /** HIS CONFIRMATION that the photographs carry no price, number or shop
+   *  sign (F-46). Local on purpose: the studio round-trip remounts this
+   *  wrapper, so new photographs are always confirmed afresh. */
+  const [photosConfirmees, setPhotosConfirmees] = useState(false);
+  /** Détails that did not upload on a publish that went out with the rest
+   *  (F-45c). Said, never dropped in silence — the completion path cannot add
+   *  photographs to a product that has some (offer-core, no edit path). */
+  const [detailsPerdus, setDetailsPerdus] = useState(0);
   // The suffix is drawn ONCE PER LISTING (not per mount): held in the shell
   // session so the suggested code for an unchanged name is stable across a
   // studio round-trip. No CSPRNG → stays null → no suggestion, never weak.
@@ -348,6 +365,7 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
     inFlight.current = true;
     setPub({ kind: 'sending' });
     setVideoNote(null); // a retry re-earns its own note
+    setDetailsPerdus(0);
     try {
       identity.current = retainIdentity(identity.current, mintCommandId);
       const now = new Date().toISOString();
@@ -372,6 +390,10 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
       // trusted (a two-hero upload would be the quiet corruption).
       let assets: ProductAssetsInput | undefined;
       let leftover: PendingPhotos | null = null;
+      /** This attempt's uploads — kept in case the service answers that an
+       *  EARLIER attempt is the one on record (F-45b). */
+      let tentative: PendingPhotos | null = null;
+      let perdus = 0;
       const order = captures.current === null ? null : publishOrder(rolesFor(captures.current));
       if (captures.current !== null && order === null) {
         // Unreachable through the chip UI — and REFUSED LOUDLY if ever reached
@@ -417,8 +439,10 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
           processingVersion: PROCESSING_VERSION,
         };
         const assembled = assembleAssets(uploads);
+        tentative = { uploads, bytes };
         if (assembled.ok) {
           assets = assembled.assets;
+          perdus = uploads.detail.length - assembled.assets.detail.length;
           // VIDEO-PRODUIT-1c — the clip rides ON the assembled photo assets
           // (canon requires the photo roles, so a video cannot exist without
           // them). Upload now, weld on success; a failed upload NEVER blocks
@@ -445,7 +469,15 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
       }
 
       const outcome = await publish(service, formFromWiz(st.wiz), ctx, assets);
-      setPending(outcome.kind === 'published' && leftover !== null ? leftover : null);
+      // F-45b: « already registered » means the FIRST attempt is what is live.
+      // If that one went without photographs, this attempt's must not be
+      // dropped: they stay pending and « Envoyer les photos » attaches them.
+      // When the answer does not say, they stay pending too — the attach
+      // answers « déjà là » if they were, and that is taken as done.
+      const photosPerdues =
+        outcome.kind === 'published' && outcome.alreadyRegistered && assets !== undefined && outcome.photosEnLigne !== true;
+      setPending(outcome.kind === 'published' ? (leftover ?? (photosPerdues ? tentative : null)) : null);
+      setDetailsPerdus(outcome.kind === 'published' && !outcome.alreadyRegistered ? perdus : 0);
       setPub(outcome);
     } catch (err) {
       setPub({ kind: 'failed', cause: 'device', reason: String((err as Error)?.message ?? err) });
@@ -497,11 +529,16 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
         offerId: identity.current.offerId,
         assets: assetsToAttach,
       });
-      if (res.ok && (res.value.status === 'attached' || res.value.status === 'idempotent')) {
+      // `assets_already_present` IS DONE, not a failure (F-45b): the product
+      // already carries photographs — the first attempt's, from this same
+      // set — so a retry could only be refused again, forever.
+      const dejaLa = res.ok && res.value.status === 'refused' && res.value.reason === 'assets_already_present';
+      if (res.ok && (res.value.status === 'attached' || res.value.status === 'idempotent' || dejaLa)) {
         setPending(null);
         setAttachNote('done');
       } else if (!res.ok && res.cause === 'network') {
-        setAttachNote(t('publier.echec_reseau')); // nothing was sent — say only that
+        // The answer did not arrive; the attach may have landed (F-45a).
+        setAttachNote(t('publier.photos_echec_reseau'));
       } else {
         // the diagnostic NEVER stands alone — framed by the catalog sentence,
         // exactly as every other failure surface in this file (verifier finding)
@@ -610,6 +647,13 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
                   <Banner tone="warn">{t('publier.photos_non_config')}</Banner>
                 </View>
               ) : null}
+              {detailsPerdus > 0 && (
+                <View style={{ marginTop: 18 }}>
+                  <Banner tone="warn">
+                    {detailsPerdus === 1 ? t('publier.details_perdus_un') : t('publier.details_perdus_n').replace('{n}', String(detailsPerdus))}
+                  </Banner>
+                </View>
+              )}
               {videoNote !== null && (
                 <View style={{ marginTop: 18 }}>
                   <Banner tone="warn">{t(videoNote)}</Banner>
@@ -724,11 +768,16 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
   // The reason is mapped through the EXISTING `ERROR_KEY` table — the same
   // typed vocabulary the publish failures already use, so this adds no second
   // mapping and no invented shape.
-  const refusal = netLineRefusal(st.wiz.B, st.wiz.C);
+  // F-98: until he has typed BOTH, there is nothing to state and nothing
+  // wrong — `vide`, which the wizard shows as a calm line, never a warning.
+  const { B, C } = st.wiz;
+  const refusal = B === null || C === null ? null : netLineRefusal(B, C);
   const money: SellerNetLine =
-    refusal === null
-      ? { kind: 'figure', net: previewSellerNet(st.wiz.B, st.wiz.C) }
-      : { kind: 'refused', reasonKey: ERROR_KEY[refusal] };
+    B === null || C === null
+      ? { kind: 'vide' }
+      : refusal === null
+        ? { kind: 'figure', net: previewSellerNet(B, C) }
+        : { kind: 'refused', reasonKey: ERROR_KEY[refusal] };
   // ALL THREE PHOTOGRAPHS for the verify step — the SHIPPED bytes, in his
   // shot order. `undefined` when the Studio has not run, which is the honest
   // absence the card keys off rather than three grey squares.
@@ -776,6 +825,7 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
         onPick: () => { void onPickVideo(); },
         onRetirer: onRetirerVideo,
       }}
+      photosConfirmees={{ faite: photosConfirmees, basculer: () => setPhotosConfirmees((v) => !v) }}
     />
   );
 }

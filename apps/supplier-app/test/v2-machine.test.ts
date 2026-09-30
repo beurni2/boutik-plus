@@ -57,14 +57,17 @@ describe('T04/T18/T19 — wizard: §4.4 gates, §9.5 name fallback, moderation 6
 
   it('step 4/5 blocks without photos; publish creates np1 mod:true then approves at +6000ms', () => {
     let { s } = run(initialState(), { t: 'BOOT_DONE' }, { t: 'OPEN_WIZ' });
-    expect(s.wiz).toMatchObject({ step: 0, cat: 'Mode femme', B: 10_000, C: 1_000, stock: 5, photos: false });
-    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'Robe wax' } }, { t: 'WIZ_NEXT' }, { t: 'WIZ_NEXT' })); // → step 3 (Photos), name set (the step-1 gate)
+    // F-98 (founder 2026-09-30): the price and the commission open EMPTY — he types them.
+    expect(s.wiz).toMatchObject({ step: 0, cat: 'Mode femme', B: null, C: null, stock: 5, photos: false });
+    ({ s } = run(s, { t: 'WIZ_NEXT' }, { t: 'WIZ_SET', patch: { name: 'Robe wax' } }, { t: 'WIZ_NEXT' },
+      { t: 'WIZ_SET', patch: { B: 10_000, C: 1_000 } }, { t: 'WIZ_NEXT' })); // → step 3 (Photos), name and prices set
     expect(s.wiz.step).toBe(3);
     expect(disabled.wizContinue(s)).toBe(true);
     expect(reduce(s, { t: 'WIZ_NEXT' }).s.wiz.step).toBe(3); // gated
     ({ s } = run(s, { t: 'OPEN_STUDIO' }, { t: 'STUDIO_APPROVE' }));
     expect(s.wiz.photos).toBe(true);
-    expect(s.toasts.at(-1)!.m).toBe('Photos canoniques prêtes — sans prix, sans contact');
+    // F-46: approval claims nothing about the photographs — nothing checked them.
+    expect(s.toasts).toEqual([]);
     ({ s } = run(s, { t: 'WIZ_NEXT' })); // → 4 (recap)
     const r = reduce(s, { t: 'WIZ_NEXT' }); // T19 publish
     s = r.s;

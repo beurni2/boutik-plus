@@ -4,7 +4,7 @@ import { P } from '../ui/v2/palette';
 import { GEO, SHADOW } from '../ui/v2/tokens';
 import { C21, role } from '../ui/v2/styles';
 import { t } from '../i18n';
-import { Banner, C07BtnPrimary, HeaderStacked } from './components';
+import { Banner, BtnSoft, C07BtnPrimary, HeaderStacked } from './components';
 import { decodeRefusalSentence, noPhotoSentenceKey } from '../studio/pick';
 import type { StudioShootProps } from './studio-shoot';
 
@@ -63,7 +63,7 @@ interface DomEventTarget {
 declare const window: { matchMedia?: (query: string) => { matches: boolean } } | undefined;
 declare const URL: { createObjectURL(file: DomFile): string };
 
-export function StudioShoot({ banner, subtitle, onPick, onDropAssets, onBack, children }: StudioShootProps) {
+export function StudioShoot({ banner, subtitle, onPick, onDropAssets, onBack, children, assezDePhotos }: StudioShootProps) {
   const paneRef = useRef<View | null>(null);
   const [hover, setHover] = useState(false);
 
@@ -155,8 +155,14 @@ export function StudioShoot({ banner, subtitle, onPick, onDropAssets, onBack, ch
               : t(banner.kind === 'limite' ? 'studio.limite' : noPhotoSentenceKey())}
           </Banner>
         )}
+        {/* F-51: one primary action per screen — once « Continuer avec ces
+            photos » appears below, picking more steps back to a soft button. */}
         <View style={{ marginTop: 12 }}>
-          <C07BtnPrimary label={t('studio.depuis_telephone')} onPress={onPick} />
+          {assezDePhotos ? (
+            <BtnSoft label={t('studio.depuis_telephone')} onPress={onPick} />
+          ) : (
+            <C07BtnPrimary label={t('studio.depuis_telephone')} onPress={onPick} />
+          )}
         </View>
         {/* the COLLECTION — thumbnails, remove, and « Continuer » — rendered by
             studio-real (platform-free); this screen only gives it the floor. */}

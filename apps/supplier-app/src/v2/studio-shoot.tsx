@@ -38,6 +38,10 @@ export interface StudioShootProps {
   readonly busy: MutableRefObject<boolean>;
   /** The shared pick funnel (studio-real owns it — one funnel, both platforms). */
   readonly onPick: () => void;
+  /** LISTER-VRAI-1 (AUDIT-B+2 F-51) — enough photographs to go on: « Continuer
+   *  avec ces photos » is then the one primary action, and the pick control
+   *  steps back. (The phone screen's pick control is already secondary.) */
+  readonly assezDePhotos: boolean;
   /** Drag-and-dropped files (BOUTIK-WEB-W3, plural since STUDIO-BATCH-1) —
    * same funnel, additional entry. Only the web screen calls it; drag events
    * do not exist on the native side. */

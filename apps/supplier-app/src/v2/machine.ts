@@ -31,7 +31,13 @@ export type View = null | { s: 'add' | 'studio' };
 // different from a field the system decided for him). Every §4 transition and
 // §9 rule is untouched by them. `zone` NEVER travels: the supply projection
 // stays seven fields; it is boutik-side data ahead of the delivery work.
-export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; code: string; zone: string; B: number; C: number; details: readonly string[]; stock: number; photos: boolean };
+//
+// `B` and `C` ARE `null` UNTIL HE TYPES THEM (LISTER-VRAI-1, AUDIT-B+2 F-98 —
+// founder 2026-09-30, « Price starts empty »: « you type the price and
+// commission yourself »). The form used to open on the demo board's 10 000 /
+// 1 000 F, and those published if he never touched them. `null` and not `0`
+// because a commission of 0 is a real answer he may give.
+export type Wiz = { step: 0 | 1 | 2 | 3 | 4; cat: string; name: string; code: string; zone: string; B: number | null; C: number | null; details: readonly string[]; stock: number; photos: boolean };
 
 export type S = {
   loading: boolean;
@@ -45,7 +51,7 @@ export type S = {
   tseq: number; // toast id sequence
 };
 
-export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', code: '', zone: '', B: 10_000, C: 1_000, details: detailsParDefaut('Mode femme'), stock: 5, photos: false };
+export const WIZ_RESET: Wiz = { step: 0, cat: 'Mode femme', name: '', code: '', zone: '', B: null, C: null, details: detailsParDefaut('Mode femme'), stock: 5, photos: false };
 
 export function initialState(): S {
   return {
@@ -104,8 +110,8 @@ export const disabled = {
   // never enable). The published record's zone comes from SUPPLIER_ZONE at
   // formFromWiz; the Wiz field stays, unused, so §9's frozen shape is intact.
   wizContinue: (s: S) => (s.wiz.step === 1 && s.wiz.name.trim() === '') || (s.wiz.step === 3 && !s.wiz.photos),
-  wizB: (w: Wiz) => w.B <= 500,
-  wizC: (w: Wiz) => w.C <= 0,
+  wizB: (w: Wiz) => w.B === null || w.B <= 500,
+  wizC: (w: Wiz) => w.C === null || w.C <= 0,
   wizStock: (w: Wiz) => w.stock <= 1,
 };
 
@@ -125,6 +131,10 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
     case 'BACK': {
       // §4.1: wizard step-back; step 0 exits
       if (s.view?.s === 'add' && s.wiz.step > 0) return { s: { ...s, wiz: { ...s.wiz, step: (s.wiz.step - 1) as Wiz['step'] } }, fx };
+      // The Studio is only ever opened from the wizard's photo step, so its
+      // back returns there — never to the tab, which would strand everything
+      // he typed (LISTER-VRAI-1, F-47: « Changer les photos » reopens it).
+      if (s.view?.s === 'studio') return { s: { ...s, view: { s: 'add' } }, fx };
       return { s: { ...s, view: null }, fx };
     }
     case 'WIZ_SET': {
@@ -180,11 +190,10 @@ export function reduce(s: S, a: A): { s: S; fx: Effect[] } {
     }
     case 'OPEN_STUDIO':
       return { s: { ...s, view: { s: 'studio' } }, fx };
-    case 'STUDIO_APPROVE': {
-      let ns: S = { ...s, wiz: { ...s.wiz, photos: true, step: 3 }, view: { s: 'add' } };
-      ns = toast(ns, 'Photos canoniques prêtes — sans prix, sans contact', fx);
-      return { s: ns, fx };
-    }
+    case 'STUDIO_APPROVE':
+      // No toast (LISTER-VRAI-1, F-46): « sans prix, sans contact » was a claim
+      // nothing checked. HE confirms it himself on the verify step.
+      return { s: { ...s, wiz: { ...s.wiz, photos: true, step: 3 }, view: { s: 'add' } }, fx };
     case 'TOAST_EXPIRE':
       return { s: { ...s, toasts: s.toasts.filter((t) => t.id !== a.id) }, fx };
   }

@@ -67,7 +67,9 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     // not silently aim product B there too. The pin now asserts that.
     // PIN EVOLVED AGAIN (VIDEO-PRODUIT-1c): the session gained `video` — a clip
     // picked for product A must not ride product B, so it resets with the rest.
-    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{[\s\S]{0,400}captures\.current = null;[\s\S]{0,400}listing\.current = \{ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null \};/);
+    // PIN EVOLVED (LISTER-VRAI-1, F-47): the session gained `roles` — his
+    // role choice survives a studio round-trip, and resets with a new listing.
+    expect(shell).toMatch(/if \(a\.t === 'OPEN_WIZ'\) \{[\s\S]{0,400}captures\.current = null;[\s\S]{0,400}listing\.current = \{ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null, roles: null \};/);
   });
 
   it('ONE TAP leaves the outcome pane — never four dead taps then a destroyed completion path', () => {

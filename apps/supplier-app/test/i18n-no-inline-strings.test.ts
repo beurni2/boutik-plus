@@ -115,9 +115,10 @@ describe('Law 6 — user-facing French lives in the catalog, never inline in JSX
    */
   it('every fp.* key added by the F17 migration is present, non-empty and register-tagged', () => {
     const fp = catalog.filter((e) => e.key.startsWith('fp.'));
-    // 27 → 4 (LISTER-VRAI-1, founder « make room », 2026-09-30): 23 of them
-    // lived only on the demo screens that were deleted, and left with them.
-    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(4);
+    // 27 → 2 (LISTER-VRAI-1, 2026-09-30): 23 lived only on the demo screens
+    // deleted on his « make room »; `fp.studio_guide` and `fp.moderation_note`
+    // promised checks that never ran (F-46) and were removed.
+    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(2);
     for (const entry of fp) {
       expect(entry.fr.trim().length, `${entry.key} is empty`).toBeGreaterThan(0);
       expect(['money', 'selling', 'neutral'], `${entry.key} has no valid register`).toContain(entry.register);

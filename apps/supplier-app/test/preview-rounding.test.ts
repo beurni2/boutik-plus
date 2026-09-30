@@ -142,8 +142,11 @@ describe('the wizard cannot fall back to the demo math — the capability is gon
     expect(bound).toEqual(['formatF']); // formatting only — no arithmetic
     // the SHARED predicate decides, the canon call produces the figure, and the
     // reason is mapped through the EXISTING typed table — no second mapping
-    expect(src).toMatch(/const refusal = netLineRefusal\(st\.wiz\.B, st\.wiz\.C\);/);
-    expect(src).toMatch(/\{ kind: 'figure', net: previewSellerNet\(st\.wiz\.B, st\.wiz\.C\) \}/);
+    // LISTER-VRAI-1 (F-98): B and C are empty until he types them — then no
+    // predicate runs and no figure exists (`vide`), never a default price.
+    expect(src).toMatch(/const refusal = B === null \|\| C === null \? null : netLineRefusal\(B, C\);/);
+    expect(src).toMatch(/B === null \|\| C === null\s*\?\s*\{ kind: 'vide' \}/);
+    expect(src).toMatch(/\{ kind: 'figure', net: previewSellerNet\(B, C\) \}/);
     expect(src).toMatch(/\{ kind: 'refused', reasonKey: ERROR_KEY\[refusal\] \}/);
     expect(src).toMatch(/money=\{money\}/);
   });
@@ -206,7 +209,7 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     // repo has no render harness, so this regex is the load-bearing part —
     // labelled, not disguised). One law, one home, two enforcement points.
     const source = readFileSync(join(appDir, 'src/v2/lister-real.tsx'), 'utf8');
-    expect(source).toMatch(/const refusal = netLineRefusal\(st\.wiz\.B, st\.wiz\.C\);/);
+    expect(source).toMatch(/const refusal = B === null \|\| C === null \? null : netLineRefusal\(B, C\);/);
     // and the core's own answer at the two values either side of it, RUN
     const at = (B: number) => buildCreateOffer({ ...FLOOR_FORM, basePrice: String(B) }, FLOOR_CTX);
     expect(at(4_500).ok, 'one step below the floor must be refused').toBe(false);
@@ -227,15 +230,17 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     // both money render sites branch on it, and neither formats a net in the null arm
     const step2 = /money\.kind === 'refused' \? \([\s\S]{0,600}?tr\(money\.reasonKey\)[\s\S]{0,600}?<MoneyBreakdown/;
     expect(src, 'step 2 must refuse before it breaks down').toMatch(step2);
-    const step4 = /money\.kind === 'refused' \? \([\s\S]{0,300}?tr\(money\.reasonKey\)[\s\S]{0,400}?Vous recevez \/ vente/;
-    expect(src, 'step 4 must refuse before it states a net').toMatch(step4);
+    // step 4 states the net ONLY in the figure arm; every other arm is a
+    // sentence (a refusal's own key, or « tapez votre prix » when empty — F-98)
+    const step4 = /money\.kind === 'figure' \? \([\s\S]{0,300}?Vous recevez \/ vente[\s\S]{0,400}?tr\(money\.kind === 'refused' \? money\.reasonKey : 'publier\.prix_a_saisir'\)/;
+    expect(src, 'step 4 must state a net only when one was handed').toMatch(step4);
     // the screen never hardcodes WHICH refusal — it states the key it is handed
     expect(src).not.toMatch(/tr\('publier\.err_prix_plancher'\)|tr\('publier\.err_commission_net'\)/);
   });
 
   it('continue is BLOCKED on step 2 below the floor — the frozen reducer predicate is untouched', () => {
     const src = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
-    expect(src).toMatch(/disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && noNet\)\}/);
+    expect(src).toMatch(/disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && noNet\) \|\| \(w\.step === 4 && photosConfirmees !== undefined && !photosConfirmees\.faite\)\}/);
     const machine = readFileSync(join(appDir, 'src/v2/machine.ts'), 'utf8');
     // the floor is a REAL-FLOW rule and must not have leaked into the demo machine
     expect(machine).not.toMatch(/CATEGORY_FLOOR|5_000|below_category_floor/);
@@ -264,7 +269,7 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     // and that one site is the footer button whose disabled prop carries the floor
     const screens2 = readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
     expect(screens2).toMatch(
-      /disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && noNet\)\}\s*\n\s*onPress=\{\(\) => d\(\{ t: 'WIZ_NEXT' \}\)\}/,
+      /disabled=\{disabled\.wizContinue\(st\) \|\| \(w\.step === 2 && noNet\) \|\| \(w\.step === 4 && photosConfirmees !== undefined && !photosConfirmees\.faite\)\}\s*\n\s*onPress=\{\(\) => d\(\{ t: 'WIZ_NEXT' \}\)\}/,
     );
   });
 

@@ -247,7 +247,11 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
   const photos = galleryPhotos(row.assetRefs, mediaBase);
   // VIDEO-PARTOUT — his clip, on his own product page (founder order
   // 2026-08-03). Absolutized through the SAME media base as the photographs.
-  const clipUri = row.videoRef === undefined || row.videoRef === '' ? undefined : `${mediaBase}/${row.videoRef}`;
+  // F-52: no media base, no clip address — never « null/… ».
+  const clipUri = row.videoRef === undefined || row.videoRef === '' || mediaBase === null ? undefined : `${mediaBase}/${row.videoRef}`;
+  // F-52: photographs he HAS but this build cannot fetch are « indisponible »,
+  // never « Sans photo » — the tile's own decision (`photoSlot`), reused.
+  const sansGalerie = photoSlot(row.assetRefs, mediaBase);
   // TABS pad, not stacked: this screen lives INSIDE the Produits tab, so the
   // dock overlays it — the 60px stacked pad hid the detail card's last rows
   // behind the dock (founder report 2026-07-27); the 150 tabs pad clears it.
@@ -262,7 +266,7 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
       <FicheVideo src={clipUri} poster={photos[0]?.uri} />
       {photos.length === 0 ? (
         <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.sub), { marginTop: 14 }]}>
-          {tr('produits.sans_photo')}
+          {tr(sansGalerie.kind === 'unavailable' ? sansGalerie.message : 'produits.sans_photo')}
         </Text>
       ) : (
         photos.map((ph) => (

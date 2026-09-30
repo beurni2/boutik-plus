@@ -136,10 +136,13 @@ function Lister({ actions }: { actions: A[] }) {
   );
   const [captures] = useState<{ current: CaptureSet | null }>(() => ({ current: null }));
   const [session] = useState<{ current: ListingSession }>(() => ({
-    current: { codeTouched: true, suffixBytes: null, pourFournisseur: '', video: null },
+    current: { codeTouched: true, suffixBytes: null, pourFournisseur: '', video: null, roles: null },
   }));
   return <SListerReal st={st} d={d} captures={captures} session={session} />;
 }
+
+/** LISTER-VRAI-1 (F-46) — the line he confirms before « Publier ». */
+const CONFIRMATION = 'Aucun prix, aucun numéro, aucune enseigne sur les photos';
 
 const publie = (answer: Record<string, unknown>): Route =>
   porteOffres((path) => (path === '/offers' ? { status: 200, json: answer } : null));
@@ -166,7 +169,8 @@ describe('LISTER UN PRODUIT — the publish rides the key he typed', () => {
     const w = wire([publie({ status: 'created', preview: { sellerNetFcfa: 9_500, sellerPlatformFeeFcfa: 500 } }), roster]);
     const screen = await mountEcran(<Lister actions={[]} />);
 
-    expect(screen.canPress("Publier — c'est gratuit")).toBe(true);
+    expect(screen.canPress("Publier — c'est gratuit"), 'not before he confirms his photos').toBe(false);
+    await screen.press(CONFIRMATION); // F-46: his own confirmation comes first
     await screen.press("Publier — c'est gratuit");
     await screen.settle();
 
@@ -183,6 +187,7 @@ describe('LISTER UN PRODUIT — the publish rides the key he typed', () => {
     const w = wire([publie({ status: 'created' }), roster]);
     const actions: A[] = [];
     const screen = await mountEcran(<Lister actions={actions} />);
+    await screen.press(CONFIRMATION); // F-46: his own confirmation comes first
     await screen.press("Publier — c'est gratuit");
     await screen.settle();
 
@@ -211,6 +216,7 @@ describe('LISTER UN PRODUIT — the publish rides the key he typed', () => {
     storage({ [OPS_SLOT]: OPS });
     wire([publie({ status: 'refused', reason: 'product_version_taken' }), roster]);
     const screen = await mountEcran(<Lister actions={[]} />);
+    await screen.press(CONFIRMATION); // F-46: his own confirmation comes first
     await screen.press("Publier — c'est gratuit");
     await screen.settle();
 

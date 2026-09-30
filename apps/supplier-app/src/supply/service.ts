@@ -99,6 +99,15 @@ export interface CreateOfferOutcome {
   readonly status: 'created' | 'idempotent' | 'collision' | 'refused';
   readonly reason?: string;
   readonly preview?: { readonly sellerNetFcfa: number; readonly sellerPlatformFeeFcfa: number };
+  /**
+   * LISTER-VRAI-1 (AUDIT-B+2 F-45b) — does the STORED product carry
+   * photographs? The create and idempotent answers forward the offer book's
+   * `entry` (offer-core `decideCreateOffer`); on a replay that entry is the
+   * FIRST attempt's, which may have gone without them. Absent when the answer
+   * carries no readable entry — then the screen cannot know, and says so by
+   * keeping the photos pending.
+   */
+  readonly photosPresentes?: boolean;
 }
 
 /**
@@ -339,7 +348,11 @@ export function readOutcome(body: unknown): CreateOfferOutcome | null {
   const b = body as Record<string, unknown>;
   const status = DECISION_STATUSES.find((s) => s === b['status']);
   if (status === undefined) return null;
-  const reason = typeof b['reason'] === 'string' ? { reason: b['reason'] } : {};
+  const entry = b['entry'];
+  const reason = {
+    ...(typeof b['reason'] === 'string' ? { reason: b['reason'] } : {}),
+    ...(typeof entry === 'object' && entry !== null ? { photosPresentes: (entry as Record<string, unknown>)['assets'] != null } : {}),
+  };
 
   const raw = b['preview'];
   if (typeof raw !== 'object' || raw === null) return { status, ...reason };

@@ -39,11 +39,14 @@ function WizardHost() {
   const [st, setSt] = useState<S>(() => reduce(initialState(), { t: 'OPEN_WIZ' }).s);
   const d = useCallback((a: A) => setSt((prev) => reduce(prev, a).s), []);
   dExterne = d;
-  const refusal = netLineRefusal(st.wiz.B, st.wiz.C);
+  const { B, C } = st.wiz;
+  const refusal = B === null || C === null ? null : netLineRefusal(B, C);
   const money: SellerNetLine =
-    refusal === null
-      ? { kind: 'figure', net: previewSellerNet(st.wiz.B, st.wiz.C) }
-      : { kind: 'refused', reasonKey: 'publier.err_prix' };
+    B === null || C === null
+      ? { kind: 'vide' }
+      : refusal === null
+        ? { kind: 'figure', net: previewSellerNet(B, C) }
+        : { kind: 'refused', reasonKey: 'publier.err_prix' };
   return <S20Wizard st={st} d={d} money={money} />;
 }
 
@@ -118,6 +121,10 @@ describe('S20 — a car seat listing, end to end through the machine', () => {
 
     await screen.press('Continuer');
     expect(screen.shows('Prix & commission'), 'the money step did not arrive').toBe(true);
+    // LISTER-VRAI-1 (F-98): the boxes open empty — he types his own figures.
+    expect(screen.canPress('Continuer'), 'no price typed yet').toBe(false);
+    await tape(screen, 0, '25000');
+    await tape(screen, 1, '2000');
     await screen.press('Continuer');
     expect(screen.shows('Photos — Studio'), 'the photos step did not arrive').toBe(true);
 
