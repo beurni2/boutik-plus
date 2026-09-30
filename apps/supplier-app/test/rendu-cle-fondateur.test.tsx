@@ -530,7 +530,6 @@ describe('OPÉRATIONS — the photo key door, and every key can be forgotten her
       ...autourBoard([]),
       (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
       (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
-      (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
     ]);
     const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
     await screen.press('Revendeuses');

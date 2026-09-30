@@ -468,7 +468,6 @@ describe('F-72 — the revendeuses board joins its pages and never ranks a row n
     (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
     (path) => (path === '/fulfillment/supplier-codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
     (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
-    (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
   ];
   const ligne = (accountId: string, name: string, ventes: number, suite = false) => ({
     accountId, name, state: 'active', ventes, netFcfa: ventes * 2_500, incomplet: false, ...(suite ? { suite: true } : {}),

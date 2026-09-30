@@ -128,7 +128,6 @@ describe('F-69 — opening the console reads no buyer\'s contact', () => {
   const reseller: Route[] = [
     (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
     (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
-    (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
   ];
 
   it('with key C on the device, Revendeuses opens and not one dispatch page is read', async () => {

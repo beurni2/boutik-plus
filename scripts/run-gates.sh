@@ -244,7 +244,7 @@ capture founder-keys-absent-negative fail node scripts/gates/founder-keys-absent
 # already build. Below: every branch of those checks shown firing on fixtures.
 # The checks write sw.js into the page they are given, so each run gets a copy.
 PAGE_TMP="$(mktemp -d)"
-cp -r gates/fixtures/web-size-dist "$PAGE_TMP/ok" && cp -r gates/fixtures/negative/web-page "$PAGE_TMP/e1"
+cp -r gates/fixtures/web-size-dist "$PAGE_TMP/ok" && cp -r gates/fixtures/negative/web-page "$PAGE_TMP/e1" && cp -r gates/fixtures/negative/web-page-bandeau "$PAGE_TMP/bandeau"
 log "gate: web-size — no signed ceiling (a fixture: both real pages are signed): measured and printed, never failed (must pass)"
 capture web-size-unsigned pass node scripts/gates/web-size.mjs gates/fixtures/web-size-dist fournisseur --budgets gates/fixtures/web-size-budgets.unsigned.json
 log "gate: web-size — a SIGNED ceiling the page is within (must pass)"
@@ -255,6 +255,8 @@ log "gate: web-artifact-checks — a clean page: nothing that never ships, measu
 capture web-artifact-checks-positive pass node scripts/gates/web-artifact-checks.mjs "$PAGE_TMP/ok" fournisseur
 log "gate: web-artifact-checks — NEGATIVE FIXTURE (a page carrying the retired E1 root's demo data, must fail)"
 capture web-artifact-checks-negative fail node scripts/gates/web-artifact-checks.mjs "$PAGE_TMP/e1" fournisseur
+log "gate: web-artifact-checks — NEGATIVE FIXTURE (the clean page plus the sandbox banner, escaped as the minifier ships it; must fail — PROFIL-PUBLIÉ)"
+capture web-artifact-checks-bandeau fail node scripts/gates/web-artifact-checks.mjs "$PAGE_TMP/bandeau" fournisseur
 rm -rf "$PAGE_TMP"
 log "gate: web-offline-shell — proof of the shell writer (exact precache, versions by bytes, refusals; must pass)"
 capture web-offline-shell-proof pass node scripts/gates/web-offline-shell-proof.mjs

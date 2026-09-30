@@ -273,8 +273,8 @@ describe('a stand-in for Shop+ or Séra may only say what the real door says', (
       wire([(path) => (path === '/ops/riders' ? { status: 200, json: { ok: true, riders: [] } } : null)]);
       await appel(`${base.sera}/ops/riders`);
       expect(substitutsRefuses()).toEqual([]);
-      await appel(`${base.shop}/reseller/codes`);
-      expect(substitutsRefuses()).toEqual([expect.stringContaining('shop-plus GET /reseller/codes never answers 404')]);
+      await appel(`${base.shop}/reseller/accounts`);
+      expect(substitutsRefuses()).toEqual([expect.stringContaining('shop-plus GET /reseller/accounts never answers 404')]);
     });
   });
 

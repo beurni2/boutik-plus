@@ -1,16 +1,11 @@
 import type { CodeRow, CodesResult, FinirProduitsResult, MintResult, PaidOrderRow, RetraitResult, RevealResult, RevokeResult } from './service';
 import type {
-  AccesCodeRow,
   CodeAccesResult,
   CompteActeResult,
   CompteRow,
   ComptesResult,
   SuiviLigne,
   SuiviResult,
-  AccesListResult,
-  AccesMintResult,
-  AccesRevokeResult,
-  AccesRevealResult,
   CodeAccesRevealResult,
 } from './dispatch-service';
 
@@ -409,137 +404,6 @@ export function revealSettled(supplierId: string, result: RevealResult): CodesSe
 }
 
 export function codesReadOf(result: CodesResult): CodesRead {
-  if (result.ok) return { kind: 'ok', codes: result.codes };
-  return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
-}
-
-/* ───── ACCESS-GATE-1 — the reseller ACCESS-code inventory, PURE decisions ───── */
-
-/**
- * FOUNDER ORDER, 2026-08-04: he mints a code on this console and hands it to a
- * new reseller, who types it once to get into Shop+.
- *
- * ═══ WHY THIS MIRRORS `CodesView` INSTEAD OF GENERALISING IT ═══
- *
- * The supplier-code machinery above is a proven, money-adjacent state machine
- * whose vocabulary is `supplierId` throughout. Widening it to « an id » would
- * touch every one of those call sites to serve a second caller — a refactor
- * across a working credential surface, for no behaviour. Sixty lines of the
- * same SHAPE, with its own names, is the cheaper and safer trade. If a third
- * kind of code ever appears, THAT is when the abstraction has earned itself.
- *
- * The one real difference, and it is why the shapes are not identical: there is
- * NO « known reseller » pre-flight. `mintAvis` warns him when a supplierId has
- * never appeared on a paid order, because a typo there arms a phantom door.
- * This console holds no list of resellers to check against, so it says nothing
- * rather than saying something it cannot know.
- */
-
-export type AccesRead =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'bad_key' }
-  | { readonly kind: 'failed' }
-  | { readonly kind: 'ok'; readonly codes: readonly AccesCodeRow[] };
-
-export type AccesVue =
-  | { readonly kind: 'loading'; readonly message: string }
-  | { readonly kind: 'failed'; readonly message: string }
-  | { readonly kind: 'empty'; readonly message: string }
-  | { readonly kind: 'liste'; readonly codes: readonly AccesCodeRow[] };
-
-/** `bad_key` renders NOTHING — the section's key is the Livraisons key, and one
- *  refused key must produce one sentence on the console, never two. */
-export function accesVue(read: AccesRead): AccesVue | null {
-  if (read.kind === 'bad_key') return null;
-  if (read.kind === 'loading') return { kind: 'loading', message: 'acces.chargement' };
-  if (read.kind === 'failed') return { kind: 'failed', message: 'acces.echec' };
-  if (read.codes.length === 0) return { kind: 'empty', message: 'acces.vide' };
-  return { kind: 'liste', codes: read.codes };
-}
-
-export interface AccesUi {
-  /** 'mint', or the resellerId being cut or reread — ONE act at a time. */
-  readonly busy: 'mint' | `revoke:${string}` | `reveal:${string}` | null;
-  /** The plaintext on screen, until he says he has written it down. `revele`
-   *  marks a REREAD (CODE-REVU) — same card, its own true sentence. */
-  readonly nouveau: { readonly resellerId: string; readonly code: string; readonly revele?: boolean } | null;
-  /** Namespaced like `busy`, so a reseller literally named « mint » cannot
-   *  light the wrong sentence (the verifier's note on the supplier section).
-   *  `reveal:` is the NETWORK failure (retry); `anterieur:` is the honest
-   *  pre-ruling refusal — collapsing the two told the founder to destroy a
-   *  working code over a hiccup (CODE-REVU verifier BLOCKER-1). */
-  readonly echec: 'mint' | `revoke:${string}` | `reveal:${string}` | `anterieur:${string}` | null;
-}
-
-export const ACCES_IDLE: AccesUi = { busy: null, nouveau: null, echec: null };
-
-/**
- * A LIVE one-time code BLOCKS every other act. The plaintext exists nowhere but
- * that card — the Worker stores only its SHA-256 — so any next tap that
- * re-rendered the section would destroy it mid-handover, while he is reading it
- * out over the phone. He must dismiss it first, and the screen says so in words
- * where the buttons were.
- */
-export function accesMintStart(ui: AccesUi): AccesUi | null {
-  if (ui.busy !== null || ui.nouveau !== null) return null;
-  return { busy: 'mint', nouveau: null, echec: null };
-}
-
-export function accesRevokeStart(ui: AccesUi, resellerId: string): AccesUi | null {
-  if (ui.busy !== null || ui.nouveau !== null) return null;
-  return { busy: `revoke:${resellerId}`, nouveau: null, echec: null };
-}
-
-/** CODE-REVU — the reread act, same one-act-at-a-time law. */
-export function accesRevealStart(ui: AccesUi, resellerId: string): AccesUi | null {
-  if (ui.busy !== null || ui.nouveau !== null) return null;
-  return { busy: `reveal:${resellerId}`, nouveau: null, echec: null };
-}
-
-export type AccesSettlement =
-  | { readonly ui: AccesUi; readonly then: 'refresh' }
-  | { readonly ui: AccesUi; readonly then: 'bad_key' }
-  | { readonly ui: AccesUi; readonly then: 'none' };
-
-export function accesMintSettled(result: AccesMintResult): AccesSettlement {
-  if (result.ok) {
-    // The list refreshes (the row must be the STORED truth) while the plaintext
-    // stays on screen until dismissed — he is mid-handover.
-    return { ui: { busy: null, nouveau: { resellerId: result.resellerId, code: result.code }, echec: null }, then: 'refresh' };
-  }
-  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
-  return { ui: { busy: null, nouveau: null, echec: 'mint' }, then: 'none' };
-}
-
-export function accesRevokeSettled(resellerId: string, result: AccesRevokeResult): AccesSettlement {
-  // `no_code` RE-READS too: the list claimed a code the book no longer holds,
-  // so the row must leave the screen, and the stored truth is how.
-  if (result.ok || (!result.ok && result.reason === 'no_code')) return { ui: ACCES_IDLE, then: 'refresh' };
-  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
-  return { ui: { busy: null, nouveau: null, echec: `revoke:${resellerId}` }, then: 'none' };
-}
-
-/** CODE-REVU settle — the supplier desk's split, verbatim law: `no_code`
- *  refreshes (the list claimed a door the book no longer holds, the row must
- *  leave); `code_anterieur` lights the honest pre-ruling sentence; ONLY the
- *  network fall-through says « pas de réponse » — it must never wear the
- *  anterieur sentence, whose remedy (re-mint) destroys a working code. */
-export function accesRevealSettled(resellerId: string, result: AccesRevealResult): AccesSettlement {
-  if (result.ok) {
-    return {
-      ui: { busy: null, nouveau: { resellerId: result.resellerId, code: result.code, revele: true }, echec: null },
-      then: 'none',
-    };
-  }
-  if (result.reason === 'bad_key') return { ui: ACCES_IDLE, then: 'bad_key' };
-  if (result.reason === 'no_code') return { ui: ACCES_IDLE, then: 'refresh' };
-  if (result.reason === 'code_anterieur') {
-    return { ui: { busy: null, nouveau: null, echec: `anterieur:${resellerId}` }, then: 'refresh' };
-  }
-  return { ui: { busy: null, nouveau: null, echec: `reveal:${resellerId}` }, then: 'none' };
-}
-
-export function accesReadOf(result: AccesListResult): AccesRead {
   if (result.ok) return { kind: 'ok', codes: result.codes };
   return { kind: result.reason === 'bad_key' ? 'bad_key' : 'failed' };
 }

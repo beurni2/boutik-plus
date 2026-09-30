@@ -35,7 +35,6 @@ const autour: Route[] = [
   (path) => (path === '/fulfillment/supplier-codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
   (path) => (path === '/reseller/accounts' ? { status: 200, json: { ok: true, accounts: [] } } : null),
   (path) => (path === '/reseller/suivi' ? { status: 200, json: { ok: true, lignes: [], total: 0 } } : null),
-  (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
 ];
 
 /** The Worker's recovery-code door, by its real bounds. */

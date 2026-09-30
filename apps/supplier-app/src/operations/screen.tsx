@@ -21,8 +21,6 @@ import {
   clearStoredCleC,
   readStoredCleC,
   storeCleC,
-  resolveAccesService,
-  type AccesServicePort,
   resolveComptesService,
   type CompteRow,
   type ComptesServicePort,
@@ -47,18 +45,6 @@ import {
   type CodesRead,
   type CodesUi,
   type OperationsRead,
-  ACCES_IDLE,
-  accesMintSettled,
-  accesMintStart,
-  accesReadOf,
-  accesRevealSettled,
-  accesRevealStart,
-  accesRevokeSettled,
-  accesRevokeStart,
-  accesVue,
-  type AccesRead,
-  type AccesSettlement,
-  type AccesUi,
   COMPTES_IDLE,
   acteSettled,
   acteStart,
@@ -117,7 +103,7 @@ type ZoneConsole = 'revendeuses' | 'fournisseurs' | 'fonds' | 'coursiers';
 
 /** CONSOLE-REV-1 — the Revendeuses zone shows ONE of its three at a time, and
  *  `menu` is the chooser he lands on. */
-type VueRevendeuses = 'menu' | 'comptes' | 'suivi' | 'acces' | 'clientes';
+type VueRevendeuses = 'menu' | 'comptes' | 'suivi' | 'clientes';
 
 /** COMPTE-CLIENTE-2 — « Aider une cliente »: what the section holds while he works. */
 interface RecupUi {
@@ -690,20 +676,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
    */
   const [cleRefusee, setCleRefusee] = useState(false);
 
-  /* ── ACCESS-GATE-1 — the reseller ACCESS codes, on the SAME key C ──────────
-     Same Worker, same credential, same section: he is minting a code for a new
-     revendeuse from the console he already opened with that key, so a second
-     door here would be a second thing to type for no added protection. */
-  const acces = useMemo<AccesServicePort | null>(() => resolveAccesService(), []);
-  const [accesRead, setAccesRead] = useState<AccesRead>({ kind: 'loading' });
-  const [accesUi, setAccesUi] = useState<AccesUi>(ACCES_IDLE);
-  const [accesDraft, setAccesDraft] = useState('');
-  const [accesRefus, setAccesRefus] = useState<'inconnue' | 'liste_absente' | null>(null);
-  /** The readSeq law, fourth application: a mint's refresh and a revoke's
-   *  refresh can race, and the stale answer landing last would re-render a CUT
-   *  code as live — on the one list whose question is « who can get in? ». */
-  const accesSeq = useRef(0);
-
   /* ── CONSOLE-REV-1 (founder order 2026-08-05) — WHICH OF THE THREE.
         « you tap on revendeuses and the 3 options comes … and you select the
         one you want and the screen shows that ».
@@ -791,67 +763,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
     }
   };
 
-  const loadAcces = async (key: string): Promise<void> => {
-    if (acces === null) {
-      setAccesRead({ kind: 'failed' });
-      return;
-    }
-    accesSeq.current += 1;
-    const mine = accesSeq.current;
-    const res = await acces.listAcces(key).catch(() => ({ ok: false, reason: 'unreachable' } as const));
-    if (mine !== accesSeq.current) return;
-    // CONSOLE-REV-1 (verifier) — ESCALATE A REFUSED KEY, exactly as its two
-    // siblings do (`loadComptes`, `loadSuivi`) and as `settleAcces` already did
-    // ten lines below. This read alone kept `bad_key` to itself, and `accesVue`
-    // answers null for it — so the section rendered NOTHING. Stacked, that lost
-    // one section of three; chosen from a menu, it is the whole screen: a bare
-    // « Retour » on an empty column, with no sentence saying the key was
-    // refused. One key, one sentence, from every read that asks with it.
-    const read = accesReadOf(res);
-    if (read.kind === 'bad_key') setCleRefusee(true);
-    else setAccesRead(read);
-  };
-
-  const settleAcces = async (settlement: AccesSettlement, key: string): Promise<void> => {
-    setAccesUi(settlement.ui);
-    if (settlement.then === 'refresh') await loadAcces(key);
-    // A refused key here refuses the whole section's door, exactly as the
-    // livraisons read does — one key, one sentence.
-    else if (settlement.then === 'bad_key') setCleRefusee(true);
-  };
-
-  const creerAcces = async (resellerId: string, key: string): Promise<void> => {
-    if (acces === null || resellerId === '') return;
-    const started = accesMintStart(accesUi);
-    if (started === null) return; // a live one-time code blocks every other act
-    setAccesUi(started);
-    const res = await acces
-      .mintAcces(key, resellerId)
-      .catch(() => ({ ok: false, reason: 'unreachable' } as const));
-    setAccesDraft('');
-    await settleAcces(accesMintSettled(res), key);
-  };
-
-  const voirAcces = async (resellerId: string, key: string): Promise<void> => {
-    if (acces === null) return;
-    const started = accesRevealStart(accesUi, resellerId);
-    if (started === null) return;
-    setAccesUi(started);
-    const res = await acces.revealAcces(key, resellerId).catch(() => ({ ok: false, reason: 'unreachable' } as const));
-    await settleAcces(accesRevealSettled(resellerId, res), key);
-  };
-
-  const couperAcces = async (resellerId: string, key: string): Promise<void> => {
-    if (acces === null) return;
-    const started = accesRevokeStart(accesUi, resellerId);
-    if (started === null) return;
-    setAccesUi(started);
-    const res = await acces
-      .revokeAcces(key, resellerId)
-      .catch(() => ({ ok: false, reason: 'unreachable' } as const));
-    await settleAcces(accesRevokeSettled(resellerId, res), key);
-  };
-
   /**
    * MOUNT ONLY — and every later read is an EXPLICIT call, never a state
    * change this effect has to notice. The `[cleC]` dependency it replaces was
@@ -862,11 +773,8 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   useEffect(() => {
     const stored = readStoredCleC();
     if (stored !== null) {
-      // ACCESS-GATE-1 fix (self-found): the acces section was never LOADED on
-      // mount — it sat on « Lecture… » with nothing behind it, the exact
-      // stranded-loading class the founder once caught on Livraisons. Every
-      // section behind this key loads the moment the key is known.
-      void loadAcces(stored);
+      // Every section behind this key loads the moment the key is known —
+      // never left on « Lecture… » with nothing behind it.
       void loadComptes(stored);
       void loadSuivi(stored);
     }
@@ -900,7 +808,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
                   setCleRefusee(false);
                   setCleC(v);
                   // every read is asked for HERE, not inferred from a state change
-                  void loadAcces(v);
                   void loadComptes(v);
                   void loadSuivi(v);
                 }}
@@ -931,7 +838,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
           the app's Commandes TAB. REMBOURSABLE-1 (F-69) retired the last read
           it left here: this component keeps key C's door and the revendeuses
           sections, and reads no buyer's contact at all. */}
-      {/* ═══ ZONE REVENDEUSES — the roster, the suivi, the access codes. Only
+      {/* ═══ ZONE REVENDEUSES — the roster, the suivi, a buyer's way back. Only
              a REFUSED key — the shared door itself — silences everything
              behind it. ═══ */}
       {zone === 'revendeuses' && cleC !== null && !cleRefusee && (
@@ -946,7 +853,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
               <TeteSection titre={t('console.rev_titre')} sens={t('console.rev_sens')} marge={24} />
               <ChoixSection titre={t('comptes.titre')} sens={t('comptes.sens')} onPress={() => setVueRev('comptes')} />
               <ChoixSection titre={t('suivi.titre')} sens={t('suivi.sens')} onPress={() => setVueRev('suivi')} />
-              <ChoixSection titre={t('acces.titre')} sens={t('acces.sens')} onPress={() => setVueRev('acces')} />
               <ChoixSection titre={t('clientes.titre')} sens={t('clientes.sens')} onPress={() => setVueRev('clientes')} />
             </>
           )}
@@ -955,9 +861,9 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
               on screen, and that is deliberate.
               I first froze it behind the live code, on the belief that leaving
               a section destroyed its plaintext. That belief was wrong, and a
-              verifier proved it: `comptesUi` and `accesUi` are THIS component's
-              state, not the sections'. Unmounting `SComptes` or `SAcces` leaves
-              them untouched, and coming back re-renders the same code. Nothing
+              verifier proved it: `comptesUi` is THIS component's state, not
+              the section's. Unmounting `SComptes` leaves it untouched, and
+              coming back re-renders the same code. Nothing
               here can lose it — so a freeze bought no safety and took away his
               only exit while he held the one thing he must not lose.
               The real code-destroyer was never navigation; it is the board's
@@ -991,35 +897,6 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
             onDraft={setRecupDraft}
             onCreer={() => { void creerRecup(recupDraft.trim(), cleC); }}
             onVu={() => setRecupUi(RECUP_IDLE)}
-          />
-          )}
-          {vueRev === 'acces' && (
-          <SAcces
-            read={accesRead}
-            ui={accesUi}
-            draft={accesDraft}
-            dejaUnCode={
-              // Said only from data he truly has: with the list unread, we
-              // cannot know whether she already holds a code, so nothing is
-              // said rather than a confidently wrong warning.
-              accesRead.kind === 'ok' &&
-              accesRead.codes.some((c) => c.resellerId === accesDraft.trim())
-            }
-            refus={accesRefus}
-            onDraft={(v) => { setAccesDraft(v); setAccesRefus(null); }}
-            onCreer={() => {
-              // AUDIT-B+2 F-73 — a code for an id no reseller holds is a code
-              // for nobody: checked against the roster BEFORE the mint.
-              const id = accesDraft.trim();
-              if (comptesRead.kind !== 'ok') return setAccesRefus('liste_absente');
-              if (!comptesRead.comptes.some((c) => c.accountId === id)) return setAccesRefus('inconnue');
-              setAccesRefus(null);
-              void creerAcces(id, cleC);
-            }}
-            onVoir={(resellerId) => { void voirAcces(resellerId, cleC); }}
-            onCouper={(id) => { void couperAcces(id, cleC); }}
-            onVu={() => setAccesUi(ACCES_IDLE)}
-            onRetry={() => { setAccesRead({ kind: 'loading' }); void loadAcces(cleC); }}
           />
           )}
 
@@ -1344,158 +1221,6 @@ function SClientes({ ui, draft, onDraft, onCreer, onVu }: {
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('clientes.creation')}</Text>
             ) : (
               <BtnSoft label={t('clientes.creer')} icon="check" onPress={draft.trim() === '' ? () => undefined : onCreer} />
-            )}
-          </View>
-        </Card>
-      )}
-    </View>
-  );
-}
-
-/**
- * ACCESS-GATE-1 — WHO CAN GET INTO SHOP+, AND SINCE WHEN.
- *
- * Founder order, 2026-08-04: a new revendeuse gets a code from him and types it
- * once to enter the app. This is where that code is made.
- *
- * THE PLAINTEXT APPEARS EXACTLY ONCE, and this card is the only place it will
- * ever exist — the Worker keeps only its SHA-256. So a live code BLOCKS every
- * other act until he taps « C'est noté »: any re-render would destroy it while
- * he is reading it out over the phone, and the screen says so in words where
- * the buttons were rather than leaving a dead tap.
- */
-function SAcces({ read, ui, draft, dejaUnCode, refus, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
-  read: AccesRead;
-  ui: AccesUi;
-  draft: string;
-  dejaUnCode: boolean;
-  /** AUDIT-B+2 F-73 — the id was checked against the roster before minting. */
-  refus: 'inconnue' | 'liste_absente' | null;
-  onDraft: (v: string) => void;
-  onCreer: () => void;
-  onCouper: (resellerId: string) => void;
-  onVoir: (resellerId: string) => void;
-  onVu: () => void;
-  onRetry: () => void;
-}) {
-  const vue = accesVue(read);
-  if (vue === null) return null; // bad_key already spoke once, for the section
-  return (
-    <View>
-      <TeteSection titre={t('acces.titre')} sens={t('acces.sens')} />
-
-      {vue.kind === 'loading' && (
-        <View style={{ marginTop: 10 }}>
-          <Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text>
-        </View>
-      )}
-      {vue.kind === 'failed' && (
-        <View style={{ marginTop: 10 }}>
-          <Banner tone="warn">{t(vue.message)}</Banner>
-          <View style={{ marginTop: 8 }}>
-            <BtnSoft label={t('operations.reessayer')} icon="retry" onPress={onRetry} />
-          </View>
-        </View>
-      )}
-      {vue.kind === 'empty' && (
-        <View style={{ marginTop: 10 }}>
-          <Banner tone="info">{t(vue.message)}</Banner>
-        </View>
-      )}
-      {vue.kind === 'liste' &&
-        vue.codes.map((c) => (
-          <Card key={c.resellerId} variant="Llist" style={{ marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={[role({ f: 'BG', w: 700, s: 15 }, P.ink), TNUM]} numberOfLines={1}>{c.resellerId}</Text>
-                <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>
-                  {t('acces.cree_le').replace('{d}', c.mintedAt.slice(0, 10))}
-                </Text>
-                {/* CODE-REVU: a pre-ruling code SAYS why there is no « Voir
-                    le code » — never a silently missing button. */}
-                {!c.revelable && (
-                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 3 }]}>{t('acces.code_anterieur')}</Text>
-                )}
-              </View>
-              {ui.busy === `revoke:${c.resellerId}` ? (
-                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.coupure')}</Text>
-              ) : ui.busy === `reveal:${c.resellerId}` ? (
-                // The reveal's wait is NOT a « coupure » — a reading must
-                // never announce itself as a cut (CODE-REVU verifier MINOR-2).
-                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.voir_encours')}</Text>
-              ) : ui.nouveau !== null ? (
-                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.noter_dabord')}</Text>
-              ) : (
-                <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                  {/* CODE-REVU (founder 2026-08-09): tap and SEE AGAIN. */}
-                  {c.revelable ? (
-                    <BtnSoft label={t('acces.voir')} onPress={() => onVoir(c.resellerId)} />
-                  ) : null}
-                  <BtnSoft label={t('acces.couper')} onPress={() => onCouper(c.resellerId)} />
-                </View>
-              )}
-            </View>
-            {ui.echec === `revoke:${c.resellerId}` && (
-              <View style={{ marginTop: 6 }}>
-                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.coupure_echec')}</Text>
-              </View>
-            )}
-            {/* A NETWORK failure names itself and asks for a retry — never
-                the cannot-show-again sentence, whose remedy (re-mint) would
-                destroy her working code (CODE-REVU verifier BLOCKER-1). */}
-            {ui.echec === `reveal:${c.resellerId}` && (
-              <View style={{ marginTop: 6 }}>
-                <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.voir_echec')}</Text>
-              </View>
-            )}
-            {ui.echec === `anterieur:${c.resellerId}` && (
-              <View style={{ marginTop: 6 }}>
-                <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('acces.code_anterieur')}</Text>
-              </View>
-            )}
-          </Card>
-        ))}
-
-      {ui.nouveau !== null && (
-        <CarteCodeUnique
-          pour={t(ui.nouveau.revele === true ? 'acces.revu_pour' : 'acces.nouveau_pour').replace('{id}', ui.nouveau.resellerId)}
-          code={ui.nouveau.code}
-          note={t(ui.nouveau.revele === true ? 'acces.revu_note' : 'acces.nouveau_note')}
-          vuLabel={t('acces.vu')}
-          onVu={onVu}
-        />
-      )}
-
-      {/* The mint form is HIDDEN while a one-time code is on screen — he has
-          something to write down, and offering a second act there is how the
-          first one gets destroyed. */}
-      {ui.nouveau === null && (
-        <Card variant="Llg" style={{ marginTop: 14 }}>
-          <Input label={t('acces.champ')} value={draft} onChangeText={onDraft} />
-          {dejaUnCode && (
-            <View style={{ marginTop: 8 }}>
-              <Banner tone="warn">{t('acces.remplace')}</Banner>
-            </View>
-          )}
-          {ui.echec === 'mint' && (
-            <View style={{ marginTop: 8 }}>
-              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.creation_echec')}</Text>
-            </View>
-          )}
-          {refus !== null && (
-            <View style={{ marginTop: 8 }}>
-              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t(refus === 'inconnue' ? 'acces.inconnue' : 'acces.liste_absente')}</Text>
-            </View>
-          )}
-          <View style={{ marginTop: 12 }}>
-            {ui.busy === 'mint' ? (
-              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.sub)}>{t('acces.creation')}</Text>
-            ) : (
-              <BtnSoft
-                label={t('acces.creer')}
-                icon="check"
-                onPress={draft.trim() === '' ? () => undefined : onCreer}
-              />
             )}
           </View>
         </Card>

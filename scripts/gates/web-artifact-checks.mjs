@@ -40,6 +40,13 @@ export const NEVER_IN_A_WEB_PAGE = [
   'Compte provisoire', // the sign-up walkthrough (S34–S39)
   'Rood Woko', // the demo header's market line
   'Issa (S', // the demo « Produit prêt » toast's rider
+  // PROFIL-PUBLIÉ (founder ruling 2026-09-30: « No live pages should show any
+  // test mode banner ») — the sandbox banner in the catalog's words. Accented,
+  // so matched on the DECODED text below: the bundle ships « à » as `\xe0`.
+  // NOT the canon ribbon's upper-case label: it rides into every page as data
+  // inside the @platform/ui-tokens module (`ribbon.sandbox.label`), measured
+  // present in the console export while no Boutik+ file renders it.
+  'bac à sable',
 ];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -56,8 +63,15 @@ export function verifierPageWeb(out, surface) {
     });
   const scripts = walk(out).filter((p) => /\.(js|html)$/.test(p) && !p.endsWith('sw.js'));
   const text = scripts.map((p) => readFileSync(p, 'latin1')).join('\n');
+  // The minifier escapes every non-ASCII letter (`\xe0`, `\u2014`); an
+  // accented needle is only real against the text with those undone.
+  const lu = scripts
+    .map((p) => readFileSync(p, 'utf8'))
+    .join('\n')
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
   for (const needle of NEVER_IN_A_WEB_PAGE) {
-    if (text.includes(needle)) {
+    if (text.includes(needle) || lu.includes(needle)) {
       failed = true;
       lines.push(`  ✘ [NEVER SHIPS] ${JSON.stringify(needle)} FOUND in the ${surface} page`);
     } else {

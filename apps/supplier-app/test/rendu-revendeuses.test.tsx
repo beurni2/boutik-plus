@@ -14,8 +14,8 @@ import { SOperations } from '../src/operations/screen';
  *   was paused. The roster says it; the board marks her « Accès coupé ».
  * · F-74 — « Donner son code » on a row whose code was already given killed
  *   that code in one tap. It is now « Donner un nouveau code », and it asks.
- * · F-73 — the old desk promised entry its codes cannot give, and minted for
- *   any id. Renamed, true, and an id no reseller holds never reaches the door.
+ * · F-73 — the old codes desk is RETIRED with the codes themselves (founder
+ *   ruling 2026-09-30): the menu no longer offers it, and nothing reads them.
  * · F-81 — the reseller cards had no walk: « Couper l'accès » is pressed here,
  *   and the roster and the board are read again after it.
  *
@@ -76,7 +76,6 @@ function livre(o: { fatiActiveApresPause?: boolean; awaIncomplete?: boolean } = 
               }
             : { status: 401, json: { error: 'unauthorized' } }
           : null,
-      (path) => (path === '/reseller/codes' ? { status: 200, json: { ok: true, codes: [] } } : null),
       (path, body, _s, h) => {
         if (path !== '/reseller/accounts/access-code') return null;
         if (!cle(h)) return { status: 401, json: { error: 'unauthorized' } };
@@ -91,12 +90,6 @@ function livre(o: { fatiActiveApresPause?: boolean; awaIncomplete?: boolean } = 
         // She typed her code on her phone meanwhile: the roster moves under him.
         if (o.fatiActiveApresPause === true) etat.fati = { ...FATI, state: 'active', accessCodePending: false, accessCodeRevelable: false };
         return { status: 200, json: { ok: true, accountId: 'rs-0001', state: 'paused' } };
-      },
-      (path, body, _s, h) => {
-        if (path !== '/reseller/code') return null;
-        if (!cle(h)) return { status: 401, json: { error: 'unauthorized' } };
-        if (typeof body?.['resellerId'] !== 'string') return { status: 400, json: { ok: false, reason: 'malformed' } };
-        return { status: 200, json: { ok: true, code: 'SP-ANCI-ENCO-DE01', mintedAt: '2026-09-30T09:00:00.000Z', resellerId: body['resellerId'] } };
       },
     ],
   };
@@ -192,29 +185,16 @@ describe('F-74 — a code already given is never killed in one tap', () => {
   });
 });
 
-describe('F-73 — the old desk says what it is, and mints for nobody', () => {
-  it('its name and its sentence are true, and it points to where access is given', async () => {
-    wire(livre().routes);
-    const screen = await vers('Anciens codes des ventes');
-    expect(screen.shows('Ils ne servent plus à entrer dans Shop+')).toBe(true);
-    expect(screen.shows('Donner son code')).toBe(true);
-    expect(screen.shows('Elle le tape une fois pour entrer dans Shop+'), 'the old promise is gone').toBe(false);
-    screen.unmount();
-  });
-
-  it('an id no reseller holds never reaches the door; a real one does', async () => {
+describe('CODES-RETIRES-1 — the old codes desk is gone (founder ruling 2026-09-30, « Retire them »)', () => {
+  it('the Revendeuses menu offers no « Anciens codes des ventes », and the console never asks Shop+ for old codes', async () => {
     const w = wire(livre().routes);
-    const screen = await vers('Anciens codes des ventes');
-    await screen.type('rs-9999');
-    await screen.press('Créer le code');
-    expect(w.calls.filter((c) => c.path === '/reseller/code').length, 'a code for nobody is never minted').toBe(0);
-    expect(screen.shows('Ce code ne va à personne')).toBe(true);
-    await screen.type('rs-0001');
-    expect(screen.shows('Ce code ne va à personne'), 'typing again clears the refusal').toBe(false);
-    await screen.press('Créer le code');
-    const sent = w.calls.filter((c) => c.path === '/reseller/code');
-    expect(sent.length).toBe(1);
-    expect(sent[0]!.body).toEqual({ resellerId: 'rs-0001' });
+    const screen = await mountEcran(<SOperations opsKey={OPS} onKeySaved={() => {}} onKeyCleared={() => {}} />);
+    await screen.settle();
+    await screen.press('Revendeuses');
+    await screen.settle();
+    expect(screen.shows('Anciens codes des ventes'), JSON.stringify(screen.texts())).toBe(false);
+    expect(screen.canPress('Revendeuses Shop+'), 'the account roster is still the way to give access').toBe(true);
+    expect(w.calls.filter((c) => c.path.startsWith('/reseller/code')).length, 'no read of the retired codes').toBe(0);
     screen.unmount();
   });
 });
