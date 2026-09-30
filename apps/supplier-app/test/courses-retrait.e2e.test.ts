@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { httpCoursiersService } from '../src/coursiers/service';
-import { RAISON_SAUT, SERA_BUNDLE, exigerBundleAJour, miniflareDuDepot, titreSeam } from './sera-bundle';
+import { SERA, miniflareDuDepot } from './bundle-voisin';
 
 /**
  * ═══ THE SEAM: this console's OWN port against the REAL Séra worker ═══
@@ -19,7 +19,7 @@ import { RAISON_SAUT, SERA_BUNDLE, exigerBundleAJour, miniflareDuDepot, titreSea
  * exactly that class of drift).
  *
  * ⚠ SKIPPED WHEN THE SÉRA BUNDLE IS ABSENT, and the reason is IN THE TITLE
- * (AUDIT-B+2 F-83 — `sera-bundle.ts`): this repo's CI has no `sera` clone,
+ * (AUDIT-B+2 F-83 — `bundle-voisin.ts`): this repo's CI has no `sera` clone,
  * so there it says it skipped and why, instead of failing or — worse — quietly
  * proving nothing against a stub. Beside a Séra checkout it runs, and a bundle
  * older than Séra's source is refused rather than trusted.
@@ -38,20 +38,20 @@ afterAll(() => {
 });
 
 function spawn(prefix: string): InstanceType<typeof Miniflare> {
-  exigerBundleAJour();
+  SERA.exigerAJour();
   const dir = mkdtempSync(join(tmpdir(), prefix));
   dirs.push(dir);
   // The bundle is handed over as CONTENTS: workerd refuses a scriptPath that
   // climbs out of the starting directory, and the Séra bundle is elsewhere.
   return new Miniflare({
-    modules: [{ type: 'ESModule', path: 'sera-logistics.mjs', contents: readFileSync(SERA_BUNDLE, 'utf8') }],
+    modules: [{ type: 'ESModule', path: 'sera-logistics.mjs', contents: readFileSync(SERA.bundle, 'utf8') }],
     durableObjects: { LOGISTICS: 'LogisticsDO' },
     durableObjectsPersist: dir,
     bindings: { SERA_OPS_SECRET: OPS, SERA_INTAKE_SECRET: INTAKE },
   });
 }
 
-describe.skipIf(RAISON_SAUT !== null)(titreSeam('PURGE-ESSAI-COURSES — the console clears a REAL course off a REAL board'), () => {
+describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('PURGE-ESSAI-COURSES — the console clears a REAL course off a REAL board'), () => {
   it('composes a live course, retires it through THIS console port, and the BOARD says it is gone', async () => {
     const mf = spawn('courses-seam-');
 

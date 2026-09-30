@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import React from 'react';
 import { act } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -651,6 +653,15 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     const sur = (nom: string, e: unknown): void => {
       (toile!.props[nom] as (e: unknown) => void)(e);
     };
+    /* AUDIT-B+2 F-79 — CONFIER-CARTE-2's BLOCKER (the drag dead on a phone)
+     * lived in the NEGOTIATION, which calling Grant/Move directly skips: the
+     * surface must CLAIM the touch at its start and on a move, and REFUSE to
+     * hand it to the scrolling fold mid-gesture. Asked of the real props on
+     * every drag walked here. */
+    const demande = (nom: string, e?: unknown): unknown => (toile!.props[nom] as ((e?: unknown) => unknown) | undefined)?.(e);
+    expect(demande('onStartShouldSetResponder', ev(de.x, de.y)), 'the map must claim the touch where it starts').toBe(true);
+    expect(demande('onMoveShouldSetResponder', ev(vers.x, vers.y)), 'the map must claim a touch that moves').toBe(true);
+    expect(demande('onResponderTerminationRequest', ev(vers.x, vers.y)), 'the map must never hand a live drag to the scroll').toBe(false);
     await act(async () => {
       sur('onResponderGrant', ev(de.x, de.y));
     });
@@ -856,5 +867,19 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     expect(screen.shows('demandez un repère à la cliente'), 'the sentence must say the way forward').toBe(true);
     expect(screen.canPress('Créer la course'), 'the tree survives — his retry stays his').toBe(true);
     screen.unmount();
+  });
+});
+
+describe('AUDIT-B+2 F-79 — the web touch style that keeps a drag on the map', () => {
+  // A walk may never claim appearance, and this is a style: so it is a SOURCE
+  // pin, bounded to the drag surface's own element (not anywhere in the file).
+  it('the drag surface carries touchAction none and userSelect none on the web', () => {
+    const src = readFileSync(join(import.meta.dirname, '..', 'src/commandes/carte-pin.tsx'), 'utf8');
+    const debut = src.indexOf('testID="carte-toile"');
+    const fin = src.indexOf('onResponderGrant', debut);
+    expect(debut > 0 && fin > debut, 'the drag surface element is found').toBe(true);
+    const element = src.slice(debut, fin);
+    expect(element).toContain("touchAction: 'none'");
+    expect(element).toContain("userSelect: 'none'");
   });
 });

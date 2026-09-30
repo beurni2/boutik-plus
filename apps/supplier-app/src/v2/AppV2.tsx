@@ -14,8 +14,9 @@
  * than left to mislead the next reader, since this commit edits this file.
  * `expo-preview.yml` defaults `EXPO_PUBLIC_ROOT` to `v2` (founder ruling
  * 2026-07-17) and `index.ts` mounts AppV2 for that value, so every preview
- * publish — main-push and bare dispatch alike — lands HERE. E1's App.tsx stays
- * reachable dispatch-only via `root=e1`.
+ * publish — main-push and bare dispatch alike — lands HERE. AUDIT-B+2 F-60
+ * retired E1's App.tsx and its `root=e1`: this is now the only app root
+ * (`fournisseur` mounts the supplier page).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';

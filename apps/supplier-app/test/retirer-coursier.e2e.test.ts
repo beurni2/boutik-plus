@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { httpCoursiersService } from '../src/coursiers/service';
-import { RAISON_SAUT, SERA_BUNDLE, exigerBundleAJour, miniflareDuDepot, titreSeam } from './sera-bundle';
+import { SERA, miniflareDuDepot } from './bundle-voisin';
 
 /**
  * ═══ THE SEAM: RETIRER UN COURSIER, console port → REAL Séra worker ═══
@@ -21,7 +21,7 @@ import { RAISON_SAUT, SERA_BUNDLE, exigerBundleAJour, miniflareDuDepot, titreSea
  *
  * ⚠ MINIFLARE IS RESOLVED FROM A SERVICE PACKAGE, and the file SKIPS — with the
  * reason in its title — when the Séra bundle is absent: the same rules the
- * courses seam test states (`sera-bundle.ts`, AUDIT-B+2 F-83).
+ * courses seam test states (`bundle-voisin.ts`, AUDIT-B+2 F-83).
  */
 
 const OPS = 'test-sera-ops-retrait-coursier';
@@ -35,13 +35,13 @@ afterAll(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-describe.skipIf(RAISON_SAUT !== null)(titreSeam('RETIRER-COURSIER — the console removes a REAL rider from a REAL roster'), () => {
+describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('RETIRER-COURSIER — the console removes a REAL rider from a REAL roster'), () => {
   it('removes a free rider, and REFUSES the one carrying a parcel — asked of the roster, not the answer', async () => {
-    exigerBundleAJour();
+    SERA.exigerAJour();
     const dir = mkdtempSync(join(tmpdir(), 'retrait-coursier-seam-'));
     dirs.push(dir);
     const mf = new Miniflare({
-      modules: [{ type: 'ESModule', path: 'sera-logistics.mjs', contents: readFileSync(SERA_BUNDLE, 'utf8') }],
+      modules: [{ type: 'ESModule', path: 'sera-logistics.mjs', contents: readFileSync(SERA.bundle, 'utf8') }],
       durableObjects: { LOGISTICS: 'LogisticsDO' },
       durableObjectsPersist: dir,
       bindings: { SERA_OPS_SECRET: OPS, SERA_INTAKE_SECRET: INTAKE },

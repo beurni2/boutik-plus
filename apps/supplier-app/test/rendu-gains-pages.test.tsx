@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
 import { SGainsReel } from '../src/gains/screen';
 import { PAGES_MAX } from '../src/operations/dispatch-service';
+import { formatF } from '../src/v2/money';
 
 /**
  * ═══ RENDU-RÉEL — DISPATCH-PAGES-1: the founder's GAINS screen over the
@@ -158,6 +159,27 @@ describe('STOCK-VRAI-1 (F-54) — a card adds up to the franc, fees and all', ()
     const parts = ['Part du fournisseur', 'Part de la revendeuse', 'Frais côté fournisseur', 'Frais côté revendeuse', 'Livraison'].map(montant);
     expect(parts).toEqual([8_500, 2_000, 500, 500, 1_000]);
     expect(parts.reduce((a, b) => a + b, 0)).toBe(AVANT_FRAIS_ZERO.buyerTotal);
+    screen.unmount();
+  });
+});
+
+/**
+ * AUDIT-B+2 F-78 — nothing bound each franc figure to ITS label: a mutant that
+ * swapped two amounts left every test green. The text right after each label
+ * is its amount, to the franc, on the card as he reads it.
+ */
+describe('F-78 — each amount on the card sits under its own label', () => {
+  it('« La cliente a payé », both parts and « Livraison » each read their own figure', async () => {
+    const { route } = pagesDeGains([{ gains: [gain('ord-libelles', '3')] }]);
+    wire([route]);
+    const screen = await mountEcran(<SGainsReel />);
+    await screen.settle();
+    const tx = screen.texts();
+    const apres = (libelle: string): string | undefined => tx[tx.indexOf(libelle) + 1];
+    expect(apres('La cliente a payé'), JSON.stringify(tx)).toBe(formatF(SPLIT.buyerTotal));
+    expect(apres('Part du fournisseur')).toBe(formatF(SPLIT.sellerNet));
+    expect(apres('Part de la revendeuse')).toBe(formatF(SPLIT.resellerNet));
+    expect(apres('Livraison')).toBe(formatF(SPLIT.deliveryFee));
     screen.unmount();
   });
 });
