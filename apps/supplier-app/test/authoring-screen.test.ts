@@ -131,10 +131,12 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
       'tr(c.exempleKey)',
     );
     // AND the REAL publish composes the same answers into the canon note —
-    // the call site in formFromWiz, since nothing mounts SListerReal (its
-    // services resolve null under test). A source pin is the guard available;
-    // the compose LAW itself is unit-tested in categorie-details.test.ts and
-    // the machine's own call site is driven there through reduce.
+    // the call site in formFromWiz. (LISTER-VRAI-1, AUDIT-B+2 F-15: the old
+    // reason here, « nothing mounts SListerReal, its services resolve null
+    // under test », was stale — `wiredEnv()` makes them resolve, and
+    // `rendu-lister-publier.e2e` now mounts it and publishes to the real
+    // Worker.) This source pin stays as a complement; the compose LAW itself
+    // is unit-tested in categorie-details.test.ts.
     expect(lister, 'the real publish does not compose the details').toContain(
       'variantsNote: composeVariantes(wiz.cat, wiz.details)',
     );

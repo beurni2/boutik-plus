@@ -1,12 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { act } from 'react-test-renderer';
-import { describe, expect, it } from 'vitest';
-import { mountEcran, type Screen } from './rendu';
-import { S20Wizard } from '../src/v2/screens2';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './rendu';
+import { SListerReal, type ListingSession } from '../src/v2/lister-real';
+import type { CaptureSet } from '../src/v2/studio-real';
 import { initialState, reduce, type A, type S } from '../src/v2/machine';
 import { RAYONS, detailsParDefaut } from '../src/v2/categorie-details';
-import { netLineRefusal } from '../src/supply/authoring';
-import { previewSellerNet, type SellerNetLine } from '../src/supply/preview';
 import { t } from '../src/i18n';
 
 /**
@@ -21,12 +20,14 @@ import { t } from '../src/i18n';
  * renderer.
  *
  * ⚠ NOTHING OF THE APP IS STUBBED. The host is the shell's dispatch wiring in
- * miniature: the REAL `reduce` drives the REAL S20Wizard, and the money prop
- * is computed by the REAL canon preview (`netLineRefusal` + `previewSellerNet`)
- * exactly as SListerReal computes it — a walk on a money screen may not hand
- * the wizard an invented figure. STUDIO_APPROVE is dispatched as the studio's
- * own outcome action: the studio is a sibling VIEW outside this wizard's
- * bound, with its own suites; its boundary with the wizard is that action.
+ * miniature: the REAL `reduce` drives the REAL wizard wrapper `SListerReal`,
+ * which computes the money line itself. (LISTER-VRAI-1, AUDIT-B+2 F-15: this
+ * host used to mount S20Wizard bare and recompute the money line on its own,
+ * mapping every refusal to one key the real screen does not use — a copy of
+ * the app inside the test. It is gone.) STUDIO_APPROVE is dispatched as the
+ * studio's own outcome action: the studio is a sibling VIEW with its own
+ * walks; its boundary with the wizard is that action. « Publier » itself is
+ * pressed against the real product service by `rendu-lister-publier.e2e`.
  *
  * ⚠ WHAT THIS WALK MAY NEVER CLAIM: appearance. Chip geometry, spacing and
  * the shelf layout stay with the layout pins and his eyes on a real phone —
@@ -35,19 +36,31 @@ import { t } from '../src/i18n';
 
 let dExterne: ((a: A) => void) | null = null;
 
+const OPS = 'cle-ops-fondateur';
+/** His roster, as the real door answers it — the wrapper reads it to offer « pour qui ». */
+const roster: Route = (path, _b, _s, headers) =>
+  path === '/fulfillment/supplier-codes'
+    ? headers['authorization'] === `Bearer ${OPS}`
+      ? { status: 200, json: { ok: true, codes: [{ supplierId: 'supplier-founder-001', mintedAt: '2026-08-01T08:00:00.000Z', revelable: true }] } }
+      : { status: 401, json: { error: 'unauthorized' } }
+    : null;
+
+beforeEach(() => {
+  wiredEnv();
+  storage({ 'boutik.operateur.cle': OPS });
+  wire([roster]);
+});
+afterEach(() => {
+  delete (globalThis as { fetch?: unknown }).fetch;
+});
+
 function WizardHost() {
   const [st, setSt] = useState<S>(() => reduce(initialState(), { t: 'OPEN_WIZ' }).s);
   const d = useCallback((a: A) => setSt((prev) => reduce(prev, a).s), []);
   dExterne = d;
-  const { B, C } = st.wiz;
-  const refusal = B === null || C === null ? null : netLineRefusal(B, C);
-  const money: SellerNetLine =
-    B === null || C === null
-      ? { kind: 'vide' }
-      : refusal === null
-        ? { kind: 'figure', net: previewSellerNet(B, C) }
-        : { kind: 'refused', reasonKey: 'publier.err_prix' };
-  return <S20Wizard st={st} d={d} money={money} />;
+  const captures = useRef<CaptureSet | null>(null);
+  const session = useRef<ListingSession>({ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null, roles: null });
+  return <SListerReal st={st} d={d} captures={captures} session={session} />;
 }
 
 /** The wizard's TextInputs in render order — step 1 renders Nom, Code, then
@@ -149,12 +162,10 @@ describe('S20 — a car seat listing, end to end through the machine', () => {
     expect(screen.shows('gris, rose')).toBe(true);
     expect(screen.shows('—')).toBe(true);
 
-    // The primary action is present, pressable, and wired — pressing it must
-    // not blank the tree (here it reaches the machine's demo publish; the
-    // real path intercepts the same tap, its own suites prove the publish).
-    expect(screen.canPress("Publier — c'est gratuit")).toBe(true);
-    await screen.press("Publier — c'est gratuit");
-    expect(screen.texts().length, 'the tree died on publish').toBeGreaterThan(0);
+    // The primary action is ON SCREEN. Pressing it is not this walk's to
+    // prove: `rendu-lister-publier.e2e` presses it against the real product
+    // service and asks the ledger (AUDIT-B+2 F-15).
+    expect(screen.shows("Publier — c'est gratuit")).toBe(true);
 
     screen.unmount();
   });
