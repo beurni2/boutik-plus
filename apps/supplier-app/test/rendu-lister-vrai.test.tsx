@@ -175,7 +175,7 @@ const rempli = (s: S): S => ({ ...s, wiz: { ...s.wiz, step: 3, name: 'Sac en rap
 const PUBLIER = "Publier — c'est gratuit";
 const CONFIRMATION = 'Aucun prix, aucun numéro, aucune enseigne sur les photos';
 
-/** The TextInputs in render order (the steppers' boxes carry no label). */
+/** The TextInputs in render order (since F-50 each box is named by its field). */
 const champs = (screen: Screen) => screen.tree.root.findAllByType('TextInput' as never);
 async function tape(screen: Screen, index: number, value: string): Promise<void> {
   const champ = champs(screen)[index];
@@ -247,6 +247,62 @@ describe('PRIX & COMMISSION — he types them himself (F-98), and a box never go
     expect(champs(screen)[1]?.props['value']).toBe('0');
     expect(screen.shows(t('publier.err_commission'))).toBe(false);
     expect(etat.st?.wiz.C).toBe(0);
+    screen.unmount();
+  });
+});
+
+/* ───────────────────────────────── F-50 ───────────────────────────────── */
+
+/** Every node carrying this accessible name that a thumb (or a screen reader) can press. */
+const parNom = (screen: Screen, nom: string) =>
+  screen.tree.root.findAll((n) => typeof n.type === 'string' && typeof n.props['onPress'] === 'function' && n.props['accessibilityLabel'] === nom);
+
+describe('F-50 — a screen reader can name every control of the listing, and the boxes say what they are', () => {
+  it('steps 0–2: nothing nameless; the stock and money boxes are named by their field, and so are their − and ＋', async () => {
+    wire([roster, livre().route]);
+    const screen = await mountEcran(<Coquille depart={(s) => s} />);
+    expect(screen.sansNom(), 'step 0').toEqual([]);
+    await screen.press('Continuer');
+    await screen.type('Sac en raphia', 'Nom du produit');
+    expect(screen.sansNom(), 'step 1').toEqual([]);
+    for (const b of [t('nav.moins'), t('nav.plus')]) {
+      expect(parNom(screen, `${t('publier.ligne_stock')} — ${b}`), `the stock « ${b} » has no name`).toHaveLength(1);
+    }
+    await screen.press('Continuer');
+
+    // He finds the boxes by the words a screen reader says — the field, never the number in it.
+    await screen.type('12000', t('publier.champ_prix'));
+    await screen.type('1000', t('publier.ligne_commission'));
+    expect(etat.st?.wiz.B).toBe(12_000);
+    expect(etat.st?.wiz.C).toBe(1_000);
+    for (const champ of [t('publier.champ_prix'), t('publier.ligne_commission')]) {
+      for (const b of [t('nav.moins'), t('nav.plus')]) expect(parNom(screen, `${champ} — ${b}`)).toHaveLength(1);
+    }
+    expect(screen.sansNom(), 'step 2').toEqual([]);
+    screen.unmount();
+  });
+
+  it('the Studio, the photo step and the recap: every picture he can tap is named; his confirmation says checked or not', async () => {
+    wire([roster, livre().route, media().route]);
+    const screen = await mountEcran(<Coquille depart={rempli} />);
+    await screen.press('Ouvrir Boutik+ Studio');
+    armerSelecteur(choix(3));
+    await screen.press(t('studio.depuis_telephone'));
+    await screen.settle();
+    expect(screen.sansNom(), 'the Studio with his three pictures').toEqual([]);
+    expect(parNom(screen, t('studio.photo_n').replace('{n}', '1')), 'his first picture has no name').toHaveLength(1);
+    await screen.press(t('studio.continuer'));
+    await screen.settle();
+
+    expect(screen.sansNom(), 'the photo step').toEqual([]);
+    await screen.press('Continuer');
+    // The recap is where he gives each photo its role: every picture there is named.
+    expect(screen.sansNom(), 'the recap').toEqual([]);
+    expect(parNom(screen, t('produits.voir_photo').replace('{nom}', t('publier.role_hero')))).toHaveLength(1);
+    const case_ = () => screen.tree.root.findAll((n) => typeof n.type === 'string' && n.props['accessibilityRole'] === 'checkbox')[0];
+    expect(case_()?.props['aria-checked'], 'his confirmation must SAY it is not ticked').toBe(false);
+    await screen.press(CONFIRMATION);
+    expect(case_()?.props['aria-checked'], 'and say it once he ticks it').toBe(true);
     screen.unmount();
   });
 });

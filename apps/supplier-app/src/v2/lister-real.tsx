@@ -581,7 +581,7 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Nouveau produit" onBack={() => d({ t: 'BACK' })} />
+          <HeaderStacked title={t('publier.titre')} onBack={() => d({ t: 'BACK' })} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
           <Banner tone="info">{t(sansCle ? 'publier.sans_cle' : 'publier.non_configure')}</Banner>
@@ -604,7 +604,7 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Nouveau produit" onBack={exitToProduits} />
+          <HeaderStacked title={t('publier.titre')} onBack={exitToProduits} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
           {pub.kind === 'published' && (

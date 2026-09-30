@@ -307,6 +307,7 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
           <Pressable
             onPress={() => setViewing(photos[0] ?? null)}
             accessibilityRole="button"
+            accessibilityLabel={t('produits.voir_photo').replace('{nom}', photos[0]?.label ?? '')}
             disabled={photos.length === 0}
           >
             <Image source={{ uri: slot.uri }} style={{ width: 74, height: 74, borderRadius: 10 }} resizeMode="cover" />
@@ -339,7 +340,7 @@ function CarteProduit({ produit, mediaBase }: { produit: ProduitVue; mediaBase: 
       {photos.length > 1 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
           {photos.map((ph) => (
-            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button">
+            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button" accessibilityLabel={t('produits.voir_photo').replace('{nom}', ph.label)}>
               <Image source={{ uri: ph.uri }} style={{ width: 56, height: 56, borderRadius: 8 }} resizeMode="cover" />
             </Pressable>
           ))}
@@ -963,7 +964,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
           below carries the rest, exactly as his produits card does. */}
       <View style={{ flexDirection: 'row', gap: 12 }}>
         {slot.kind === 'photo' ? (
-          <Pressable onPress={() => setViewing(galerie[0] ?? null)} accessibilityRole="button" disabled={galerie.length === 0}>
+          <Pressable onPress={() => setViewing(galerie[0] ?? null)} accessibilityRole="button" accessibilityLabel={t('produits.voir_photo').replace('{nom}', galerie[0]?.label ?? '')} disabled={galerie.length === 0}>
             <Image source={{ uri: slot.uri }} style={{ width: 64, height: 64, borderRadius: 10 }} resizeMode="cover" />
           </Pressable>
         ) : (
@@ -995,7 +996,7 @@ function CarteCommande({ commande, pret, accepting, acceptEchec, assetRefs, medi
       {galerie.length > 1 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
           {galerie.map((ph) => (
-            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button">
+            <Pressable key={ph.uri} onPress={() => setViewing(ph)} accessibilityRole="button" accessibilityLabel={t('produits.voir_photo').replace('{nom}', ph.label)}>
               <Image source={{ uri: ph.uri }} style={{ width: 48, height: 48, borderRadius: 8 }} resizeMode="cover" />
             </Pressable>
           ))}

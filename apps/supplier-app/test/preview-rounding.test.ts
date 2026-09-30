@@ -232,7 +232,8 @@ describe('BELOW THE PUBLISH FLOOR — no figure is stated at all (founder ruling
     expect(src, 'step 2 must refuse before it breaks down').toMatch(step2);
     // step 4 states the net ONLY in the figure arm; every other arm is a
     // sentence (a refusal's own key, or « tapez votre prix » when empty — F-98)
-    const step4 = /money\.kind === 'figure' \? \([\s\S]{0,300}?Vous recevez \/ vente[\s\S]{0,400}?tr\(money\.kind === 'refused' \? money\.reasonKey : 'publier\.prix_a_saisir'\)/;
+    // (F-91: « Vous recevez / vente » is the catalog key `publier.recoit_vente` now)
+    const step4 = /money\.kind === 'figure' \? \([\s\S]{0,300}?tr\('publier\.recoit_vente'\)[\s\S]{0,400}?tr\(money\.kind === 'refused' \? money\.reasonKey : 'publier\.prix_a_saisir'\)/;
     expect(src, 'step 4 must state a net only when one was handed').toMatch(step4);
     // the screen never hardcodes WHICH refusal — it states the key it is handed
     expect(src).not.toMatch(/tr\('publier\.err_prix_plancher'\)|tr\('publier\.err_commission_net'\)/);

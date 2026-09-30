@@ -104,17 +104,17 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
   const montant = (v: number | null): string => (v === null ? '—' : formatF(v));
   /** The verify step's full-screen photo inspection (founder ruling 2026-07-26). */
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
-  const footerLabel = w.step === 4 ? "Publier — c'est gratuit" : w.step === 3 && !w.photos ? 'Photos requises' : 'Continuer';
+  const footerLabel = tr(w.step === 4 ? 'publier.bouton_publier' : w.step === 3 && !w.photos ? 'publier.photos_requises' : 'publier.continuer');
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingTop: 16, paddingHorizontal: 20 }}>
-        <HeaderStacked title="Nouveau produit" wizardCounter={`${w.step + 1}/5`} onBack={() => d({ t: 'BACK' })} />
+        <HeaderStacked title={tr('publier.titre')} wizardCounter={`${w.step + 1}/5`} onBack={() => d({ t: 'BACK' })} />
         <ProgressDots total={5} step={w.step} />
       </View>
       <ScrollView contentContainerStyle={wizScroll} showsVerticalScrollIndicator={false}>
         {w.step === 0 && (
           <>
-            <Text style={C43.titleStep}>Catégorie</Text>
+            <Text style={C43.titleStep}>{tr('publier.etape_categorie')}</Text>
             {/* RAYONS-1 (founder order 2026-08-23): the categories read like a
                 real store — one shelf per rayon, his products' shelves first.
                 The rayon is GROUPING only; what publishes is the category
@@ -133,13 +133,13 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         )}
         {w.step === 1 && (
           <>
-            <Text style={C43.titleStep}>Détails & stock</Text>
+            <Text style={C43.titleStep}>{tr('publier.etape_details')}</Text>
             {/* The chosen category, restated — on a multi-diverse catalog the
                 fields below CHANGE with it, so the screen says which product
                 type it is asking about. Data, not a sentence. */}
             <Text style={[role({ f: 'IS', w: 600, s: 13 }, P.sub), { marginTop: 6 }]}>{w.cat}</Text>
             <View style={{ marginTop: 18 }}>
-              <Input label="Nom du produit" value={w.name} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { name: t } })} />
+              <Input label={tr('publier.champ_nom')} value={w.name} onChangeText={(t) => d({ t: 'WIZ_SET', patch: { name: t } })} />
             </View>
             {/* COMBINED SLICE — the product code, DERIVED from the name and
                 EDITABLE here (founder option (a)): the suggestion fills as he
@@ -171,10 +171,11 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 6 }]}>{tr(c.exempleKey)}</Text>
               </View>
             ))}
-            <Overline style={{ marginTop: 16 }}>Stock disponible</Overline>
+            <Overline style={{ marginTop: 16 }}>{tr('publier.ligne_stock')}</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
-                value={`${w.stock} unités`}
+                label={tr('publier.ligne_stock')}
+                value={tr('publier.stock_unites').replace('{n}', String(w.stock))}
                 onMinus={() => !disabled.wizStock(w) && d({ t: 'WIZ_SET', patch: { stock: w.stock - 1 } })}
                 onPlus={() => d({ t: 'WIZ_SET', patch: { stock: w.stock + 1 } })}
               />
@@ -183,21 +184,23 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         )}
         {w.step === 2 && (
           <>
-            <Text style={C43.titleStep}>Prix & commission</Text>
-            <Overline style={{ marginTop: 18 }}>Prix de base (ce que vaut le produit)</Overline>
+            <Text style={C43.titleStep}>{tr('publier.etape_prix')}</Text>
+            <Overline style={{ marginTop: 18 }}>{tr('publier.champ_prix_aide')}</Overline>
             <View style={{ marginTop: 8 }}>
               {/* F-48: « − » clamps at 0 — a typed amount below one step can
                   never become a negative box. F-98: an empty box stays empty. */}
               <Stepper
+                label={tr('publier.champ_prix')}
                 value={w.B === null ? '' : String(w.B)}
                 onChangeText={(text) => d({ t: 'WIZ_SET', patch: { B: montantSaisi(text) } })}
                 onMinus={() => !disabled.wizB(w) && d({ t: 'WIZ_SET', patch: { B: Math.max(0, (w.B ?? 0) - 500) } })}
                 onPlus={() => d({ t: 'WIZ_SET', patch: { B: (w.B ?? 0) + 500 } })}
               />
             </View>
-            <Overline style={{ marginTop: 16 }}>Commission revendeuse (vous la financez)</Overline>
+            <Overline style={{ marginTop: 16 }}>{tr('publier.champ_commission_aide')}</Overline>
             <View style={{ marginTop: 8 }}>
               <Stepper
+                label={tr('publier.ligne_commission')}
                 value={w.C === null ? '' : String(w.C)}
                 onChangeText={(text) => d({ t: 'WIZ_SET', patch: { C: montantSaisi(text) } })}
                 onMinus={() => !disabled.wizC(w) && d({ t: 'WIZ_SET', patch: { C: Math.max(0, (w.C ?? 0) - 100) } })}
@@ -232,7 +235,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         )}
         {w.step === 3 && (
           <>
-            <Text style={C43.titleStep}>Photos — Studio</Text>
+            <Text style={C43.titleStep}>{tr('publier.etape_photos')}</Text>
             {/* F-46: the « nettes, honnêtes et sans prix incrusté » guide is
                 gone — the web Studio gives no such guidance, so the sentence
                 promised a check that never ran. */}
@@ -252,7 +255,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               </>
             ) : (
               <View style={{ marginTop: 14 }}>
-                <C07BtnPrimary label="Ouvrir Boutik+ Studio" icon="camera" onPress={() => d({ t: 'OPEN_STUDIO' })} />
+                <C07BtnPrimary label={tr('publier.ouvrir_studio')} icon="camera" onPress={() => d({ t: 'OPEN_STUDIO' })} />
               </View>
             )}
             {/* VIDEO-PRODUIT-1c (founder order 2026-08-02: « a short video of
@@ -300,16 +303,16 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
         )}
         {w.step === 4 && (
           <>
-            <Text style={C43.titleStep}>Vérifiez, puis publiez</Text>
+            <Text style={C43.titleStep}>{tr('publier.etape_verifier')}</Text>
             {/* EVERYTHING WELL DETAILED (founder device ruling 2026-07-26).
                 Every value he typed, on its own labelled row, so the last thing
                 before publishing is a full statement rather than a summary. */}
             <Card style={{ marginTop: 16 }}>
-              <Text style={role({ f: 'BG', w: 700, s: 16 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
+              <Text style={role({ f: 'BG', w: 700, s: 16 }, P.ink)}>{w.name.trim() === '' ? '—' : w.name}</Text>
               <View style={{ height: 1, backgroundColor: P.borderCard, marginVertical: 13 }} />
               {([
-                ['Catégorie', w.cat],
-                ['Code produit', w.code.trim() === '' ? '—' : w.code],
+                [tr('publier.etape_categorie'), w.cat],
+                [tr('publier.champ_code'), w.code.trim() === '' ? '—' : w.code],
                 // One recap row PER detail question — « everything well
                 // detailed » (founder ruling 2026-07-26) now that a category
                 // can ask several.
@@ -317,8 +320,8 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   tr(c.labelKey),
                   (w.details[i] ?? '').trim() === '' ? '—' : (w.details[i] ?? '').trim(),
                 ]),
-                ['Stock disponible', `${w.stock}`],
-                ['Prix de base', montant(w.B)],
+                [tr('publier.ligne_stock'), `${w.stock}`],
+                [tr('publier.champ_prix'), montant(w.B)],
               ] as readonly (readonly [string, string])[]).map(([label, value]) => (
                 <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
                   <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>
@@ -331,14 +334,14 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   letting a number be printed for an offer that cannot exist. */}
               {money.kind === 'figure' ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
-                  <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>Vous recevez / vente</Text>
+                  <Text style={role({ f: 'IS', w: 400, s: 14 }, P.ink)}>{tr('publier.recoit_vente')}</Text>
                   <Text style={[role({ f: 'BG', w: 800, s: 16 }, P.greenDeep), TNUM]}>{formatF(money.net.sellerNetFcfa)}</Text>
                 </View>
               ) : (
                 <Banner tone="warn">{tr(money.kind === 'refused' ? money.reasonKey : 'publier.prix_a_saisir')}</Banner>
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
-                <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>Commission revendeuse</Text>
+                <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{tr('publier.ligne_commission')}</Text>
                 <Text style={[role({ f: 'IS', w: 700, s: 14 }, P.sub), TNUM]}>{montant(w.C)}</Text>
               </View>
             </Card>
@@ -402,7 +405,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                 Studio has not run is the placeholder tile below. */}
             {photos !== undefined && photos.length > 0 && (
               <Card style={{ marginTop: 12, padding: 16 }}>
-                <Overline level="card">Vos photos</Overline>
+                <Overline level="card">{tr('publier.vos_photos')}</Overline>
                 {photosHint !== undefined && (
                   <Text style={[role({ f: 'IS', w: 400, s: 12, lh: 1.5 }, P.sub), { marginTop: 6 }]}>{photosHint}</Text>
                 )}
@@ -412,7 +415,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                       viewer over the SAME shipped bytes. */}
                   {photos.map((p, i) => (
                     <View key={`${i}-${p.uri.slice(-24)}`} style={{ flex: 1 }}>
-                      <Pressable onPress={() => setViewing({ uri: p.uri, label: p.label })} accessibilityRole="button">
+                      <Pressable onPress={() => setViewing({ uri: p.uri, label: p.label })} accessibilityRole="button" accessibilityLabel={tr('produits.voir_photo').replace('{nom}', p.label)}>
                         <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: C21.preview.r }} resizeMode="cover" />
                       </Pressable>
                       {/* THE ROLE CHIP (STUDIO-BATCH-1, founder 2026-07-27:
@@ -422,8 +425,12 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                           one's — a swap, so the set always has exactly one of
                           each. Plain label when the flow has no role choice. */}
                       {p.onRole !== undefined ? (
-                        <Pressable onPress={p.onRole} accessibilityRole="button" hitSlop={8} style={{ marginTop: 6, alignSelf: 'center', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}>
-                          <Text style={role({ f: 'IS', w: 600, s: 11.5 }, P.ink)}>{p.label}</Text>
+                        // F-50: the painted chip is unchanged; the box a thumb hits is 44 px
+                        // (hitSlop does nothing on the web page — tap-targets-44).
+                        <Pressable onPress={p.onRole} accessibilityRole="button" style={{ marginTop: 6, alignSelf: 'center', minHeight: 44, justifyContent: 'center' }}>
+                          <View style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}>
+                            <Text style={role({ f: 'IS', w: 600, s: 11.5 }, P.ink)}>{p.label}</Text>
+                          </View>
                         </Pressable>
                       ) : (
                         <Text style={[role({ f: 'IS', w: 400, s: 11.5, lh: 1.4 }, P.sub), { marginTop: 6, textAlign: 'center' }]}>{p.label}</Text>
@@ -434,7 +441,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               </Card>
             )}
             <Card style={{ marginTop: 12, padding: 16 }}>
-              <Overline level="card">Aperçu — ce que verront les revendeuses</Overline>
+              <Overline level="card">{tr('publier.apercu')}</Overline>
               <View style={{ marginTop: 11, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {heroUri !== undefined ? (
                   <Image source={{ uri: heroUri }} style={{ width: C21.preview.size, height: C21.preview.size, borderRadius: C21.preview.r }} resizeMode="cover" />
@@ -442,10 +449,10 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                   <IconTile bg={TILE_GRADIENT.nouveau} glyph={'\u{1F9E5}'} size={C21.preview.size} radius={C21.preview.r} glyphSize={C21.preview.glyph} />
                 )}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={role({ f: 'IS', w: 700, s: 14 }, P.ink)}>{w.name.trim() === '' ? 'Robe brodée bogolan' : w.name}</Text>
+                  <Text style={role({ f: 'IS', w: 700, s: 14 }, P.ink)}>{w.name.trim() === '' ? '—' : w.name}</Text>
                   {/* F-46: « photo premium, sans prix incrusté » was a claim nothing checked. */}
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 2 }]}>{w.cat}</Text>
-                  <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), TNUM, { marginTop: 3 }]}>{`Commission revendeuse ${montant(w.C)}`}</Text>
+                  <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), TNUM, { marginTop: 3 }]}>{tr('publier.commission_montant').replace('{montant}', montant(w.C))}</Text>
                 </View>
               </View>
             </Card>
@@ -456,7 +463,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
               <Pressable
                 onPress={photosConfirmees.basculer}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: photosConfirmees.faite }}
+                aria-checked={photosConfirmees.faite}
                 style={{ marginTop: 14, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: GEO.r.banner, borderWidth: 1, borderColor: photosConfirmees.faite ? P.green : P.borderCtl, backgroundColor: photosConfirmees.faite ? P.greenSoft : P.surface, paddingVertical: 12, paddingHorizontal: 14 }}
               >
                 <View style={{ width: 24, height: 24, borderRadius: GEO.r.echTime / 2, borderWidth: 1.5, borderColor: photosConfirmees.faite ? P.green : P.borderCtl, backgroundColor: photosConfirmees.faite ? P.green : P.surface, alignItems: 'center', justifyContent: 'center' }}>

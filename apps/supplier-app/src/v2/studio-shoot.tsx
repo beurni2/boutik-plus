@@ -104,7 +104,7 @@ export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, 
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title="Boutik+ Studio" onBack={onBack} />
+          <HeaderStacked title={t('studio.titre')} onBack={onBack} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
           <Banner tone={blocked ? 'warn' : 'info'}>{t(blocked ? 'studio.permission_bloquee' : 'studio.permission')}</Banner>
@@ -121,7 +121,7 @@ export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
-        <HeaderStacked title="Boutik+ Studio" onBack={onBack} />
+        <HeaderStacked title={t('studio.titre')} onBack={onBack} />
         <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
         <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t('studio.vos_photos')}</Text>
         {subtitle !== '' && (
@@ -163,11 +163,12 @@ export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, 
       </View>
 
       {/* the demo's simulate-low toggle and fake meters left with the demo
-          Studio (LISTER-VRAI-1); light is judged from the REAL metrics frame */}
+          Studio (LISTER-VRAI-1); light is judged from the REAL metrics frame.
+          F-50: its invisible do-nothing button went too — a phone's screen
+          reader could still land on it, and it had no name. */}
       <View style={{ height: 0, opacity: 0 }} pointerEvents="none">
         <IconTile bg={TILE_GRADIENT.p1} glyph="" size={0} radius={0} glyphSize={0} />
         <MetersList rows={[]} />
-        <Pressable onPress={() => {}} accessibilityRole="button"><Text>{''}</Text></Pressable>
       </View>
     </View>
   );

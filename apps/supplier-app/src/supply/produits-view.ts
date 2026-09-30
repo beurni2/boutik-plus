@@ -1,4 +1,5 @@
 import type { HiddenReason, SupplierOfferRow } from './service';
+import { t } from '../i18n';
 
 /**
  * WHAT PRODUITS SHOWS, decided PURELY (PRODUITS-READ-1).
@@ -278,14 +279,14 @@ export interface GalleryPhoto {
  * hero whenever position 1 exists at all.
  */
 const HERO_VERTICAL_INDEX = 1;
-const GALLERY_LABELS = ['Héro', 'Preuve'] as const;
+const GALLERY_LABELS = ['publier.role_hero', 'publier.role_preuve'] as const;
 export function galleryPhotos(assetRefs: readonly string[], mediaBase: string | null): readonly GalleryPhoto[] {
   if (mediaBase === null) return [];
   return assetRefs
     .filter((ref) => ref.trim() !== '' && !ref.startsWith('private/'))
     .filter((_ref, i) => i !== HERO_VERTICAL_INDEX)
     .map((ref, i) => ({
-      label: GALLERY_LABELS[i] ?? `Détail ${i - GALLERY_LABELS.length + 1}`,
+      label: i < GALLERY_LABELS.length ? t(GALLERY_LABELS[i]!) : t('produits.photo_detail_n').replace('{n}', String(i - GALLERY_LABELS.length + 1)),
       uri: `${mediaBase}/${ref}`,
     }));
 }

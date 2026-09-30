@@ -1,4 +1,5 @@
 import type { RemboursementOperateur } from '../operations/dispatch-service';
+import { t as tr } from '../i18n';
 import type { PaidOrderRow, SupplierContact } from '../operations/service';
 
 /**
@@ -90,11 +91,12 @@ export function attenteDepuis(paidAt: string, nowMs: number): string {
   if (Number.isNaN(t)) return '';
   const mins = Math.floor((nowMs - t) / 60_000);
   if (mins < 1) return 'commandes.instant';
-  if (mins < 60) return `${mins} min`;
+  // Law 6 (F-91): the units read from the catalog, where the copy-lint sees them.
+  if (mins < 60) return tr('commandes.attente_min').replace('{n}', String(mins));
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return hours === 1 ? '1 heure' : `${hours} heures`;
+  if (hours < 24) return hours === 1 ? tr('commandes.attente_heure') : tr('commandes.attente_heures').replace('{n}', String(hours));
   const days = Math.floor(hours / 24);
-  return days === 1 ? '1 jour' : `${days} jours`;
+  return days === 1 ? tr('commandes.attente_jour') : tr('commandes.attente_jours').replace('{n}', String(days));
 }
 
 /** The waiting tone: calm under 4 h, insistent under 24 h, loud beyond — the

@@ -110,8 +110,9 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
   });
 
   it('the verify step details every value he typed, each on its own labelled row', () => {
-    for (const label of ['Catégorie', 'Code produit', 'Stock disponible', 'Prix de base']) {
-      expect(screens2, `verify row missing: ${label}`).toContain(`'${label}'`);
+    // LISTER-VRAI-1 (F-91): the row labels are catalog keys now, not inline French.
+    for (const cle of ['publier.etape_categorie', 'publier.champ_code', 'publier.ligne_stock', 'publier.champ_prix']) {
+      expect(screens2, `verify row missing: ${cle}`).toContain(`tr('${cle}')`);
     }
     // EVOLVED TWICE (CAPTURE-PAR-CATEGORIE-1 → RAYONS-1): the detail rows
     // carry no literal labels — the recap maps ONE ROW PER detail question

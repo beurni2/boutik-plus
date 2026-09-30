@@ -334,3 +334,22 @@ describe('a walk that crashes into the root boundary FAILS — it never passes o
     }
   });
 });
+
+describe('sansNom — the harness can tell a nameless control from a named one', () => {
+  it('reports a button holding only a picture, and not one named by its text or its label', async () => {
+    const screen = await mountEcran(
+      createElement(
+        'View' as never,
+        null,
+        createElement(Pressable, { onPress: () => {}, accessibilityRole: 'button' }, createElement('Image' as never, { source: { uri: 'x' } })),
+        createElement(Pressable, { onPress: () => {}, accessibilityRole: 'button', accessibilityLabel: 'Voir la photo : Héro' }, createElement('Image' as never, { source: { uri: 'y' } })),
+        createElement(Pressable, { onPress: () => {}, accessibilityRole: 'button', 'aria-label': 'Fermer' } as never, createElement('Image' as never, { source: { uri: 'z' } })),
+        createElement(Pressable, { onPress: () => {}, accessibilityRole: 'button' }, createElement(Text, null, 'Continuer')),
+      ),
+    );
+    const trouves = screen.sansNom();
+    expect(trouves, 'the picture-only button must be reported — else every « every control has a name » walk is blind').toHaveLength(1);
+    expect(trouves[0]).toMatch(/Pressable.*Image/);
+    screen.unmount();
+  });
+});

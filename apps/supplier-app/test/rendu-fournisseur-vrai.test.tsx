@@ -7,6 +7,7 @@ import { armerManipulateur } from './doubles/expo-image-manipulator';
 import { FournisseurApp } from '../src/fournisseur/FournisseurApp';
 import { formatF } from '../src/v2/money';
 import { bytesToBase64 } from '../src/studio/normalization';
+import { t } from '../src/i18n';
 
 /**
  * ═══ RENDU-RÉEL — FOURNISSEUR-VRAI-1: the supplier's app tells the truth and lets him in ═══
@@ -223,6 +224,37 @@ describe('F-06 · F-25 · F-80 — the code door: plain words, a keyboard that t
 });
 
 /* ─────────────────────────── his products (F-07, F-80) ─────────────────────────── */
+
+describe('F-50 (LISTER-VRAI-1) — every photo he can tap has a name, and the screen he is on is STATED', () => {
+  it('« Mes produits » and an order card: no nameless control; each photo button says which photo; the chosen screen is aria-selected', async () => {
+    storage({ 'boutik.fournisseur.code': CODE });
+    wire(lectures(monde({
+      produits: [produit('o1', { name: 'Pagne wax', assetRefs: ['media/h1', 'media/hv', 'media/p1', 'media/d1'] })],
+      commandes: [commande('c1', { productName: 'Pagne wax', productVersionId: 'pv-o1' })],
+    })));
+    const screen = await mountEcran(<FournisseurApp />);
+    const nomme = (nom: string) =>
+      screen.tree.root.findAll((n) => typeof n.type === 'string' && typeof n.props['onPress'] === 'function' && n.props['accessibilityLabel'] === nom).length;
+    const choisi = () =>
+      screen.tree.root
+        .findAll((n) => typeof n.type === 'string' && n.props['aria-selected'] === true)
+        .map((n) => n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join(''));
+
+    expect(screen.shows('Pagne wax')).toBe(true);
+    expect(screen.sansNom(), 'a control a screen reader cannot name').toEqual([]);
+    const voir = (nom: string) => t('produits.voir_photo').replace('{nom}', nom);
+    expect(nomme(voir(t('publier.role_hero'))), 'the thumbnail and the strip both open « Héro »').toBe(2);
+    expect(nomme(voir(t('produits.photo_detail_n').replace('{n}', '1')))).toBe(1);
+    expect(choisi(), 'the screen he is on').toEqual([t('fournisseur.onglet_produits')]);
+
+    await screen.press(t('fournisseur.onglet_commandes'));
+    expect(choisi(), 'the chosen screen moved with his tap').toEqual([t('fournisseur.onglet_commandes')]);
+    expect(screen.shows('Pagne wax')).toBe(true);
+    expect(screen.sansNom(), 'a nameless control on the order card').toEqual([]);
+    expect(nomme(voir(t('publier.role_hero'))), 'the order card names its photos the same way').toBeGreaterThan(0);
+    screen.unmount();
+  });
+});
 
 describe('F-07 · F-80 — « Mes produits » shows every product, frozen ones marked, and his photos open', () => {
   it('a product frozen for stock stays on his list with the reason; the live one counts as live; its photos open in the viewer', async () => {

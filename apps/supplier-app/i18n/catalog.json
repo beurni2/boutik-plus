@@ -162,6 +162,18 @@
     "screenClass": "label"
   },
   {
+    "key": "nav.moins",
+    "fr": "Moins",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "nav.plus",
+    "fr": "Plus",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "nav.recommencer",
     "fr": "Recommencer la démo",
     "register": "neutral",
@@ -5740,5 +5752,191 @@
     "fr": "Recharger",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "publier.etape_categorie",
+    "fr": "Catégorie",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.etape_details",
+    "fr": "Détails & stock",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.ligne_stock",
+    "fr": "Stock disponible",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.stock_unites",
+    "fr": "{n} unités",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.etape_prix",
+    "fr": "Prix & commission",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_prix_aide",
+    "fr": "Prix de base (ce que vaut le produit)",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.champ_commission_aide",
+    "fr": "Commission revendeuse (vous la financez)",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.etape_photos",
+    "fr": "Photos — Studio",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.ouvrir_studio",
+    "fr": "Ouvrir Boutik+ Studio",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.etape_verifier",
+    "fr": "Vérifiez, puis publiez",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.recoit_vente",
+    "fr": "Vous recevez / vente",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.ligne_commission",
+    "fr": "Commission revendeuse",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.vos_photos",
+    "fr": "Vos photos",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.apercu",
+    "fr": "Aperçu — ce que verront les revendeuses",
+    "register": "selling",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.commission_montant",
+    "fr": "Commission revendeuse {montant}",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.bouton_publier",
+    "fr": "Publier — c'est gratuit",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.photos_requises",
+    "fr": "Photos requises",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "publier.continuer",
+    "fr": "Continuer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.en_ligne_n",
+    "fr": "{n} en ligne",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "produits.stock_n",
+    "fr": "stock {n}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.photo_detail_n",
+    "fr": "Détail {n}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "produits.voir_photo",
+    "fr": "Voir la photo : {nom}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "nav.tab_commandes",
+    "fr": "Commandes",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "nav.tab_gains",
+    "fr": "Gains",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "nav.tab_operations",
+    "fr": "Opérations",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "studio.titre",
+    "fr": "Boutik+ Studio",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.attente_min",
+    "fr": "{n} min",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.attente_heure",
+    "fr": "1 heure",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.attente_heures",
+    "fr": "{n} heures",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.attente_jour",
+    "fr": "1 jour",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.attente_jours",
+    "fr": "{n} jours",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

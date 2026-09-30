@@ -156,6 +156,28 @@ describe('F-57 — the phone\'s Back walks back through the wizard, then leaves 
   });
 });
 
+describe('F-50 — the console says which tab he is on, and announces what it tells him', () => {
+  it('the REAL console: one tab is aria-selected, it moves with his tap; the toast area is a polite live region', async () => {
+    storage({ [OPS_SLOT]: OPS });
+    wire([]);
+    const screen = await mountEcran(<AppV2 />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 800)); // his 750 ms boot (F-58, kept by his word)
+    });
+    await screen.settle();
+    const choisis = () =>
+      screen.tree.root
+        .findAll((n) => typeof n.type === 'string' && typeof n.props['onPress'] === 'function' && n.props['aria-selected'] === true)
+        .map((n) => n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join(''));
+    expect(choisis(), 'the tab he is on must be STATED, not only painted').toEqual([t('nav.tab_accueil')]);
+    await screen.press(t('nav.tab_produits'));
+    expect(choisis()).toEqual([t('nav.tab_produits')]);
+    const annonces = screen.tree.root.findAll((n) => typeof n.type === 'string' && n.props['aria-live'] === 'polite');
+    expect(annonces.length, 'the toasts are not announced').toBe(1);
+    screen.unmount();
+  });
+});
+
 /** His inventory, behind the real door (Bearer = his operator key). */
 const catalogue = (rows: Record<string, unknown>[]): Route => (path, _b, _s, headers) => {
   if (!path.startsWith('/offers')) return null;

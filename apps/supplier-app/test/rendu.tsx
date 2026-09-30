@@ -207,6 +207,14 @@ export interface Screen {
   /** Re-render the same tree with new props — how a walk asks « does this
    *  component honour a CHANGE », which is where per-instance state hides. */
   rerender(element: React.ReactElement): Promise<void>;
+  /**
+   * LISTER-VRAI-1 (AUDIT-B+2 F-50) — every control on screen that a screen
+   * reader could NOT name: an `onPress` with no text inside it and no
+   * `accessibilityLabel` / `aria-label`. A SEMANTIC question (the name the
+   * page gives the control), never an appearance one. Returns what it found,
+   * described, so a failure says which control is nameless.
+   */
+  sansNom(): string[];
   unmount(): void;
 }
 
@@ -400,6 +408,14 @@ export async function mountEcran(element: React.ReactElement, options: { readonl
       });
       await settle();
     },
+    sansNom: () =>
+      tree.root
+        .findAll((n) => typeof n.type === 'string' && typeof n.props['onPress'] === 'function', { deep: true })
+        .filter((n) => {
+          const nom = n.props['accessibilityLabel'] ?? n.props['aria-label'];
+          return textOf(n).trim() === '' && !(typeof nom === 'string' && nom.trim() !== '');
+        })
+        .map((n) => `<${String(n.type)} role=${String(n.props['accessibilityRole'] ?? '?')}> holding ${n.findAll((c) => typeof c.type === 'string').map((c) => String(c.type)).slice(1, 4).join(', ') || 'nothing'}`),
     settle,
     unmount: () => {
       act(() => {

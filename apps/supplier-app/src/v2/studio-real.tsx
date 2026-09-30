@@ -137,7 +137,7 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
   if (phase.kind === 'failed') {
     return (
       <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
-        <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
+        <HeaderStacked title={t('studio.titre')} onBack={() => d({ t: 'BACK' })} />
         <View style={{ marginTop: 16 }}>
           <Banner tone="warn">{`${t('studio.echec')}\n${phase.reason}`}</Banner>
         </View>
@@ -174,13 +174,15 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
             <View key={`${i}-${s.derivative.uri.slice(-24)}`} style={{ flex: 1, maxWidth: 96 }}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t('studio.photo_n').replace('{n}', String(i + 1))}
                 onPress={() => setViewing({ uri: s.derivative.uri, label: t('studio.photo_n').replace('{n}', String(i + 1)) })}
               >
                 {/* the thumbnail IS the shipped derivative — what he checks is what uploads */}
                 <PhotoThumb uri={s.derivative.uri} />
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => setShots((cur) => cur.filter((_, j) => j !== i))} hitSlop={10}>
-                <Text style={[role({ f: 'IS', w: 500, s: 11.5 }, P.sub), { marginTop: 5, textAlign: 'center' }]}>
+              {/* F-50: a 44 px box, not hitSlop (which the web page ignores) */}
+              <Pressable accessibilityRole="button" onPress={() => setShots((cur) => cur.filter((_, j) => j !== i))} style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Text style={[role({ f: 'IS', w: 500, s: 11.5 }, P.sub), { textAlign: 'center' }]}>
                   {t('studio.retirer')}
                 </Text>
               </Pressable>

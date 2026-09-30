@@ -108,7 +108,7 @@ export function StudioShoot({ banner, subtitle, onPick, onDropAssets, onBack, ch
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingTop: GEO.screenPad.top, paddingHorizontal: GEO.screenPad.side }}>
-        <HeaderStacked title="Boutik+ Studio" onBack={onBack} />
+        <HeaderStacked title={t('studio.titre')} onBack={onBack} />
         <Text style={role({ f: 'IS', w: 400, s: 12 }, P.sub)}>{t('studio.honnete_ia')}</Text>
         <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 14 }]}>{t('studio.vos_photos')}</Text>
         {subtitle !== '' && (

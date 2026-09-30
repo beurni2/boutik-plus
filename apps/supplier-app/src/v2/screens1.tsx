@@ -110,13 +110,14 @@ export function S03Produits({ rows, mediaBase, d, header, onOpen, filtre, attrib
   if (header !== true) return body;
   return (
     <ScrollView contentContainerStyle={scrollTabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>Produits</PageTitle>
+      <PageTitle>{tr('nav.tab_produits')}</PageTitle>
+      {/* F-46 family: « photos sans prix incrusté » was a claim nothing checked. */}
       <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.sub), { marginTop: 4 }]}>
-        {`${live} en ligne · photos sans prix incrusté`}
+        {tr('produits.en_ligne_n').replace('{n}', String(live))}
       </Text>
       {filtre}
       <View style={{ marginTop: 16 }}>
-        <BtnSoft label="Lister un produit — gratuit" icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
+        <BtnSoft label={tr('produits.lister')} icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
       </View>
       {body}
     </ScrollView>
@@ -290,11 +291,11 @@ export function SOffreFiche({ row, mediaBase, onBack, onDelete, suppressionSansC
       )}
       <Card style={{ marginTop: 16 }}>
         {([
-          ['Catégorie', row.category],
-          ['Variantes', row.variantsNote ?? '—'],
-          ['Stock disponible', `${row.available}`],
-          ['Prix de base', formatF(row.basePrice)],
-          ['Commission revendeuse', formatF(row.resellerCommission)],
+          [tr('publier.champ_categorie'), row.category],
+          [tr('publier.variantes_generique'), row.variantsNote ?? '—'],
+          [tr('publier.ligne_stock'), `${row.available}`],
+          [tr('publier.champ_prix'), formatF(row.basePrice)],
+          [tr('publier.ligne_commission'), formatF(row.resellerCommission)],
         ] as const).map(([label, value]) => (
           <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, gap: 12 }}>
             <Text style={role({ f: 'IS', w: 400, s: 14 }, P.sub)}>{label}</Text>

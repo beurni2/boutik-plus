@@ -102,24 +102,24 @@ export function StatusZone() {
 type DockTab = 'home' | 'produits' | 'commandes' | 'argent' | 'operations';
 export function Dock({ tab, onTab, operateur }: { tab: DockTab; onTab: (t: DockTab) => void; operateur?: boolean }) {
   const TABS = [
-    { k: 'home' as const, label: 'Accueil', icon: 'tab.home' as const },
-    { k: 'produits' as const, label: 'Produits', icon: 'tab.tag' as const },
-    { k: 'commandes' as const, label: 'Commandes', icon: 'tab.box' as const },
+    { k: 'home' as const, label: tr('nav.tab_accueil'), icon: 'tab.home' as const },
+    { k: 'produits' as const, label: tr('nav.tab_produits'), icon: 'tab.tag' as const },
+    { k: 'commandes' as const, label: tr('nav.tab_commandes'), icon: 'tab.box' as const },
     // RB-4 (founder order 2026-08-08: « for the chip Argent suggest a good
     // [name] and apply it ») — « Gains »: his own word for the tab, and the
     // screen's title. The machine's tab id stays 'argent' (an identifier,
     // not a user-facing string).
-    { k: 'argent' as const, label: 'Gains', icon: 'tab.franc' as const },
+    { k: 'argent' as const, label: tr('nav.tab_gains'), icon: 'tab.franc' as const },
     // CONSOLE-1 — the founder's surface, present ONLY when his key is on this
     // device (the shell decides; see AppV2). Everyone else's Dock is unchanged.
-    ...(operateur === true ? [{ k: 'operations' as const, label: 'Opérations', icon: 'tab.box' as const }] : []),
+    ...(operateur === true ? [{ k: 'operations' as const, label: tr('nav.tab_operations'), icon: 'tab.box' as const }] : []),
   ];
   return (
     <View style={s.dockBar}>
       {TABS.map((t) => {
         const active = tab === t.k;
         return (
-          <Pressable key={t.k} onPress={() => onTab(t.k)} style={press(PRESSED.dockItem, [s.dockItem, active && s.dockItemActive])} accessibilityRole="button">
+          <Pressable key={t.k} onPress={() => onTab(t.k)} style={press(PRESSED.dockItem, [s.dockItem, active && s.dockItemActive])} accessibilityRole="button" aria-selected={active}>
             <Icon name={t.icon} size={24} stroke={active ? P.greenDeep : P.faint} />
             <Text style={[s.dockLabel, active && s.dockLabelActive]}>{t.label}</Text>
           </Pressable>
@@ -148,9 +148,16 @@ export const BtnGhost = ({ label, onPress, style }: { label: string; onPress: ()
     <Text style={s.btnGhostLabel}>{label}</Text>
   </Pressable>
 );
+/**
+ * LISTER-VRAI-1 (AUDIT-B+2 F-50) — the in-app back is the F18 box: a 44 px
+ * touch area around C11's painted 40 px circle (the pixel diff pins the circle
+ * at 40). The −2 margin lays the box out as 40, so the header does not move.
+ */
 export const BackBtn = ({ onPress }: { onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.back, s.backBtn)} accessibilityRole="button" accessibilityLabel="Retour">
-    <Icon name="chevronLeft" size={C11.chevron.size} stroke={C11.chevron.stroke} strokeWidth={C11.chevron.strokeWidth} />
+  <Pressable onPress={onPress} style={press(PRESSED.back, s.backHit)} accessibilityRole="button" accessibilityLabel={tr('nav.retour')}>
+    <View style={s.backBtn}>
+      <Icon name="chevronLeft" size={C11.chevron.size} stroke={C11.chevron.stroke} strokeWidth={C11.chevron.strokeWidth} />
+    </View>
   </Pressable>
 );
 
@@ -168,16 +175,18 @@ export const ChipSegment = ({ label, count, active, onPress }: { label: string; 
  * fournisseur surface. The painted geometry is a design token and stays
  * exactly as designed; only the box a thumb must hit grows.
  *
- * `accessibilityState.selected` for the same reason the fill and the border
- * exist: the active tab is STATED, and a screen reader is owed the same
- * statement as an eye.
+ * `aria-selected` for the same reason the fill and the border exist: the
+ * active tab is STATED, and a screen reader is owed the same statement as an
+ * eye. (LISTER-VRAI-1, F-50: it was `accessibilityState`, which
+ * react-native-web 0.21 drops without a word — the page never said it. The
+ * control in `tap-targets-44` pins that.)
  */
 export const ChipCategory = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
   <Pressable
     onPress={onPress}
     style={press(PRESSED.chipCategory, s.chipCatHit)}
     accessibilityRole="button"
-    accessibilityState={{ selected: active }}
+    aria-selected={active}
   >
     <View style={[s.chipCat, active ? s.chipCatActive : s.chipCatInactive]}>
       <Text style={[s.chipCatTxt, active && s.chipCatTxtActive]}>{label}</Text>
@@ -195,10 +204,12 @@ export const ChipCategory = ({ label, active, onPress }: { label: string; active
  * object, same height, same alignment — so a seller who knows his price types
  * it instead of tapping + eighteen times.
  */
-export function Stepper({ value, onMinus, onPlus, onChangeText }: { value: string; onMinus: () => void; onPlus: () => void; onChangeText?: (t: string) => void }) {
+export function Stepper({ label, value, onMinus, onPlus, onChangeText }: { label: string; value: string; onMinus: () => void; onPlus: () => void; onChangeText?: (t: string) => void }) {
+  // F-50: a screen reader said « 10000 », not « Prix de base » — the field's
+  // label names the box and both buttons.
   return (
     <View style={s.stepperRow}>
-      <Pressable onPress={onMinus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button">
+      <Pressable onPress={onMinus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button" accessibilityLabel={`${label} — ${tr('nav.moins')}`}>
         <Text style={s.stepperGlyph}>{C15.minus}</Text>
       </Pressable>
       {onChangeText === undefined ? (
@@ -210,10 +221,10 @@ export function Stepper({ value, onMinus, onPlus, onChangeText }: { value: strin
           onChangeText={onChangeText}
           keyboardType="number-pad"
           selectTextOnFocus
-          accessibilityLabel={value}
+          accessibilityLabel={label}
         />
       )}
-      <Pressable onPress={onPlus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button">
+      <Pressable onPress={onPlus} style={press(PRESSED.stepper, s.stepperBtn)} accessibilityRole="button" accessibilityLabel={`${label} — ${tr('nav.plus')}`}>
         <Text style={s.stepperGlyph}>{C15.plus}</Text>
       </Pressable>
     </View>
@@ -250,8 +261,10 @@ export const Card = ({ children, variant = 'L', style }: { children: ReactNode; 
 // « −0 F » row would name a charge that does not exist. net = B − C.
 export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { B: string; C: string; netV: string; netSize?: 'L' | 'XL'; note?: string; overline?: string }) {
   const lines: [string, string, boolean][] = [
-    [C19.ORDER[0], B, false],
-    [C19.ORDER[1], `${C19.minus}${C}`, true],
+    // Law 6 (F-91): the three labels read from the catalog; C19.ORDER stays in
+    // styles.ts as the board's measured values the pixel gate compares.
+    [tr('publier.champ_prix'), B, false],
+    [tr('publier.ligne_commission'), `${C19.minus}${C}`, true],
   ];
   return (
     <Card>
@@ -263,7 +276,7 @@ export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { 
         </View>
       ))}
       <View style={s.moneyTotal}>
-        <Text style={s.moneyTotalLabel}>{C19.ORDER[2]}</Text>
+        <Text style={s.moneyTotalLabel}>{tr('publier.net')}</Text>
         <Text style={[netSize === 'XL' ? s.moneyTotalXL : s.moneyTotalL, TNUM]}>{netV}</Text>
       </View>
       {note !== undefined && <Text style={s.moneyNote}>{note}</Text>}
@@ -422,7 +435,7 @@ export function OfferTile({ name, priceF, stock, variants, photo, clipUri, hidde
         <Text style={s.tileName} numberOfLines={2}>{name}</Text>
         <View style={s.tilePriceRow}>
           <Text style={[s.tilePrice, TNUM]}>{priceF}</Text>
-          <Text style={[s.tileStock, stock <= 4 && s.tileStockLow, TNUM]} numberOfLines={1}>{`stock ${stock}`}</Text>
+          <Text style={[s.tileStock, stock <= 4 && s.tileStockLow, TNUM]} numberOfLines={1}>{tr('produits.stock_n').replace('{n}', String(stock))}</Text>
         </View>
         {variants !== undefined && <Text style={s.tileVariants} numberOfLines={1}>{variants}</Text>}
         {hiddenNote !== undefined && <Text style={s.tileHidden}>{hiddenNote}</Text>}
@@ -443,7 +456,7 @@ export function Banner({ tone, children, check, style }: { tone: 'info' | 'warn'
 }
 // ── toast stack + dots + footer ───────────────────────────────────────────────
 export const ToastStack = ({ toasts }: { toasts: { id: number; m: string }[] }) => (
-  <View style={s.toastStack} pointerEvents="none">
+  <View style={s.toastStack} pointerEvents="none" aria-live="polite">
     {toasts.map((t) => (
       <View key={t.id} style={s.toast}>
         <Icon name="check" size={C30.check.size} stroke={C30.check.stroke} strokeWidth={C30.check.strokeWidth} />
@@ -512,6 +525,8 @@ const s = StyleSheet.create({
   btnSoft: C08.btn, btnSoftLabel: C08.label,
   btnGhost: C09.btn, btnGhostLabel: C09.label,
   backBtn: C11.btn,
+  /** The F18 44 px touch box around C11's 40 px circle (F-50). */
+  backHit: { minWidth: 44, minHeight: 44, margin: -2, alignItems: 'center' as const, justifyContent: 'center' as const },
   chipSeg: C12.chip, chipSegActive: C12.active, chipSegInactive: C12.inactive, chipSegTxt: C12.txt, chipSegTxtActive: C12.txtActive, chipSegCount: C12.count,
   chipCat: C13.chip, chipCatActive: C13.active, chipCatInactive: C13.inactive, chipCatTxt: C13.txt, chipCatTxtActive: C13.txtActive,
   /** The F18 44 px touch box, around C13's 42 px pill (verifier 2026-08-10). */

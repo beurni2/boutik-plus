@@ -74,6 +74,62 @@ describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web roo
   });
 
   /**
+   * LISTER-VRAI-1 (AUDIT-B+2 F-50) — the listing flow's own small controls,
+   * which this gate covered none of: the in-app back, the photo's role chip
+   * (the only way to pick hero, proof or detail) and « Retirer » in the Studio.
+   * Each is the same F18 box: 44 px to the thumb, the painted design untouched.
+   */
+  it('BackBtn: a 44 px touch box around the painted 40 px circle, laid out as 40', () => {
+    const src = lire('src/v2/components.tsx');
+    const back = bloc(src, 'export const BackBtn', '// ── chips');
+    expect(back, 'BackBtn no longer presses through the 44 px box').toContain('s.backHit');
+    expect(back, 'the painted circle must stay the C11 token, inside the box').toContain('<View style={s.backBtn}>');
+    const hit = bloc(src, 'backHit:', '},', 20);
+    expect(hit).toContain('minWidth: 44');
+    expect(hit).toContain('minHeight: 44');
+    expect(hit, 'without the −2 margin the header grows by 4 px').toContain('margin: -2');
+    expect(bloc(lire('src/ui/v2/styles.ts'), 'export const C11', 'export const C12'), 'the painted circle moved off 40').toContain('width: 40, height: 40');
+  });
+
+  it('the photo role chip and the Studio\'s « Retirer » are 44 px boxes', () => {
+    const chip = bloc(lire('src/v2/screens2.tsx'), '<Pressable onPress={p.onRole}', '</Pressable>');
+    expect(chip).toContain('minHeight: 44');
+    expect(chip).toContain("justifyContent: 'center'");
+    const retirer = bloc(lire('src/v2/studio-real.tsx'), 'setShots((cur) => cur.filter', '</Pressable>');
+    expect(retirer).toContain('minHeight: 44');
+  });
+
+  /** hitSlop is a no-op on the page he uses — no live screen may lean on it. */
+  it('no live console or supplier screen uses hitSlop', () => {
+    for (const f of ['src/v2/screens2.tsx', 'src/v2/studio-real.tsx', 'src/v2/components.tsx', 'src/fournisseur/FournisseurApp.tsx', 'src/v2/produits-real.tsx', 'src/v2/lister-real.tsx', 'src/v2/screens1.tsx']) {
+      expect(lire(f), `${f} leans on hitSlop, which the web page ignores`).not.toMatch(/hitSlop=/);
+    }
+  });
+
+  /**
+   * THE SAME TRAP, ONE PROP OVER (F-50). The audit's fix said « add
+   * accessibilityState selected to the Dock tabs ». react-native-web 0.21
+   * drops `accessibilityState` on the web page without a word — it maps
+   * `aria-selected` / `aria-checked` (and `disabled` on Pressable), nothing
+   * else. So the chosen tab, the chosen screen and his photo confirmation are
+   * stated with `aria-*`, which React Native honours on a phone too. If a
+   * future react-native-web starts mapping accessibilityState, this goes red
+   * and someone re-reads the choice instead of inheriting it.
+   */
+  it('CONTROL: react-native-web still drops accessibilityState — the live screens state selection with aria-*', () => {
+    const racine = join(import.meta.dirname, '..', '..', '..', 'node_modules', '.pnpm');
+    const { readdirSync } = require('node:fs') as typeof import('node:fs');
+    const dossier = readdirSync(racine).find((d) => d.startsWith('react-native-web@'));
+    const dom = join(racine, dossier as string, 'node_modules', 'react-native-web', 'dist', 'modules', 'createDOMProps', 'index.js');
+    const code = readFileSync(dom, 'utf8');
+    expect(code, 'createDOMProps moved or changed — re-verify by hand').toContain("domProps['aria-selected']");
+    expect(code.includes('accessibilityState'), 'react-native-web now maps accessibilityState — re-read F-50').toBe(false);
+    for (const f of ['src/v2/components.tsx', 'src/v2/screens2.tsx', 'src/fournisseur/FournisseurApp.tsx']) {
+      expect(lire(f), `${f} states selection with accessibilityState, which never reaches the page`).not.toMatch(/accessibilityState=\{\{\s*(selected|checked)/);
+    }
+  });
+
+  /**
    * THE CONTROL, and the reason this file is not decoration: it pins the fact
    * that made hitSlop the wrong tool. If a future react-native-web bump starts
    * implementing hitSlop on Pressable, this test goes red and someone re-reads

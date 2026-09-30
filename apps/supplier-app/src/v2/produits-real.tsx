@@ -574,10 +574,10 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
 function Shell({ d, children }: { d: (a: A) => void; children: React.ReactNode }) {
   return (
     <ScrollView contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>Produits</PageTitle>
+      <PageTitle>{t('nav.tab_produits')}</PageTitle>
       <View style={{ marginTop: 14 }}>{children}</View>
       <View style={{ marginTop: 16 }}>
-        <BtnSoft label="Lister un produit — gratuit" icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
+        <BtnSoft label={t('produits.lister')} icon="plus" onPress={() => d({ t: 'OPEN_WIZ' })} />
       </View>
     </ScrollView>
   );
