@@ -16,9 +16,11 @@ import type { RetraitResult } from '../operations/service';
  * destructive control is the last place to grow a second dialect.
  *
  * A named refusal from the book (`refused`) reads as unreachable ON PURPOSE:
- * the retire door answers `inconnu` with `ok:true`, so the only refusals that
- * can arrive here are ones this screen cannot act on — « we do not know that
- * it happened » is the honest sentence, and the row stays.
+ * the retire door answers `inconnu` with `ok:true`, so the only refusal that
+ * can arrive here is `malformed`, which this screen cannot act on — « we do
+ * not know that it happened » is the honest sentence, and the row stays.
+ * (`colis_en_course` — one article of a bag a rider carries, AUDIT-B+2 F-64 —
+ * is a refusal he CAN act on, and the zone names it before it gets here.)
  */
 export function retraitDepuisAnswer(answer: { readonly kind: string }): RetraitResult {
   if (answer.kind === 'ok') return { ok: true };

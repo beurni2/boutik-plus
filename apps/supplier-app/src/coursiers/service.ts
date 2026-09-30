@@ -97,6 +97,11 @@ export interface CourseRow {
   /** True when an assignment is live: retiring one of these takes the course
    *  off a rider's phone, so the screen must say so before he taps. */
   readonly confiee: boolean;
+  /** AUDIT-B+2 F-64 — every article of the package this course carries (two
+   *  or more), when it carries one. Séra's COLIS-2 door takes ONE article of
+   *  a waiting package alone and refuses one article of a carried package
+   *  (`colis_en_course`): the desk must know which case it is before he taps. */
+  readonly colis?: readonly string[] | undefined;
 }
 
 export interface CoursiersServicePort {
@@ -105,8 +110,10 @@ export interface CoursiersServicePort {
    *  read gives it. Queued tasks and live assignments, nothing else. */
   courses(): Promise<CoursierAnswer<readonly CourseRow[]>>;
   /** PURGE-ESSAI-COURSES — retire ONE course. One order per call: the Worker
-   *  has no « tout retirer » and must never grow one. */
-  retirerCourse(orderId: string, commandId: string): Promise<CoursierAnswer<null>>;
+   *  has no « tout retirer » and must never grow one. `colisEntier` (COLIS-2)
+   *  asks for the whole package a rider carries — sent only by the act that
+   *  named every article of it. */
+  retirerCourse(orderId: string, commandId: string, colisEntier?: boolean): Promise<CoursierAnswer<null>>;
   inscrire(r: { riderId: string; displayName: string; phoneAlias: string }): Promise<CoursierAnswer<null>>;
   donnerCode(riderId: string): Promise<CoursierAnswer<string>>;
   retirerCode(riderId: string): Promise<CoursierAnswer<null>>;
@@ -228,6 +235,16 @@ export function coursierRows(ridersBody: unknown, codesBody: unknown): readonly 
   return out;
 }
 
+/** The package a board row names (`{orderIds}`), when it holds this row's
+ *  order and at least one other — anything else is no package. */
+function articlesDu(colis: unknown, orderId: string): readonly string[] | undefined {
+  if (colis === null || typeof colis !== 'object') return undefined;
+  const ids = (colis as Record<string, unknown>)['orderIds'];
+  if (!Array.isArray(ids)) return undefined;
+  const propres = ids.filter((x): x is string => typeof x === 'string' && x !== '');
+  return propres.length >= 2 && propres.includes(orderId) ? propres : undefined;
+}
+
 /**
  * PURGE-ESSAI-COURSES — the board, read defensively. A course appears ONCE:
  * a live assignment wins over the queued row for the same order, because
@@ -251,9 +268,15 @@ export function courseRows(boardBody: unknown): readonly CourseRow[] {
       const orderId = typeof q['orderId'] === 'string' ? q['orderId'] : '';
       const taskId = typeof q['taskId'] === 'string' ? q['taskId'] : '';
       if (orderId === '') continue;
-      par.set(orderId, { orderId, taskId, confiee: false });
+      const colis = articlesDu(q['colis'], orderId);
+      par.set(orderId, { orderId, taskId, confiee: false, ...(colis !== undefined ? { colis } : {}) });
     }
   }
+  // A live course carrying a package names its articles by assignmentId.
+  const colisEnCourse =
+    board['colisEnCourse'] !== null && typeof board['colisEnCourse'] === 'object'
+      ? (board['colisEnCourse'] as Record<string, unknown>)
+      : {};
   const assignments = board['assignments'];
   if (Array.isArray(assignments)) {
     for (const e of assignments) {
@@ -262,11 +285,14 @@ export function courseRows(boardBody: unknown): readonly CourseRow[] {
       const orderId = typeof a['orderId'] === 'string' ? a['orderId'] : '';
       if (orderId === '') continue;
       const rider = typeof a['riderId'] === 'string' && a['riderId'] !== '' ? a['riderId'] : undefined;
+      const colis =
+        typeof a['assignmentId'] === 'string' ? articlesDu(colisEnCourse[a['assignmentId']], orderId) : undefined;
       par.set(orderId, {
         orderId,
         taskId: typeof a['taskId'] === 'string' ? a['taskId'] : (par.get(orderId)?.taskId ?? ''),
         ...(rider !== undefined ? { coursier: rider } : {}),
         confiee: true,
+        ...(colis !== undefined ? { colis } : {}),
       });
     }
   }
@@ -316,12 +342,16 @@ export function httpCoursiersService(
       if (board.kind !== 'ok') return board;
       return { kind: 'ok', value: courseRows(board.value) };
     },
-    retirerCourse: (orderId, commandId) =>
+    retirerCourse: (orderId, commandId, colisEntier = false) =>
       call(
         '/ops/order/retirer',
         // ONLY the id and the command — the same envelope discipline every
-        // act on this desk follows.
-        { method: 'POST', body: JSON.stringify({ command_id: commandId, orderId }) },
+        // act on this desk follows. `colisEntier` rides only when asked for:
+        // Séra reads its absence as « this article alone ».
+        {
+          method: 'POST',
+          body: JSON.stringify({ command_id: commandId, orderId, ...(colisEntier ? { colisEntier: true } : {}) }),
+        },
         () => null,
       ),
     inscrire: (r) => call('/ops/riders', { method: 'POST', body: JSON.stringify(r) }, () => null),

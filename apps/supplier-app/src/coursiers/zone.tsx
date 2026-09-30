@@ -23,6 +23,7 @@ import {
   readStoredCleCoursiers,
   resolveCoursiersService,
   storeCleCoursiers,
+  type CourseRow,
   type CoursiersServicePort,
 } from './service';
 import {
@@ -562,6 +563,9 @@ function LivreCoursiers({ cle, onCleRefusee }: { cle: string; onCleRefusee: () =
 function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: () => void }) {
   const [read, setRead] = useState<CoursesRead>({ kind: 'chargement' });
   const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
+  /** AUDIT-B+2 F-64 — the row whose one-article retire Séra refused
+   *  `colis_en_course`: named under it until the next act. */
+  const [enMains, setEnMains] = useState<string | null>(null);
 
   const charger = useCallback(async (): Promise<void> => {
     const service = resolveCoursiersService(cle);
@@ -582,11 +586,18 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
   }, [charger]);
 
   /** ONE named call, then the BOARD is asked again — never this screen's hope
-   *  that a row is gone. */
-  const retirer = async (orderId: string): Promise<'ok' | 'bad_key' | 'echec'> => {
+   *  that a row is gone. A package a rider carries leaves only whole
+   *  (`colisEntier`, COLIS-2); one article of it is refused by name. */
+  const retirer = async (orderId: string, colisEntier: boolean): Promise<'ok' | 'bad_key' | 'echec' | 'colis_en_course'> => {
     const service = resolveCoursiersService(cle);
     if (service === null) return 'echec';
-    const answer = await service.retirerCourse(orderId, mintCommandId());
+    setEnMains(null);
+    const answer = await service.retirerCourse(orderId, mintCommandId(), colisEntier);
+    if (answer.kind === 'refused' && answer.reason === 'colis_en_course') {
+      setUi(RETRAIT_IDLE);
+      setEnMains(orderId);
+      return 'colis_en_course';
+    }
     const settled = retraitSettled(orderId, retraitDepuisAnswer(answer));
     setUi(settled.ui);
     if (settled.then === 'refresh') return 'ok';
@@ -614,6 +625,8 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
   }
 
   const sweep = ui.sweep;
+  const enMainsEntier = (c: CourseRow): boolean => c.confiee && c.colis !== undefined;
+  const confiees = read.courses.filter((c) => c.confiee).length;
   return (
     <Card variant="Llg" style={{ marginTop: 16 }}>
       <Text style={TITRE}>{t('coursiers.courses_titre')}</Text>
@@ -633,11 +646,31 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
                 <Text style={[PETIT, { marginTop: 8 }]}>{t('coursiers.course_encours')}</Text>
               ) : ui.demande === c.orderId ? (
                 <View style={{ marginTop: 8, gap: 8 }}>
-                  <Text style={CORPS}>{t('coursiers.course_question')}</Text>
+                  {enMainsEntier(c) && c.colis !== undefined ? (
+                    <>
+                      <Text style={CORPS}>
+                        {t('coursiers.course_question_colis').replace('{n}', String(c.colis.length))}
+                      </Text>
+                      <Text style={PETIT}>
+                        {t('coursiers.course_colis_articles').replace('{ids}', c.colis.join(' · '))}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={CORPS}>{t('coursiers.course_question')}</Text>
+                  )}
+                  {/* COLIS-2 — one article of a waiting package leaves alone;
+                      the board files the course under this one, so the others
+                      go back to be composed again. */}
+                  {!c.confiee && c.colis !== undefined ? (
+                    <Text style={PETIT}>
+                      {t('coursiers.course_colis_attente').replace('{n}', String(c.colis.length))}
+                    </Text>
+                  ) : null}
                   {/* A CARRIED COURSE IS THE DANGEROUS ONE — say it here, at
-                      the moment of the decision, not only in a journal. */}
+                      the moment of the decision (AUDIT-B+2 F-65: what Séra
+                      actually does, the same sentence everywhere). */}
                   {c.confiee ? (
-                    <Banner tone="warn">{t('coursiers.course_question_confiee')}</Banner>
+                    <Banner tone="warn">{t('coursiers.course_garde')}</Banner>
                   ) : null}
                   <BtnGhost
                     label={t('coursiers.course_oui')}
@@ -645,9 +678,9 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
                       const started = retraitStart(ui, c.orderId);
                       if (started === null) return void 0;
                       setUi(started);
-                      void retirer(c.orderId).then((r) => {
+                      void retirer(c.orderId, enMainsEntier(c)).then((r) => {
                         if (r === 'bad_key') onCleRefusee();
-                        else if (r === 'ok') void charger();
+                        else if (r === 'ok' || r === 'colis_en_course') void charger();
                       });
                     }}
                   />
@@ -656,7 +689,7 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
               ) : (
                 <View style={{ marginTop: 8 }}>
                   <BtnGhost
-                    label={t('coursiers.course_retirer')}
+                    label={t(enMainsEntier(c) ? 'coursiers.course_retirer_colis' : 'coursiers.course_retirer')}
                     onPress={() => {
                       const asked = retraitDemande(ui, c.orderId);
                       if (asked === null) return void 0;
@@ -667,6 +700,8 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
               )}
               {ui.echec === c.orderId ? (
                 <Text style={[PETIT, { marginTop: 6 }]}>{t('coursiers.course_echec')}</Text>
+              ) : enMains === c.orderId ? (
+                <Text style={[PETIT, { marginTop: 6 }]}>{t('coursiers.course_colis_en_mains')}</Text>
               ) : null}
             </View>
           ))}
@@ -685,6 +720,18 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
                 <Text style={CORPS}>
                   {t('coursiers.courses_balayage_question').replace('{n}', String(sweep.orderIds.length))}
                 </Text>
+                {/* AUDIT-B+2 F-65 — the sweep retired carried courses without a
+                    word; it now says how many, and what that does. */}
+                {confiees > 0 ? (
+                  <>
+                    <Text style={CORPS}>
+                      {confiees === 1
+                        ? t('coursiers.courses_balayage_une_confiee')
+                        : t('coursiers.courses_balayage_confiees').replace('{c}', String(confiees))}
+                    </Text>
+                    <Banner tone="warn">{t('coursiers.course_garde')}</Banner>
+                  </>
+                ) : null}
                 <BtnGhost
                   label={t('coursiers.courses_balayage_oui')}
                   onPress={() => {
@@ -697,7 +744,10 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
                       let echecs = 0;
                       let cleRefusee = false;
                       for (const orderId of started.orderIds) {
-                        const r = await retirer(orderId);
+                        // A bag a rider carries is ONE call for the whole bag —
+                        // one article of it would be refused every time.
+                        const ligne = read.courses.find((c) => c.orderId === orderId);
+                        const r = await retirer(orderId, ligne !== undefined && enMainsEntier(ligne));
                         if (r === 'ok') faits += 1;
                         else {
                           echecs += 1;

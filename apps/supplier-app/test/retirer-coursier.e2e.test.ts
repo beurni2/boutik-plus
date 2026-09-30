@@ -1,9 +1,9 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { afterAll, describe, expect, it } from 'vitest';
 import { httpCoursiersService } from '../src/coursiers/service';
+import { RAISON_SAUT, SERA_BUNDLE, exigerBundleAJour, miniflareDuDepot, titreSeam } from './sera-bundle';
 
 /**
  * ═══ THE SEAM: RETIRER UN COURSIER, console port → REAL Séra worker ═══
@@ -19,41 +19,28 @@ import { httpCoursiersService } from '../src/coursiers/service';
  * console's OWN port against the REAL worker and asks the ROSTER for the
  * outcome, never the response.
  *
- * ⚠ MINIFLARE IS RESOLVED FROM A SERVICE PACKAGE, and the file SKIPS honestly
- * when the Séra bundle is absent — the same two rules the courses seam test
- * states, for the same reasons (a console bundle must not grow a Workers
- * runtime; this repo's CI has no `sera` clone).
+ * ⚠ MINIFLARE IS RESOLVED FROM A SERVICE PACKAGE, and the file SKIPS — with the
+ * reason in its title — when the Séra bundle is absent: the same rules the
+ * courses seam test states (`sera-bundle.ts`, AUDIT-B+2 F-83).
  */
 
-const SERA_BUNDLE = '/home/user/sera/services/logistics-service/dist-worker/worker.mjs';
 const OPS = 'test-sera-ops-retrait-coursier';
 const INTAKE = 'test-sera-intake-retrait-coursier';
 const T = '2026-08-12T09:00:00.000Z';
 
-type MiniflareCtor = new (opts: Record<string, unknown>) => {
-  dispatchFetch(url: string, init?: unknown): Promise<Response>;
-  dispose(): Promise<void>;
-};
-function loadMiniflare(): MiniflareCtor | null {
-  try {
-    const req = createRequire('/home/user/boutik-plus/services/offer-service/package.json');
-    return (req('miniflare') as { Miniflare: MiniflareCtor }).Miniflare;
-  } catch {
-    return null;
-  }
-}
-const Miniflare = loadMiniflare();
+const Miniflare = miniflareDuDepot();
 
 const dirs: string[] = [];
 afterAll(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
 
-describe.skipIf(Miniflare === null || !existsSync(SERA_BUNDLE))('RETIRER-COURSIER — the console removes a REAL rider from a REAL roster', () => {
+describe.skipIf(RAISON_SAUT !== null)(titreSeam('RETIRER-COURSIER — the console removes a REAL rider from a REAL roster'), () => {
   it('removes a free rider, and REFUSES the one carrying a parcel — asked of the roster, not the answer', async () => {
+    exigerBundleAJour();
     const dir = mkdtempSync(join(tmpdir(), 'retrait-coursier-seam-'));
     dirs.push(dir);
-    const mf = new Miniflare!({
+    const mf = new Miniflare({
       modules: [{ type: 'ESModule', path: 'sera-logistics.mjs', contents: readFileSync(SERA_BUNDLE, 'utf8') }],
       durableObjects: { LOGISTICS: 'LogisticsDO' },
       durableObjectsPersist: dir,

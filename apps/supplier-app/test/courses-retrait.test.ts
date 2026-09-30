@@ -99,7 +99,7 @@ describe('the control on screen — the proven grammar, and the danger said wher
   const zone = read('src/coursiers/zone.tsx');
 
   it('calls the REAL port with the order id, behind the two-tap confirm', () => {
-    expect(zone).toContain('service.retirerCourse(orderId, mintCommandId())');
+    expect(zone).toContain('service.retirerCourse(orderId, mintCommandId(), colisEntier)');
     expect(zone).toContain('const started = retraitStart(ui, c.orderId);');
     expect(zone).toContain('if (started === null) return void 0;');
   });
@@ -110,17 +110,21 @@ describe('the control on screen — the proven grammar, and the danger said wher
   });
 
   it('a CARRIED course warns before it is retired — the founder cannot tell from the row alone', () => {
+    // AUDIT-B+2 F-65: the sentence says what Séra DOES (the course leaves the
+    // rider's app; he keeps the parcel) — never « reprenez la course », an act
+    // this console does not have. Driven in `rendu-courses-tableau`.
     expect(zone).toContain("{c.confiee ? (");
-    expect(zone).toContain("t('coursiers.course_question_confiee')");
+    expect(zone).toContain("t('coursiers.course_garde')");
     const catalog = JSON.parse(read('i18n/catalog.json')) as { key: string; fr: string }[];
-    const avert = catalog.find((e) => e.key === 'coursiers.course_question_confiee');
-    expect(avert?.fr, 'it must tell him to take the course back first').toContain('reprenez');
+    const avert = catalog.find((e) => e.key === 'coursiers.course_garde');
+    expect(avert?.fr).toContain('il ne pourra plus le livrer');
+    expect(avert?.fr).not.toContain('reprenez');
   });
 
   it('a refused key escalates on both controls, and the board is re-read only after the door answered', () => {
     expect(zone).toContain("if (r === 'bad_key') onCleRefusee();");
     expect(zone).toContain('if (cleRefusee) onCleRefusee();');
-    expect(zone).toContain("else if (r === 'ok') void charger();");
+    expect(zone).toContain("else if (r === 'ok' || r === 'colis_en_course') void charger();");
   });
 
   it('every sentence is a catalog key, and the desk owns its own honest states', () => {

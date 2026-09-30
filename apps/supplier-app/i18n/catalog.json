@@ -4753,7 +4753,7 @@
   },
   {
     "key": "confier.deja",
-    "fr": "Cette course est déjà lancée côté Séra.",
+    "fr": "Cette course est déjà lancée côté Séra : elle est confiée à {n}.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4795,7 +4795,7 @@
   },
   {
     "key": "confier.course_deja",
-    "fr": "Cette commande a déjà sa course côté Séra. Retirez-la ci-dessous, puis créez la course à nouveau.",
+    "fr": "Cette commande a déjà une course côté Séra. Vous pouvez la retirer du tableau ci-dessous. Ensuite, elle ne pourra plus être confiée à un coursier depuis ici.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -4807,20 +4807,20 @@
   },
   {
     "key": "confier.retirer_question",
-    "fr": "Retirer la course de cette commande du tableau Séra ?",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "confier.retirer_question_colis",
-    "fr": "La course quitte le tableau Séra. Si un coursier tient déjà le colis, il le garde : la livraison en cours va jusqu'au bout.",
+    "fr": "Retirer la course de cette commande du tableau Séra ? Ensuite, elle ne pourra plus être confiée à un coursier depuis ici.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "confier.retiree",
-    "fr": "La course est retirée du tableau Séra. Pour livrer à nouveau, créez une nouvelle commande.",
+    "fr": "La course est retirée du tableau Séra. Cette commande ne peut plus être confiée à un coursier depuis ici.",
     "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "confier.colis_en_mains",
+    "fr": "Entre-temps, un coursier a pris ce colis : la course n'a pas été retirée.",
+    "register": "money",
     "screenClass": "status"
   },
   {
@@ -5178,14 +5178,38 @@
     "screenClass": "label"
   },
   {
+    "key": "coursiers.course_retirer_colis",
+    "fr": "Retirer tout le colis",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
     "key": "coursiers.course_question",
     "fr": "Retirer cette course d'essai du tableau ?",
     "register": "money",
     "screenClass": "status"
   },
   {
-    "key": "coursiers.course_question_confiee",
-    "fr": "Un coursier a déjà cette course. S'il tient le colis, reprenez la course avant de la retirer.",
+    "key": "coursiers.course_garde",
+    "fr": "Si un coursier a déjà le colis, il le garde. Mais la course disparaît de son application : il ne pourra plus le livrer.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_question_colis",
+    "fr": "Retirer tout ce colis du tableau ? Il est déjà confié à un coursier : ses {n} articles partent ensemble.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_colis_articles",
+    "fr": "Articles du colis : {ids}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.course_colis_attente",
+    "fr": "Cette course porte un colis de {n} articles. Seul cet article est retiré. Les autres reviennent dans « Prêt à livrer », pour une nouvelle course.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5214,6 +5238,12 @@
     "screenClass": "status"
   },
   {
+    "key": "coursiers.course_colis_en_mains",
+    "fr": "Ce colis est chez un coursier : un seul article ne peut pas quitter le tableau. Retirez tout le colis.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "coursiers.courses_balayage",
     "fr": "Retirer les courses d'essai",
     "register": "neutral",
@@ -5222,6 +5252,18 @@
   {
     "key": "coursiers.courses_balayage_question",
     "fr": "Retirer les {n} courses du tableau ? Vos commandes et vos produits ne bougent pas.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_une_confiee",
+    "fr": "Une de ces courses est déjà confiée à un coursier.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "coursiers.courses_balayage_confiees",
+    "fr": "{c} de ces courses sont déjà confiées à un coursier.",
     "register": "money",
     "screenClass": "status"
   },

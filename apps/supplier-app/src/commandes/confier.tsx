@@ -57,7 +57,8 @@ type Etape =
   | { kind: 'echec' }
   | { kind: 'composer' }
   | { kind: 'choisir'; taskId: string; board: BoardSera }
-  | { kind: 'deja' }
+  /** AUDIT-B+2 F-62 — a rider already carries it: said, with his name. */
+  | { kind: 'deja'; nom: string }
   | { kind: 'confiee'; nom: string };
 
 /**
@@ -70,8 +71,10 @@ type Etape =
  * grammar as the Coursiers zone (question → custody caveat → « Oui, retirer »
  * / « Annuler »), calling the same `/ops/order/retirer` door, which sweeps the
  * order's tasks whatever their state. On `retire` OR `inconnu` (idempotency is
- * by state — a re-run that finds nothing converges) he is told plainly and
- * « Créer la course » stays HIS to press — never an auto-retry.
+ * by state — a re-run that finds nothing converges) he is told plainly — and
+ * (AUDIT-B+2 F-63) told the cost: the door also sweeps Séra's payment and
+ * readiness facts, which no producer sends again, so the order can no longer
+ * be relayed from here and « Créer la course » leaves the fold.
  */
 type Retrait =
   | { kind: 'aucun' }
@@ -201,6 +204,15 @@ function ConfierAvecService({
     }
     if (answer.kind !== 'ok') {
       setEtape({ kind: 'echec' });
+      return;
+    }
+    // AUDIT-B+2 F-62 — a course a rider carries is not queued. Reading the
+    // queue alone offered « Créer la course » again, and Séra's duplicate 200
+    // brought him back to the same button with no sentence.
+    const enCourse = answer.value.affectations.find((a) => a.orderId === row.orderId);
+    if (enCourse !== undefined) {
+      const coursier = answer.value.riders.find((r) => r.riderId === enCourse.riderId);
+      setEtape({ kind: 'deja', nom: coursier?.displayName ?? enCourse.riderId });
       return;
     }
     const tache = answer.value.queued.find((q) => q.orderId === row.orderId);
@@ -358,9 +370,8 @@ function ConfierAvecService({
    * The command id is MINTED per this app's law (`mintCommandId`, OS CSPRNG,
    * never Math.random); the door requires it for shape only — its idempotency
    * is by state, so `retire` and `inconnu` are the SAME good outcome: nothing
-   * remains on the board for this order. Both clear the refusal and leave
-   * « Créer la course » pressable — the re-tap is HIS, never an auto-retry
-   * (cause and effect stay visible).
+   * remains on the board for this order. Both clear the refusal and end the
+   * road with the sentence that says so (AUDIT-B+2 F-63).
    */
   const retirerCourse = async (): Promise<void> => {
     if (busy || cle === null) return;
@@ -387,8 +398,17 @@ function ConfierAvecService({
       setRetrait({ kind: 'propose' });
       return;
     }
+    if (answer.kind === 'refused' && answer.reason === 'colis_en_course') {
+      // AUDIT-B+2 F-64 — Séra refuses one article of a package a rider
+      // carries. Here that means a rider took the bag between the read and
+      // the tap: said by name, and the board read again shows who has it.
+      setAvis(t('confier.colis_en_mains'));
+      setRetrait({ kind: 'aucun' });
+      await charger();
+      return;
+    }
     if (answer.kind === 'refused') {
-      // The door's only named refusal here is `malformed` (a client bug) —
+      // The door's other named refusal here is `malformed` (a client bug) —
       // the zone's own failure sentence says it without inventing a cause.
       setAvis(t('coursiers.course_echec'));
       setRetrait({ kind: 'propose' });
@@ -422,7 +442,9 @@ function ConfierAvecService({
       ) : retrait.kind === 'question' ? (
         <View style={{ marginTop: 8, gap: 8 }}>
           <Text style={CORPS}>{t('confier.retirer_question')}</Text>
-          <Banner tone="warn">{t('confier.retirer_question_colis')}</Banner>
+          {/* AUDIT-B+2 F-65 — the desk's own custody sentence, word for word:
+              what Séra does to a carried course (it leaves the rider's app). */}
+          <Banner tone="warn">{t('coursiers.course_garde')}</Banner>
           <BtnGhost label={t('coursiers.course_oui')} onPress={() => void retirerCourse()} />
           <BtnGhost label={t('coursiers.course_annuler')} onPress={() => setRetrait({ kind: 'propose' })} />
         </View>
@@ -457,6 +479,11 @@ function ConfierAvecService({
           <Text style={CORPS}>{t('commandes.echec')}</Text>
           <BtnSoft label={t('commandes.reessayer')} onPress={() => void charger()} />
         </View>
+      ) : etape.kind === 'composer' && retrait.kind === 'retiree' ? (
+        // AUDIT-B+2 F-63 — the retire swept Séra's copy of the payment and
+        // readiness facts, and no producer sends them again: a compose would
+        // be refused for ever. The road ends here, said in the banner above.
+        null
       ) : etape.kind === 'composer' ? (
         <View style={{ marginTop: 10, gap: 8 }}>
           <Text style={CORPS}>{t('confier.composer_aide')}</Text>
@@ -528,7 +555,7 @@ function ConfierAvecService({
         </Card>
       ) : (
         <View style={{ marginTop: 10 }}>
-          <Banner tone="info">{t('confier.deja')}</Banner>
+          <Banner tone="info">{t('confier.deja').replace('{n}', etape.nom)}</Banner>
         </View>
       )}
     </View>

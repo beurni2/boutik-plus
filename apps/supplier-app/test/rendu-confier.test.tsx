@@ -218,7 +218,7 @@ afterEach(() => {
 });
 
 describe('REFUS-NOMMÉ — « Créer la course » on an order whose course already lives at Séra', () => {
-  it('the founder\'s whole recovery road: 409 named → two-tap « Retirer la course » → retirée → « Créer la course » admits', async () => {
+  it('the founder\'s whole recovery road: 409 named → two-tap « Retirer la course » → retirée, and the fold says the order can no longer be sent from here', async () => {
     const { routes } = livreSera();
     const w = wire(routes);
     const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
@@ -244,10 +244,12 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
       'the generic banner is the reported bug — the refusal must be NAMED',
     ).toBe(false);
 
-    // The NAMED sentence shows — the true state, with no state claim a
-    // stale-board race could falsify, pointing at the act BELOW it.
-    expect(screen.shows('Cette commande a déjà sa course côté Séra')).toBe(true);
-    expect(screen.shows('Retirez-la ci-dessous')).toBe(true);
+    // The NAMED sentence shows — the true state, pointing at the act BELOW
+    // it, and (AUDIT-B+2 F-63) promising nothing the retire cannot deliver:
+    // the old « puis créez la course à nouveau » could never come true.
+    expect(screen.shows('Cette commande a déjà une course côté Séra')).toBe(true);
+    expect(screen.shows('ci-dessous')).toBe(true);
+    expect(screen.shows('à nouveau'), 'the sentence must not promise a re-creation the retire makes impossible').toBe(false);
 
     // ═══ THE WAY OUT IS ON THIS SCREEN (verifier BLOCKER) — the Coursiers
     // list cannot show a delivered course, so the control renders HERE. ═══
@@ -261,15 +263,19 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     await screen.press('Retirer la course');
     expect(w.calls.filter((c) => c.path === '/ops/order/retirer').length, 'arming must send NOTHING').toBe(0);
     expect(screen.shows('Retirer la course de cette commande du tableau Séra ?')).toBe(true);
-    expect(screen.shows('La course quitte le tableau Séra')).toBe(true);
-    expect(screen.shows('il le garde'), 'the custody bound must be on screen before the tap').toBe(true);
+    // F-63: the question says the order cannot be sent again from here.
+    expect(screen.shows('ne pourra plus être confiée à un coursier depuis ici'), 'the cost is said BEFORE the tap').toBe(true);
+    // F-65: the ONE custody sentence, true to what Séra does — never « va
+    // jusqu'au bout » (the rider's course leaves his app).
+    expect(screen.shows('il ne pourra plus le livrer'), 'the custody bound must be on screen before the tap').toBe(true);
+    expect(screen.shows("va jusqu'au bout"), 'the old sentence contradicted what Séra does').toBe(false);
 
     // CANCEL leaves everything intact: the question folds, the control and the
     // refusal sentence stay, still nothing sent, the primary is still his.
     await screen.press('Annuler');
     expect(screen.shows('Retirer la course de cette commande du tableau Séra ?')).toBe(false);
     expect(screen.canPress('Retirer la course')).toBe(true);
-    expect(screen.shows('Cette commande a déjà sa course côté Séra')).toBe(true);
+    expect(screen.shows('Cette commande a déjà une course côté Séra')).toBe(true);
     expect(w.calls.filter((c) => c.path === '/ops/order/retirer').length, 'cancel must send NOTHING').toBe(0);
     expect(screen.canPress('Créer la course')).toBe(true);
 
@@ -283,23 +289,18 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     expect(retires[0]!.body?.['command_id'], 'the retire command must be a minted UUID').toMatch(UUID_V4);
     expect(retires[0]!.headers['authorization']).toBe('Bearer cle-ops-test');
 
-    // On `retire`: he is TOLD the truth — the board is clean, and a NEW
-    // delivery means a NEW order (the swept facts never return; promising
-    // « refaites la course » here was the fiction the audit caught).
+    // On `retire`: he is TOLD the truth (AUDIT-B+2 F-63). The swept facts
+    // never return, so the order cannot be sent to a rider again from here —
+    // and he cannot « créer une nouvelle commande » either (orders come from
+    // buyers). The road ENDS, said plainly: no « Créer la course » is left
+    // to lead him into « Réessayez dans une minute » for ever.
     expect(screen.shows('La course est retirée du tableau Séra'), 'the retire outcome must be said to him').toBe(true);
-    expect(screen.shows('créez une nouvelle commande'), 'the way forward is a NEW order, and the sentence says so').toBe(true);
-    expect(screen.shows('Cette commande a déjà sa course côté Séra')).toBe(false);
-    expect(screen.canPress('Créer la course'), 'the tree survives — the primary action is never stranded').toBe(true);
-
-    // And if he taps it anyway, the REAL door's answer (the certified 422 —
-    // the swept facts are gone for ever) reaches him as the NAMED sentence,
-    // never the generic banner: honest at every layer of the road.
-    await screen.press('Créer la course');
-    const reSent = w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST');
-    expect(reSent.length).toBe(2);
-    expect(reSent[1]!.body?.['command_id']).toBe('cmd-boutik-tache-ord-refus-1');
-    expect(screen.shows('pas encore reçu le paiement'), 'the named projection sentence, never the generic banner').toBe(true);
-    expect(screen.shows('Séra a refusé. Réessayez')).toBe(false);
+    expect(screen.shows('ne peut plus être confiée à un coursier depuis ici'), 'the end of the road is said').toBe(true);
+    expect(screen.shows('créez une nouvelle commande'), 'he cannot create an order — the old sentence sent him nowhere').toBe(false);
+    expect(screen.shows('Cette commande a déjà une course côté Séra')).toBe(false);
+    expect(screen.canPress('Créer la course'), 'a compose the door refuses for ever must not be offered').toBe(false);
+    expect(screen.shows('Confier à un coursier'), 'the tree survives the retire').toBe(true);
+    expect(w.calls.filter((c) => c.path === '/ops/task' && c.method === 'POST').length).toBe(1);
     screen.unmount();
   });
 
@@ -321,11 +322,12 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     await screen.press('Oui, retirer');
 
     expect(w.calls.filter((c) => c.path === '/ops/order/retirer').length).toBe(1);
-    // Same convergence as `retire`: told plainly, no error sentence, his re-tap ready.
+    // Same convergence as `retire`: told plainly, no error sentence, and the
+    // same honest end of the road.
     expect(screen.shows('La course est retirée')).toBe(true);
     expect(screen.shows("n'a pas été retirée"), '`inconnu` is convergence, never a failure').toBe(false);
     expect(screen.shows('Séra ne répond pas')).toBe(false);
-    expect(screen.canPress('Créer la course')).toBe(true);
+    expect(screen.canPress('Créer la course')).toBe(false);
     screen.unmount();
   });
 
@@ -338,7 +340,7 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     await screen.press('Créer la course');
 
     expect(screen.shows('Séra a refusé. Réessayez, ou regardez la commande côté Séra.')).toBe(true);
-    expect(screen.shows('Cette commande a déjà sa course côté Séra')).toBe(false);
+    expect(screen.shows('Cette commande a déjà une course côté Séra')).toBe(false);
     screen.unmount();
   });
 
@@ -370,6 +372,104 @@ describe('REFUS-NOMMÉ — « Créer la course » on an order whose course alrea
     expect(screen.shows('pas encore reçu le paiement de cette commande')).toBe(false);
     expect(screen.shows('Séra a refusé. Réessayez')).toBe(false);
     expect(screen.canPress('Retirer la course')).toBe(false);
+    screen.unmount();
+  });
+});
+
+/* ═══ AUDIT-B+2 F-62 — « déjà lancée », naming the rider ═══
+ * The fold read the board's QUEUE only. A course a rider already carries is
+ * not queued, so the fold offered « Créer la course »; Séra answered the
+ * replay as a 200 duplicate and the fold landed back on the same button with
+ * no sentence — the « déjà lancée » state was rendered and never set. The
+ * board's live assignments (certified form: Séra's recorded `/ops/board`)
+ * now decide it, and the rider is named by the name Séra gives him. */
+
+const RIDER_ISSOUF = {
+  assignable: false,
+  certified: true,
+  displayName: 'Issouf',
+  phoneAlias: 'alias-issouf',
+  privacyAck: { ackAt: '2026-09-30T07:00:00.000Z', noticeVersion: 'privacy-notice.v1' },
+  riderId: 'rider-issouf',
+  shift: { confirmedBy: 'server', startedAt: '2026-09-30T07:00:05.000Z', status: 'on_shift' },
+};
+function affectationDe(orderId: string, assignmentId = 'asg-1'): Record<string, unknown> {
+  return {
+    ackDeadline: '2026-09-30T09:10:00.000Z',
+    assignedAt: '2026-09-30T09:00:00.000Z',
+    assignmentId,
+    correlationId: `corr-${assignmentId}`,
+    dispatcherId: 'fondateur',
+    lease: { riderId: 'rider-issouf', taskId: 'task-live', version: 1 },
+    orderId,
+    riderId: 'rider-issouf',
+    status: 'acknowledged',
+    taskId: 'task-live',
+  };
+}
+function plancheEnCourse(assignments: unknown[], colisEnCourse: Record<string, unknown> = {}): Route {
+  return (path) =>
+    path === '/ops/board'
+      ? { status: 200, json: { ok: true, board: { queued: [], riders: [RIDER_ISSOUF], assignments, aReprogrammer: [], enDeuxiemePassage: [], manifestes: {}, finDeService: {}, colisEnCourse } } as never }
+      : null;
+}
+
+describe('F-62 — a course a rider already carries reads « déjà lancée », with his name', () => {
+  it('no « Créer la course », one sentence naming the rider, and nothing is sent', async () => {
+    const w = wire([plancheEnCourse([affectationDe(ROW.orderId)]), porteCompose({ status: 200, json: { ok: true, admitted: true, duplicate: true, taskId: 'task-live' } })]);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    await screen.settle();
+
+    expect(screen.shows('Cette course est déjà lancée côté Séra'), 'the state must be SET, not only rendered').toBe(true);
+    expect(screen.shows('Issouf'), 'the rider is named by the name Séra gives him').toBe(true);
+    expect(screen.canPress('Créer la course'), 'a second compose of a carried course is never offered').toBe(false);
+    expect(w.calls.filter((c) => c.path === '/ops/task').length).toBe(0);
+    screen.unmount();
+  });
+
+  it('an article of a carried PACKAGE reads the same — Séra names every article of the bag', async () => {
+    const PACKAGE_MATE: PaidOrderRow = { ...ROW, orderId: 'ord-colis-b', colis: { packageId: 'col-1', orderIds: ['ord-colis-a', 'ord-colis-b'] } } as PaidOrderRow;
+    wire([plancheEnCourse([affectationDe('ord-colis-a', 'asg-c')], { 'asg-c': { orderIds: ['ord-colis-a', 'ord-colis-b'], packageId: 'col-1', reglement: {} } })]);
+    const screen = await mountEcran(<ConfierCoursier row={PACKAGE_MATE} buyer={{ ...BUYER, orderId: 'ord-colis-b' }} />);
+    await screen.settle();
+
+    expect(screen.shows('Cette course est déjà lancée côté Séra')).toBe(true);
+    expect(screen.shows('Issouf')).toBe(true);
+    expect(screen.canPress('Créer la course')).toBe(false);
+    screen.unmount();
+  });
+
+  it('F-64 on the fold: a retire refused `colis_en_course` is SAID and the board is read again — never « Réessayez »', async () => {
+    // The fold saw no live course; the compose hit an existing one; by the
+    // retire tap a rider had taken the bag. The door refuses one article of
+    // a carried bag by name (recorded form), and the re-read shows who has it.
+    let enCourse = false;
+    const board: Route = (path) =>
+      path === '/ops/board'
+        ? enCourse
+          ? plancheEnCourse([affectationDe(ROW.orderId, 'asg-c')], { 'asg-c': { orderIds: [ROW.orderId, 'ord-mate'], packageId: 'col-1', reglement: {} } })(path, null, new URLSearchParams(), {})
+          : planche(path, null, new URLSearchParams(), {})
+        : null;
+    const retirer: Route = (path, body) => {
+      if (path !== '/ops/order/retirer') return null;
+      if (typeof body?.['command_id'] !== 'string' || typeof body?.['orderId'] !== 'string') {
+        return { status: 400, json: { ok: false, reason: 'malformed' } };
+      }
+      enCourse = true;
+      return { status: 409, json: { ok: false, reason: 'colis_en_course', orderIds: [ROW.orderId, 'ord-mate'] } };
+    };
+    const w = wire([board, porteCompose(REFUS_COURSE_EXISTANTE), retirer]);
+    const screen = await mountEcran(<ConfierCoursier row={ROW} buyer={BUYER} />);
+    await screen.settle();
+
+    await screen.press('Créer la course');
+    await screen.press('Retirer la course');
+    await screen.press('Oui, retirer');
+    expect(w.calls.filter((c) => c.path === '/ops/order/retirer').length).toBe(1);
+    expect(screen.shows("n'a pas été retirée. Réessayez"), 'a named refusal is not a failure to retry').toBe(false);
+    expect(screen.shows('un coursier a pris ce colis'), 'the refusal is named').toBe(true);
+    expect(screen.shows('Cette course est déjà lancée côté Séra'), 'the board, read again, says who has it').toBe(true);
+    expect(screen.shows('Issouf')).toBe(true);
     screen.unmount();
   });
 });
