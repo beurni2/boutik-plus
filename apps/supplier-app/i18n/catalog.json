@@ -3456,48 +3456,6 @@
     "screenClass": "instruction"
   },
   {
-    "key": "fp.montant_verrouille",
-    "fr": "Montant verrouillé à la commande — payé sous 24 h après livraison validée.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "fp.preparer_consigne",
-    "fr": "Préparez avant 11 h 30. Emballage ouvrable (le livreur vérifie avant de sceller) · emballage neutre, sans rien écrire dessus.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.livraison_validee_verse",
-    "fr": "Livraison validée. Argent versé sur votre Mobile Money.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "fp.livraison_validee_encours",
-    "fr": "Livraison validée. Versement en cours (sous 24 h).",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "fp.pret_confirmer",
-    "fr": "Confirmer « Produit prêt »",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "fp.pret_code_papier",
-    "fr": "Écrivez ce code sur un papier posé à côté du produit.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.stock_ajustement_note",
-    "fr": "Chaque ajustement est daté et motivé. Le stock affiché aux revendeuses est calculé côté serveur.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
     "key": "fp.studio_guide",
     "fr": "Le Studio vous guide pour des photos nettes, honnêtes et sans prix incrusté.",
     "register": "selling",
@@ -3510,104 +3468,8 @@
     "screenClass": "instruction"
   },
   {
-    "key": "fp.photos_vraies",
-    "fr": "De vraies photos — aucune image inventée par IA",
-    "register": "selling",
-    "screenClass": "label"
-  },
-  {
-    "key": "fp.traitement_local",
-    "fr": "Traitement (sur votre téléphone)",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "fp.cadre_premium_note",
-    "fr": "Fond chargé : on ajoute un beau cadre. Votre vraie photo reste. On ne découpe pas. On ne change pas le produit.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.pas_de_compte_interne",
-    "fr": "Pas de compte interne — tout arrive sur votre Mobile Money.",
-    "register": "money",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.faute_fonds_protection",
-    "fr": "Si l’erreur vient de vous (mauvais article…), la cliente est remboursée tout de suite. C’est le fonds de protection qui paie. Jamais votre argent. Vos droits d’accès peuvent être réduits.",
-    "register": "money",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.onboarding_pitch",
-    "fr": "Proposez vos produits aux revendeuses de Shop+. Séra livre, vous encaissez.",
-    "register": "selling",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "fp.onboarding_conditions",
-    "fr": "Rien à payer pour s’inscrire · rien à avancer · rien chaque mois.\nEt pour le moment, rien sur vos ventes : Boutik+ ne prend aucun frais.",
-    "register": "money",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "fp.onboarding_code_whatsapp",
-    "fr": "Un code de vérification arrive par WhatsApp (simulé ici).",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.onboarding_momo_note",
-    "fr": "Vos gains y sont versés sous 24 h après chaque livraison validée. Aucun rechargement demandé.",
-    "register": "money",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.onboarding_provisoire",
-    "fr": "Pour commencer, votre compte est provisoire :",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.onboarding_verifie",
-    "fr": "Après quelques livraisons propres, vous devenez Vérifié : plus de commandes, paiement à la livraison débloqué.",
-    "register": "selling",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.photo_preparation_refusee",
-    "fr": "Photo de préparation refusée : trop sombre. Rapprochez-vous d'une fenêtre et reprenez — le code doit rester lisible.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "fp.confirme_presence_enlevement",
-    "fr": "Je confirme être présent à la boutique pour l'enlèvement (créneau 11 h – 13 h).",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
     "key": "fp.cliente_paie_explication",
     "fr": "La cliente paie : prix de base + marge de la revendeuse. Votre commission n'est jamais ajoutée une deuxième fois au prix client.",
-    "register": "money",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.photo_preuve_portee",
-    "fr": "Cette photo prouve que vous avez le produit. Elle ne prouve ni la quantité, ni que le produit est vrai. On garde l’originale. On ne l’écrase jamais.",
-    "register": "neutral",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.historique_solide",
-    "fr": "Après plusieurs bonnes livraisons : plus de commandes à la fois. Moins de contrôles. Et vous passez devant pour les campagnes.",
-    "register": "selling",
-    "screenClass": "instruction"
-  },
-  {
-    "key": "fp.faute_repetee_acces",
-    "fr": "Une faute répétée réduit votre accès : retour au prépaiement, puis suspension. Ce qui compte, c’est l’accès au marché. Jamais une somme bloquée.",
     "register": "money",
     "screenClass": "instruction"
   },
@@ -5072,12 +4934,6 @@
   {
     "key": "gains.commande_du",
     "fr": "Commande du",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "accueil.engagement",
-    "fr": "Notre engagement",
     "register": "neutral",
     "screenClass": "label"
   },

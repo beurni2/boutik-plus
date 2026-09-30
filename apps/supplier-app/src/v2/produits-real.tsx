@@ -21,16 +21,15 @@ import type { A, S } from './machine';
  * WHY A WRAPPER AND NOT A MACHINE CHANGE: the same shape as `SListerReal`. The
  * screen renders what it is handed; this component owns the impure substance —
  * the resolved service, the read, the four honest states, the retry. `machine.ts`
- * §4 and `seed.ts` §3.3 are **untouched**: `st.products` / `st.porder` keep
- * serving the Commandes demo board, and Produits simply stops reading them.
+ * §4 was **untouched**: Produits simply stopped reading `st.products` /
+ * `st.porder`.
  *
- * THAT IS OPTION (b), AND ITS PROOF IS A CAPABILITY CHECK, NOT AN ABSENCE PROOF
- * (founder condition, stated here so the weaker instrument cannot be misread
- * later). What is provable today: **Produits holds no binding to seed data**, so
- * no mock can reach a tile. What is NOT proven: that the seed strings are absent
- * from the shipped bundle — they must REMAIN, because Commandes still needs
- * them. **THE ABSENCE PROOF IS OWED, and comes due when Commandes converts off
- * the seed.** See JOURNAL.md.
+ * THAT IS OPTION (b), AND ITS PROOF WAS A CAPABILITY CHECK, NOT AN ABSENCE PROOF
+ * (founder condition): **Produits holds no binding to seed data**, so no mock
+ * can reach a tile. The absence proof it left owed is PAID (LISTER-VRAI-1,
+ * 2026-09-30): the demo board and its seed are deleted, and
+ * `scripts/gates/web-artifact-checks.mjs` scans the real exported page for the
+ * seed's strings. See JOURNAL.md.
  *
  * THE CACHE IS IN MEMORY AND SHELL-HELD, NEVER PERSISTED. A list of offers that
  * no longer exist is a fabrication with a timestamp: there is no invalidation

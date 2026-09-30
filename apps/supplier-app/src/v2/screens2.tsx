@@ -1,34 +1,28 @@
 /**
- * WO-FP-PIXEL §5 — screens S17–S40: sheets (Produit prêt · stock) · wizard 5
- * steps · Studio 6 states · Argent · Niveau de confiance · Inscription 6 ·
- * Célébration. Composition only, styles from styles.ts, machine-driven.
+ * WO-FP-PIXEL §5 — the five-step wizard (S20–S25). Composition only, styles
+ * from styles.ts, machine-driven; `SListerReal` wraps it with the real writes.
  *
- * LISTED spec-byte divergences (laws outrank the board's copy):
- *  · S32/S33/S34 seller-surety + seller-consequence words banned by the two
- *    B+I-12 gates → gate-clean rewords (E1 precedent: « avance »/« argent
- *    avancé »/« jamais avec votre argent »).
- *  · S34 « revendeuses de Ma Boutique » → « revendeuses de Shop+ » — Law 10:
- *    « Ma Boutique » is a RETIRED name; canon is Shop+.
- *  · S28/S29 glyphs U+1F933/U+1F3F7 as escapes (chrome gate scans literals).
+ * LISTER-VRAI-1 (founder 2026-09-30, « make room »): the demo sheets (S17/S19),
+ * the demo Studio (S26–S31, replaced by the real one), Argent (S32), the
+ * « Notre engagement » trust screen (S33), the sign-up walkthrough (S34–S39)
+ * and the célébration (S40) are gone. S33 and S34 were the last two reachable
+ * from his console; he chose to unlink them — nothing untrue is shown.
  */
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
-import { C21, C35, C39, C40, C43, S17L, SCROLL, TNUM, role } from '../ui/v2/styles';
-import { digitsToAmount, formatF, pendingTotal, paidTotal } from './money';
+import { C21, C43, SCROLL, TNUM, role } from '../ui/v2/styles';
+import { digitsToAmount, formatF } from './money';
 import { RAYONS, detailChamps } from './categorie-details';
-import { filtrerQuartiers } from './quartiers-ouagadougou';
 import { chipChoisi, pourFournisseurHintKey, type ChoixFournisseur, type FournisseursRead } from './lister-pour-choix';
 import type { SellerNetLine } from '../supply/preview';
-import { disabled, SEG_OF, type A, type S } from './machine';
-import { SEED_RELEVES } from './seed';
+import { disabled, type A, type S } from './machine';
 import { t as tr } from '../i18n';
 import {
-  Banner, BtnGhost, BtnSoft, C07BtnPrimary, Card, ChallengeCode, ChipCategory, HeaderStacked, PhotoViewer,
-  Icon, IconTile, Input, MetersList, MoneyBreakdown, MoneyHero, Overline, PageTitle,
-  ProcessingList, ProgressDots, RowMoney, RowReleve, Sheet, Stepper, Timeline, TrustCard,
-  Weave, WizardFooter,
+  Banner, BtnSoft, C07BtnPrimary, Card, ChipCategory, HeaderStacked, PhotoViewer,
+  Icon, IconTile, Input, MoneyBreakdown, Overline,
+  ProgressDots, Stepper, WizardFooter,
 } from './components';
 
 type D = (a: A) => void;
@@ -39,66 +33,7 @@ export type VideoEtat =
   | { readonly kind: 'aucune' }
   | { readonly kind: 'choisie'; readonly durationSec: number }
   | { readonly kind: 'refusee'; readonly key: string };
-const scrollTabs = SCROLL.tabs;
-const scrollStacked = SCROLL.stacked;
 const wizScroll = SCROLL.wizard;
-
-const GLYPH_PREUVE = '\u{1F933}'; // 🤳 (S28)
-const GLYPH_ETIQUETTE = '\u{1F3F7}\u{FE0F}'; // 🏷️ (S29)
-
-// ── S17/S18 Sheet « Produit prêt » ────────────────────────────────────────────
-export function S17ReadySheet({ st, d }: { st: S; d: D }) {
-  const o = st.orders[st.view?.id ?? ''];
-  if (!o) return null;
-  return (
-    <Sheet title={tr('fp.pret_confirmer')} onClose={() => d({ t: 'DISMISS_OVERLAY' })}>
-      <Overline style={{ marginTop: 16 }}>1 · Code de préparation (valable 15 min)</Overline>
-      <View style={{ marginTop: 9 }}>
-        <ChallengeCode code={o.challenge} note={tr('fp.pret_code_papier')} />
-      </View>
-      <Overline style={{ marginTop: 16 }}>2 · Photo de préparation</Overline>
-      {st.readyShot ? (
-        <View style={{ marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 15, backgroundColor: P.successBg }}>
-          <Icon name="check" size={17} stroke={P.successFg} strokeWidth={2.2} />
-          <Text style={[role({ f: 'IS', w: 400, s: 13 }, P.successFg), { flex: 1 }]}>Photo nette — produit + code visibles.</Text>
-        </View>
-      ) : (
-        <View style={{ marginTop: 9 }}>
-          <BtnSoft label="Prendre la photo (caméra intégrée)" icon="camera" style={S17L.photoBtn} onPress={() => d({ t: 'TAKE_SHOT' })} />
-        </View>
-      )}
-      <Overline style={{ marginTop: 16 }}>3 · Disponibilité</Overline>
-      <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.5 }, P.sub), { marginTop: 8 }]}>
-        {tr('fp.confirme_presence_enlevement')}
-      </Text>
-      <View style={{ marginTop: 16 }}>
-        <C07BtnPrimary label="Confirmer — envoyer à Séra" disabled={disabled.confirmReady(st)} onPress={() => d({ t: 'CONFIRM_READY' })} />
-      </View>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 9, textAlign: 'center' }]}>
-        {tr('pret.honnete_code_client')}
-      </Text>
-    </Sheet>
-  );
-}
-
-// ── S19 Sheet « Ajuster le stock » ────────────────────────────────────────────
-export function S19StockSheet({ st, d }: { st: S; d: D }) {
-  const p = st.products[st.view?.id ?? ''];
-  if (!p) return null;
-  return (
-    <Sheet title="Ajuster le stock" onClose={() => d({ t: 'DISMISS_OVERLAY' })}>
-      <View style={{ marginTop: 16 }}>
-        <Stepper value={`${p.stock + st.stkDelta} unités`} onMinus={() => d({ t: 'STOCK_DELTA', d: -1 })} onPlus={() => d({ t: 'STOCK_DELTA', d: 1 })} />
-      </View>
-      <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.5 }, P.sub), { marginTop: 11 }]}>
-        {tr('fp.stock_ajustement_note')}
-      </Text>
-      <View style={{ marginTop: 16 }}>
-        <C07BtnPrimary label="Enregistrer" onPress={() => d({ t: 'STOCK_SAVE' })} />
-      </View>
-    </Sheet>
-  );
-}
 
 // ── S20–S25 Wizard ────────────────────────────────────────────────────────────
 // RAYONS-1: the flat eight-chip list became the aisled picker — the shelves
@@ -107,7 +42,7 @@ export function S19StockSheet({ st, d }: { st: S; d: D }) {
 // `heroUri` is ADDITIVE (combined slice, verifier finding): on the REAL flow the
 // step-4 « Aperçu » card shows the REAL heroSquare instead of the demo glyph
 // tile — frozen demo chrome must not make a claim about a listing that now has
-// three real photographs. Undefined (the demo board) renders exactly as before.
+// three real photographs. Undefined renders the frozen glyph tile, as before.
 //
 // `money` IS REQUIRED, NOT OPTIONAL (founder rounding ruling 2026-07-25). The
 // figures shown on steps 2 and 4 are the seller's own net on a listing he is
@@ -117,10 +52,8 @@ export function S19StockSheet({ st, d }: { st: S; d: D }) {
 // COMPILE instead of silently falling back to the frozen demo `Math.round`
 // math — a silent fallback to non-canon rounding on a money screen is precisely
 // the divergence this ruling closes. `v2/money.ts` §3.4 is untouched; its
-// `fee`/`net` now have exactly ONE consumer left, `seed.ts` (the demo board's
-// product and order figures). Named precisely because a looser version of this
-// line said "seed, machine, screens1" and was wrong: machine.ts imports
-// fee/net but uses only formatF, and screens1 never imported them at all.
+// `fee`/`net` have NO consumer left since the demo seed was deleted
+// (LISTER-VRAI-1) — they stay as his FRAIS-ZERO construction.
 // `money` CARRIES EITHER A FIGURE OR A NAMED REFUSAL (founder rulings
 // 2026-07-25, two axes, neither of them an option I had offered).
 //
@@ -504,8 +437,8 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
       <WizardFooter>
         {/* THE BLOCK LIVES HERE, NOT IN THE REDUCER. `disabled.wizContinue` is
             the machine's own §4 predicate and stays untouched: the floor is a
-            REAL-FLOW product rule, and putting it in machine.ts would subject
-            the demo board to a publish rule it has nothing to do with. This
+            REAL-FLOW product rule, and putting it in machine.ts would put it
+            inside the frozen §4 machine, which it has nothing to do with. This
             footer is the only dispatcher of WIZ_NEXT, so a disabled button here
             makes step 3 unreachable below the floor — and the core refuses it
             independently anyway (`base_price_below_floor`), which is the two
@@ -520,331 +453,6 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
           onPress={() => d({ t: 'WIZ_NEXT' })}
         />
       </WizardFooter>
-    </View>
-  );
-}
-
-// ── S26–S31 Studio ────────────────────────────────────────────────────────────
-const SHOTS = [
-  { title: '1 · Photo héro', sub: 'Sur une surface simple. Elle recevra la mise en forme premium.', glyph: '\u{1F457}' },
-  { title: '2 · Photo preuve', sub: "L'article en main, dans votre boutique. Une photo réelle qui inspire confiance (le désordre est permis).", glyph: GLYPH_PREUVE },
-  { title: '3 · Détail catégorie', sub: 'Mode : étiquette de taille bien lisible.', glyph: GLYPH_ETIQUETTE },
-];
-const PROC_ROWS = ['Rotation corrigée', 'Lumière équilibrée — sans exagérer', 'Recadrage sûr depuis le cadre', 'Analyse du fond'];
-export function S26Studio({ st, d }: { st: S; d: D }) {
-  const stu = st.studio;
-  const shooting = stu.step < 3;
-  const shot = SHOTS[Math.min(stu.step, 2)]!;
-  return (
-    <ScrollView contentContainerStyle={scrollStacked} showsVerticalScrollIndicator={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <HeaderStacked title="Boutik+ Studio" onBack={() => d({ t: 'BACK' })} />
-      </View>
-      <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub)]}>{tr('fp.photos_vraies')}</Text>
-      {shooting ? (
-        <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{shot.title}</Text>
-          <Text style={[role({ f: 'IS', w: 400, s: 13.5, lh: 1.5 }, P.sub), { marginTop: 6 }]}>{shot.sub}</Text>
-          <View style={[C39.frame, { marginTop: 13 }]}>
-            <IconTile
-              bg={stu.low ? TILE_GRADIENT.studioLowLight : TILE_GRADIENT.p1}
-              glyph={shot.glyph}
-              height={C21.viseur.h}
-              radius={C21.viseur.r}
-              glyphSize={C21.viseur.glyph}
-              weave="M"
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: 1 }}
-            />
-            <View style={C39.inset} />
-            <Text style={C39.caption}>{C39.CAPTION}</Text>
-          </View>
-          <View style={{ marginTop: 13 }}>
-            <MetersList
-              rows={[
-                { label: 'Luminosité', ok: !stu.low },
-                { label: 'Netteté', ok: !stu.low },
-                { label: 'Stabilité', ok: true },
-                { label: 'Fond', ok: !stu.low },
-              ]}
-            />
-          </View>
-          {stu.low && (
-            <Banner tone="warn" style={{ marginTop: 11, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 15 }}>
-              {'Trop sombre — rapprochez-vous d\'une fenêtre ou d\'une lampe.'}
-            </Banner>
-          )}
-          <View style={{ marginTop: 12, alignSelf: 'flex-start' }}>
-            <Pressable
-              onPress={() => d({ t: 'STUDIO_TOGGLE_LOW' })}
-              style={{ height: 40, paddingHorizontal: 15, borderRadius: GEO.r.pill, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface, alignItems: 'center', justifyContent: 'center' }}
-              accessibilityRole="button"
-            >
-              <Text style={role({ f: 'IS', w: 600, s: 13 }, P.ink)}>{stu.low ? 'Simuler : bonne lumière' : 'Simuler : faible lumière'}</Text>
-            </Pressable>
-          </View>
-          <View style={{ marginTop: 12 }}>
-            <C07BtnPrimary label="Capturer" icon="camera" disabled={disabled.studioCapture(st)} onPress={() => d({ t: 'STUDIO_CAPTURE' })} />
-          </View>
-        </>
-      ) : (
-        <>
-          <Text style={[role({ f: 'BG', w: 700, s: 20 }, P.ink), { marginTop: 16 }]}>{tr('fp.traitement_local')}</Text>
-          <View style={{ marginTop: 13 }}>
-            <ProcessingList rows={[...PROC_ROWS]} proc={stu.proc} />
-          </View>
-          {stu.proc >= 4 && (
-            <>
-              <Banner tone="warn" style={{ marginTop: 12, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 15 }}>
-                {tr('fp.cadre_premium_note')}
-              </Banner>
-              <Card style={{ marginTop: 12, padding: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Overline level="card">Avant / Après</Overline>
-                  <Pressable
-                    onPress={() => d({ t: 'STUDIO_TOGGLE_ORIG' })}
-                    style={{ height: 34, paddingHorizontal: 12, borderRadius: GEO.r.pill, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface, alignItems: 'center', justifyContent: 'center' }}
-                    accessibilityRole="button"
-                  >
-                    <Text style={role({ f: 'IS', w: 600, s: 12 }, P.ink)}>{stu.orig ? 'Voir la version traitée' : "Couleurs d'origine"}</Text>
-                  </Pressable>
-                </View>
-                <View style={C40.grid}>
-                  <View style={C40.col}>
-                    <IconTile bg={TILE_GRADIENT.studioOriginal} glyph={'\u{1F457}'} height={C40.imgLeft.h} radius={C40.imgLeft.r} glyphSize={C40.imgLeft.glyph} weave="M" />
-                    <Text style={C40.legend}>{C40.LEGEND_LEFT}</Text>
-                  </View>
-                  <View style={C40.col}>
-                    <View style={C40.framed}>
-                      <IconTile bg={stu.orig ? TILE_GRADIENT.studioOriginal : TILE_GRADIENT.p1} glyph={'\u{1F457}'} height={C40.imgRight.h} radius={C40.imgRight.r} glyphSize={C40.imgRight.glyph} weave="M" />
-                    </View>
-                    <Text style={C40.legend}>{C40.LEGEND_RIGHT}</Text>
-                  </View>
-                </View>
-              </Card>
-              <View style={{ marginTop: 12 }}>
-                <C07BtnPrimary label="J'approuve ces photos" onPress={() => d({ t: 'STUDIO_APPROVE' })} />
-              </View>
-            </>
-          )}
-        </>
-      )}
-      <Text style={[role({ f: 'IS', w: 400, s: 12.5, lh: 1.55 }, P.sub), { marginTop: 14 }]}>
-        {tr('fp.photo_preuve_portee')}
-      </Text>
-    </ScrollView>
-  );
-}
-
-// ── S32 Argent ────────────────────────────────────────────────────────────────
-export function S32Argent({ st, d }: { st: S; d: D }) {
-  const orders = st.oorder.map((id) => st.orders[id]!);
-  return (
-    <ScrollView contentContainerStyle={scrollTabs} showsVerticalScrollIndicator={false}>
-      <PageTitle>Argent</PageTitle>
-      <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.45 }, P.sub), { marginTop: 4 }]}>
-        {tr('fp.pas_de_compte_interne')}
-      </Text>
-      <View style={{ marginTop: 16 }}>
-        <MoneyHero pending={formatF(pendingTotal(orders))} paid={formatF(paidTotal(orders))} />
-      </View>
-      <Overline style={{ marginTop: 18, marginBottom: 8 }}>Détail par commande</Overline>
-      <View style={{ gap: GEO.gap.listRow }}>
-        {orders.map((o) => (
-          <RowMoney key={o.id} code={o.code} name={st.products[o.pid]!.name} netV={formatF(o.net)} status={o.status} />
-        ))}
-      </View>
-      <Overline style={{ marginTop: 18, marginBottom: 8 }}>Relevés hebdomadaires</Overline>
-      <View style={{ gap: GEO.gap.releves }}>
-        {SEED_RELEVES.map((r) => (
-          <RowReleve key={r.week} week={r.week} sub={r.sub} total={formatF(r.total)} />
-        ))}
-      </View>
-      <View style={{ marginTop: 10 }}>
-        <BtnGhost label="Télécharger le relevé (PDF — démo)" onPress={() => d({ t: 'RELEVE_PDF' })} />
-      </View>
-      {/* §5 verbatim uses a banned seller-consequence word (B+I-12 gate, even negated) — reword. LISTED. */}
-      <Banner tone="info" style={{ marginTop: 14 }}>
-        {tr('fp.faute_fonds_protection')}
-      </Banner>
-    </ScrollView>
-  );
-}
-
-// ── S33 Niveau de confiance ───────────────────────────────────────────────────
-export function S33Trust({ d }: { d: D }) {
-  return (
-    <ScrollView contentContainerStyle={scrollStacked} showsVerticalScrollIndicator={false}>
-      <HeaderStacked title="Niveau de confiance" onBack={() => d({ t: 'BACK' })} />
-      {/* §5 verbatim uses a banned surety word (B+I-12 gate) — E1 reword « argent avancé ». LISTED. */}
-      <Text style={[role({ f: 'IS', w: 400, s: 13.5, lh: 1.5 }, P.sub), { marginTop: 12 }]}>
-        {'Votre niveau progresse par des livraisons propres — jamais avec de l\'argent avancé.'}
-      </Text>
-      <View style={{ marginTop: 14, gap: 11 }}>
-        <TrustCard title="Provisoire" body={'1 commande à la fois · paiement complet uniquement · vérification à chaque enlèvement · catégories approuvées.'} />
-        <TrustCard
-          title="Vérifié"
-          current
-          pill={
-            <View style={{ backgroundColor: P.successBg, borderRadius: GEO.r.pill, paddingVertical: 5, paddingHorizontal: 10 }}>
-              <Text style={role({ f: 'IS', w: 700, s: 11 }, P.successFg)}>Votre niveau</Text>
-            </View>
-          }
-          body={'12 livraisons · 0 faute — paiement à la livraison débloqué · plusieurs commandes en parallèle · meilleure visibilité.'}
-        />
-        <TrustCard title="De confiance" body={tr('fp.historique_solide')} />
-      </View>
-      {/* §5 verbatim uses a banned surety word (B+I-12 gate) — reword « somme bloquée ». LISTED. */}
-      <Banner tone="warn" style={{ marginTop: 13 }}>
-        {tr('fp.faute_repetee_acces')}
-      </Banner>
-    </ScrollView>
-  );
-}
-
-// ── S34–S39 Inscription ───────────────────────────────────────────────────────
-export function S34Onboard({ st, d }: { st: S; d: D }) {
-  const step = st.ob.step;
-  /* QUARTIERS-OUAGA-1/2 (founder orders 2026-08-22 and 2026-08-28) —
-     « Quartier » is no longer a bare field guessing at spelling: the
-     OFFICIAL répertoire (12 arrondissements, 55 secteurs — sourced in
-     quartiers-ouagadougou.ts) filters as he types and a tap fills the
-     field. Free text stays lawful (villages rattachés exist); the list is
-     comfort, never a gate. Local state: the onboarding wizard is
-     demo-grade and stores none of its fields. */
-  const [quartier, setQuartier] = useState('');
-  /* A TAP settles the cloud; typing reopens it (verifier note). An
-     exact-equality collapse would hide « Karpala non loti » the instant he
-     finishes typing « Karpala » — the tap is the only honest settle signal. */
-  const [choisi, setChoisi] = useState(false);
-  const suggestions = filtrerQuartiers(quartier);
-  if (step === 5) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
-        <View style={{ width: 84, height: 84, borderRadius: GEO.r.pill, backgroundColor: P.green, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={40} stroke={P.cream} strokeWidth={2.4} />
-        </View>
-        <Text style={[C43.titleStep, { marginTop: 20, textAlign: 'center' }]}>Compte provisoire créé</Text>
-        <Text style={[role({ f: 'IS', w: 400, s: 14, lh: 1.6 }, P.sub), { marginTop: 10, textAlign: 'center' }]}>
-          {'« Listez gratuitement. Vous payez seulement lorsqu\'un produit est vendu avec succès. »'}
-        </Text>
-        <View style={{ marginTop: 24, alignSelf: 'stretch' }}>
-          <C07BtnPrimary label="Explorer avec Boutique Wendkuni (démo)" onPress={() => d({ t: 'OB_FINISH' })} />
-        </View>
-      </View>
-    );
-  }
-  const TITLES = ['Bienvenue sur Boutik+', 'Votre numéro', 'Votre boutique', 'Compte de versement', 'Statut provisoire'];
-  return (
-    <View style={{ flex: 1 }}>
-      <View style={{ paddingTop: 16, paddingHorizontal: 20 }}>
-        <HeaderStacked title="Inscription" wizardCounter={`${step + 1}/5`} onBack={() => d({ t: 'BACK' })} />
-        <ProgressDots total={5} step={step} />
-      </View>
-      <ScrollView contentContainerStyle={wizScroll} showsVerticalScrollIndicator={false}>
-        <Text style={C43.titleStep}>{TITLES[step]}</Text>
-        {step === 0 && (
-          <>
-            {/* §5 says « revendeuses de Ma Boutique » — RETIRED name; Law 10 → Shop+. LISTED. */}
-            <Text style={[role({ f: 'IS', w: 400, s: 14.5, lh: 1.55 }, P.inkSoft), { marginTop: 12 }]}>
-              {tr('fp.onboarding_pitch')}
-            </Text>
-            {/* §5's two banned surety words (B+I-12 gate) → « aucune avance ». LISTED. */}
-            <Banner tone="info" style={{ marginTop: 14, paddingVertical: 15, paddingHorizontal: 16 }}>
-              {tr('fp.onboarding_conditions')}
-            </Banner>
-          </>
-        )}
-        {step === 1 && (
-          <>
-            <View style={{ marginTop: 18 }}>
-              <Input label="Téléphone" defaultValue="70 12 34 56" />
-            </View>
-            <Banner tone="info" style={{ marginTop: 12 }}>{tr('fp.onboarding_code_whatsapp')}</Banner>
-          </>
-        )}
-        {step === 2 && (
-          <>
-            <View style={{ marginTop: 18 }}><Input label="Nom de la boutique" defaultValue="Ma nouvelle boutique" /></View>
-            <View style={{ marginTop: 16 }}>
-              <Input label="Quartier" value={quartier} onChangeText={(t) => { setQuartier(t); setChoisi(false); }} placeholder="Chercher votre quartier…" />
-              {!choisi && (
-                <ScrollView style={{ maxHeight: 148, marginTop: 8 }} keyboardShouldPersistTaps="handled">
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {suggestions.map((q) => (
-                      <Pressable
-                        key={q}
-                        accessibilityRole="button"
-                        onPress={() => { setQuartier(q); setChoisi(true); }}
-                        /* F18 idiom: the console ships as WEB where hitSlop is
-                           inert on Pressable — the 44 px doctrine floor must be
-                           LAYOUT (minHeight + centred text), never a prop. */
-                        style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: GEO.r.pill, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}
-                      >
-                        <Text style={role({ f: 'IS', w: 500, s: 13.5, lh: 1.2 }, P.ink)}>{q}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </ScrollView>
-              )}
-            </View>
-            <View style={{ marginTop: 16 }}><Input label="Repère — pas d'adresse exigée" defaultValue="Allée 4, face au grand portail est" /></View>
-          </>
-        )}
-        {step === 3 && (
-          <>
-            <View style={{ marginTop: 18 }}><Input label="Mobile Money (Orange / Moov)" defaultValue="70 12 34 56" /></View>
-            <Banner tone="info" style={{ marginTop: 12 }}>
-              {tr('fp.onboarding_momo_note')}
-            </Banner>
-          </>
-        )}
-        {step === 4 && (
-          <>
-            <Text style={[role({ f: 'IS', w: 400, s: 14.5, lh: 1.55 }, P.inkSoft), { marginTop: 12 }]}>
-              {tr('fp.onboarding_provisoire')}
-            </Text>
-            <Card style={{ marginTop: 12, paddingVertical: 16, paddingHorizontal: 17 }}>
-              <Text style={role({ f: 'IS', w: 400, s: 14, lh: 1.8 }, P.ink)}>
-                {'• Une commande à la fois pour commencer\n• Seulement les catégories autorisées\n• La cliente paie tout à la commande\n• Une photo « produit prêt » est demandée\n• Le livreur vérifie chaque enlèvement'}
-              </Text>
-            </Card>
-            <Text style={[role({ f: 'IS', w: 400, s: 13, lh: 1.55 }, P.sub), { marginTop: 12 }]}>
-              {tr('fp.onboarding_verifie')}
-            </Text>
-          </>
-        )}
-      </ScrollView>
-      <WizardFooter>
-        <C07BtnPrimary label={step === 4 ? 'Créer mon compte gratuit' : 'Continuer'} onPress={() => d({ t: 'OB_NEXT' })} />
-      </WizardFooter>
-    </View>
-  );
-}
-
-// ── S40 Célébration ───────────────────────────────────────────────────────────
-export function S40Celebration({ amount, onDismiss }: { amount: string; onDismiss: () => void }) {
-  return (
-    <Pressable onPress={onDismiss} style={C35.scrim}>
-      <GoldDashes />
-      <View style={C35.badge}>
-        <Icon name="check" size={C35.check.size} stroke={C35.check.stroke} strokeWidth={C35.check.strokeWidth} />
-      </View>
-      <Text style={[C35.amount, TNUM]}>{amount}</Text>
-      <Text style={C35.caption}>Versé sur votre Mobile Money</Text>
-      <Text style={C35.hint}>Toucher pour continuer</Text>
-      <View style={{ marginTop: 24 }}><GoldDashes /></View>
-    </Pressable>
-  );
-}
-function GoldDashes() {
-  // §1.5 celebDash: 132×6, gold 0-12, transparent 12-20
-  const seg = [];
-  for (let x = 0; x < 132; x += 20) seg.push(x);
-  return (
-    <View style={C35.dash}>
-      {seg.map((x) => (
-        <View key={x} style={C35.dashSeg} />
-      ))}
     </View>
   );
 }

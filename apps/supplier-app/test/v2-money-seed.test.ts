@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { money } from '@platform/ui-tokens/legacy';
-import { fee, net, formatF, pendingTotal, paidTotal, digitsToAmount } from '../src/v2/money';
-import { SEED_ORDERS, SEED_PRODUCTS, SEED_RELEVES } from '../src/v2/seed';
+import { fee, net, formatF, digitsToAmount } from '../src/v2/money';
 
 /**
  * WO-FP-PIXEL §3.3/§3.4/§3.5 — the V2 seed money, asserted to the FRANC and to
@@ -12,6 +11,10 @@ import { SEED_ORDERS, SEED_PRODUCTS, SEED_RELEVES } from '../src/v2/seed';
  * · pending/paid per status sets · separator U+202F (never U+0020). The §3.5
  * board checks pin FORMAT bytes on the Phase-0 (5 %-era) figures, which the
  * static board still carries.
+ *
+ * LISTER-VRAI-1 (founder 2026-09-30, « make room »): the demo seed is gone, so
+ * its four B/C pairs are written in below; the seed-only checks (frozen order
+ * amounts, first-render totals, weekly relevés) left with the data they read.
  */
 
 const appDir = join(import.meta.dirname, '..');
@@ -19,34 +22,20 @@ const TABLE = JSON.parse(readFileSync(join(appDir, '../../_review/WO-FP-PIXEL/va
   moneyStrings: { screen: string; text: string }[];
 };
 
-describe('§3.4 — fee/net per seed product (exact)', () => {
+describe('§3.4 — fee/net on the old board\'s four prices (exact)', () => {
   // FRAIS-ZERO (founder 2026-08-25): rate 0 — fee 0 on every B, net = B − C.
-  const expected: Record<string, { fee: number; net: number }> = {
-    p1: { fee: 0, net: 9_000 },
-    p3: { fee: 0, net: 13_500 },
-    p7: { fee: 0, net: 4_950 },
-    p8: { fee: 0, net: 10_800 },
-  };
-  for (const p of SEED_PRODUCTS) {
-    it(`${p.id} ${p.name}: fee ${expected[p.id]!.fee} · net ${expected[p.id]!.net}`, () => {
-      expect(fee(p.B)).toBe(expected[p.id]!.fee);
-      expect(net(p.B, p.C)).toBe(expected[p.id]!.net);
+  const cases: readonly { B: number; C: number; net: number }[] = [
+    { B: 10_000, C: 1_000, net: 9_000 },
+    { B: 15_000, C: 1_500, net: 13_500 },
+    { B: 5_500, C: 550, net: 4_950 },
+    { B: 12_000, C: 1_200, net: 10_800 },
+  ];
+  for (const c of cases) {
+    it(`B ${c.B} · C ${c.C}: fee 0 · net ${c.net}`, () => {
+      expect(fee(c.B)).toBe(0);
+      expect(net(c.B, c.C)).toBe(c.net);
     });
   }
-  it('orders carry the §3.6 FROZEN amounts (captured, equal to the product at seed time)', () => {
-    for (const o of SEED_ORDERS) {
-      const p = SEED_PRODUCTS.find((x) => x.id === o.pid)!;
-      expect(o.net).toBe(net(p.B, p.C));
-      expect(o.fee).toBe(fee(p.B));
-    }
-  });
-});
-
-describe('§3.4 — first-render aggregates', () => {
-  it('pending = 19 800 (o1 9 000 + o3 10 800) · paid = 13 500 (o7) — FRAIS-ZERO nets', () => {
-    expect(pendingTotal(SEED_ORDERS)).toBe(19_800);
-    expect(paidTotal(SEED_ORDERS)).toBe(13_500);
-  });
 });
 
 describe('§3.5 — formatting (WO-FCFA re-pin, founder order 2026-07-18: suffix from canon v1.0.1)', () => {
@@ -68,22 +57,6 @@ describe('§3.5 — formatting (WO-FCFA re-pin, founder order 2026-07-18: suffix
     for (const n of [18_700, 12_750, 8_500, 4_675, 10_200]) {
       const grouped = formatF(n).slice(0, -money.currencySuffix.length);
       expect(all, n + ' grouped digits byte-identical on the board').toContain(grouped + ' F');
-    }
-  });
-
-  it('the weekly relevés totals: Sem. 28 IS o7’s PAID net (one payment, one franc — FRAIS-ZERO coherence); the untouched weeks still match the board', () => {
-    // Sem. 28's single versement is o7's settlement, so its total is pinned to
-    // the ORDER's frozen net, not to the 5 %-era board — the verifier caught
-    // the gains board saying 13 500 while the relevé still said 12 750.
-    const o7 = SEED_ORDERS.find((o) => o.id === 'o7')!;
-    expect(SEED_RELEVES[0]!.total).toBe(o7.net);
-    expect(SEED_RELEVES[0]!.total).toBe(13_500);
-    // The two older weeks describe unseeded history; their authored totals
-    // still match the Phase-0 board strings byte-for-byte.
-    const all = TABLE.moneyStrings.map((m) => m.text).join('\n');
-    for (const r of SEED_RELEVES.slice(1)) {
-      const grouped = formatF(r.total).slice(0, -money.currencySuffix.length);
-      expect(all).toContain(grouped + ' F');
     }
   });
 });

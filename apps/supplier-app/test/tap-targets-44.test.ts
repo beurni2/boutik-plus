@@ -14,6 +14,11 @@ import { bloc } from './_region.js';
  *
  * A 15-pixel-high link is not reachable for Aïcha on a hot phone in the sun.
  *
+ * LISTER-VRAI-1 (founder 2026-09-30): both of those targets left his console
+ * with the demo screens that held them — the chip opened « Notre engagement »
+ * and the link opened the sign-up walkthrough, and he chose to unlink both.
+ * Their pins went with them; the category chip's box and the control stay.
+ *
  * ── WHY THESE ARE FIXED WITH LAYOUT AND NOT `hitSlop` ──────────────────────
  * The house idiom in this repo is `hitSlop={8}` (kit.tsx, studio-real.tsx,
  * screens2.tsx). On this surface that idiom does nothing: **react-native-web
@@ -48,16 +53,6 @@ const lire = (rel: string): string => readFileSync(join(import.meta.dirname, '..
 const CHIP_FIN = 'export function Stepper';
 
 describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web root', () => {
-  it('the « Vérifié » chip carries a 44 px touch box (the painted 38 px pill is untouched)', () => {
-    const src = lire('src/v2/components.tsx');
-    const region = bloc(src, 'export const ChipVerified', CHIP_FIN, 200);
-    expect(region, 'ChipVerified no longer uses the 44 px hit style').toContain('chipVerifiedHit');
-    expect(region, 'the painted pill was dropped instead of being wrapped').toContain('s.chipVerified');
-
-    const hit = bloc(src, 'chipVerifiedHit:', '},');
-    expect(hit, 'the touch box fell below the 44 px doctrine minimum').toContain('minHeight: 44');
-  });
-
   it('the C14 pill keeps its 38 px design token — the fix must not resize the visual chip', () => {
     const styles = lire('src/ui/v2/styles.ts');
     const c14 = bloc(styles, 'export const C14', 'export const C15');
@@ -70,19 +65,12 @@ describe('§5 doctrine — every tap target reaches 44 px on the SHIPPED web roo
     // only way a supplier moves between his four screens while CI stayed
     // green. The same F18 box, and now the same guard.
     const src = lire('src/v2/components.tsx');
-    const region = bloc(src, 'export const ChipCategory', 'export const ChipVerified', 200);
+    const region = bloc(src, 'export const ChipCategory', CHIP_FIN, 200);
     expect(region, 'ChipCategory no longer uses the 44 px hit style').toContain('chipCatHit');
     expect(region, 'the painted pill must stay the design token, inside the box').toContain('s.chipCat,');
     const hit = bloc(src, 'chipCatHit:', '},');
     expect(hit, 'the touch box fell below the 44 px doctrine minimum').toContain('minHeight: 44');
     expect(hit, 'a 44 px box with top-aligned text still reads as a thin strip').toContain("justifyContent: 'center'");
-  });
-
-  it('the « parcours d’inscription » link carries minHeight 44 and centres its text', () => {
-    const src = lire('src/v2/screens1.tsx');
-    const region = bloc(src, 'OPEN_ONBOARD', 'accueil.gratuite_link');
-    expect(region, 'the 15 px link is back').toContain('minHeight: 44');
-    expect(region, 'a 44 px box with top-aligned text still reads as a thin strip').toContain("justifyContent: 'center'");
   });
 
   /**

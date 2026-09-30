@@ -25,7 +25,7 @@ import { assertQuoteReconciles, computeWaterfall } from '@platform/contracts';
  * real under the 5 % rate on off-grid B, and returns with any non-zero rate:
  * keeping the canon call means the day the founder sets a new rate, his
  * preview cannot quietly start rounding a franc the wrong way on a real
- * listing. `money.ts` keeps its construction; the demo board still uses it.
+ * listing. `money.ts` keeps its construction for his future fee design.
  *
  * NO try/catch — and the reason stated precisely, because a loose version of
  * this sentence was wrong (verifier finding, MEDIUM). `computeWaterfall` throws

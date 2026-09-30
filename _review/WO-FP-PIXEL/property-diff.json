@@ -381,7 +381,7 @@
   },
   {
    "case": "S07",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -451,7 +451,7 @@
   },
   {
    "case": "S17",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -465,7 +465,7 @@
   },
   {
    "case": "S19",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -514,7 +514,7 @@
   },
   {
    "case": "S26",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -556,56 +556,56 @@
   },
   {
    "case": "S32",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S33",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S34",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S35",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S36",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S37",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S38",
-   "total": 5,
+   "total": 4,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
   },
   {
    "case": "S39",
-   "total": 2,
+   "total": 1,
    "mismatches": 0,
    "frozen": 0,
    "valuePass": true
@@ -3316,14 +3316,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S07",
-   "el": "screens1",
-   "prop": "composition-string «Commandes»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S08",
    "el": "container",
    "prop": "pad-top",
@@ -3644,14 +3636,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S17",
-   "el": "screens2",
-   "prop": "composition-string «Confirmer « Produit prêt »»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S18",
    "el": "container",
    "prop": "pad-top",
@@ -3713,14 +3697,6 @@
    "prop": "font-size «Ajuster le stock»",
    "expected": "20px",
    "built": "20px",
-   "verdict": "pass"
-  },
-  {
-   "case": "S19",
-   "el": "screens2",
-   "prop": "composition-string «Ajuster le stock»",
-   "expected": "present",
-   "built": "present",
    "verdict": "pass"
   },
   {
@@ -3988,14 +3964,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S26",
-   "el": "screens2",
-   "prop": "composition-string «Boutik+ Studio»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S27",
    "el": "container",
    "prop": "pad-top",
@@ -4188,14 +4156,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S32",
-   "el": "screens2",
-   "prop": "composition-string «Argent»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S33",
    "el": "container",
    "prop": "pad-top",
@@ -4225,14 +4185,6 @@
    "prop": "font-size «Niveau de confiance»",
    "expected": "19px",
    "built": "19px",
-   "verdict": "pass"
-  },
-  {
-   "case": "S33",
-   "el": "screens2",
-   "prop": "composition-string «Niveau de confiance»",
-   "expected": "present",
-   "built": "present",
    "verdict": "pass"
   },
   {
@@ -4268,14 +4220,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S34",
-   "el": "screens2",
-   "prop": "composition-string «Bienvenue sur Boutik+»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S35",
    "el": "container",
    "prop": "pad-top",
@@ -4305,14 +4249,6 @@
    "prop": "font-size «Votre numéro»",
    "expected": "26px",
    "built": "26px",
-   "verdict": "pass"
-  },
-  {
-   "case": "S35",
-   "el": "screens2",
-   "prop": "composition-string «Votre numéro»",
-   "expected": "present",
-   "built": "present",
    "verdict": "pass"
   },
   {
@@ -4348,14 +4284,6 @@
    "verdict": "pass"
   },
   {
-   "case": "S36",
-   "el": "screens2",
-   "prop": "composition-string «Votre boutique»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S37",
    "el": "container",
    "prop": "pad-top",
@@ -4385,14 +4313,6 @@
    "prop": "font-size «Compte de versement»",
    "expected": "26px",
    "built": "26px",
-   "verdict": "pass"
-  },
-  {
-   "case": "S37",
-   "el": "screens2",
-   "prop": "composition-string «Compte de versement»",
-   "expected": "present",
-   "built": "present",
    "verdict": "pass"
   },
   {
@@ -4428,27 +4348,11 @@
    "verdict": "pass"
   },
   {
-   "case": "S38",
-   "el": "screens2",
-   "prop": "composition-string «Statut provisoire»",
-   "expected": "present",
-   "built": "present",
-   "verdict": "pass"
-  },
-  {
    "case": "S39",
    "el": "title",
    "prop": "font-size «Compte provisoire créé»",
    "expected": "26px",
    "built": "26px",
-   "verdict": "pass"
-  },
-  {
-   "case": "S39",
-   "el": "screens2",
-   "prop": "composition-string «Compte provisoire créé»",
-   "expected": "present",
-   "built": "present",
    "verdict": "pass"
   },
   {

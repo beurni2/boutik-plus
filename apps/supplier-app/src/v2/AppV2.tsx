@@ -29,7 +29,6 @@ import { Dock, StatusZone, ToastStack } from './components';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { S01 } from './screens1';
 import { SCommandesReel } from '../commandes/screen';
-import { S33Trust, S34Onboard } from './screens2';
 import { SGainsReel } from '../gains/screen';
 import { SAccueilReel } from '../accueil/screen';
 import { SListerReal, type ListingSession } from './lister-real';
@@ -182,14 +181,9 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
           <SListerReal st={st} d={d} captures={captures} session={listing} onKeySaved={setOpsKey} />
         ) : v.s === 'studio' ? (
           // Studio is REAL: his S26 design over expo-camera + the proven strip
-          // pipeline. The demo S26Studio stays in screens2.tsx, unrouted. The
-          // capture set lives HERE (view 'studio' and view 'add' are siblings,
+          // pipeline. The capture set lives HERE (view 'studio' and view 'add' are siblings,
           // so a set approved in one must survive the switch to the other).
           <S26StudioReal d={d} onApproved={(set) => { captures.current = set; }} />
-        ) : v.s === 'trust' ? (
-          <S33Trust d={d} />
-        ) : v.s === 'onboard' ? (
-          <S34Onboard st={st} d={d} />
         ) : (
           // unreachable id-miss guard: land back on the current tab, never crash
           <SAccueilReel d={d} opsKey={opsKey} />

@@ -162,14 +162,14 @@ describe('THE TWO EMPTY-LOOKING FACTS ARE NEVER THE SAME SENTENCE — BY VALUE (
 describe('OPTION (b) — Produits holds NO BINDING to seed data [source-text CAPABILITY check, not an absence proof]', () => {
   /**
    * NAMED AS THE WEAKER INSTRUMENT ON PURPOSE (founder condition). This proves
-   * the SCREEN cannot reach a mock. It does NOT prove the seed is absent from
-   * the shipped bundle — the seed strings must REMAIN, because Commandes still
-   * renders from them. THE ABSENCE PROOF IS OWED and comes due when Commandes
-   * converts off the seed. See JOURNAL.md.
+   * the SCREEN cannot reach a mock. The ABSENCE PROOF it left owed « when
+   * Commandes converts off the seed » is PAID (LISTER-VRAI-1, 2026-09-30): the
+   * seed is deleted, and scripts/gates/web-artifact-checks.mjs scans the REAL
+   * exported page for its strings — each measured present before, absent after.
    */
   it('S03Produits reads neither st.products nor st.porder', () => {
     const start = screens1.indexOf('export function S03Produits');
-    const end = screens1.indexOf('export function S07Commandes');
+    const end = screens1.indexOf('export function SOffreFiche');
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const body = screens1.slice(start, end);
@@ -185,13 +185,17 @@ describe('OPTION (b) — Produits holds NO BINDING to seed data [source-text CAP
     expect(shell).not.toMatch(/<S03Produits st=/);
   });
 
-  it('Commandes STILL uses the seed — this slice did not silently convert it', () => {
-    expect(bloc(screens1, 'export function S07Commandes', 'export function S05Fiche')).toContain('st.products');
+  it('THE SEED IS GONE — nothing is left to bind to, and the page is scanned for it', () => {
+    const seed = readFileSync(join(appDir, 'src/v2/seed.ts'), 'utf8');
+    expect(seed).not.toMatch(/export const SEED_/);
+    expect(screens1).not.toContain('S07Commandes');
+    const checks = readFileSync(join(appDir, '../../scripts/gates/web-artifact-checks.mjs'), 'utf8');
+    expect(bloc(checks, 'export const NEVER_IN_A_WEB_PAGE', '];')).toContain("'CMD-2417'");
   });
 });
 
 describe('THE TILE DROPPED EVERY FIELD WITH NO REAL SOURCE [source-text check]', () => {
-  it('OfferTile takes no glyph, no gradient, no paused — and ProductTile still does, untouched', () => {
+  it('OfferTile takes no glyph, no gradient, no paused — and the demo ProductTile is gone', () => {
     const components = readFileSync(join(appDir, 'src/v2/components.tsx'), 'utf8');
     const start = components.indexOf('export function OfferTile');
     const body = components.slice(start, components.indexOf('export function', start + 10));
@@ -199,12 +203,9 @@ describe('THE TILE DROPPED EVERY FIELD WITH NO REAL SOURCE [source-text check]',
     for (const dead of ['glyph', 'bg:', 'paused', 'mod']) {
       expect(body, `OfferTile must not take ${dead}`).not.toContain(dead);
     }
-    // ProductTile survives untouched but has ZERO call sites — assert THAT,
-    // rather than pinning the signature of code nothing calls (verifier finding)
-    expect(components).toContain('export function ProductTile(');
-    const callers = readFileSync(join(appDir, 'src/v2/screens1.tsx'), 'utf8')
-      + readFileSync(join(appDir, 'src/v2/screens2.tsx'), 'utf8');
-    expect(callers).not.toMatch(/<ProductTile\b/);
+    // LISTER-VRAI-1 (« make room »): the demo tile had zero call sites and is
+    // deleted with the rest of the demo board.
+    expect(components).not.toContain('ProductTile');
   });
 
   it('the tile renders the SLOT it is handed — it decides no photo sentence itself', () => {

@@ -12,15 +12,14 @@ import Svg, { Defs, LinearGradient, Line, Path, Rect, Stop, Circle } from 'react
 import { P, TILE_GRADIENT } from '../ui/v2/palette';
 import { GEO, GLYPH_SHADOW, PRESSED, TEXTURE } from '../ui/v2/tokens';
 import {
-  C03, C04, C05, C06, C08, C09, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C20, C21,
-  C22, C24, C25, C26, C27, C28, C29, C30, C31, C32, C33, C34, C36, C37, C38, C41, C43, C44,
-  C45, C46, C47, C48, C49, STATUS_PILL, PRODUCT_PILL, TNUM, role,
+  C03, C04, C05, C08, C09, C11, C12, C13, C15, C16, C17, C19, C21,
+  C26, C27, C30, C32, C33, C34, C37, C43,
+  C47, C48, C49, TNUM, role,
 } from '../ui/v2/styles';
 import { t as tr } from '../i18n';
 import type { PhotoSlot } from '../supply/produits-view';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { C07BtnPrimary } from '../ui/v2/components/C07BtnPrimary';
-import type { OrderStatus } from './seed';
 
 export { C02StripeTissee, C07BtnPrimary };
 
@@ -136,23 +135,6 @@ export const Overline = ({ children, level = 'screen', style }: { children: Reac
   <Text style={[level === 'screen' ? s.overlineScreen : s.overlineCard, style]}>{children}</Text>
 );
 
-export function StatusPill({ status, variant, style }: { status: OrderStatus; variant?: 'header' | 'argent'; style?: StyleProp<ViewStyle> }) {
-  const t = STATUS_PILL[status]!;
-  return (
-    <View style={[s.pill, { backgroundColor: t.bg }, variant === 'header' && s.pillHeader, style]}>
-      <Text style={[s.pillTxt, { color: t.fg }, variant === 'argent' && s.pillArgent]} numberOfLines={1}>{t.label}</Text>
-    </View>
-  );
-}
-export function ProductPill({ kind }: { kind: keyof typeof PRODUCT_PILL }) {
-  const t = PRODUCT_PILL[kind];
-  return (
-    <View style={[s.pill, { backgroundColor: t.bg }]}>
-      <Text style={[s.pillTxt, { color: t.fg }]} numberOfLines={1}>{t.label}</Text>
-    </View>
-  );
-}
-
 // ── buttons ───────────────────────────────────────────────────────────────────
 export const BtnSoft = ({ label, onPress, icon, style, labelStyle }: { label: string; onPress: () => void; icon?: IconName; style?: StyleProp<ViewStyle>; labelStyle?: StyleProp<TextStyle> }) => (
   <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, [s.btnSoft, style])} accessibilityRole="button">
@@ -163,11 +145,6 @@ export const BtnSoft = ({ label, onPress, icon, style, labelStyle }: { label: st
 export const BtnGhost = ({ label, onPress, style }: { label: string; onPress: () => void; style?: StyleProp<ViewStyle> }) => (
   <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, [s.btnGhost, style])} accessibilityRole="button">
     <Text style={s.btnGhostLabel}>{label}</Text>
-  </Pressable>
-);
-export const BtnDemo = ({ label, onPress }: { label: string; onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.ctaFull, s.btnDemo)} accessibilityRole="button">
-    <Text style={s.btnDemoLabel}>{`${C10.prefix}${label}`}</Text>
   </Pressable>
 );
 export const BackBtn = ({ onPress }: { onPress: () => void }) => (
@@ -206,32 +183,6 @@ export const ChipCategory = ({ label, active, onPress }: { label: string; active
     </View>
   </Pressable>
 );
-/**
- * AUDIT-B+1 F18 — the « Vérifié » chip was a 91×38 TAP TARGET, under the §5
- * doctrine minimum of 44 px. It is a real button (onPress, role="button"),
- * not a badge.
- *
- * Fixed with LAYOUT, not `hitSlop`, and that distinction is the finding:
- * react-native-web 0.21.2 does not implement `hitSlop` on `Pressable` at all
- * (it survives only in the legacy `Touchable` export — verified in
- * node_modules/react-native-web/dist). This console SHIPS AS WEB, so the
- * house `hitSlop={8}` idiom is a no-op on exactly the surface the audit
- * measured in headless Chromium. A hitSlop "fix" here would have changed
- * nothing and looked like a fix.
- *
- * The painted pill keeps its 38 px height token untouched; only the invisible
- * touch box around it grows to 44. The header row is already taller than that
- * (monogram + two-line column), so nothing moves.
- */
-export const ChipVerified = ({ onPress }: { onPress: () => void }) => (
-  <Pressable onPress={onPress} style={press(PRESSED.chipSegment, s.chipVerifiedHit)} accessibilityRole="button">
-    <View style={s.chipVerified}>
-      <Icon name="check" size={15} stroke={P.green} strokeWidth={2.2} />
-      <Text style={s.chipVerifiedTxt}>{C14.label}</Text>
-    </View>
-  </Pressable>
-);
-
 // ── stepper + input ───────────────────────────────────────────────────────────
 /**
  * C15 Stepper. `onChangeText` is OPTIONAL and ADDITIVE (founder device ruling
@@ -294,14 +245,6 @@ export const Card = ({ children, variant = 'L', style }: { children: ReactNode; 
   <View style={[variant === 'row' ? s.cardRow : s.cardL, variant === 'Llg' && s.cardLlg, variant === 'Llist' && s.cardLlist, style]}>{children}</View>
 );
 
-export const StatCard = ({ label, value, legend, verse }: { label: string; value: string; legend: string; verse?: boolean }) => (
-  <View style={[s.statCard, { flex: 1 }]}>
-    <Overline level="card">{label}</Overline>
-    <Text style={[s.statValue, verse === true && s.statValueVerse, TNUM]} numberOfLines={1}>{value}</Text>
-    <Text style={s.statLegend}>{legend}</Text>
-  </View>
-);
-
 // FRAIS-ZERO (founder 2026-08-25): the fee line is gone — rate 0, and a
 // « −0 F » row would name a charge that does not exist. net = B − C.
 export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { B: string; C: string; netV: string; netSize?: 'L' | 'XL'; note?: string; overline?: string }) {
@@ -326,79 +269,6 @@ export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { 
     </Card>
   );
 }
-
-export function MoneyHero({ pending, paid }: { pending: string; paid: string }) {
-  return (
-    <View style={s.moneyHero}>
-      <Weave on={TEXTURE.moneyHero.on} a={TEXTURE.moneyHero.a} b={TEXTURE.moneyHero.b} />
-      <Overline level="card" style={s.moneyHeroOverline}>En attente</Overline>
-      <Text style={[s.moneyHeroAmount, TNUM]} numberOfLines={1}>{pending}</Text>
-      <View style={s.moneyHeroFoot}>
-        <Text style={s.moneyHeroFootLabel}>Versé ces 7 jours</Text>
-        <Text style={[s.moneyHeroFootVal, TNUM]}>{paid}</Text>
-      </View>
-    </View>
-  );
-}
-
-// ── rows ──────────────────────────────────────────────────────────────────────
-export function Row({ art, title, sub, pill, onPress, todo }: { art: ReactNode; title: string; sub: string; pill: ReactNode; onPress: () => void; todo?: boolean }) {
-  return (
-    <Pressable onPress={onPress} style={press(PRESSED.rowTodoOrder, [s.rowCard, todo !== true && s.rowCardOrder])} accessibilityRole="button">
-      {art}
-      <View style={s.rowCol}>
-        <Text style={[s.rowTitle, TNUM]} numberOfLines={1}>{title}</Text>
-        <Text style={s.rowSub} numberOfLines={1}>{sub}</Text>
-      </View>
-      {pill}
-    </Pressable>
-  );
-}
-export const RowMoney = ({ code, name, netV, status }: { code: string; name: string; netV: string; status: OrderStatus }) => (
-  <View style={s.moneyRow}>
-    <View style={s.rowCol}>
-      <Text style={[s.moneyRowCode, TNUM]}>{code}</Text>
-      <Text style={s.moneyRowName}>{name}</Text>
-    </View>
-    <View style={s.moneyRowRight}>
-      <Text style={[s.moneyRowNet, TNUM]}>{netV}</Text>
-      <StatusPill status={status} variant="argent" style={{ marginTop: C24.pillGap }} />
-    </View>
-  </View>
-);
-export const RowReleve = ({ week, sub, total }: { week: string; sub: string; total: string }) => (
-  <View style={s.releveRow}>
-    <View style={s.rowCol}>
-      <Text style={s.releveWeek}>{week}</Text>
-      <Text style={s.releveSub}>{sub}</Text>
-    </View>
-    <Text style={[s.releveTotal, TNUM]} numberOfLines={1}>{total}</Text>
-  </View>
-);
-
-export function ProductTile({ bg, glyph, name, priceF, stock, paused, mod, onPress, style }: { bg: readonly [string, string]; glyph: string; name: string; priceF: string; stock: number; paused: boolean; mod?: boolean; onPress: () => void; style?: StyleProp<ViewStyle> }) {
-  return (
-    <Pressable onPress={onPress} style={press(PRESSED.tileHalfBtn, [s.tile, style])} accessibilityRole="button">
-      <View>
-        <IconTile bg={bg} glyph={glyph} height={C21.produitImg.h} radius={0} glyphSize={C21.produitImg.glyph} weave="M" />
-        {paused && (
-          <View style={[s.tileBadge, s.tileBadgePause]}><Text style={s.tileBadgeTxt}>EN PAUSE</Text></View>
-        )}
-        {mod === true && (
-          <View style={[s.tileBadge, s.tileBadgeMod]}><Text style={[s.tileBadgeTxt, s.tileBadgeModTxt]} numberOfLines={1}>EN MODÉRATION</Text></View>
-        )}
-      </View>
-      <View style={s.tileBody}>
-        <Text style={s.tileName}>{name}</Text>
-        <View style={s.tilePriceRow}>
-          <Text style={[s.tilePrice, TNUM]}>{priceF}</Text>
-          <Text style={[s.tileStock, stock <= 4 && s.tileStockLow, TNUM]} numberOfLines={1}>{`stock ${stock}`}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
 
 /**
  * FULL-SCREEN PHOTO VIEWER (founder device ruling 2026-07-26: tap a photo, see
@@ -469,14 +339,10 @@ export function VignetteProduit({ uri }: { uri: string | null }) {
 }
 
 /**
- * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT `ProductTile`: that one
- * takes `bg` / `glyph` / `paused`, three fields with no real source.
- *
- * `ProductTile` IS LEFT IN PLACE BUT IT NOW HAS ZERO CALL SITES — corrected
- * after a verifier finding, because the comment here used to say it was "left
- * untouched for the Commandes demo board" and Commandes never used it (it uses
- * IconTile and ProductPill). It is kept rather than deleted under the
- * no-unrequested-tidying rule; what is fixed is the CLAIM about why.
+ * ONE REAL OFFER (PRODUITS-READ-1). Deliberately NOT the demo board's tile,
+ * which took a gradient, a glyph and a pause flag — three fields with no real
+ * source. That tile had no caller and was deleted with the demo board
+ * (LISTER-VRAI-1, founder « make room », 2026-09-30).
  *
  * THE PHOTOGRAPH: `assetRefs[0]` is the heroSquare by construction (wire order,
  * master excluded). Media reads are UNAUTHENTICATED — the media Worker's write
@@ -562,7 +428,7 @@ export function OfferTile({ name, priceF, stock, variants, photo, clipUri, hidde
   );
 }
 
-// ── banners, empty, timeline ─────────────────────────────────────────────────
+// ── banners ──────────────────────────────────────────────────────────────────
 export function Banner({ tone, children, check, style }: { tone: 'info' | 'warn' | 'danger' | 'success'; children: ReactNode; check?: boolean; style?: StyleProp<ViewStyle> }) {
   const t = C27[tone];
   return (
@@ -572,32 +438,7 @@ export function Banner({ tone, children, check, style }: { tone: 'info' | 'warn'
     </View>
   );
 }
-export const EmptyState = () => (
-  <View style={s.empty}><Text style={s.emptyTxt}>{C28.label}</Text></View>
-);
-
-export function Timeline({ steps, interrupted }: { steps: { label: string; state: 'done' | 'current' | 'future' }[]; interrupted?: { pill: string; note: string } | undefined }) {
-  return (
-    <View>
-      {steps.map((st, i) => (
-        <View key={i} style={s.tlStep}>
-          <View style={s.tlGutter}>
-            <View style={[s.tlDot, st.state === 'done' ? s.tlDotDone : st.state === 'current' ? s.tlDotCurrent : s.tlDotFuture]} />
-            {i < steps.length - 1 && <View style={[s.tlBar, st.state === 'done' ? s.tlBarDone : s.tlBarIdle]} />}
-          </View>
-          <Text style={[s.tlLabel, st.state !== 'future' && s.tlLabelStrong]}>{st.label}</Text>
-        </View>
-      ))}
-      {interrupted !== undefined && (
-        <View style={s.tlInterrupted}>
-          <Text style={s.tlInterruptedTxt}>{`Commande interrompue : ${interrupted.pill}. ${interrupted.note}`}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-// ── toast stack + sheet + dots + footer ───────────────────────────────────────
+// ── toast stack + dots + footer ───────────────────────────────────────────────
 export const ToastStack = ({ toasts }: { toasts: { id: number; m: string }[] }) => (
   <View style={s.toastStack} pointerEvents="none">
     {toasts.map((t) => (
@@ -608,18 +449,6 @@ export const ToastStack = ({ toasts }: { toasts: { id: number; m: string }[] }) 
     ))}
   </View>
 );
-
-export function Sheet({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
-  return (
-    <Pressable style={s.scrim} onPress={onClose}>
-      <Pressable style={s.sheetPanel} onPress={() => {}}>
-        <View style={s.sheetGrabber} />
-        <Text style={s.sheetTitle}>{title}</Text>
-        {children}
-      </Pressable>
-    </Pressable>
-  );
-}
 
 export const ProgressDots = ({ total, step }: { total: number; step: number }) => (
   <View style={s.dotsRow}>
@@ -647,16 +476,7 @@ export function SkeletonBoot() {
   );
 }
 
-// ── trust, meters, processing, code ──────────────────────────────────────────
-export const TrustCard = ({ title, body, current, pill }: { title: string; body: string; current?: boolean; pill?: ReactNode }) => (
-  <View style={[s.cardL, current === true && s.trustCurrent]}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Text style={s.trustTitle}>{title}</Text>
-      {pill}
-    </View>
-    <Text style={s.trustBody}>{body}</Text>
-  </View>
-);
+// ── meters ──────────────────────────────────────────────────────────────────
 export const MetersList = ({ rows }: { rows: { label: string; ok: boolean }[] }) => (
   <View style={[s.cardL, s.cardLlist]}>
     {rows.map((r) => (
@@ -669,23 +489,6 @@ export const MetersList = ({ rows }: { rows: { label: string; ok: boolean }[] })
     ))}
   </View>
 );
-export const ProcessingList = ({ rows, proc }: { rows: string[]; proc: number }) => (
-  <View style={[s.cardL, s.cardLlist]}>
-    {rows.map((label, i) => (
-      <View key={label} style={s.procRow}>
-        <Text style={i < proc ? s.procDone : s.procIdle}>{label}</Text>
-        <Text style={s.procMark}>{i < proc ? C38.MARK_DONE : i === proc ? C38.MARK_CURRENT : C38.MARK_FUTURE}</Text>
-      </View>
-    ))}
-  </View>
-);
-export const ChallengeCode = ({ code, note }: { code: string; note: string }) => (
-  <View style={s.challengeCard}>
-    <Text style={[s.challengeCode, TNUM]}>{code}</Text>
-    <Text style={s.challengeNote}>{note}</Text>
-  </View>
-);
-
 // ── headers + misc ────────────────────────────────────────────────────────────
 export const HeaderStacked = ({ title, onBack, right, wizardCounter }: { title: string; onBack: () => void; right?: ReactNode; wizardCounter?: string }) => (
   <View style={s.headerRow}>
@@ -700,54 +503,21 @@ export const HeaderStacked = ({ title, onBack, right, wizardCounter }: { title: 
     {right}
   </View>
 );
-export const HeaderBoutique = ({ shopName, onTrust }: { shopName: string; onTrust: () => void }) => (
-  <View style={s.boutiqueRow}>
-    <View style={s.monogram}><Text style={[s.monogramTxt, { letterSpacing: 15 * 0.02 }]}>{C44.MONOGRAM}</Text></View>
-    <View style={s.rowCol}>
-      <Text style={s.wordmark}>{C44.WORDMARK}</Text>
-      <Text style={s.boutiqueSub} numberOfLines={1}>{`${shopName} · Rood Woko`}</Text>
-    </View>
-    <ChipVerified onPress={onTrust} />
-  </View>
-);
-export const EcheanceRow = ({ time, label }: { time: string; label: string }) => (
-  <View style={s.echRow}>
-    <Text style={[s.echTime, TNUM]}>{time}</Text>
-    <Text style={s.echLabel}>{label}</Text>
-  </View>
-);
-export const ActivityCard = ({ overline, lines }: { overline: string; lines: string[] }) => (
-  <View style={[s.cardL, { paddingVertical: 16, paddingHorizontal: 17 }]}>
-    <Overline level="card">{overline}</Overline>
-    <Text style={s.activityBody}>{lines.map((l) => `• ${l}`).join('\n')}</Text>
-  </View>
-);
-
 const s = StyleSheet.create({
   dockBar: C03.bar, dockItem: C03.item, dockItemActive: C03.itemActive, dockLabel: C03.label, dockLabelActive: C03.labelActive,
   pageTitle: C04.title, overlineScreen: C05.screen, overlineCard: C05.card,
-  pill: C06.pill, pillHeader: C06.header, pillArgent: C06.argentRow, pillTxt: {},
   btnSoft: C08.btn, btnSoftLabel: C08.label,
   btnGhost: C09.btn, btnGhostLabel: C09.label,
-  btnDemo: C10.btn, btnDemoLabel: C10.label,
   backBtn: C11.btn,
   chipSeg: C12.chip, chipSegActive: C12.active, chipSegInactive: C12.inactive, chipSegTxt: C12.txt, chipSegTxtActive: C12.txtActive, chipSegCount: C12.count,
   chipCat: C13.chip, chipCatActive: C13.active, chipCatInactive: C13.inactive, chipCatTxt: C13.txt, chipCatTxtActive: C13.txtActive,
-  chipVerified: C14.chip, chipVerifiedTxt: C14.txt,
-  /** F18 — the 44 px touch box around the 38 px painted pill. */
-  chipVerifiedHit: { minHeight: 44, justifyContent: 'center' as const },
-  /** The same box, around C13's 42 px pill (verifier 2026-08-10). */
+  /** The F18 44 px touch box, around C13's 42 px pill (verifier 2026-08-10). */
   chipCatHit: { minHeight: 44, justifyContent: 'center' as const },
   stepperRow: C15.row, stepperBtn: C15.btn, stepperGlyph: C15.glyph, stepperValue: C15.value,
   input: C16.input,
   cardL: C17.L, cardLlg: C17.Llg, cardLlist: C17.Llist, cardRow: C17.row,
-  statCard: C18.card, statValue: C18.value, statValueVerse: C18.valueVerse, statLegend: C18.legend,
   moneyLine: C19.line, moneyLineTxt: C19.lineTxt, moneyLineSub: C19.lineTxtSub, moneyLineVal: C19.lineVal,
   moneyTotal: C19.total, moneyTotalLabel: C19.totalLabel, moneyTotalL: C19.totalValL, moneyTotalXL: C19.totalValXL, moneyNote: C19.note,
-  moneyHero: C20.card, moneyHeroOverline: C20.overline, moneyHeroAmount: C20.amount, moneyHeroFoot: C20.footRow, moneyHeroFootLabel: C20.footLabel, moneyHeroFootVal: C20.footVal,
-  rowCard: C22.row, rowCardOrder: C22.rowOrder, rowCol: C22.col, rowTitle: C22.title, rowSub: C22.sub,
-  moneyRow: C24.row, moneyRowCode: C24.code, moneyRowName: C24.name, moneyRowNet: C24.net, moneyRowRight: C24.right,
-  releveRow: C25.row, releveWeek: C25.week, releveSub: C25.sub, releveTotal: C25.total,
   tile: C26.tile, tileBody: C26.body, tileName: C26.name, tilePriceRow: C26.priceRow, tilePrice: C26.price, tileStock: C26.stock, tileStockLow: C26.stockLow,
   tileNoPhoto: C26.noPhoto, tileNoPhotoTxt: C26.noPhotoTxt, tileVariants: C26.variants, tileHidden: C26.hidden,
   vignette: C49.box, vignetteImg: C49.img,
@@ -756,23 +526,11 @@ const s = StyleSheet.create({
   viewerFill: { flex: 1, backgroundColor: 'rgba(10,8,6,0.96)', alignItems: 'center' as const, justifyContent: 'center' as const },
   viewerImg: { width: '100%' as const, height: '80%' as const },
   viewerLabel: { ...role({ f: 'IS', w: 700, s: 13 }, P.cream), marginTop: 14 },
-  tileBadge: C26.badge, tileBadgeTxt: C26.badgeTxt, tileBadgePause: C26.badgePause, tileBadgeMod: C26.badgeMod, tileBadgeModTxt: C26.badgeModTxt,
   banner: C27.banner, bannerTxt: C27.txt, bannerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
-  empty: C28.box, emptyTxt: C28.txt,
-  tlStep: C29.step, tlGutter: C29.gutter, tlDot: C29.dot, tlDotDone: C29.dotDone, tlDotCurrent: C29.dotCurrent, tlDotFuture: C29.dotFuture,
-  tlBar: C29.bar, tlBarDone: C29.barDone, tlBarIdle: C29.barIdle, tlLabel: C29.label, tlLabelStrong: C29.labelStrong,
-  tlInterrupted: C29.interrupted, tlInterruptedTxt: C29.interruptedTxt,
   toastStack: C30.stack, toast: C30.toast, toastTxt: C30.txt,
-  scrim: C31.scrim, sheetPanel: C31.panel, sheetGrabber: C31.grabber, sheetTitle: C31.title,
   dotsRow: C32.row, dotSeg: C32.seg, dotSegDone: C32.segDone,
   wizFooter: C33.footer,
   skel: { backgroundColor: P.skeleton },
-  trustCurrent: C36.current, trustTitle: C36.title, trustBody: C36.body,
   meterRow: C37.row, meterLabel: C37.label, meterPill: C37.pill, meterPillTxt: C37.pillTxt,
-  procRow: C38.row, procDone: C38.labelDone, procIdle: C38.labelIdle, procMark: C38.mark,
-  challengeCard: C41.card, challengeCode: C41.code, challengeNote: C41.note,
   headerRow: C43.row, headerTitle: C43.title, headerTitleWizard: C43.titleWizard, headerCounter: C43.counter,
-  boutiqueRow: C44.row, monogram: C44.monogram, monogramTxt: C44.monogramTxt, wordmark: C44.wordmark, boutiqueSub: C44.subline,
-  echRow: C45.row, echTime: C45.time, echLabel: C45.label,
-  activityBody: C46.body,
 });

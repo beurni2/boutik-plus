@@ -167,15 +167,6 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
     <ScrollView style={{ flex: 1 }} contentContainerStyle={SCROLL.tabs} showsVerticalScrollIndicator={false}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <PageTitle style={{ lineHeight: 28 * 1.1 }}>{t('accueil.greeting')}</PageTitle>
-        <Pressable
-          onPress={() => d({ t: 'OPEN_TRUST' })}
-          style={{ minHeight: 44, justifyContent: 'center' }}
-          accessibilityRole="link"
-        >
-          <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), { textDecorationLine: 'underline' }]}>
-            {t('accueil.engagement')}
-          </Text>
-        </Pressable>
       </View>
       <Text style={[SOUS, { marginTop: 8 }]}>
         {offres.kind === 'ok'
@@ -283,17 +274,6 @@ export function SAccueilReel({ d, opsKey }: { d: (a: A) => void; opsKey: string 
       <Banner tone="info" style={{ marginTop: 14 }}>
         {t('fp.accueil_gratuite_note')}
       </Banner>
-      {/* AUDIT-B+1 F18 lesson kept: 44px min touch box, layout not hitSlop
-          (react-native-web Pressable has no hitSlop). */}
-      <Pressable
-        onPress={() => d({ t: 'OPEN_ONBOARD' })}
-        style={{ marginTop: 9, minHeight: 44, justifyContent: 'center' }}
-        accessibilityRole="link"
-      >
-        <Text style={[role({ f: 'IS', w: 700, s: 12.5 }, P.greenDeep), { textDecorationLine: 'underline' }]}>
-          {t('accueil.gratuite_link')}
-        </Text>
-      </Pressable>
     </ScrollView>
   );
 }

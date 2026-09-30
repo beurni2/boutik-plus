@@ -51,10 +51,10 @@ describe('ONE PATH, HIS — the wizard is the flow and the new screen is gone', 
     );
   });
 
-  it("view 'studio' renders the REAL studio; the demo S26Studio is unrouted but intact", () => {
+  it("view 'studio' renders the REAL studio; the demo S26Studio is gone", () => {
     expect(shell).toMatch(/v\.s === 'studio' \?[\s\S]{0,600}<S26StudioReal d=\{d\} onApproved=/);
     expect(shell).not.toMatch(/<S26Studio /);
-    expect(screens2).toMatch(/export function S26Studio\(/); // the frozen demo survives, unrouted
+    expect(screens2).not.toMatch(/export function S26Studio\(/); // LISTER-VRAI-1: « make room »
   });
 
   it('the capture set AND the listing session are owned by the SHELL — studio and wizard are sibling views', () => {

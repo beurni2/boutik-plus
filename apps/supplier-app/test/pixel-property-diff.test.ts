@@ -817,6 +817,10 @@ describe('FINAL PASS — component library sweep (every C##)', () => {
 
 describe('FINAL PASS — screen sweep (every S##: container profile + title)', () => {
   type Profile = 'tabs' | 'stacked' | 'wizard' | 'none';
+  // LISTER-VRAI-1 (founder 2026-09-30, « make room »): S07, S17, S19, S26 (the
+  // demo studio), S32, S33 and S34–S39 no longer exist as code, so they carry
+  // no `src` — asking a file to compose a screen it no longer holds would only
+  // pass on a stray comment. Their style rows below still sweep the tokens.
   const SCREENS: { sid: string; profile: Profile; title?: string; titleStyle?: 'page' | 'stacked' | 'step' | 'sheet' | 'amount'; src?: keyof typeof SRC }[] = [
     { sid: 'S01', profile: 'none' }, // skeleton — C34.wrap asserted above
     { sid: 'S02', profile: 'tabs', title: 'Boutik+', titleStyle: 'page' }, // wordmark row — fs handled by C44
@@ -824,7 +828,7 @@ describe('FINAL PASS — screen sweep (every S##: container profile + title)', (
     { sid: 'S04', profile: 'tabs', title: 'Produits', titleStyle: 'page' },
     { sid: 'S05', profile: 'stacked', title: 'Robe brodée bogolan', titleStyle: 'stacked' },
     { sid: 'S06', profile: 'stacked', title: 'Robe brodée bogolan', titleStyle: 'stacked' },
-    { sid: 'S07', profile: 'tabs', title: 'Commandes', titleStyle: 'page', src: 'screens1' },
+    { sid: 'S07', profile: 'tabs', title: 'Commandes', titleStyle: 'page' },
     { sid: 'S08', profile: 'tabs', title: 'Commandes', titleStyle: 'page' },
     { sid: 'S09', profile: 'tabs', title: 'Commandes', titleStyle: 'page' },
     { sid: 'S10', profile: 'tabs', title: 'Commandes', titleStyle: 'page' },
@@ -834,29 +838,29 @@ describe('FINAL PASS — screen sweep (every S##: container profile + title)', (
     { sid: 'S14', profile: 'stacked', title: 'CMD-2402', titleStyle: 'stacked' },
     { sid: 'S15', profile: 'stacked', title: 'CMD-2398', titleStyle: 'stacked' },
     { sid: 'S16', profile: 'stacked', title: 'CMD-2409', titleStyle: 'stacked' },
-    { sid: 'S17', profile: 'stacked', title: 'Confirmer « Produit prêt »', titleStyle: 'sheet', src: 'screens2' },
+    { sid: 'S17', profile: 'stacked', title: 'Confirmer « Produit prêt »', titleStyle: 'sheet' },
     { sid: 'S18', profile: 'stacked', title: 'Confirmer « Produit prêt »', titleStyle: 'sheet' },
-    { sid: 'S19', profile: 'stacked', title: 'Ajuster le stock', titleStyle: 'sheet', src: 'screens2' },
+    { sid: 'S19', profile: 'stacked', title: 'Ajuster le stock', titleStyle: 'sheet' },
     { sid: 'S20', profile: 'wizard', title: 'Catégorie', titleStyle: 'step', src: 'screens2' },
     { sid: 'S21', profile: 'wizard', title: 'Détails & stock', titleStyle: 'step', src: 'screens2' },
     { sid: 'S22', profile: 'wizard', title: 'Prix & commission', titleStyle: 'step', src: 'screens2' },
     { sid: 'S23', profile: 'wizard', title: 'Photos — Studio', titleStyle: 'step', src: 'screens2' },
     { sid: 'S24', profile: 'wizard', title: 'Photos — Studio', titleStyle: 'step' },
     { sid: 'S25', profile: 'wizard', title: 'Vérifiez, puis publiez', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S26', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked', src: 'screens2' },
+    { sid: 'S26', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
     { sid: 'S27', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
     { sid: 'S28', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
     { sid: 'S29', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
     { sid: 'S30', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
     { sid: 'S31', profile: 'stacked', title: 'Boutik+ Studio', titleStyle: 'stacked' },
-    { sid: 'S32', profile: 'tabs', title: 'Argent', titleStyle: 'page', src: 'screens2' },
-    { sid: 'S33', profile: 'stacked', title: 'Niveau de confiance', titleStyle: 'stacked', src: 'screens2' },
-    { sid: 'S34', profile: 'wizard', title: 'Bienvenue sur Boutik+', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S35', profile: 'wizard', title: 'Votre numéro', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S36', profile: 'wizard', title: 'Votre boutique', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S37', profile: 'wizard', title: 'Compte de versement', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S38', profile: 'wizard', title: 'Statut provisoire', titleStyle: 'step', src: 'screens2' },
-    { sid: 'S39', profile: 'none', title: 'Compte provisoire créé', titleStyle: 'step', src: 'screens2' },
+    { sid: 'S32', profile: 'tabs', title: 'Argent', titleStyle: 'page' },
+    { sid: 'S33', profile: 'stacked', title: 'Niveau de confiance', titleStyle: 'stacked' },
+    { sid: 'S34', profile: 'wizard', title: 'Bienvenue sur Boutik+', titleStyle: 'step' },
+    { sid: 'S35', profile: 'wizard', title: 'Votre numéro', titleStyle: 'step' },
+    { sid: 'S36', profile: 'wizard', title: 'Votre boutique', titleStyle: 'step' },
+    { sid: 'S37', profile: 'wizard', title: 'Compte de versement', titleStyle: 'step' },
+    { sid: 'S38', profile: 'wizard', title: 'Statut provisoire', titleStyle: 'step' },
+    { sid: 'S39', profile: 'none', title: 'Compte provisoire créé', titleStyle: 'step' },
     { sid: 'S40', profile: 'stacked', title: tableF(12_750), titleStyle: 'amount' }, // célébration — amount asserted by C35
   ];
 

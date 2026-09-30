@@ -158,8 +158,8 @@ export function StudioShoot({ banner, subtitle, busy, onPick, onShot, onFailed, 
         {children}
       </View>
 
-      {/* the demo's simulate-low toggle and fake meters live on only in the
-          unrouted S26Studio; light is judged from the REAL metrics frame */}
+      {/* the demo's simulate-low toggle and fake meters left with the demo
+          Studio (LISTER-VRAI-1); light is judged from the REAL metrics frame */}
       <View style={{ height: 0, opacity: 0 }} pointerEvents="none">
         <IconTile bg={TILE_GRADIENT.p1} glyph="" size={0} radius={0} glyphSize={0} />
         <MetersList rows={[]} />

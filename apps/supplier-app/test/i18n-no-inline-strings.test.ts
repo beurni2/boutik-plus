@@ -115,7 +115,9 @@ describe('Law 6 — user-facing French lives in the catalog, never inline in JSX
    */
   it('every fp.* key added by the F17 migration is present, non-empty and register-tagged', () => {
     const fp = catalog.filter((e) => e.key.startsWith('fp.'));
-    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(27);
+    // 27 → 4 (LISTER-VRAI-1, founder « make room », 2026-09-30): 23 of them
+    // lived only on the demo screens that were deleted, and left with them.
+    expect(fp.length, 'the F17 migration keys vanished from the catalog').toBe(4);
     for (const entry of fp) {
       expect(entry.fr.trim().length, `${entry.key} is empty`).toBeGreaterThan(0);
       expect(['money', 'selling', 'neutral'], `${entry.key} has no valid register`).toContain(entry.register);
@@ -123,28 +125,17 @@ describe('Law 6 — user-facing French lives in the catalog, never inline in JSX
   });
 
   /**
-   * The money sentences specifically. These state the 5 % seller fee and who
-   * pays a buyer refund — B+I-12/B+I-13 in the supplier's own words. If one is
-   * ever retagged away from `register: money` it silently leaves the calm,
-   * precise money register the lint enforces.
+   * The money sentences specifically. If one is ever retagged away from
+   * `register: money` it silently leaves the calm, precise money register the
+   * lint enforces. (LISTER-VRAI-1: the five that lived only on the deleted
+   * demo screens — Argent, Niveau de confiance, the sign-up walkthrough — left
+   * with them; the one still on his home screen stays pinned.)
    */
   it.each([
     'fp.accueil_gratuite_note',
-    'fp.montant_verrouille',
-    'fp.pas_de_compte_interne',
-    'fp.faute_fonds_protection',
-    'fp.onboarding_conditions',
-    'fp.onboarding_momo_note',
   ])('%s stays in the money register', (key) => {
     const entry = catalog.find((e) => e.key === key);
     expect(entry, `${key} is missing from the catalog`).toBeDefined();
     expect(entry?.register).toBe('money');
-  });
-
-  /** B+I-12 in prose: a seller fault never costs the seller money. */
-  it('the protection-fund sentence still says the money is NOT the seller’s', () => {
-    const fr = catalog.find((e) => e.key === 'fp.faute_fonds_protection')?.fr ?? '';
-    expect(fr).toContain('fonds de protection');
-    expect(fr, 'the « jamais votre argent » promise was edited away').toMatch(/[Jj]amais votre argent/);
   });
 });
