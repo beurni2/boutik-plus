@@ -3,6 +3,20 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-30 · CONSOLE-VRAIE-1 MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-30).** « Go » — on the CONSOLE-VRAIE-1 report (entry below).
+
+- **Merged, canon first.** platform-contracts `main` fast-forwarded `958d89c → bae6d88` (recorded answers `d66b6bf` + journal), **canon ci 158 green**. Shop+ `main` `87bbca2 → 993cf22`, **ci 719 green**, then its Worker deployed (Shop+ journal) BEFORE this console, so the board's `misesDeCote` was live when the console that reads it went up. Boutik+ `main` `6f8cc6a → d179077` (ancestry verified), **ci 377 green**.
+- **Deployed** (the product, photo and order Workers are unchanged by this slice — not redeployed):
+  - **web-deploy 86 (console)** — « web-size OK — console first load: 488.4 KB gzip (**500 133 B**) … within the signed ceiling of 500.0 KB (512 000 B) »: **11 867 B left** (slice 9: 500 541 B). Every never-ships string absent; offline shell written.
+  - **fournisseur-web-deploy 30** — « web-size OK — fournisseur first load: 425.5 KB gzip (**435 689 B**) … within the signed ceiling of 430.0 KB (440 320 B) »: 4 631 B left (slice 9: 437 329 B).
+  - **expo-preview 255** (the OTA on the push to `main`, now the V2 root only) green.
+- **Correction, stated plainly.** The report said the console fell to « 494 KB, was 501 KB ». That number came from the local board, whose export sets neither the Shop+ checkout, the Fund nor the Séra logistics base: the minifier then drops their ports and the page reads ≈6 KB lighter than what ships. The deployed page — the one the ceiling binds, measured on the exact dist — is **500 133 B**, 408 B lighter than slice 9. OPEN: make the local export set every base the deploy sets, so the board measures what ships.
+- **Still open** — as in the entry below: F-55, F-73's server road and the rank numbers wait for his word; the native preview channel; the July E1-only work to re-plan; a reopened retired order still offers « Créer la course »; Séra's own console still says « reprenez la course »; two older map walks read style values.
+
+---
+
 ## 2026-09-30 · CONSOLE-VRAIE-1 (AUDIT-B+2 slice 10: F-59 · F-60 · F-62 · F-63 · F-64 · F-65 · F-67 · F-71 · F-73 (rename + roster check) · F-74 · F-75 · F-78 (gains half) · F-79 · F-81 · F-83) — the console's orders, riders and resellers say what is true · F-55, F-73's server road and the board's rank numbers HELD for the founder · on the branch, NOT merged, NOT deployed
 
 **Held, not built (his three decisions, unanswered when the slice started — the slices 7/8 precedent: build everything decision-free, hold the rest).** F-55 the sandbox banner on the live pages and its wording · F-73 retire the old SP- code road on Shop+ or refuse paused ids on the server · whether the reseller board keeps its rank numbers (left exactly as it was). NOTE on F-55: the only « bac à sable » banner lived in the E1 root; retiring E1 (F-60) removed it and its proof. No deployed page showed it before; none shows it now. Whether a live page should carry one is still his call.
