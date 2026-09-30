@@ -115,7 +115,7 @@ overrides:
 #     existing negative fixture failed under both the old and new lists and so
 #     discriminated nothing — a pin regression was invisible.
 #
-# AUDIT-B+2 F-90 (2026-09-30) — @platform/i18n moved again, to 280485c8: the
+# AUDIT-B+2 F-90 (2026-09-30) — @platform/i18n moved again, to cfff2c58: the
 # banned words in every form (« séquestrées », « escrowed », « conformément
 # aux »). Same two rules: both manifests moved, and the new fixture
 # gates/fixtures/negative/catalog.inflections.json fails ONLY under this pin.

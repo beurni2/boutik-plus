@@ -181,7 +181,12 @@ export function S26StudioReal({ d, onApproved }: { d: (a: A) => void; onApproved
                 <PhotoThumb uri={s.derivative.uri} />
               </Pressable>
               {/* F-50: a 44 px box, not hitSlop (which the web page ignores) */}
-              <Pressable accessibilityRole="button" onPress={() => setShots((cur) => cur.filter((_, j) => j !== i))} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${t('studio.retirer')} — ${t('studio.photo_n').replace('{n}', String(i + 1))}`}
+                onPress={() => setShots((cur) => cur.filter((_, j) => j !== i))}
+                style={{ minHeight: 44, justifyContent: 'center' }}
+              >
                 <Text style={[role({ f: 'IS', w: 500, s: 11.5 }, P.sub), { textAlign: 'center' }]}>
                   {t('studio.retirer')}
                 </Text>

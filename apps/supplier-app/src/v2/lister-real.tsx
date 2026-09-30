@@ -324,11 +324,21 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
    * flow's own landing spot after publish — one tap, same destination.
    */
   const exitToProduits = (): void => d({ t: 'TAB', tab: 'produits' });
-  // F-57: the result pane is its own layer — Back leaves it the way its one
-  // exit does (never four invisible wizard steps). While the send is in
-  // flight, Back is absorbed: leaving cannot cancel a send.
-  useCouche(pub === null ? null : pub.kind === 'sending' ? 'envoi' : 'resultat', () => {
-    if (pub?.kind !== 'sending') exitToProduits();
+  /**
+   * Back from the outcome pane. Only a PUBLISHED product leaves for Produits;
+   * any other outcome (failed, refused, invalid, not configured) returns to
+   * his wizard exactly as « Corriger » does — leaving there would cost him
+   * the name, figures and photographs he typed (verifier MAJOR, LISTER-VRAI-1).
+   */
+  const quitterResultat = (): void => {
+    if (pub?.kind === 'published') exitToProduits();
+    else setPub(null);
+  };
+  // F-57: the result pane is its own layer — the phone's Back does what the
+  // header's back does (never four invisible wizard steps). While the send is
+  // in flight, Back is absorbed: leaving cannot cancel a send.
+  useCouche(pub === null ? null : pub.kind === 'sending' ? 'envoi' : `resultat:${pub.kind}`, () => {
+    if (pub?.kind !== 'sending') quitterResultat();
   });
 
   /** The interceptor — see the module header. Everything else passes through. */
@@ -604,7 +614,7 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
     return (
       <View style={{ flex: 1 }}>
         <View style={{ paddingTop: 16, paddingHorizontal: GEO.screenPad.side }}>
-          <HeaderStacked title={t('publier.titre')} onBack={exitToProduits} />
+          <HeaderStacked title={t('publier.titre')} onBack={quitterResultat} />
         </View>
         <ScrollView contentContainerStyle={SCROLL.stacked} showsVerticalScrollIndicator={false}>
           {pub.kind === 'published' && (

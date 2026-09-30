@@ -115,11 +115,11 @@ export function Dock({ tab, onTab, operateur }: { tab: DockTab; onTab: (t: DockT
     ...(operateur === true ? [{ k: 'operations' as const, label: tr('nav.tab_operations'), icon: 'tab.box' as const }] : []),
   ];
   return (
-    <View style={s.dockBar}>
+    <View style={s.dockBar} accessibilityRole="tablist">
       {TABS.map((t) => {
         const active = tab === t.k;
         return (
-          <Pressable key={t.k} onPress={() => onTab(t.k)} style={press(PRESSED.dockItem, [s.dockItem, active && s.dockItemActive])} accessibilityRole="button" aria-selected={active}>
+          <Pressable key={t.k} onPress={() => onTab(t.k)} style={press(PRESSED.dockItem, [s.dockItem, active && s.dockItemActive])} accessibilityRole="tab" aria-selected={active}>
             <Icon name={t.icon} size={24} stroke={active ? P.greenDeep : P.faint} />
             <Text style={[s.dockLabel, active && s.dockLabelActive]}>{t.label}</Text>
           </Pressable>
@@ -179,13 +179,15 @@ export const ChipSegment = ({ label, count, active, onPress }: { label: string; 
  * active tab is STATED, and a screen reader is owed the same statement as an
  * eye. (LISTER-VRAI-1, F-50: it was `accessibilityState`, which
  * react-native-web 0.21 drops without a word — the page never said it. The
- * control in `tap-targets-44` pins that.)
+ * control in `tap-targets-44` pins that. And the role is « tab »: a screen
+ * reader announces « selected » on a tab, not on a plain button — verifier
+ * MINOR.)
  */
 export const ChipCategory = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
   <Pressable
     onPress={onPress}
     style={press(PRESSED.chipCategory, s.chipCatHit)}
-    accessibilityRole="button"
+    accessibilityRole="tab"
     aria-selected={active}
   >
     <View style={[s.chipCat, active ? s.chipCatActive : s.chipCatInactive]}>

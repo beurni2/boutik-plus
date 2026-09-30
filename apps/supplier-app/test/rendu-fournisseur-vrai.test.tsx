@@ -238,7 +238,10 @@ describe('F-50 (LISTER-VRAI-1) — every photo he can tap has a name, and the sc
     const choisi = () =>
       screen.tree.root
         .findAll((n) => typeof n.type === 'string' && n.props['aria-selected'] === true)
-        .map((n) => n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join(''));
+        .map((n) => {
+          expect(n.props['accessibilityRole'], 'a selected state on a non-tab is not announced').toBe('tab');
+          return n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join('');
+        });
 
     expect(screen.shows('Pagne wax')).toBe(true);
     expect(screen.sansNom(), 'a control a screen reader cannot name').toEqual([]);

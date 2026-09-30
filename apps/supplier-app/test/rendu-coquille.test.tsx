@@ -168,7 +168,11 @@ describe('F-50 — the console says which tab he is on, and announces what it te
     const choisis = () =>
       screen.tree.root
         .findAll((n) => typeof n.type === 'string' && typeof n.props['onPress'] === 'function' && n.props['aria-selected'] === true)
-        .map((n) => n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join(''));
+        .map((n) => {
+          // « selected » is announced on a TAB, not on a plain button (verifier MINOR)
+          expect(n.props['accessibilityRole'], 'a selected state on a non-tab is not announced').toBe('tab');
+          return n.findAll((c) => typeof c.children[0] === 'string').map((c) => c.children[0]).join('');
+        });
     expect(choisis(), 'the tab he is on must be STATED, not only painted').toEqual([t('nav.tab_accueil')]);
     await screen.press(t('nav.tab_produits'));
     expect(choisis()).toEqual([t('nav.tab_produits')]);

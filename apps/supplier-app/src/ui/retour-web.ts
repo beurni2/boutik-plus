@@ -19,6 +19,13 @@ import { useEffect, useRef } from 'react';
  * entry; when Back closes it but the app only stepped (the layer is still
  * open), it is re-armed with a fresh entry, so the next Back steps again.
  *
+ * ONE STEP FOR LAYERS THAT CLOSE TOGETHER. « Retour » on « C'est publié »
+ * closes the result pane AND the wizard in the same moment. Two history steps
+ * in one task is something browsers do not agree on (some honour only the
+ * first), and his next real Back would then do nothing once. So the entries
+ * the app takes back in one task are taken back as ONE `go(-n)`, which fires
+ * one popstate (verifier MINOR, LISTER-VRAI-1).
+ *
  * NOTHING ON A PHONE: without a browser history this does nothing at all.
  */
 
@@ -28,7 +35,7 @@ interface Couche {
 
 interface Historique {
   pushState(data: unknown, unused: string): void;
-  back(): void;
+  go(delta: number): void;
 }
 interface Fenetre {
   readonly history?: Historique;
@@ -40,6 +47,19 @@ const pile: Couche[] = [];
 let ignorer = 0;
 /** The window whose popstate is heard — one listener per page. */
 let ecouteSur: object | null = null;
+/** Entries the app is taking back in this task — gathered into one step. */
+let aReprendre = 0;
+
+function reprendre(w: NonNullable<ReturnType<typeof fenetre>>): void {
+  aReprendre += 1;
+  if (aReprendre > 1) return;
+  queueMicrotask(() => {
+    const n = aReprendre;
+    aReprendre = 0;
+    ignorer += 1; // one go(-n), one popstate
+    w.history.go(-n);
+  });
+}
 
 function fenetre(): (Fenetre & { history: Historique; addEventListener(type: 'popstate', f: () => void): void }) | null {
   const w = (globalThis as { window?: Fenetre }).window;
@@ -83,10 +103,7 @@ export function useCouche(cle: string | null, fermer: () => void): void {
     if (cle === null) {
       const c = couche.current;
       couche.current = null;
-      if (c !== null && retirer(c)) {
-        ignorer += 1;
-        w.history.back();
-      }
+      if (c !== null && retirer(c)) reprendre(w);
       return;
     }
     if (couche.current === null || !pile.includes(couche.current)) {
@@ -102,10 +119,7 @@ export function useCouche(cle: string | null, fermer: () => void): void {
     () => () => {
       const w = fenetre();
       const c = couche.current;
-      if (w !== null && c !== null && retirer(c)) {
-        ignorer += 1;
-        w.history.back();
-      }
+      if (w !== null && c !== null && retirer(c)) reprendre(w);
     },
     [],
   );

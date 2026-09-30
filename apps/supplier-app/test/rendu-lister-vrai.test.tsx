@@ -7,6 +7,7 @@ import { armerLectureDataUri, desarmerLecture } from './doubles/expo-file-system
 import { armerSelecteur, desarmerSelecteur } from './doubles/expo-image-picker';
 import { armerPermissionCamera } from './doubles/expo-camera';
 import { installerHistorique, retirerHistorique } from './doubles/historique';
+import { useCouche } from '../src/ui/retour-web';
 import { SListerReal, type ListingSession } from '../src/v2/lister-real';
 import { S26StudioReal, type CaptureSet } from '../src/v2/studio-real';
 import { SOffreFiche } from '../src/v2/screens1';
@@ -164,6 +165,9 @@ function Coquille({ depart }: { depart: (s: S) => S }) {
   const d = useCallback((a: A) => setSt((prev) => reduce(prev, a).s), []);
   const captures = useRef<CaptureSet | null>(null);
   const session = useRef<ListingSession>({ codeTouched: true, suffixBytes: null, pourFournisseur: '', video: null, roles: null });
+  // AppV2's own layer line, word for word: the wizard and the Studio are layers.
+  const v = st.view;
+  useCouche(v === null ? null : v.s === 'add' ? `add:${st.wiz.step}` : 'studio', () => d({ t: 'BACK' }));
   if (st.view?.s === 'studio') return <S26StudioReal d={d} onApproved={(set) => { captures.current = set; }} />;
   if (st.view?.s === 'add') return <SListerReal st={st} d={d} captures={captures} session={session} />;
   return null;
@@ -237,6 +241,12 @@ describe('PRIX & COMMISSION — he types them himself (F-98), and a box never go
     await tape(screen, 1, '1000');
     expect(screen.shows('11 000 FCFA'), 'the net he receives, once both are typed').toBe(true);
     expect(screen.canPress('Continuer')).toBe(true);
+
+    // He CLEARS his commission: the box is empty again, never a 0 he did not type (verifier MINOR).
+    await tape(screen, 1, '');
+    expect(champs(screen)[1]?.props['value'], 'a cleared box came back as a figure').toBe('');
+    expect(etat.st?.wiz.C, 'a cleared box became a 0 he never typed').toBeNull();
+    expect(screen.canPress('Continuer')).toBe(false);
     screen.unmount();
   });
 
@@ -291,6 +301,8 @@ describe('F-50 — a screen reader can name every control of the listing, and th
     await screen.settle();
     expect(screen.sansNom(), 'the Studio with his three pictures').toEqual([]);
     expect(parNom(screen, t('studio.photo_n').replace('{n}', '1')), 'his first picture has no name').toHaveLength(1);
+    // Each « Retirer » says WHICH photo it removes (verifier MINOR).
+    expect(parNom(screen, `${t('studio.retirer')} — ${t('studio.photo_n').replace('{n}', '2')}`)).toHaveLength(1);
     await screen.press(t('studio.continuer'));
     await screen.settle();
 
@@ -405,6 +417,38 @@ describe('PUBLIER — a lost answer and lost photos are said as they are (F-45)'
     screen.unmount();
   });
 
+  /**
+   * VERIFIER MINOR (LISTER-VRAI-1): « Envoyer les photos » when the product
+   * ALREADY carries photographs (attached by an earlier attempt under another
+   * command) is refused `assets_already_present` by the book — that is DONE,
+   * not a failure; the button must not stay forever.
+   */
+  it('(b\'\') « Envoyer les photos » finds the product already has its photographs: said as joined, no endless button', async () => {
+    const book = livre();
+    wire([roster, book.route, media(new Set([4])).route]);
+    perdreReponses({ restant: 1 });
+    const screen = await mountEcran(<Coquille depart={rempli} />);
+    await screen.press('Ouvrir Boutik+ Studio');
+    await photographier(screen, 3);
+    await screen.press('Continuer');
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await screen.settle();
+    await screen.press('Réessayer');
+    await screen.settle();
+    expect(screen.shows(t('publier.photos_manquantes'))).toBe(true);
+
+    // An earlier attempt's attach landed under another command id.
+    const [entree] = [...book.entrees.values()];
+    entree!.assets = { heroSquare: { ref: 'media/deja-la' } };
+    entree!.attachCommandId = 'cmd-une-autre-tentative';
+    await screen.press(t('publier.photos_action'));
+    await screen.settle();
+    expect(screen.shows(t('publier.photos_jointes')), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.canPress(t('publier.photos_action')), 'a button that can only be refused again, forever').toBe(false);
+    screen.unmount();
+  });
+
   it('(b\') first try carried the photos and only its answer was lost: the retry does not claim photos are missing', async () => {
     const book = livre();
     wire([roster, book.route, media().route]);
@@ -457,7 +501,7 @@ describe('PUBLIÉ — the phone\'s Back leaves the result the way its one exit d
     await screen.press(PUBLIER);
     await screen.settle();
     expect(screen.shows(t('publier.publie'))).toBe(true);
-    expect(nav.entrees, 'the result pane is a layer').toBe(1);
+    expect(nav.entrees, 'the wizard and the result pane are two layers').toBe(2);
 
     nav.retour();
     await screen.settle();
@@ -465,6 +509,68 @@ describe('PUBLIÉ — the phone\'s Back leaves the result the way its one exit d
     expect(etat.st?.tab).toBe('produits');
     expect(etat.st?.view).toBeNull();
     expect(nav.sorties).toBe(0);
+    screen.unmount();
+  });
+
+  /**
+   * VERIFIER MINOR (LISTER-VRAI-1): the header's « Retour » on « C'est publié »
+   * closes TWO layers at once (the result pane and the wizard). Two history
+   * steps in one task is a browser-dependent act — some honour only one, and
+   * his next real Back would then do nothing once. One traversal, always.
+   */
+  it('the header\'s « Retour » on « C\'est publié » steps back ONCE for both layers; his next Back is the browser\'s', async () => {
+    const nav = installerHistorique();
+    wire([roster, livre().route]);
+    const screen = await mountEcran(<Coquille depart={(s) => ({ ...rempli(s), wiz: { ...rempli(s).wiz, step: 4, photos: true } })} />);
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await screen.settle();
+    expect(nav.entrees, 'the wizard and the result pane are two layers').toBe(2);
+
+    await pressRetour(screen);
+    await screen.settle();
+    expect(etat.st?.tab).toBe('produits');
+    expect(nav.entrees, 'both entries taken back').toBe(0);
+    expect(nav.traverseesMultiples, 'two history steps in one task — a browser may honour only one').toBe(0);
+    nav.retour();
+    await screen.settle();
+    expect(nav.sorties, 'his next Back is the browser\'s again, not swallowed').toBe(1);
+    screen.unmount();
+  });
+
+  /**
+   * VERIFIER MAJOR (LISTER-VRAI-1): Back on a FAILED or REFUSED result took
+   * him to Produits, and the next « Lister un produit » started from nothing —
+   * his name, figures and photographs gone without a word. Back from a result
+   * that is not « publié » returns to his wizard, as « Corriger » does; the
+   * header's « Retour » does the same (the phone's Back and the app's own back
+   * are one act).
+   */
+  it('Back from a FAILED send (either Back) returns to his wizard with everything he typed — never to Produits', async () => {
+    const nav = installerHistorique();
+    wire([roster, livre().route]);
+    perdreReponses({ restant: 2 });
+    const screen = await mountEcran(<Coquille depart={(s) => ({ ...rempli(s), wiz: { ...rempli(s).wiz, step: 4, photos: true } })} />);
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await screen.settle();
+    expect(screen.shows(t('publier.echec_reseau'))).toBe(true);
+
+    nav.retour();
+    await screen.settle();
+    await screen.settle();
+    expect(etat.st?.view?.s, 'the phone\'s Back left his listing').toBe('add');
+    expect(etat.st?.wiz.name).toBe('Sac en raphia');
+    expect(etat.st?.wiz.B).toBe(12_000);
+    expect(screen.canPress(PUBLIER), 'he is back on his recap, ready to send again').toBe(true);
+    expect(nav.sorties).toBe(0);
+
+    await screen.press(PUBLIER);
+    await screen.settle();
+    expect(screen.shows(t('publier.echec_reseau'))).toBe(true);
+    await pressRetour(screen);
+    expect(etat.st?.view?.s, 'the header\'s « Retour » left his listing').toBe('add');
+    expect(etat.st?.wiz.name).toBe('Sac en raphia');
     screen.unmount();
   });
 });
