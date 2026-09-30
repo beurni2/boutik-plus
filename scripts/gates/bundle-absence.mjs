@@ -85,10 +85,9 @@ try {
     // ROOT=v2 EXPLICITLY: this gate has always measured the PUBLISHED app,
     // which is the v2 root (expo-preview defaults root to v2). Before
     // READINESS-WIRE-1b-ii the entry imported AppV2 statically so v2 rode
-    // every export regardless; the three-way lazy fold ended that, and an
-    // export without ROOT now folds to the E1 arm alone — this gate's
-    // controls would vanish and it would refuse (exit 2) on a bundle nobody
-    // publishes. Same subject as ever, now stated instead of incidental.
+    // every export regardless; the lazy fold ended that, and an export
+    // without ROOT folded to the E1 arm alone (retired since AUDIT-B+2 F-60:
+    // the default arm is now the console). Same subject as ever, stated.
     ['expo', 'export', '--platform', 'android', '--clear', '--output-dir', out],
     { cwd: APP, stdio: 'pipe', encoding: 'utf8', env: { ...process.env, CI: '1', EXPO_PUBLIC_ROOT: 'v2' } },
   );

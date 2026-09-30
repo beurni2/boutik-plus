@@ -42,7 +42,7 @@ function sources(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const files = [...sources(join(appDir, 'src')), join(appDir, 'App.tsx')];
+const files = sources(join(appDir, 'src'));
 
 /**
  * ⚠ BOTH QUOTE STYLES, AND THE NON-NAMED FORMS. The rider app paid for this

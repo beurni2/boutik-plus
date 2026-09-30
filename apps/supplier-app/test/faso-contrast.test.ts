@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { sharedColour as S, boutikColour as B } from '@platform/ui-tokens';
-import { appColour } from '../src/ui/fp';
+// AUDIT-B+2 F-60 — read from the LIVE palette and tokens (the E1 module
+// `src/ui/fp.ts` is retired with the shell it served; same values).
+import { P } from '../src/ui/v2/palette';
+import { TEXTURE } from '../src/ui/v2/tokens';
 
 /**
  * WO-FP-BOUTIK (device review #2) — THE PERMANENT CONTRAST GATE (sera pattern
@@ -52,7 +55,7 @@ const PAIRS: { name: string; fg: string; bg: string; min: number }[] = [
   { name: 'warnFg on warnBg', fg: S.warnFg, bg: S.warnBg, min: AA_NORMAL },
   { name: 'dangerFg on dangerBg (problem)', fg: S.dangerFg, bg: S.dangerBg, min: AA_NORMAL },
   { name: 'mutedFg on mutedBg (neutral chip)', fg: S.mutedFg, bg: S.mutedBg, min: AA_NORMAL },
-  { name: 'toastFg on ink (toast)', fg: appColour.toastFg, bg: S.ink, min: AA_NORMAL },
+  { name: 'toastFg on ink (toast)', fg: P.toastFg, bg: S.ink, min: AA_NORMAL },
 ];
 
 // Money surfaces — held to the TOP BAND (AAA). The hero amount + card figures.
@@ -82,8 +85,8 @@ describe('WO-FP-BOUTIK contrast gate — every text pairing meets WCAG AA', () =
     // background stays ~solid primary and the AAA money pairing above holds.
     // (a solid onPrimary stroke — the shipped bug — would have made the weave
     // opaque; the docket now pins it to rgba(255,255,255,.05).)
-    expect(appColour.ledgerWeave).toBe('rgba(255,255,255,.05)');
-    const alpha = Number(appColour.ledgerWeave.match(/,\s*(\.\d+|\d?\.\d+|1|0)\s*\)$/)?.[1]);
+    expect(TEXTURE.moneyHero.on).toBe('rgba(255,255,255,0.05)');
+    const alpha = Number(TEXTURE.moneyHero.on.match(/,\s*(\.\d+|\d?\.\d+|1|0)\s*\)$/)?.[1]);
     expect(alpha).toBeLessThanOrEqual(0.05);
   });
 

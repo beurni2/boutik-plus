@@ -32,8 +32,10 @@ describe('the Faso Premium typeface is embedded natively, at first frame', () =>
     expect(fonts.some((f) => /Archivo/.test(f))).toBe(false);
   });
 
-  it('NO async font load anywhere in the app — the font never gates a render', () => {
-    for (const f of ['App.tsx', 'src/ui/kit.tsx', 'src/ui/fonts.ts']) {
+  // AUDIT-B+2 F-60 — the E1 shell and kit this read are retired; the token
+  // list itself still loads nothing (the web pages' map is `web-fonts.ts`).
+  it('the font token list loads no font at runtime', () => {
+    for (const f of ['src/ui/fonts.ts']) {
       const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(code, `${f} loads a font at runtime`).not.toMatch(/useFonts|loadAsync|Font\.load|from 'expo-font'/);
     }
@@ -63,21 +65,6 @@ describe('the Faso Premium typeface is embedded natively, at first frame', () =>
     // the six name-table identities are DISTINCT
     const ids = FP_FACES.map((f) => readSfntIdentity(new Uint8Array(readFileSync(join(dir, f.file)))).family);
     expect(new Set(ids).size).toBe(6);
-  });
-
-  it('the render layer sets fontFamily ONLY through the resolver — no raw family string can bypass it (shop finding #1 class, made impossible)', () => {
-    // Shop's finding #1: a fontFamily KEY that ≠ the loaded face's internal
-    // name-table family → RN silently paints the system font. Boutik's keys ==
-    // the embedded names (proven above), and this guard keeps it that way: the
-    // ONLY fontFamily assignment is fp.ts's ts(), through the fontFamily(kind,
-    // wght) resolver — a raw `fontFamily: '…'` literal (e.g. the space-form
-    // 'Bricolage Grotesque', which NO embedded face carries) can never sneak in.
-    for (const f of ['App.tsx', 'src/ui/kit.tsx', 'src/ui/signature.tsx', 'src/ui/anim.tsx']) {
-      expect(read(f), `${f} assigns a fontFamily outside the ts() resolver`).not.toMatch(/fontFamily\s*:/);
-    }
-    const fp = read('src/ui/fp.ts');
-    expect(fp, 'ts() resolves fontFamily via the resolver').toMatch(/fontFamily:\s*fontFamily\(r\.kind, r\.wght\)/);
-    expect(fp, 'fp.ts sets a raw fontFamily string literal').not.toMatch(/fontFamily:\s*['"]/);
   });
 
   it('the sfnt reader is NON-VACUOUS: a PLANTED name-table collision is DETECTED', () => {

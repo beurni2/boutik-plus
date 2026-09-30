@@ -32,7 +32,6 @@ function supplierSourceFiles(): string[] {
     }
   };
   walk(join(appDir, 'src'));
-  out.push(join(appDir, 'App.tsx'));
   return out;
 }
 
@@ -46,7 +45,8 @@ describe('CUSTODY — buyerDropCode is NEVER on the supplier surface (structural
 
   it('scans a real, non-empty set of supplier source files (the guard has something to prove)', () => {
     expect(files.length).toBeGreaterThan(5);
-    expect(files.some((f) => f.endsWith('App.tsx'))).toBe(true);
+    // AUDIT-B+2 F-60 — the E1 shell is retired; the supplier's live page is here.
+    expect(files.some((f) => f.endsWith('FournisseurApp.tsx'))).toBe(true);
   });
 
   it('NO supplier code path references the buyer delivery code — it cannot render what it never names', () => {
@@ -63,18 +63,4 @@ describe('CUSTODY — buyerDropCode is NEVER on the supplier surface (structural
     expect(BUYER_CODE_IDENT.test('Le code client de livraison ne vous est jamais montré.')).toBe(false);
   });
 
-  it('the readiness (pret) surface AFFIRMATIVELY states the buyer code is never shown (B+I-06 honesty)', () => {
-    const app = readFileSync(join(appDir, 'App.tsx'), 'utf8');
-    // the pret ready phase renders the honesty line
-    expect(app).toMatch(/b7Phase === 'ready'[\s\S]*?t\('pret\.honnete_code_client'\)/);
-    // and the catalogue string states the law (« jamais montré »), carrying no code value
-    const catalog = JSON.parse(readFileSync(join(appDir, 'i18n/catalog.json'), 'utf8')) as {
-      key: string;
-      fr: string;
-    }[];
-    const honesty = catalog.find((e) => e.key === 'pret.honnete_code_client');
-    expect(honesty, 'the honesty string exists').toBeTruthy();
-    expect(honesty!.fr).toMatch(/jamais montré/);
-    expect(BUYER_CODE_IDENT.test(honesty!.fr), 'the honesty prose carries no code identifier').toBe(false);
-  });
 });

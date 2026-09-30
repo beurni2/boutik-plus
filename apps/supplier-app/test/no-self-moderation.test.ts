@@ -25,7 +25,7 @@ function* walk(dir: string): Generator<string> {
 describe('no self-moderation — the supplier app has no approve lever (Desk 3, absence proof)', () => {
   it('no source file references a moderation DECISION verb (decide / approve / changes_requested as an action)', () => {
     const offenders: string[] = [];
-    for (const file of [join(appDir, 'App.tsx'), ...walk(join(appDir, 'src'))]) {
+    for (const file of walk(join(appDir, 'src'))) {
       const code = readFileSync(file, 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/(^|[^:])\/\/.*$/gm, '$1');
@@ -38,11 +38,4 @@ describe('no self-moderation — the supplier app has no approve lever (Desk 3, 
     expect(offenders).toEqual([]);
   });
 
-  it('B11 only READS moderationState — the demo store exposes no setter for it', () => {
-    const store = readFileSync(join(appDir, 'src/demo/store.ts'), 'utf8');
-    // moderationState is a readonly field; there is no function that MUTATES it
-    // (the word 'approved' appears only as the read-only state VALUE, never a setter).
-    expect(store).toMatch(/readonly moderationState/);
-    expect(store).not.toMatch(/set[A-Za-z]*ModerationState|moderationState\s*=[^=]|\.approve\s*\(/);
-  });
 });

@@ -1,7 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { formatFcfa } from '../src/demo/store';
 import { readCmap, readSfntIdentity } from '../src/ui/sfnt';
 
 /**
@@ -57,18 +56,11 @@ describe('STEP 0 · distinct name-table identity per weight (the Archivo collisi
   });
 });
 
-describe('STEP 0 · money renders on the NEW bytes through the EXISTING formatter (formatFcfa consumed, untouched)', () => {
+// AUDIT-B+2 F-60 — the E1 formatter these glyphs were first checked through
+// (`formatFcfa`, in the retired demo store) left with E1; the glyph facts of
+// the shipped bytes stay pinned.
+describe('STEP 0 · the money glyphs on the NEW bytes', () => {
   const cmapAll = () => FILES.map((f) => readCmap(bytes(f)));
-
-  it('EVERY codepoint formatFcfa emits for « 11 500 » is drawable by ALL SIX weights', () => {
-    const cmaps = cmapAll();
-    const inAll = (cp: number) => cmaps.every((c) => c.has(cp));
-    // formatFcfa is the SHIPPED formatter — its output is the load-bearing string
-    const emitted = [...formatFcfa(11_500)].map((c) => c.codePointAt(0)!);
-    expect(emitted).toEqual([0x31, 0x31, 0x00a0, 0x35, 0x30, 0x30]); // "11" U+00A0 "500" — the ruling-③ NBSP
-    const missing = emitted.filter((cp) => !inAll(cp)).map((c) => '0x' + c.toString(16));
-    expect(missing, 'formatFcfa output fully drawable in every FP weight').toEqual([]);
-  });
 
   it('the full « 11 500 F » glyph set — digits · U+00A0 separator · space · « F » — is drawable by every weight', () => {
     const cmaps = cmapAll();

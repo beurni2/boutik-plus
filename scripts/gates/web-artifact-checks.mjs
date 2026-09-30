@@ -29,7 +29,7 @@ import { mesurerWeb } from './web-size.mjs';
  */
 export const NEVER_IN_A_WEB_PAGE = [
   'BOUTIK_DEMO_SUPPLY_ADAPTER_MUST_NOT_SHIP', // the demo supply adapter
-  'correction_en_cours', // E1's demo store (src/demo/store.ts)
+  'correction_en_cours', // E1's demo store (retired with E1, AUDIT-B+2 F-60 — kept as an absence check)
   'correctionMinLeft', // E1's demo store
   // LISTER-VRAI-1 — the V2 demo board and its seed, removed on the founder's
   // « make room » (2026-09-30). This is the ABSENCE PROOF PRODUITS-READ-1 left

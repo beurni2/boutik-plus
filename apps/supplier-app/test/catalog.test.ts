@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CatalogSchema } from '@platform/i18n';
@@ -20,20 +20,19 @@ describe('supplier-app catalog', () => {
     }
   });
 
-  it('covers every key the shell uses', () => {
+  // AUDIT-B+2 F-60 — the E1 shell this read is retired; the key check now
+  // reads every live file (inline French is `i18n-no-inline-strings`' job).
+  it('covers every literal key the live code asks for', () => {
     const keys = new Set(catalog.map((e) => e.key));
-    const appSource = readFileSync(join(appDir, 'App.tsx'), 'utf8');
-    const usedKeys = [...appSource.matchAll(/t\('([^']+)'\)/g)].map((m) => m[1]);
-    expect(usedKeys.length).toBeGreaterThan(0);
-    for (const key of usedKeys) {
-      expect(keys.has(key ?? '')).toBe(true);
-    }
-  });
-
-  it('the shell has no inline French user-facing strings (accented literals) in component code', () => {
-    const appSource = readFileSync(join(appDir, 'App.tsx'), 'utf8');
-    const codeOnly = appSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    expect(codeOnly).not.toMatch(/['"«][^'"»]*[àâçéèêëîïôùûüÀÂÇÉÈÊËÎÏÔÙÛÜ]/);
+    const fichiers = (dir: string): string[] =>
+      readdirSync(join(appDir, dir), { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? fichiers(`${dir}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : [],
+      );
+    const used = fichiers('src').flatMap((f) =>
+      [...readFileSync(join(appDir, f), 'utf8').matchAll(/\bt\('([a-z_]+\.[a-z0-9_.]+)'\)/g)].map((m) => ({ f, key: m[1]! })),
+    );
+    expect(used.length).toBeGreaterThan(300);
+    for (const { f, key } of used) expect(keys.has(key), `${f} asks for ${key}`).toBe(true);
   });
 
   it('app.json static backgroundColor stays equal to the Faso Premium paper surface (drift guard)', () => {

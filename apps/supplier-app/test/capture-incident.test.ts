@@ -112,7 +112,7 @@ describe('WO-4.2D Part A — the atob assumption is REMOVED by construction', ()
   });
 
   it('no module on the capture path references atob anymore (source pin, comments stripped)', () => {
-    for (const f of ['src/studio/normalization.ts', 'src/studio/capture.ts', 'App.tsx']) {
+    for (const f of ['src/studio/normalization.ts', 'src/studio/capture.ts']) {
       const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(src, `${f} still references atob`).not.toMatch(/\batob\b/);
     }
@@ -132,17 +132,6 @@ describe('WO-4.2D Part A — the atob assumption is REMOVED by construction', ()
     } catch (error) {
       expect(failureDetailOf(error)).toBe('exif_leak');
     }
-  });
-});
-
-describe('WO-4.2D Part A — the diagnostic line is PREVIEW-ONLY (the banner law)', () => {
-  it('the detail line renders GATED on IS_PREVIEW — inlined out of any future production profile', () => {
-    const app = read('App.tsx');
-    expect(app).toMatch(/\{IS_PREVIEW && failureDetail !== null && \(/);
-    expect(app).toMatch(/t\('studio\.erreur_detail'\)\.replace\('\{code\}', failureDetail\)/);
-    // The plain failure chip is NOT gated — the designed state exists in
-    // every profile; only the code line is preview diagnostics.
-    expect(app).toMatch(/\{failureDetail !== null && <StatusChip tone="problem" label=\{t\('studio\.erreur'\)\} icon="refus" \/>\}/);
   });
 });
 
@@ -170,50 +159,5 @@ describe('WO-4.2D Part B — the market category set (capture guidance ONLY)', (
     // docblock NAMES the prohibited-list Decision it refuses to close.
     const codeOnly = guidance.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     expect(codeOnly).not.toMatch(/prohibit|interdit|allowed|blocked|banned/i);
-  });
-});
-
-describe('WO-4.2D Part B — la caméra devient l\'écran (layout pins, dimensions from tokens)', () => {
-  const app = read('App.tsx');
-
-  it('the camera fills the screen: flex height, full-bleed width by the SAME token the content pads with', () => {
-    expect(app).toMatch(/cameraScreen: \{\s*flex: 1,\s*marginHorizontal: -D\.pad,/);
-    expect(app).toMatch(/content: \{\s*flex: 1,\s*paddingHorizontal: D\.pad,/);
-  });
-
-  it('the guidance banner overlays the TOP and the category recall chip rides inside it', () => {
-    expect(app).toMatch(/guideBanner: \{[^}]*top: 0/s);
-    expect(app).not.toMatch(/guideBanner: \{[^}]*bottom: 0/s);
-    expect(app).toMatch(/styles\.categoryRecall/);
-    expect(app).toMatch(/t\(`categorie\.\$\{category\}`\)/);
-  });
-
-  it('ONE primary action, overlaid bottom-center in thumb reach', () => {
-    expect(app).toMatch(/captureOverlay: \{[^}]*bottom: 0/s);
-    expect(app).toMatch(/captureOverlay: \{[^}]*alignItems: 'center'/s);
-    // exactly one PrimaryButton inside the granted-capture state block
-    const block = app.slice(app.indexOf("permission.granted && pending === null"), app.indexOf('{screen === \'photo\' && pending !== null'));
-    expect(block.match(/<PrimaryButton/g)).toHaveLength(1);
-    expect(block).toContain("t('studio.capture')");
-  });
-
-  it('the frame guides scale with the view — the CornerTicks signature is edge-anchored, never fixed-frame-sized', () => {
-    // WO-FP-BOUTIK: the four corner guides are now the shared CornerTicks
-    // signature element (README § 5) — it fills the frame (absoluteFill) and
-    // insets by prop, so it scales with the view instead of a fixed frame size.
-    expect(app).toMatch(/<CornerTicks colour=\{C\.onPrimary\} inset=\{20\} \/>/);
-    const sig = read('src/ui/signature.tsx');
-    expect(sig).toMatch(/export function CornerTicks/);
-    expect(sig).toMatch(/StyleSheet\.absoluteFill/);
-  });
-
-  it('zero hardcoded dimensions in the new layout styles — every number is a token expression or a percent', () => {
-    const stylesBlock = app.slice(app.indexOf('cameraScreen: {'), app.indexOf('premiumFrame:'));
-    const numbers = [...stylesBlock.matchAll(/:\s*(-?\d+(?:\.\d+)?)(?![%\w])/g)].map((m) => m[1]);
-    // Allowed bare numerics: 0 (edge anchors) and 1 (flex) only.
-    for (const value of numbers) {
-      expect(['0', '1'], `literal ${value} in camera layout styles`).toContain(value);
-    }
-    expect(stylesBlock).toMatch(/width: '80%'/);
   });
 });

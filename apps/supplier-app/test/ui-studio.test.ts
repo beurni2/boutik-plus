@@ -67,11 +67,6 @@ describe('B1.2 — EXIF stripped, AT CAPTURE (the guard is on the path, not only
   it('the guard FAILS CLOSED: empty bytes are an error, never a vacuous pass (verifier NB2)', () => {
     expect(() => base64ToBytes('')).toThrow(ExifLeakError);
   });
-  it('a failed capture is a designed state carrying its CODE, never a silent rejection (WO-4.2D)', () => {
-    const app = read('App.tsx');
-    expect(app).toMatch(/catch \(error\) \{\s*setFailureDetail\(failureDetailOf\(error\)\);/);
-    expect(app).toMatch(/t\('studio\.erreur'\)/);
-  });
   it('the capture path STRIPS then asserts — the guard is a post-condition on the shipped bytes (WO-4.2E pin)', () => {
     const capture = read('src/studio/capture.ts');
     expect(capture).toMatch(/const stripped = stripJpegMetadata\(bytes\)/);
@@ -169,9 +164,6 @@ describe('B1.1 — category-aware Hero+Proof guidance on downscaled-frame metric
     expect(bytesPerPixel(dark)).toBeLessThan(GUIDANCE_THRESHOLDS_V1.adviceBelowBpp);
     expect(guidanceFor(dark)).toEqual({ verdict: 'advice', key: 'studio.conseil.lumiere' });
     expect(guidanceFor(rich)).toEqual({ verdict: 'ok', key: 'studio.conseil.ok' });
-    // advice never blocks: the App keeps Confirmer enabled regardless (pin)
-    const app = read('App.tsx');
-    expect(app).toMatch(/<PrimaryButton label=\{t\('studio\.confirmer'\)\} onPress=\{keepShot\} \/>/);
   });
 });
 
@@ -185,20 +177,10 @@ describe('WYSIWYG — the previewed derivative IS the stored derivative (one tra
     expect(capture).toMatch(/uri: `data:image\/jpeg;base64,\$\{bytesToBase64\(stripped\)\}`/);
     expect(capture).not.toMatch(/uri: derivative\.uri/);
   });
-  it('the App previews pending.derivative.uri and stores the SAME pending object (source pin)', () => {
-    const app = read('App.tsx');
-    expect(app).toMatch(/source=\{\{ uri: pending\.derivative\.uri \}\}/);
-    expect(app).toMatch(/setShots\(\(s\) => \(\{ \.\.\.s, \[shot\]: pending \}\)\)/);
-  });
   it('master ≠ derivative and the original is retained (imaging gate)', () => {
     const capture = read('src/studio/capture.ts');
     expect(capture).toMatch(/masterUri: photo\.uri/);
     expect(capture).toMatch(/quality: 1/); // the master is the untouched full capture
-  });
-  it('retake is as cheap as confirm — side by side, same weight classes', () => {
-    const app = read('App.tsx');
-    expect(app).toMatch(/SecondaryButton label=\{t\('studio\.reprendre'\)\}/);
-    expect(app).toMatch(/styles\.retakeRow/);
   });
 });
 
@@ -208,10 +190,6 @@ describe('scope + dependency law', () => {
     const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
     expect(pkg.dependencies['expo-camera']).toBe('~57.0.4');
     expect(pkg.dependencies['expo-image-manipulator']).toBe('~57.0.16');
-  });
-  it('the offline queue is honest: capture completion sets the pending notice, never « done »', () => {
-    const app = read('App.tsx');
-    expect(app).toMatch(/setPendingKey\('studio\.queue_pending'\)/);
   });
   it('the studio imports stay inside the authorized world', () => {
     const BANNED = /@platform\/certification|@platform\/contracts|@platform\/i18n|^node:|expo-av|expo-audio|expo-file-system/;

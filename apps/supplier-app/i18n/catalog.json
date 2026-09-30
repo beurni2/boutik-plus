@@ -1,63 +1,9 @@
 [
   {
-    "key": "app.title",
-    "fr": "Boutik+",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "onboarding.welcome",
-    "fr": "Bienvenue sur Boutik+",
-    "register": "selling",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "onboarding.free_listing",
-    "fr": "Listez vos produits gratuitement. Boutik+ et Shop+ ne gagnent que lorsque votre produit est vendu.",
-    "register": "selling",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "shell.offline_pending",
-    "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "onboard.action",
-    "fr": "Je commence",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "onboard.phone_pending",
-    "fr": "C'est envoyé. En attente du réseau.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "product.title",
-    "fr": "Mon produit",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "product.photo_action",
-    "fr": "Prendre la photo",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "product.saved_pending",
     "fr": "C'est noté. En attente du réseau.",
     "register": "neutral",
     "screenClass": "status"
-  },
-  {
-    "key": "offer.title",
-    "fr": "Mon prix",
-    "register": "money",
-    "screenClass": "general"
   },
   {
     "key": "offer.net_preview",
@@ -66,94 +12,10 @@
     "screenClass": "general"
   },
   {
-    "key": "offer.floor_block",
-    "fr": "Prix trop bas. Le minimum est 5 000 F.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "offer.part_too_high",
-    "fr": "Cette part ne vous laisse rien. Baissez-la un peu.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.action",
-    "fr": "Produit prêt",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "ready.pending",
-    "fr": "Envoyé. En attente du réseau.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.next",
-    "fr": "Dès que c'est confirmé, Séra vient chercher le colis.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "deadline.today",
-    "fr": "Avant ce soir 18 h.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.demo_refusal",
-    "fr": "Essai : voir un colis refusé",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "refused.title",
     "fr": "Séra n'a pas pris le colis",
     "register": "neutral",
     "screenClass": "status"
-  },
-  {
-    "key": "refused.cause",
-    "fr": "Voici le souci : {issues}.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "check.colour",
-    "fr": "la couleur",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "check.qty",
-    "fr": "la quantité",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "refused.fix_action",
-    "fr": "Corriger et redire prêt",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "refused.new_code",
-    "fr": "Un nouveau code prêt vous sera envoyé.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "refused.fixed_pending",
-    "fr": "C'est corrigé. En attente du réseau.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "preview.banner",
-    "fr": "Aperçu — bac à sable",
-    "register": "neutral",
-    "screenClass": "label"
   },
   {
     "key": "nav.retour",
@@ -170,12 +32,6 @@
   {
     "key": "nav.plus",
     "fr": "Plus",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "nav.recommencer",
-    "fr": "Recommencer la démo",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -216,48 +72,6 @@
     "screenClass": "label"
   },
   {
-    "key": "accueil.stat_attente_note",
-    "fr": "Payé après livraison validée",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "accueil.stat_verse_note",
-    "fr": "Sous 24 h après acceptation",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "accueil.ech_titre",
-    "fr": "Échéances du jour",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "accueil.gratuite",
-    "fr": "L'inscription est gratuite. Et pour le moment, vendre aussi : Boutik+ ne prend aucun frais sur vos ventes.",
-    "register": "selling",
-    "screenClass": "general"
-  },
-  {
-    "key": "accueil.gratuite_link",
-    "fr": "Voir le parcours d'inscription vendeur",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "accueil.shopline",
-    "fr": "Marché Rood-Woko",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "accueil.ech_restant",
-    "fr": "Dans {min} min",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
     "key": "accueil.card_produits",
     "fr": "Mes produits",
     "register": "neutral",
@@ -270,82 +84,10 @@
     "screenClass": "label"
   },
   {
-    "key": "accueil.card_echeances",
-    "fr": "Mes échéances",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "accueil.card_onboarding",
-    "fr": "Comment ça marche",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "produits.title",
-    "fr": "Mes produits",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "produits.subtitle",
-    "fr": "{n} en ligne · photos sans prix ajouté",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "produits.lister",
     "fr": "Lister un produit — gratuit",
     "register": "selling",
     "screenClass": "label"
-  },
-  {
-    "key": "produits.repere",
-    "fr": "Repère",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "produits.net_ligne",
-    "fr": "Vous recevrez {amount} F",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "statut.pret",
-    "fr": "Prêt",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "statut.en_attente",
-    "fr": "En attente du réseau",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "statut.refuse",
-    "fr": "À corriger",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "statut.correction",
-    "fr": "Correction en cours",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "statut.echeance",
-    "fr": "Délai passé — l’acheteur est remboursé",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "photo.title",
-    "fr": "La photo de votre produit",
-    "register": "neutral",
-    "screenClass": "general"
   },
   {
     "key": "photo.placeholder",
@@ -390,46 +132,10 @@
     "screenClass": "label"
   },
   {
-    "key": "echeances.title",
-    "fr": "Mes échéances",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "echeances.regle",
-    "fr": "Après un refus, vous avez 6 heures pour corriger. Passé ce délai, l’acheteur est remboursé.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "echeances.restant",
-    "fr": "Temps restant : {min} min",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "corrective.walk_title",
-    "fr": "Une commande refusée — à corriger",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
     "key": "demo.donnees",
     "fr": "Données d’essai — rien ici n’est réel.",
     "register": "neutral",
     "screenClass": "label"
-  },
-  {
-    "key": "corrective.rien",
-    "fr": "Rien à corriger — tout est en ordre.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "corrective.protection",
-    "fr": "La cliente est déjà remboursée par le fonds de protection. Corrigez, puis re-proposez le colis.",
-    "register": "money",
-    "screenClass": "general"
   },
   {
     "key": "nav.tab_accueil",
@@ -444,24 +150,6 @@
     "screenClass": "general"
   },
   {
-    "key": "nav.tab_echeances",
-    "fr": "Échéances",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "offer.net_label",
-    "fr": "Vous recevrez",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "money.amount_f",
-    "fr": "{amount} F",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
     "key": "accueil.stat_en_ligne",
     "fr": "Produits prêts",
     "register": "neutral",
@@ -472,12 +160,6 @@
     "fr": "À corriger",
     "register": "neutral",
     "screenClass": "status"
-  },
-  {
-    "key": "studio.categorie",
-    "fr": "Catégorie",
-    "register": "neutral",
-    "screenClass": "label"
   },
   {
     "key": "categorie.mode",
@@ -582,26 +264,8 @@
     "screenClass": "general"
   },
   {
-    "key": "studio.confirmer",
-    "fr": "Garder cette photo",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "studio.apercu",
-    "fr": "Ce que l'acheteur verra",
-    "register": "selling",
-    "screenClass": "label"
-  },
-  {
     "key": "studio.honnete_ia",
     "fr": "De vraies photos — aucune image inventée par une IA.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "studio.honnete_original",
-    "fr": "Cette photo prouve l'accès au produit, pas l'authenticité. Votre photo d'origine est gardée, jamais remplacée.",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -622,24 +286,6 @@
     "fr": "Autoriser la caméra",
     "register": "neutral",
     "screenClass": "general"
-  },
-  {
-    "key": "studio.sans_photo",
-    "fr": "Continuer sans photo (démo)",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "studio.queue_pending",
-    "fr": "Vos photos sont en file — envoyées dès que le réseau revient.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "studio.photos_pretes",
-    "fr": "2 photos prêtes — la vôtre reste chez vous",
-    "register": "neutral",
-    "screenClass": "status"
   },
   {
     "key": "studio.erreur",
@@ -744,36 +390,6 @@
     "screenClass": "instruction"
   },
   {
-    "key": "recettes.title",
-    "fr": "Mes recettes",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.detail_label",
-    "fr": "Détail par commande",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "recette.title",
-    "fr": "Détail du versement",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recette.timeline",
-    "fr": "Étapes du versement",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "recettes.vide",
-    "fr": "Pas encore de recette. Votre première vente s'affiche ici.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "recettes.net_ligne",
     "fr": "Vous recevrez {amount} F",
     "register": "money",
@@ -792,108 +408,6 @@
     "screenClass": "general"
   },
   {
-    "key": "recettes.compte",
-    "fr": "Reversé par votre opérateur — jamais gardé par Boutik+.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_attente",
-    "fr": "En attente du prochain versement.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_bientot",
-    "fr": "Prêt pour le prochain versement.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_encours",
-    "fr": "Versement en cours vers votre compte Mobile Money.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_verse",
-    "fr": "Versé sur votre compte Mobile Money.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_revision",
-    "fr": "En révision : on vérifie une dernière fois avant de verser.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.state_echec",
-    "fr": "Le versement n'a pas abouti. On réessaie pour vous.",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.ref_ligne",
-    "fr": "Référence de versement : {ref}",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_attente",
-    "fr": "En attente",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_bientot",
-    "fr": "Bientôt",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_encours",
-    "fr": "En cours",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_verse",
-    "fr": "Versé",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_revision",
-    "fr": "En révision",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "recettes.chip_echec",
-    "fr": "Réessai",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "confiance.title",
-    "fr": "Confiance",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "confiance.subtitle",
-    "fr": "Votre niveau monte avec des livraisons réussies — jamais avec de l’argent avancé.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "confiance.tier_current",
-    "fr": "Votre niveau",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
     "key": "confiance.desc_provisional",
     "fr": "Une commande à la fois · paiement complet à la commande · un contrôle à chaque enlèvement · catégories choisies.",
     "register": "neutral",
@@ -908,12 +422,6 @@
   {
     "key": "confiance.desc_trusted",
     "fr": "Avec un bon historique : plus de commandes en même temps, contrôles allégés quand c’est sûr, campagnes en avant.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "confiance.warning",
-    "fr": "Une faute répétée réduit l’accès (retour au prépaiement, suspension) — c’est l’accès au marché qui compte, jamais une somme bloquée.",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -960,12 +468,6 @@
     "screenClass": "general"
   },
   {
-    "key": "confiance.incidents",
-    "fr": "Incidents enregistrés : {n}.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "confiance.restriction.new_offers_paused",
     "fr": "Les nouvelles offres sont en pause, le temps de rétablir la confiance.",
     "register": "neutral",
@@ -978,74 +480,14 @@
     "screenClass": "general"
   },
   {
-    "key": "moderation.title",
-    "fr": "Modération",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "moderation.vide",
     "fr": "Rien à revoir. Tous vos produits sont en règle.",
     "register": "neutral",
     "screenClass": "general"
   },
   {
-    "key": "moderation.en_revue",
-    "fr": "En cours de vérification. On regarde vos photos et votre prix.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.modifs",
-    "fr": "Une petite retouche demandée avant la mise en ligne.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.approuve",
-    "fr": "Approuvé. Votre produit est visible pour les acheteurs.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
     "key": "moderation.refuse",
     "fr": "Non retenu pour cette fois — le motif est indiqué, vous pouvez corriger.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.en_attente",
-    "fr": "L'examen prend un peu plus de temps. On revient vers vous très vite.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.hors_ligne",
-    "fr": "Hors ligne : voici le dernier état connu. Rien n'est confirmé tant que le réseau n'est pas revenu.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.chip_approuve",
-    "fr": "Approuvé",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.chip_soumis",
-    "fr": "Envoyé",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.chip_attente",
-    "fr": "En attente",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "moderation.chip_modifs",
-    "fr": "À retoucher",
     "register": "neutral",
     "screenClass": "general"
   },
@@ -1098,18 +540,6 @@
     "screenClass": "status"
   },
   {
-    "key": "shell.offline",
-    "fr": "Hors ligne : vos actions sont en attente, jamais perdues.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "shell.offline_toggle",
-    "fr": "Simuler hors ligne",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
     "key": "produits.chargement",
     "fr": "Chargement de vos produits…",
     "register": "neutral",
@@ -1118,144 +548,6 @@
   {
     "key": "produits.vide",
     "fr": "Aucun produit pour l'instant. Ajoutez votre premier produit.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "offre.champ_prix",
-    "fr": "Votre prix",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "offre.champ_commission",
-    "fr": "La part de la revendeuse",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "offre.commission_aide",
-    "fr": "Une part motivante fait vendre plus vite. C'est vous qui décidez.",
-    "register": "selling",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "offre.publier",
-    "fr": "Publier l'offre",
-    "register": "money",
-    "screenClass": "general"
-  },
-  {
-    "key": "offre.v2",
-    "fr": "Version 2 de votre offre. La v1 reste servie tant que la v2 n'est pas validée.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "money.franc",
-    "fr": "F",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.commande_payee",
-    "fr": "Commande payée. Préparez le colis — Séra viendra le chercher.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "pret.badge_payee",
-    "fr": "Payée",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.step_photo",
-    "fr": "1 · Photo de préparation",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.check_photo",
-    "fr": "Le colis correspond à la photo",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.step_emballage",
-    "fr": "2 · Emballage du colis",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.check_ferme",
-    "fr": "Fermé, prêt à partir",
-    "register": "neutral",
-    "screenClass": "label"
-  },
-  {
-    "key": "pret.honnete_code_client",
-    "fr": "Le code client de livraison ne vous est jamais montré.",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "pret.confirmer",
-    "fr": "Confirmer : produit prêt",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "pret.confirm_gate",
-    "fr": "Cochez les deux points d'abord.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.pending_slow",
-    "fr": "Envoyé — en attente de confirmation. Le réseau est lent, rien n'est perdu.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.queued_offline",
-    "fr": "C'est noté. En attente du réseau — votre confirmation partira toute seule.",
-    "register": "money",
-    "screenClass": "status"
-  },
-  {
-    "key": "pret.simuler_confirmation",
-    "fr": "Simuler la confirmation (démo)",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "pret.revenir",
-    "fr": "Revenir à l'état initial",
-    "register": "neutral",
-    "screenClass": "general"
-  },
-  {
-    "key": "pret.net_apres",
-    "fr": "Vous recevrez, après livraison validée",
-    "register": "money",
-    "screenClass": "label"
-  },
-  {
-    "key": "studio.refusee",
-    "fr": "Pas d'appareil photo ? Pas grave. Continuez sans photo pour la démo.",
-    "register": "selling",
-    "screenClass": "selling_surface"
-  },
-  {
-    "key": "shell.queue_durable",
-    "fr": "Enregistré sur ce téléphone : {count} en attente.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
-    "key": "ready.queue_error",
-    "fr": "Cette confirmation n'a pas pu être enregistrée. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -1942,12 +1234,6 @@
     "fr": "Touchez le nom sous une photo pour changer son rôle.",
     "register": "neutral",
     "screenClass": "general"
-  },
-  {
-    "key": "studio.reprendre",
-    "fr": "Reprendre",
-    "register": "neutral",
-    "screenClass": "label"
   },
   {
     "key": "studio.limite",

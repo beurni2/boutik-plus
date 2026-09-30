@@ -34,7 +34,6 @@ describe('OTA safety — a post-binary native dep never sits in the boot import 
     const files = readdirSync(join(appDir, 'src'), { recursive: true, encoding: 'utf8' })
       .filter((f) => f.endsWith('.ts') || f.endsWith('.tsx'))
       .map((f) => join(appDir, 'src', f));
-    files.push(join(appDir, 'App.tsx'));
     expect(files.length).toBeGreaterThan(10);
     const offenders: string[] = [];
     for (const file of files) {
@@ -114,8 +113,10 @@ describe('every dependency shipping a config plugin is declared in app.json', ()
 });
 
 describe('supplier-app runtime import bans', () => {
-  it('App.tsx and src/i18n.ts runtime-import no certification suite, node-only subpath, or node builtin', () => {
-    for (const file of ['App.tsx', 'src/i18n.ts']) {
+  // AUDIT-B+2 F-60 — App.tsx (the E1 shell) is retired; the live canon
+  // importers are read instead.
+  it('the live canon importers runtime-import no certification suite, node-only subpath, or node builtin', () => {
+    for (const file of ['src/i18n.ts', 'src/supply/preview.ts', 'src/offline/commandId.ts']) {
       const source = readFileSync(join(appDir, file), 'utf8');
       const runtimeImports = [...source.matchAll(/^import (?!type )[^;]*from ['"]([^'"]+)['"];/gm)].map((m) => m[1]!);
       expect(runtimeImports.length).toBeGreaterThan(0);
@@ -126,7 +127,8 @@ describe('supplier-app runtime import bans', () => {
   });
 
   it('the direct canon ROOT import is present — the RN-safe entry is used, not worked around', () => {
-    const source = readFileSync(join(appDir, 'App.tsx'), 'utf8');
+    // AUDIT-B+2 F-60 — the live money preview is the canon root's importer now.
+    const source = readFileSync(join(appDir, 'src/supply/preview.ts'), 'utf8');
     expect(source).toMatch(/^import \{[^}]*computeWaterfall[^}]*\} from '@platform\/contracts';/m);
   });
 });

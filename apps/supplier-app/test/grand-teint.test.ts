@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { type as fpType } from '@platform/ui-tokens';
@@ -13,52 +13,9 @@ import { FONT_FAMILY_DISPLAY, FONT_FAMILY_TEXT, FONT_FALLBACK } from '../src/ui/
  */
 
 const appDir = join(import.meta.dirname, '..');
-const repoRoot = join(appDir, '../..');
 const read = (f: string) => readFileSync(join(appDir, f), 'utf8');
-const iconsSrc = read('src/ui/icons.tsx');
-const svgDir = join(repoRoot, 'design-reference/grand-teint/icons');
-const svgNames = readdirSync(svgDir).filter((f) => f.endsWith('.svg')).map((f) => f.slice(0, -4)).sort();
-
-describe('the 26 icon components carry the design-reference geometry (byte-identity)', () => {
-  it('there are exactly 26 canonical glyphs, and 26 components', () => {
-    expect(svgNames).toHaveLength(26);
-    expect(iconsSrc.match(/export function Icon\w+\(/g)).toHaveLength(26);
-  });
-
-  it('every path `d`, circle and rect from every SVG appears verbatim in its component', () => {
-    for (const name of svgNames) {
-      const svg = readFileSync(join(svgDir, `${name}.svg`), 'utf8');
-      const ds = [...svg.matchAll(/\bd="([^"]+)"/g)].map((m) => m[1]);
-      const circles = [...svg.matchAll(/<circle cx="([^"]+)" cy="([^"]+)" r="([^"]+)"/g)];
-      for (const d of ds) {
-        expect(iconsSrc, `${name}: path d not carried verbatim`).toContain(`d="${d}"`);
-      }
-      for (const c of circles) {
-        expect(iconsSrc, `${name}: circle not carried`).toContain(`cx={${c[1]}}`);
-        expect(iconsSrc, `${name}: circle not carried`).toContain(`cy={${c[2]}}`);
-      }
-    }
-  });
-
-  it('every component defaults to currentColor and threads it to every stroke/fill', () => {
-    const comps = iconsSrc.split(/export function Icon(?=[A-Z])/).slice(1);
-    expect(comps).toHaveLength(26);
-    for (const c of comps) {
-      expect(c).toMatch(/color = 'currentColor'/);
-      expect(c).toMatch(/stroke=\{color\}/);
-      expect(c).toMatch(/color=\{color\}/);
-      expect(c).toMatch(/width=\{size\} height=\{size\}/);
-      expect(c).toMatch(/viewBox="0 0 24 24"/);
-    }
-    expect(iconsSrc).toMatch(/size = 20/);
-    expect(iconsSrc).toMatch(/from 'react-native-svg'/);
-  });
-
-  it('the icon module carries no hardcoded color — currentColor only (zero-hardcode)', () => {
-    expect(iconsSrc).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    expect(iconsSrc).not.toMatch(/\brgba?\(|\bhsla?\(/);
-  });
-});
+// AUDIT-B+2 F-60 — the icon components (`src/ui/icons.tsx`) served only the
+// retired E1 shell and left with it; the live pages draw their own glyphs.
 
 describe('the Faso Premium typeface roots — data only, loads nothing', () => {
   it('the two family roots match the canon token family names (README § Type)', () => {

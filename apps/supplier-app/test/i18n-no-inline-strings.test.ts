@@ -44,13 +44,13 @@ const DOSSIERS = [
 ] as const;
 
 /**
- * EXCEPTION 1 — files inside those folders that the two web pages never load:
- * the E1 app's own kit (`App.tsx` imports them; neither web root does). Pinned
- * by the control below: no scanned file imports any of them.
+ * EXCEPTION 1 — files inside those folders that the two web pages never load
+ * (data and tooling read by tests, not screens; the E1 app's own kit left
+ * with it, AUDIT-B+2 F-60). Pinned by the control below: no scanned file
+ * imports any of them.
  */
 const HORS_PAGES = [
-  'src/ui/anim.tsx', 'src/ui/fonts.ts', 'src/ui/fp.ts', 'src/ui/icons.tsx', 'src/ui/kit.tsx', 'src/ui/motion.ts',
-  'src/ui/sfnt.ts', 'src/ui/signature.tsx', 'src/offline/expoStore.ts', 'src/offline/queue.ts',
+  'src/ui/fonts.ts', 'src/ui/sfnt.ts',
   'src/studio/viewfinder.ts', 'src/supply/demo.ts', 'src/v2/seed.ts', 'src/v2/quartiers-ouagadougou.ts',
 ] as const;
 

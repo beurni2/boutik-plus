@@ -10,11 +10,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      root:
-        description: "Racine à publier ('' = défaut V2 · 'e1' = app E1, dispatch-only — founder ruling 2026-07-17)"
-        required: false
-        default: ''
 
 # DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — this job reads the tree; it publishes to
 # Expo with EXPO_TOKEN, never with the repository's own token.
@@ -111,11 +106,9 @@ jobs:
         # channel. First REAL publish is founder-verified on his phone.
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          # Founder ruling 2026-07-17: V2 is the registered preview root — the
-          # DEFAULT (main-push and bare dispatch) publishes 'v2'. E1 stays
-          # reachable dispatch-only via root=e1 (index.ts mounts E1 for any
-          # value other than 'v2'). App code untouched by this flip.
-          EXPO_PUBLIC_ROOT: ${{ github.event.inputs.root || 'v2' }}
+          # Founder ruling 2026-07-17: V2 is the registered preview root.
+          # AUDIT-B+2 F-60 retired E1 and with it the dispatch-only root=e1.
+          EXPO_PUBLIC_ROOT: v2
           # SUPPLIER-AUTHORING-1 — the LIVE offer-service base, inlined into the
           # bundle by babel-preset-expo exactly as EXPO_PUBLIC_ROOT is.
           # CLE-FONDATEUR-1 (AUDIT-B+2 F-01): the shared write key that used to

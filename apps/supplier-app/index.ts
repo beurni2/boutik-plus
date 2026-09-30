@@ -3,13 +3,15 @@ import { enregistrerCoquille } from './src/offline/coquille';
 import { avecLimite } from './src/ui/limite-erreur';
 import type { AppV2 } from './src/v2/AppV2';
 
-// WO-FP-PIXEL device walk (founder order 2026-07-17): a preview published with
-// EXPO_PUBLIC_ROOT=v2 mounts the V2 build; any other value mounts E1.
-// READINESS-WIRE-1b-ii adds the THIRD root: EXPO_PUBLIC_ROOT=fournisseur
-// mounts the fulfillment-only supplier surface (founder ruling 2026-08-02).
+// Two roots: EXPO_PUBLIC_ROOT=fournisseur mounts the fulfillment-only
+// supplier surface (founder ruling 2026-08-02); anything else mounts the
+// founder's console. AUDIT-B+2 F-60 retired the E1 root (the July walking
+// skeleton, reachable only by a dispatch-only preview): no deploy mounted it,
+// and it carried dead controls, a fake queue flush and a superseded refusal
+// flow.
 //
 // ═══ EVERY ROOT IS A LAZY REQUIRE BEHIND THE INLINED CONSTANT — THE FOLD IS
-// THE CAPABILITY BOUNDARY ═══ (BOUTIK-WEB-W2 precedent, now three-way.)
+// THE CAPABILITY BOUNDARY ═══ (BOUTIK-WEB-W2 precedent.)
 // babel-preset-expo inlines EXPO_PUBLIC_ROOT at bundle time, the ternary
 // folds, and the DEAD arms' requires never execute OR BUNDLE. The old static
 // `import { AppV2 }` would have put the whole authoring graph in every
@@ -32,8 +34,6 @@ registerRootComponent(
   avecLimite(
     process.env.EXPO_PUBLIC_ROOT === 'fournisseur'
       ? require('./src/fournisseur/FournisseurApp').FournisseurApp
-      : process.env.EXPO_PUBLIC_ROOT === 'v2'
-        ? require('./src/v2/AppV2').AppV2
-        : require('./App').default,
+      : require('./src/v2/AppV2').AppV2,
   ),
 );
