@@ -136,12 +136,17 @@ const estProse = (m: RegExpMatchArray): boolean =>
 const PAS_COPIE = /(?:\bconsole\.\w+|\bnew \w*Error|\bt|\btr)\(\s*$|\b(?:reason|where):\s*$/;
 
 function trouve(rel: string): string[] {
-  const code = sansCommentaires(lire(rel));
+  return trouveDans(sansCommentaires(lire(rel)), rel);
+}
+
+function trouveDans(code: string, rel = 'plante'): string[] {
   const ligne = (i: number) => code.slice(0, i).split('\n').length;
   const hits: string[] = [];
   for (const m of code.matchAll(LITTERAL_JSX)) hits.push(`${rel}:${ligne(m.index)} [jsx] ${m[0]}`);
   for (const m of code.matchAll(PROP)) {
-    const v = m[1] ?? m[2] ?? m[3] ?? m[4] ?? (m[5] ?? '').replace(/\$\{[^}]*\}/g, '');
+    // Interpolations are code, not words — stripped with nested braces understood
+    // (`${t('x').replace('{n}', …)}` holds a `{n}` of its own).
+    const v = m[1] ?? m[2] ?? m[3] ?? m[4] ?? (m[5] ?? '').replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, '');
     if (/[A-Za-zÀ-ÿ]{3,}/.test(v)) hits.push(`${rel}:${ligne(m.index)} [prop] ${m[0]}`);
   }
   for (const m of code.matchAll(ENFANT)) hits.push(`${rel}:${ligne(m.index)} [texte] ${m[1]!.trim()}`);
@@ -243,6 +248,12 @@ describe('Law 6 — user-facing French lives in the catalog, never inline', () =
     expect(plante(`const ROWS = [['Prix de base', b]] as const;`).length).toBeGreaterThan(0);
     expect(plante('return `il y a ${n} min`;').length).toBeGreaterThan(0);
     expect(plante(`const L = ['Héro'];`).length, 'an accent alone makes it copy').toBeGreaterThan(0);
+  });
+
+  it('CONTROL: a label built only from catalog calls is not copy — nested braces included', () => {
+    const code = "<Pressable accessibilityLabel={`${t('studio.retirer')} — ${t('studio.photo_n').replace('{n}', String(i + 1))}`} />";
+    expect(trouveDans(code)).toEqual([]);
+    expect(trouveDans("<Pressable accessibilityLabel={`Retirer ${t('studio.photo_n')}`} />").length, 'a word next to the catalog call IS copy').toBeGreaterThan(0);
   });
 
   it('CONTROL: a comment is not copy, a `reason:` diagnostic is not copy', () => {
