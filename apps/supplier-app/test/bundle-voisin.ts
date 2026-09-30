@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
  *   is resolved RELATIVE TO THE REPO and its absence FAILS — a broken install
  *   must be loud, never a quiet skip (the vignette seam's rule).
  * · A NEIGHBOUR'S BUNDLE (Séra's logistics, the platform's protection fund)
- *   lives in another repo. It is looked for beside this checkout or where its
+ *   lives in another repo. It is looked for beside this clone or where its
  *   env var points. Absent — as in this repo's CI, which checks out one repo —
  *   the tests SKIP, and the reason is written into their titles so a green run
  *   never reads as « proven ». Present but OLDER than its own source, it is
@@ -34,7 +34,7 @@ export function miniflareDuDepot(): MiniflareCtor {
 
 /**
  * One Worker bundle from a NEIGHBOUR repo (Séra's logistics, the platform's
- * protection fund): found beside this checkout or where its env var points,
+ * protection fund): found beside this clone or where its env var points,
  * skipped with the reason in the title when absent, refused when older than
  * its own source.
  */

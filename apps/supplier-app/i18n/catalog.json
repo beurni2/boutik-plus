@@ -2784,20 +2784,20 @@
     "screenClass": "general"
   },
   {
-    "key": "suivi.retenue_une",
-    "fr": "+ 1 commission retenue : {f}",
+    "key": "suivi.mise_de_cote_une",
+    "fr": "+ 1 commission mise de côté : {f}",
     "register": "money",
     "screenClass": "status"
   },
   {
-    "key": "suivi.retenues_n",
-    "fr": "+ {n} commissions retenues : {f}",
+    "key": "suivi.mises_de_cote_n",
+    "fr": "+ {n} commissions mises de côté : {f}",
     "register": "money",
     "screenClass": "status"
   },
   {
-    "key": "suivi.retenues_sens",
-    "fr": "Une commission retenue n'est pas comptée dans les ventes ni dans les gains.",
+    "key": "suivi.mises_de_cote_sens",
+    "fr": "Une commission mise de côté n'est pas comptée dans les ventes ni dans les gains.",
     "register": "money",
     "screenClass": "general"
   },

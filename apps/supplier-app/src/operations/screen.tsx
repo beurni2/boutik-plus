@@ -1222,8 +1222,8 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
     <View>
       <TeteSection titre={t('suivi.titre')} sens={t('suivi.sens')} />
       {/* AUDIT-B+2 F-71 — said once, where a held commission appears. */}
-      {vue.kind === 'liste' && vue.lignes.some((l) => l.retenues !== undefined) && (
-        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 6 }]}>{t('suivi.retenues_sens')}</Text>
+      {vue.kind === 'liste' && vue.lignes.some((l) => l.misesDeCote !== undefined) && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 6 }]}>{t('suivi.mises_de_cote_sens')}</Text>
       )}
 
       {vue.kind === 'loading' && (
@@ -1272,10 +1272,10 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
                   {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
                 </Text>
                 {/* AUDIT-B+2 F-71 — held commissions, apart: her book's Held rung. */}
-                {l.retenues !== undefined ? (
+                {l.misesDeCote !== undefined ? (
                   <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
-                    {(l.retenues.n === 1 ? t('suivi.retenue_une') : t('suivi.retenues_n').replace('{n}', String(l.retenues.n)))
-                      .replace('{f}', formatF(l.retenues.netFcfa))}
+                    {(l.misesDeCote.n === 1 ? t('suivi.mise_de_cote_une') : t('suivi.mises_de_cote_n').replace('{n}', String(l.misesDeCote.n)))
+                      .replace('{f}', formatF(l.misesDeCote.netFcfa))}
                   </Text>
                 ) : null}
               </View>

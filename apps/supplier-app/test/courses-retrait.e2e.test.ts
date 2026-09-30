@@ -21,7 +21,7 @@ import { SERA, miniflareDuDepot } from './bundle-voisin';
  * ⚠ SKIPPED WHEN THE SÉRA BUNDLE IS ABSENT, and the reason is IN THE TITLE
  * (AUDIT-B+2 F-83 — `bundle-voisin.ts`): this repo's CI has no `sera` clone,
  * so there it says it skipped and why, instead of failing or — worse — quietly
- * proving nothing against a stub. Beside a Séra checkout it runs, and a bundle
+ * proving nothing against a stub. Beside a Séra clone it runs, and a bundle
  * older than Séra's source is refused rather than trusted.
  */
 

@@ -24,7 +24,7 @@ import { miniflareDuDepot, voisin } from './bundle-voisin';
  * each act leads to the next.
  *
  * ⚠ The bundle lives in the platform repo: skipped, with the reason in the
- * title, where no checkout sits beside this one (this repo's CI).
+ * title, where no clone sits beside this one (this repo's CI).
  */
 
 const PLATFORM = voisin({

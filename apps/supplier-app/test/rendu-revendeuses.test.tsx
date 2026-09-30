@@ -8,7 +8,7 @@ import { SOperations } from '../src/operations/screen';
  * F-73, F-74, F-75; F-81 « the reseller cards ») ═══
  *
  * · F-71 — the board counted a commission §6.5 holds as a sale and a net, and
- *   ranked her up for it. Shop+ now counts it apart (`retenues`), her book's
+ *   ranked her up for it. Shop+ now counts it apart (`misesDeCote`), her book's
  *   own rule; the board says it on her row and the ranking ignores it.
  * · F-75 — « Couper l'accès » also closes her boutique, and the board hid who
  *   was paused. The roster says it; the board marks her « Accès coupé ».
@@ -68,7 +68,7 @@ function livre(): { routes: Route[] } {
                   total: 3,
                   lignes: [
                     // Awa: one clean sale and one HELD — the held one is apart.
-                    { accountId: 'rs-0001', incomplet: false, name: 'Awa', netFcfa: 2_500, retenues: { n: 1, netFcfa: 2_500 }, state: 'active', ventes: 1 },
+                    { accountId: 'rs-0001', incomplet: false, name: 'Awa', netFcfa: 2_500, misesDeCote: { n: 1, netFcfa: 2_500 }, state: 'active', ventes: 1 },
                     { accountId: 'rs-0003', incomplet: false, name: 'Mariam', netFcfa: 3_000, state: 'paused', ventes: 2 },
                     { accountId: 'rs-0002', incomplet: false, name: 'Fati', netFcfa: 0, state: 'pending_access', ventes: 0 },
                   ],
@@ -126,8 +126,8 @@ describe('F-71 · F-75 — the board says what her own book says', () => {
     wire(livre().routes);
     const screen = await vers('Suivi des revendeuses');
     const tx = screen.texts();
-    expect(screen.shows('+ 1 commission retenue'), 'the held part is said on her row').toBe(true);
-    expect(screen.shows("Une commission retenue n'est pas comptée"), 'what « retenue » means is said').toBe(true);
+    expect(screen.shows('+ 1 commission mise de côté'), 'the held part is said on her row').toBe(true);
+    expect(screen.shows("Une commission mise de côté n'est pas comptée"), 'what « mise de côté » means is said').toBe(true);
     // Mariam (2 sales) ranks above Awa (1 sale + 1 held): the held one is no sale.
     const i = (n: string): number => tx.findIndex((x) => x === n);
     expect(i('Mariam') >= 0 && i('Awa') >= 0).toBe(true);
