@@ -3,6 +3,16 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-09-30 · CODES-RETIRES-1 + PROFIL-PUBLIÉ MERGED AND DEPLOYED on the founder's « go »
+
+**Founder order (2026-09-30).** « go » — on the report of the entry below, in the order it named: this console first, then the Shop+ server, then Séra, then the platform console.
+- **Merged, canon first.** platform-contracts `main` `ed1962b → 9354413` (ci 160 green). Boutik+ `main` `d835f13 → a864fa7` (fast-forward), **ci 379 green**; expo-preview 257 green.
+- **Deployed: web-deploy 87 (console)** — « web-size OK — console first load: 486.7 KB gzip (**498 417 B**) … within the signed ceiling of 500.0 KB (512 000 B) » (was 500 133 B); « ✔ [NEVER SHIPS] "bac à sable" absent from the console page » on the exact dist it uploaded. The old codes desk is gone from the live console BEFORE the Shop+ server stopped answering its doors (Shop+ storefront-deploy 117 ran after), so the live console never showed that desk failing.
+- **Not redeployed:** the supplier page (it only carries the 26 unused strings until its next deploy), the product, photo and order Workers (untouched).
+- **Still open** — as in the entry below: the old code records in Shop+'s storage (a wipe is his call); the reseller app's own wording about old codes; the buyer app's hidden testing address; the slice-10 open items.
+
+---
+
 ## 2026-09-30 · CODES-RETIRES-1 + PROFIL-PUBLIÉ — the founder's three rulings on slice 10's held questions (AUDIT-B+2 F-73 server road · F-55 · rank numbers) · on the branch, NOT merged, NOT deployed
 
 **Founder ruling (2026-09-30), verbatim.** « No live pages should show any test mode banner. Retire them. Keep the rank number »
