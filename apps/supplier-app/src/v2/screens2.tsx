@@ -428,7 +428,7 @@ export function S20Wizard({ st, d, money, heroUri, photos, photosHint, fournisse
                         // F-50: the painted chip is unchanged; the box a thumb hits is 44 px
                         // (hitSlop does nothing on the web page — tap-targets-44).
                         <Pressable onPress={p.onRole} accessibilityRole="button" style={{ marginTop: 6, alignSelf: 'center', minHeight: 44, justifyContent: 'center' }}>
-                          <View style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}>
+                          <View style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: GEO.r.pill, borderWidth: 1, borderColor: P.borderCtl, backgroundColor: P.surface }}>
                             <Text style={role({ f: 'IS', w: 600, s: 11.5 }, P.ink)}>{p.label}</Text>
                           </View>
                         </Pressable>

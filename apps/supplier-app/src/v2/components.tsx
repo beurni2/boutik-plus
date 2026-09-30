@@ -543,7 +543,7 @@ const s = StyleSheet.create({
   vignette: C49.box, vignetteImg: C49.img,
   // PhotoViewer — an inspection overlay; near-black so the photograph is the
   // only light on screen. rgba, not a palette tone: this is a scrim, not a surface.
-  viewerFill: { flex: 1, backgroundColor: 'rgba(10,8,6,0.96)', alignItems: 'center' as const, justifyContent: 'center' as const },
+  viewerFill: { flex: 1, backgroundColor: P.ink, alignItems: 'center' as const, justifyContent: 'center' as const },
   viewerImg: { width: '100%' as const, height: '80%' as const },
   viewerLabel: { ...role({ f: 'IS', w: 700, s: 13 }, P.cream), marginTop: 14 },
   banner: C27.banner, bannerTxt: C27.txt, bannerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },

@@ -420,7 +420,7 @@ function ConfierAvecService({
   };
 
   return (
-    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12 }}>
       <Text style={TITRE}>{t('confier.titre')}</Text>
 
       {avis !== null ? (

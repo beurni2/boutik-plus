@@ -3145,31 +3145,31 @@
   },
   {
     "key": "acces.titre",
-    "fr": "Codes d'accès Shop+",
+    "fr": "Anciens codes des ventes",
     "register": "neutral",
     "screenClass": "label"
   },
   {
     "key": "acces.sens",
-    "fr": "Un code par revendeuse. Elle le tape une fois pour entrer dans Shop+.",
+    "fr": "Des codes d'avant les comptes. Ils ne servent plus à entrer dans Shop+. Pour donner l'accès : « Revendeuses Shop+ », puis « Donner son code ».",
     "register": "neutral",
     "screenClass": "general"
   },
   {
     "key": "acces.chargement",
-    "fr": "Lecture des codes d'accès…",
+    "fr": "Lecture des anciens codes…",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "acces.echec",
-    "fr": "Codes d'accès illisibles pour le moment.",
+    "fr": "Anciens codes illisibles pour le moment.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "acces.vide",
-    "fr": "Aucun code d'accès pour l'instant. Créez le premier.",
+    "fr": "Aucun ancien code.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3194,6 +3194,18 @@
   {
     "key": "acces.creation_echec",
     "fr": "Le code n'a pas été créé. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.inconnue",
+    "fr": "Ce code ne va à personne : aucune revendeuse n'a ce numéro de compte. Regardez la liste des comptes.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "acces.liste_absente",
+    "fr": "La liste des revendeuses n'est pas encore lue. Réessayez dans un instant.",
     "register": "neutral",
     "screenClass": "status"
   },
@@ -3288,6 +3300,12 @@
     "screenClass": "general"
   },
   {
+    "key": "comptes.couper_sens",
+    "fr": "Couper l'accès ferme aussi sa boutique : ses liens ne vendent plus. Vous pouvez rouvrir quand vous voulez.",
+    "register": "neutral",
+    "screenClass": "general"
+  },
+  {
     "key": "comptes.chargement",
     "fr": "Lecture des comptes…",
     "register": "neutral",
@@ -3332,6 +3350,30 @@
   {
     "key": "comptes.donner_code",
     "fr": "Donner son code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.nouveau_code",
+    "fr": "Donner un nouveau code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.nouveau_code_question",
+    "fr": "Un code est déjà donné. Si vous en créez un nouveau, l'ancien ne marchera plus.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "comptes.nouveau_code_oui",
+    "fr": "Oui, un nouveau code",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "comptes.annuler",
+    "fr": "Annuler",
     "register": "neutral",
     "screenClass": "label"
   },
@@ -3452,6 +3494,24 @@
   {
     "key": "suivi.ventes_au_moins",
     "fr": "au moins {n} vente(s)",
+    "register": "money",
+    "screenClass": "general"
+  },
+  {
+    "key": "suivi.retenue_une",
+    "fr": "+ 1 commission retenue : {f}",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.retenues_n",
+    "fr": "+ {n} commissions retenues : {f}",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "suivi.retenues_sens",
+    "fr": "Une commission retenue n'est pas comptée dans les ventes ni dans les gains.",
     "register": "money",
     "screenClass": "general"
   },
@@ -4332,6 +4392,18 @@
     "screenClass": "label"
   },
   {
+    "key": "commandes.relance_echec",
+    "fr": "L'appel n'a pas été noté. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.relance_inconnue",
+    "fr": "Cette commande n'est plus dans le livre. La liste se met à jour.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "commandes.carte_titre",
     "fr": "Fiche du fournisseur",
     "register": "neutral",
@@ -4354,6 +4426,18 @@
     "fr": "Enregistrer la fiche",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "commandes.carte_echec",
+    "fr": "La fiche n'a pas été enregistrée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.carte_malformee",
+    "fr": "La fiche n'a pas été acceptée. Vérifiez le nom et le numéro.",
+    "register": "neutral",
+    "screenClass": "status"
   },
   {
     "key": "commandes.preuve_titre",

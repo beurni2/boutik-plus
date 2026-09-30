@@ -698,6 +698,7 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
   const [accesRead, setAccesRead] = useState<AccesRead>({ kind: 'loading' });
   const [accesUi, setAccesUi] = useState<AccesUi>(ACCES_IDLE);
   const [accesDraft, setAccesDraft] = useState('');
+  const [accesRefus, setAccesRefus] = useState<'inconnue' | 'liste_absente' | null>(null);
   /** The readSeq law, fourth application: a mint's refresh and a revoke's
    *  refresh can race, and the stale answer landing last would re-render a CUT
    *  code as live — on the one list whose question is « who can get in? ». */
@@ -1004,8 +1005,17 @@ function SLivraisons({ zone }: { zone: ZoneConsole }) {
               accesRead.kind === 'ok' &&
               accesRead.codes.some((c) => c.resellerId === accesDraft.trim())
             }
-            onDraft={setAccesDraft}
-            onCreer={() => { void creerAcces(accesDraft.trim(), cleC); }}
+            refus={accesRefus}
+            onDraft={(v) => { setAccesDraft(v); setAccesRefus(null); }}
+            onCreer={() => {
+              // AUDIT-B+2 F-73 — a code for an id no reseller holds is a code
+              // for nobody: checked against the roster BEFORE the mint.
+              const id = accesDraft.trim();
+              if (comptesRead.kind !== 'ok') return setAccesRefus('liste_absente');
+              if (!comptesRead.comptes.some((c) => c.accountId === id)) return setAccesRefus('inconnue');
+              setAccesRefus(null);
+              void creerAcces(id, cleC);
+            }}
             onVoir={(resellerId) => { void voirAcces(resellerId, cleC); }}
             onCouper={(id) => { void couperAcces(id, cleC); }}
             onVu={() => setAccesUi(ACCES_IDLE)}
@@ -1069,10 +1079,15 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
   onRetry: () => void;
 }) {
   const vue = comptesVue(read);
+  /** AUDIT-B+2 F-74 — the row whose « Donner un nouveau code » was armed: a
+   *  code she already holds dies with the second tap, so it asks first. */
+  const [arme, setArme] = useState<string | null>(null);
   if (vue === null) return null;
   return (
     <View>
       <TeteSection titre={t('comptes.titre')} sens={t('comptes.sens')} marge={24} />
+      {/* AUDIT-B+2 F-75 — « Couper l'accès » also closes her boutique. */}
+      <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 6 }]}>{t('comptes.couper_sens')}</Text>
 
       {vue.kind === 'loading' && (
         <View style={{ marginTop: 10 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
@@ -1090,8 +1105,13 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
       {vue.kind === 'liste' && vue.comptes.map((c) => {
         const acte: ActeCompte =
           c.state === 'pending_access' ? `code:${c.accountId}` : c.state === 'active' ? `pause:${c.accountId}` : `resume:${c.accountId}`;
+        // AUDIT-B+2 F-74 — a code already given: a new one kills it, so the
+        // act says « nouveau » and asks before it acts.
+        const remplace = c.state === 'pending_access' && c.accessCodePending;
         const label =
-          c.state === 'pending_access' ? t('comptes.donner_code') : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir');
+          c.state === 'pending_access'
+            ? t(remplace ? 'comptes.nouveau_code' : 'comptes.donner_code')
+            : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir');
         return (
           <Card key={c.accountId} variant="Llist" style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1128,10 +1148,31 @@ function SComptes({ read, ui, onActe, onVu, onRetry }: {
                   {c.accessCodePending && c.accessCodeRevelable ? (
                     <BtnSoft label={t('comptes.voir_code')} onPress={() => onActe(`voir:${c.accountId}`, c.accountId)} />
                   ) : null}
-                  <BtnSoft label={label} onPress={() => onActe(acte, c.accountId)} />
+                  {arme === c.accountId ? null : (
+                    <BtnSoft
+                      label={label}
+                      onPress={() => {
+                        if (remplace) return setArme(c.accountId);
+                        onActe(acte, c.accountId);
+                      }}
+                    />
+                  )}
                 </View>
               )}
             </View>
+            {arme === c.accountId && ui.busy === null && ui.nouveau === null ? (
+              <View style={{ marginTop: 10, gap: 8 }}>
+                <Banner tone="warn">{t('comptes.nouveau_code_question')}</Banner>
+                <BtnSoft
+                  label={t('comptes.nouveau_code_oui')}
+                  onPress={() => {
+                    setArme(null);
+                    onActe(acte, c.accountId);
+                  }}
+                />
+                <BtnGhost label={t('comptes.annuler')} onPress={() => setArme(null)} />
+              </View>
+            ) : null}
             {ui.echec === acte && (
               <View style={{ marginTop: 6 }}>
                 <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('comptes.acte_echec')}</Text>
@@ -1180,6 +1221,10 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
   return (
     <View>
       <TeteSection titre={t('suivi.titre')} sens={t('suivi.sens')} />
+      {/* AUDIT-B+2 F-71 — said once, where a held commission appears. */}
+      {vue.kind === 'liste' && vue.lignes.some((l) => l.retenues !== undefined) && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12.5 }, P.sub), { marginTop: 6 }]}>{t('suivi.retenues_sens')}</Text>
+      )}
 
       {vue.kind === 'loading' && (
         <View style={{ marginTop: 10 }}><Text style={role({ f: 'IS', w: 400, s: 13 }, P.sub)}>{t(vue.message)}</Text></View>
@@ -1217,11 +1262,22 @@ function SSuivi({ read, onRetry }: { read: SuiviRead; onRetry: () => void }) {
                 {l.incomplet ? '—' : rang + 1}
               </Text>
               <View style={{ flex: 1 }}>
-                <Text style={role({ f: 'BG', w: 700, s: 15 }, P.ink)} numberOfLines={1}>{l.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={[role({ f: 'BG', w: 700, s: 15 }, P.ink), { flexShrink: 1 }]} numberOfLines={1}>{l.name}</Text>
+                  {/* AUDIT-B+2 F-75 — a paused reseller sells nothing: said on her row. */}
+                  {l.state === 'paused' ? <PilluleEtat label={t('comptes.etat_paused')} tone="pause" /> : null}
+                </View>
                 <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
                   {t(l.incomplet ? 'suivi.ventes_au_moins' : 'suivi.ventes_n').replace('{n}', String(l.ventes))}
                   {l.incomplet ? ` · ${t('suivi.incomplet')}` : ''}
                 </Text>
+                {/* AUDIT-B+2 F-71 — held commissions, apart: her book's Held rung. */}
+                {l.retenues !== undefined ? (
+                  <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), TNUM, { marginTop: 2 }]}>
+                    {(l.retenues.n === 1 ? t('suivi.retenue_une') : t('suivi.retenues_n').replace('{n}', String(l.retenues.n)))
+                      .replace('{f}', formatF(l.retenues.netFcfa))}
+                  </Text>
+                ) : null}
               </View>
             </View>
             <Text style={[role({ f: 'BG', w: 800, s: 17 }, l.incomplet ? P.faint : P.ink), TNUM]}>{l.incomplet ? '—' : formatF(l.netFcfa)}</Text>
@@ -1294,11 +1350,13 @@ function SClientes({ ui, draft, onDraft, onCreer, onVu }: {
  * he is reading it out over the phone, and the screen says so in words where
  * the buttons were rather than leaving a dead tap.
  */
-function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
+function SAcces({ read, ui, draft, dejaUnCode, refus, onDraft, onCreer, onCouper, onVoir, onVu, onRetry }: {
   read: AccesRead;
   ui: AccesUi;
   draft: string;
   dejaUnCode: boolean;
+  /** AUDIT-B+2 F-73 — the id was checked against the roster before minting. */
+  refus: 'inconnue' | 'liste_absente' | null;
   onDraft: (v: string) => void;
   onCreer: () => void;
   onCouper: (resellerId: string) => void;
@@ -1408,6 +1466,11 @@ function SAcces({ read, ui, draft, dejaUnCode, onDraft, onCreer, onCouper, onVoi
           {ui.echec === 'mint' && (
             <View style={{ marginTop: 8 }}>
               <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t('acces.creation_echec')}</Text>
+            </View>
+          )}
+          {refus !== null && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={role({ f: 'IS', w: 600, s: 12 }, P.warnFg)}>{t(refus === 'inconnue' ? 'acces.inconnue' : 'acces.liste_absente')}</Text>
             </View>
           )}
           <View style={{ marginTop: 12 }}>

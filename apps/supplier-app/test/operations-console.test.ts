@@ -1420,7 +1420,10 @@ describe('RESELLER-ACCOUNTS — [source-text checks] the sections load when the 
 
   it('the roster offers exactly ONE act per state, and the suivi renders the net through formatF', () => {
     const source = screenSource();
-    expect(source).toContain("c.state === 'pending_access' ? t('comptes.donner_code') : c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir')");
+    // AUDIT-B+2 F-74: a pending row whose code was already given says so —
+    // still ONE act, walked in `rendu-revendeuses` (it asks before it acts).
+    expect(source).toContain("? t(remplace ? 'comptes.nouveau_code' : 'comptes.donner_code')");
+    expect(source).toContain(": c.state === 'active' ? t('comptes.couper') : t('comptes.rouvrir');");
     expect(source).toContain('formatF(l.netFcfa)');
   });
 

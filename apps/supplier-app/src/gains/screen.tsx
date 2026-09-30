@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
+import { GEO } from '../ui/v2/tokens';
 import { SCROLL, TNUM, role } from '../ui/v2/styles';
 import { t } from '../i18n';
 import { Banner, BtnSoft, Card, Input } from '../v2/components';
@@ -179,7 +180,7 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
       {row.livree ? (
         // SE-LIVE-5c — the ecosystem's badge words, only when Séra's validated
         // signal folded the settlement records: never a default, never a guess.
-        <View style={{ marginTop: 8, alignSelf: 'flex-start', backgroundColor: P.successBg, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 }}>
+        <View style={{ marginTop: 8, alignSelf: 'flex-start', backgroundColor: P.successBg, borderRadius: GEO.r.pill, paddingVertical: 4, paddingHorizontal: 10 }}>
           <Text style={role({ f: 'IS', w: 700, s: 11.5 }, P.successFg)}>{t('gains.livree')}</Text>
         </View>
       ) : null}
@@ -200,7 +201,7 @@ function CarteGain({ row, coursier }: { row: GainRow; coursier: string | null })
         <LigneGain nom={t('gains.livraison')} montant={s.deliveryFee} />
       </View>
 
-      <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 8 }}>
+      <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 8 }}>
         {coursier !== null ? (
           <Text style={LIGNE_NOM} numberOfLines={1}>{`${t('gains.coursier')} ${coursier}`}</Text>
         ) : row.livree ? (

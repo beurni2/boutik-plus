@@ -635,7 +635,7 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
       ) : (
         <>
           {read.courses.map((c) => (
-            <View key={c.orderId} style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+            <View key={c.orderId} style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12 }}>
               <Text style={[CORPS, { marginTop: 0 }]} numberOfLines={1}>{c.orderId}</Text>
               <Text style={[PETIT, { marginTop: 2 }]}>
                 {c.confiee
@@ -708,7 +708,7 @@ function CoursesDuTableau({ cle, onCleRefusee }: { cle: string; onCleRefusee: ()
 
           {/* The sweep, under the list: one question for the set, the ids it
               named carried inside it, one call per course. */}
-          <View style={{ marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EDE6D8', gap: 8 }}>
+          <View style={{ marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.divider, gap: 8 }}>
             {sweep.kind === 'encours' ? (
               <Text style={PETIT}>
                 {t('coursiers.courses_balayage_encours')

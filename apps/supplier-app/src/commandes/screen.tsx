@@ -474,7 +474,7 @@ function BalayageEssai({ rows, service, cle, onChanged, onCleRefusee }: {
   const [enAttente, setEnAttente] = useState(0);
   const sweep = ui.sweep;
   return (
-    <View style={{ marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', gap: 8 }}>
+    <View style={{ marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: P.divider, gap: 8 }}>
       {sweep.kind === 'encours' ? (
         <Text style={PETIT}>
           {t('operations.balayage_encours').replace('{n}', String(sweep.faits)).replace('{t}', String(sweep.total))}
@@ -600,8 +600,10 @@ function RangCommande({
   const pill = pilluleCommande(row, segment, remboursement);
   const raison = raisonBlocage(remboursement);
   const attente = attenteDepuis(row.paidAt, nowMs);
-  const pillBg = pill.ton === 'ok' ? '#E5F0E5' : pill.ton === 'alerte' ? '#F6E2DC' : '#F6E9C8';
-  const pillFg = pill.ton === 'ok' ? '#2F5D3A' : pill.ton === 'alerte' ? '#7C2D12' : '#5F4403';
+  // AUDIT-B+2 F-59 — the canon's own state pairs (each held to AA by the
+  // contrast gate), never a hand-rolled copy.
+  const pillBg = pill.ton === 'ok' ? P.successBg : pill.ton === 'alerte' ? P.dangerBg : P.warnBg;
+  const pillFg = pill.ton === 'ok' ? P.successFg : pill.ton === 'alerte' ? P.dangerFg : P.warnDeep;
   return (
     <Card variant="Llg">
       <Pressable onPress={onToggle} accessibilityRole="button">
@@ -660,6 +662,7 @@ function RangCommande({
                 row.fulfillment?.returnedAt !== undefined
               }
               onChanged={onChanged}
+              onCleRefusee={onCleRefusee}
             />
             {/* REMBOURSABLE-1 (F-02) — HIS « Annuler et rembourser », while the
                 order can still be cancelled: before « prêt » (after it the colis
@@ -724,7 +727,7 @@ function RetraitCommande({ row, service, cle, onChanged, onCleRefusee }: {
 }) {
   const [ui, setUi] = useState<RetraitUi>(RETRAIT_IDLE);
   return (
-    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12 }}>
       {ui.busy === row.orderId ? (
         <Text style={PETIT}>{t('operations.retrait_encours')}</Text>
       ) : ui.demande === row.orderId ? (
@@ -796,7 +799,7 @@ function AnnulerRembourser({ row, service, cle, onChanged, onCleRefusee }: {
     );
   }
   return (
-    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12, gap: 8 }}>
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12, gap: 8 }}>
       {etat === 'envoi' ? (
         <Text style={PETIT}>{t('commandes.annuler_encours')}</Text>
       ) : etat === 'question' ? (
@@ -843,6 +846,7 @@ function DetailATraiter({
   relancePossible,
   ferme,
   onChanged,
+  onCleRefusee,
 }: {
   row: PaidOrderRow;
   qui: { nom: string; telephone: string; carteAbsente: boolean };
@@ -855,16 +859,20 @@ function DetailATraiter({
    *  no waiting time, no urgency. */
   ferme: boolean;
   onChanged: () => void;
+  /** AUDIT-B+2 F-67 — a refused key reaches the key door, never swallowed. */
+  onCleRefusee: () => void;
 }) {
   const ton = tonAttente(row.paidAt, nowMs);
   const [busy, setBusy] = useState<'relance' | 'carte' | null>(null);
   const [fait, setFait] = useState(false);
+  /** AUDIT-B+2 F-67 — what went wrong with the last tap, said under it. */
+  const [echec, setEchec] = useState<{ acte: 'relance' | 'carte'; cle: string } | null>(null);
   const [nom, setNom] = useState(qui.carteAbsente ? '' : qui.nom);
   const [tel, setTel] = useState(qui.telephone);
   const attenteLabel = attente === 'commandes.instant' ? t('commandes.instant') : attente;
 
   return (
-    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12 }}>
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12 }}>
       {!ferme ? (
         <>
           <Text style={PETIT}>{t('commandes.attente_depuis')}</Text>
@@ -901,16 +909,27 @@ function DetailATraiter({
             onPress={() => {
               if (busy !== null || fait) return void 0;
               setBusy('relance');
+              setEchec(null);
               void service.recordRelance(cle, row.orderId).then((r) => {
                 setBusy(null);
                 if (r.ok) {
                   setFait(true);
                   onChanged();
+                  return;
                 }
+                if (r.reason === 'bad_key') return onCleRefusee();
+                if (r.reason === 'unknown_order') {
+                  // The row is stale: said, and the list read again.
+                  setEchec({ acte: 'relance', cle: 'commandes.relance_inconnue' });
+                  onChanged();
+                  return;
+                }
+                setEchec({ acte: 'relance', cle: 'commandes.relance_echec' });
               });
             }}
           />
         ) : null}
+        {echec?.acte === 'relance' ? <Text style={PETIT}>{t(echec.cle)}</Text> : null}
       </View>
 
       {qui.carteAbsente || qui.telephone === '' ? (
@@ -923,14 +942,18 @@ function DetailATraiter({
             onPress={() => {
               if (busy !== null || nom.trim() === '') return void 0;
               setBusy('carte');
+              setEchec(null);
               void service
                 .saveSupplierContact(cle, { supplierId: row.supplierId, name: nom.trim(), phone: tel.trim() })
                 .then((r) => {
                   setBusy(null);
-                  if (r.ok) onChanged();
+                  if (r.ok) return onChanged();
+                  if (r.reason === 'bad_key') return onCleRefusee();
+                  setEchec({ acte: 'carte', cle: r.reason === 'malformed' ? 'commandes.carte_malformee' : 'commandes.carte_echec' });
                 });
             }}
           />
+          {echec?.acte === 'carte' ? <Text style={PETIT}>{t(echec.cle)}</Text> : null}
         </View>
       ) : null}
     </View>
@@ -981,7 +1004,7 @@ function DetailTerminee({
   }, [service, cle, row.orderId]);
 
   return (
-    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDE6D8', paddingTop: 12, gap: 12 }}>
+    <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 12, gap: 12 }}>
       <View>
         <Text style={PETIT}>{t('commandes.preuve_titre')}</Text>
         {preuve === 'chargement' ? (
@@ -996,7 +1019,7 @@ function DetailTerminee({
             // Founder report 2026-08-08: « the photo is too large » — the same
             // desktop-width lesson as the fiche gallery: the PHOTO is capped,
             // never the screen.
-            style={{ width: '100%', maxWidth: 340, height: 220, borderRadius: 14, marginTop: 8, backgroundColor: '#EDE6D8' }}
+            style={{ width: '100%', maxWidth: 340, height: 220, borderRadius: 14, marginTop: 8, backgroundColor: P.skeleton }}
             resizeMode="cover"
           />
         )}

@@ -701,6 +701,10 @@ export interface SuiviLigne {
   readonly ventes: number;
   readonly netFcfa: number;
   readonly incomplet: boolean;
+  /** AUDIT-B+2 F-71 — the confirmed sales whose commission §6.5 holds (under
+   *  review, or kept by a violation): on her book's `Held` rung, so never in
+   *  `ventes` nor `netFcfa`. Absent when there is none. */
+  readonly retenues?: { readonly n: number; readonly netFcfa: number };
 }
 
 export type ComptesResult =
@@ -771,10 +775,25 @@ function readSuiviLigne(raw: unknown): SuiviLigne | null {
   if (typeof r['state'] !== 'string') return null;
   if (typeof r['ventes'] !== 'number' || !Number.isInteger(r['ventes']) || r['ventes'] < 0) return null;
   if (typeof r['netFcfa'] !== 'number' || !Number.isInteger(r['netFcfa']) || r['netFcfa'] < 0) return null;
+  const ret = r['retenues'];
+  const retenues =
+    ret !== null && typeof ret === 'object' &&
+    Number.isInteger((ret as Record<string, unknown>)['n']) && ((ret as Record<string, number>)['n'] ?? 0) > 0 &&
+    Number.isInteger((ret as Record<string, unknown>)['netFcfa']) && ((ret as Record<string, number>)['netFcfa'] ?? -1) >= 0
+      ? { n: (ret as Record<string, number>)['n']!, netFcfa: (ret as Record<string, number>)['netFcfa']! }
+      : undefined;
   return {
     accountId: r['accountId'], name: r['name'], state: r['state'],
     ventes: r['ventes'], netFcfa: r['netFcfa'], incomplet: r['incomplet'] === true,
+    ...(retenues !== undefined ? { retenues } : {}),
   };
+}
+
+/** Two parts of one account's row, from two pages, summed — the held part too. */
+function sommeRetenues(a: SuiviLigne['retenues'], b: SuiviLigne['retenues']): SuiviLigne['retenues'] {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  return { n: a.n + b.n, netFcfa: a.netFcfa + b.netFcfa };
 }
 
 export function resolveComptesService(): ComptesServicePort | null {
@@ -923,8 +942,10 @@ export function resolveComptesService(): ComptesServicePort | null {
           const l = readSuiviLigne(raw);
           if (l === null || finis.has(l.accountId)) continue;
           const deja = parCompte.get(l.accountId);
+          const retenues = deja === undefined ? l.retenues : sommeRetenues(deja.retenues, l.retenues);
           parCompte.set(l.accountId, deja === undefined ? l : {
             ...deja, ventes: deja.ventes + l.ventes, netFcfa: deja.netFcfa + l.netFcfa, incomplet: deja.incomplet || l.incomplet,
+            ...(retenues !== undefined ? { retenues } : {}),
           });
           if ((raw as Record<string, unknown>)['suite'] === true) aSuivre.add(l.accountId);
           else {
