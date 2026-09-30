@@ -38,6 +38,7 @@ import { operateurHashPresent, readStoredOpsKey } from '../operations/service';
 import { porteOperateurOuverte } from '../operations/view';
 import { SUPPLIER_ID } from '../supply/service';
 import { useWebFonts } from '../ui/web-fonts';
+import { useCouche } from '../ui/retour-web';
 import { S26StudioReal, type CaptureSet } from './studio-real';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
@@ -135,6 +136,10 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
   // in screens1.tsx, where the cap now lives.
   const { width } = useWindowDimensions();
   const v = st.view;
+  // F-57: the wizard and the Studio are a layer — the phone's Back does what
+  // the header's back does (a wizard step, then out), never leaves the page
+  // with his listing in memory. The key carries the step, so each Back steps.
+  useCouche(v === null ? null : v.s === 'add' ? `add:${st.wiz.step}` : 'studio', () => d({ t: 'BACK' }));
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>

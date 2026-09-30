@@ -4,6 +4,7 @@ import { mountEcran, storage, wire, wiredEnv, type Route, type Wire } from './re
 import { armerSelecteur, desarmerSelecteur, ouvertures } from './doubles/expo-image-picker';
 import { armerManipulateur } from './doubles/expo-image-manipulator';
 import { armerLectureDataUri, desarmerLecture } from './doubles/expo-file-system';
+import { installerHistorique, retirerHistorique } from './doubles/historique';
 import { CryptoDigestAlgorithm, digest } from './doubles/expo-crypto';
 import { FournisseurApp } from '../src/fournisseur/FournisseurApp';
 import { hexOfDigest } from '../src/supply/media-wire';
@@ -170,6 +171,30 @@ afterEach(() => {
   desarmerLecture();
   delete process.env['EXPO_PUBLIC_MEDIA_WRITE_KEY'];
   delete (globalThis as { fetch?: unknown }).fetch;
+});
+
+describe('F-57 (LISTER-VRAI-1) — the phone\'s Back puts a picked photo down, and does not leave the page', () => {
+  afterEach(() => retirerHistorique());
+
+  it('pick the photo → Back → the photo is put down and « Choisir la photo du colis » is back; nothing was sent', async () => {
+    const nav = installerHistorique();
+    const articles: Article[] = [{ orderId: 'ord-p1', productName: 'Bazin', productVersionId: 'pv-bazin', fulfillment: { acceptedAt: T } }];
+    const w = wire(livre(articles).routes);
+    const screen = await mountEcran(<FournisseurApp />);
+    await screen.press('Commandes');
+    await screen.press('Choisir la photo du colis');
+    expect(screen.canPress('Envoyer la preuve')).toBe(true);
+    expect(nav.entrees, 'a picked photo is a layer').toBe(1);
+
+    nav.retour();
+    await screen.settle();
+    await screen.settle();
+    expect(screen.shows('Envoyer la preuve'), 'Back put the photo down').toBe(false);
+    expect(screen.canPress('Choisir la photo du colis')).toBe(true);
+    expect(nav.sorties, 'and the page is still here').toBe(0);
+    expect(w.calls.some((c) => c.path === '/media'), 'nothing was sent').toBe(false);
+    screen.unmount();
+  });
 });
 
 describe('F-16 — « Envoyer la preuve » pressed for real: the proof goes, in order, and the card says « Prêt, preuve reçue »', () => {

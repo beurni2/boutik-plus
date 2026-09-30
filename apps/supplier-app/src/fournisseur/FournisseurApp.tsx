@@ -42,6 +42,7 @@ import {
 import { galleryPhotos, photoSlot, type GalleryPhoto } from '../supply/produits-view';
 import { FicheVideo } from '../v2/fiche-video';
 import { useWebFonts } from '../ui/web-fonts';
+import { useCouche } from '../ui/retour-web';
 import type { ProduitVue } from './view';
 
 /**
@@ -422,6 +423,9 @@ function SMesCommandes({ code, zone, onCodeCleared }: { code: string; zone: Zone
    *  phones this app targets. Only the NEWEST read may write the screen. */
   const readSeq = useRef(0);
   const [pret, setPret] = useState<PretUi>(PRET_REPOS);
+  // F-57: a readiness photo picked and not yet sent is a layer — the phone's
+  // Back puts it down (as before he picked it) instead of leaving the page.
+  useCouche(pret.etat === 'photo_choisie' ? `pret:${pret.orderId}` : null, () => setPret(PRET_REPOS));
   const [accepting, setAccepting] = useState<string | null>(null);
   const [acceptEchec, setAcceptEchec] = useState<string | null>(null);
   /** REMBOURSEMENT-2 (verifier MAJOR) — orders whose refusal came too late.

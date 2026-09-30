@@ -17,6 +17,7 @@ import {
   C47, C48, C49, TNUM, role,
 } from '../ui/v2/styles';
 import { t as tr } from '../i18n';
+import { useCouche } from '../ui/retour-web';
 import type { PhotoSlot } from '../supply/produits-view';
 import { C02StripeTissee } from '../ui/v2/components/C02StripeTissee';
 import { C07BtnPrimary } from '../ui/v2/components/C07BtnPrimary';
@@ -278,6 +279,8 @@ export function MoneyBreakdown({ B, C, netV, netSize = 'L', note, overline }: { 
  * that leaving it must need no instructions.
  */
 export function PhotoViewer({ photo, onClose }: { photo: { uri: string; label: string } | null; onClose: () => void }) {
+  // F-57: the open photograph is the top layer — Back closes it, nothing more.
+  useCouche(photo === null ? null : `photo:${photo.uri.slice(-24)}`, onClose);
   return (
     <Modal visible={photo !== null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.viewerFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={photo?.label ?? ''}>

@@ -5722,5 +5722,23 @@
     "fr": "{n} photos de détail ne sont pas parties. Le produit est en ligne avec les autres photos.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "limite.titre",
+    "fr": "L'écran s'est arrêté",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "limite.texte",
+    "fr": "Ce que vous avez déjà envoyé est gardé. Touchez « Recharger » pour reprendre.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "limite.recharger",
+    "fr": "Recharger",
+    "register": "neutral",
+    "screenClass": "label"
   }
 ]

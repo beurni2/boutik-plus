@@ -6,6 +6,7 @@ import { armerManipulateur } from './doubles/expo-image-manipulator';
 import { armerLectureDataUri, desarmerLecture } from './doubles/expo-file-system';
 import { armerSelecteur, desarmerSelecteur } from './doubles/expo-image-picker';
 import { armerPermissionCamera } from './doubles/expo-camera';
+import { installerHistorique, retirerHistorique } from './doubles/historique';
 import { SListerReal, type ListingSession } from '../src/v2/lister-real';
 import { S26StudioReal, type CaptureSet } from '../src/v2/studio-real';
 import { SOffreFiche } from '../src/v2/screens1';
@@ -383,6 +384,31 @@ describe('PUBLIER — a lost answer and lost photos are said as they are (F-45)'
     expect(screen.shows(t('publier.details_perdus_un')), `on screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     const [entree] = [...book.entrees.values()];
     expect((entree?.assets?.['detail'] as unknown[] | undefined)?.length).toBe(1);
+    screen.unmount();
+  });
+});
+
+/* ───────────────────────────────── F-57 ───────────────────────────────── */
+
+describe('PUBLIÉ — the phone\'s Back leaves the result the way its one exit does (F-57)', () => {
+  afterEach(() => retirerHistorique());
+
+  it('one Back from « C\'est publié » lands on Produits — never four invisible wizard steps, never out of the page', async () => {
+    const nav = installerHistorique();
+    wire([roster, livre().route]);
+    const screen = await mountEcran(<Coquille depart={(s) => ({ ...rempli(s), wiz: { ...rempli(s).wiz, step: 4, photos: true } })} />);
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await screen.settle();
+    expect(screen.shows(t('publier.publie'))).toBe(true);
+    expect(nav.entrees, 'the result pane is a layer').toBe(1);
+
+    nav.retour();
+    await screen.settle();
+    await screen.settle();
+    expect(etat.st?.tab).toBe('produits');
+    expect(etat.st?.view).toBeNull();
+    expect(nav.sorties).toBe(0);
     screen.unmount();
   });
 });

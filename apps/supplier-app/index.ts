@@ -1,5 +1,6 @@
 import { registerRootComponent } from 'expo';
 import { enregistrerCoquille } from './src/offline/coquille';
+import { avecLimite } from './src/ui/limite-erreur';
 import type { AppV2 } from './src/v2/AppV2';
 
 // WO-FP-PIXEL device walk (founder order 2026-07-17): a preview published with
@@ -25,10 +26,14 @@ declare const require: (id: string) => {
 // COQUILLE-WEB-1 — the offline shell, web production builds only (no-op on
 // a phone and in development).
 enregistrerCoquille();
+// LISTER-VRAI-1 (AUDIT-B+2 F-56) — every page mounts inside ONE boundary: a
+// throw during a render shows « Recharger » instead of a white page.
 registerRootComponent(
-  process.env.EXPO_PUBLIC_ROOT === 'fournisseur'
-    ? require('./src/fournisseur/FournisseurApp').FournisseurApp
-    : process.env.EXPO_PUBLIC_ROOT === 'v2'
-      ? require('./src/v2/AppV2').AppV2
-      : require('./App').default,
+  avecLimite(
+    process.env.EXPO_PUBLIC_ROOT === 'fournisseur'
+      ? require('./src/fournisseur/FournisseurApp').FournisseurApp
+      : process.env.EXPO_PUBLIC_ROOT === 'v2'
+        ? require('./src/v2/AppV2').AppV2
+        : require('./App').default,
+  ),
 );

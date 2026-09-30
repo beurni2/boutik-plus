@@ -12,7 +12,10 @@ import * as cameraDouble from './doubles/expo-camera';
 import { cheminResolu as cheminSelecteur } from './doubles/expo-image-picker';
 import { createRequire } from 'node:module';
 import { ENREGISTREMENTS } from '@platform/recorded-answers';
-import { substitutsRefuses, wire } from './rendu';
+import { createElement, useState } from 'react';
+import { Pressable, Text } from 'react-native';
+import { mountEcran, substitutsRefuses, wire } from './rendu';
+import { avecLimite } from '../src/ui/limite-erreur';
 
 /**
  * ═══ RENDU-RÉEL — the harness holds ITSELF to the mock-certification law ═══
@@ -302,5 +305,32 @@ describe('a stand-in for Shop+ or Séra may only say what the real door says', (
       await appel('http://offer.test/checkout/dispatch');
       expect(substitutsRefuses()).toEqual([]);
     });
+  });
+});
+
+/**
+ * LISTER-VRAI-1 (AUDIT-B+2 F-56) — THE HARNESS CERTIFIES ITS OWN CRASH CHECK.
+ * With a boundary at the root a throw no longer blanks the tree, so « did the
+ * tree survive the tap » would pass over a crash unless the harness looks for
+ * the « Recharger » screen itself. This proves that it does.
+ */
+describe('a walk that crashes into the root boundary FAILS — it never passes over the « Recharger » screen', () => {
+  function Boum() {
+    const [casse, setCasse] = useState(false);
+    if (casse) throw new Error('rendu cassé');
+    return createElement(Pressable, { onPress: () => setCasse(true), accessibilityRole: 'button' }, createElement(Text, null, 'Déclencher'));
+  }
+  const Protege = avecLimite(Boum);
+
+  it('pressing into a throw is reported as a CRASH, loudly', async () => {
+    const erreurs = console.error;
+    console.error = () => {};
+    try {
+      const screen = await mountEcran(createElement(Protege));
+      await expect(screen.press('Déclencher')).rejects.toThrow(/CRASHED/);
+      screen.unmount();
+    } finally {
+      console.error = erreurs;
+    }
   });
 });

@@ -14,6 +14,7 @@ import { chipsProduits, fournisseursALire, fusionner, memeEnsemble, montreAttrib
 import { lireFournisseurs } from './lister-pour-choix';
 import { readStoredClePhotos, readStoredOpsKey, resolveOperationsService } from '../operations/service';
 import type { A, S } from './machine';
+import { useCouche } from '../ui/retour-web';
 
 /**
  * PRODUITS-READ-1 — « Produits », REAL (founder rulings 2026-07-25).
@@ -75,6 +76,8 @@ export function SProduitsReal({ st, d, supplierId, cache }: {
    * and the machine's demo `view: 'product'` route is never involved — a real
    * offer has no entry in `st.products`, and the id-miss guard is not a fiche. */
   const [openOffer, setOpenOffer] = useState<SupplierOfferRow | null>(null);
+  // F-57: a product's fiche is a layer — Back returns to his list.
+  useCouche(openOffer === null ? null : `fiche:${openOffer.offerId}`, () => setOpenOffer(null));
   const inFlight = useRef(false);
   /** The scope a read asked for while another was running — replayed after it. */
   const enAttente = useRef<string | null>(null);

@@ -227,7 +227,7 @@ const textOf = (node: ReactTestInstance): string => {
  * console is a set of tab screens taking props, so the element is the caller's
  * — and it is always a REAL component from `src/`, never a test stand-in.
  */
-export async function mountEcran(element: React.ReactElement): Promise<Screen> {
+export async function mountEcran(element: React.ReactElement, options: { readonly crashAttendu?: boolean } = {}): Promise<Screen> {
   // React 19 wants this flag before any act(); without it every mount warns
   // « not configured to support act(...) » and effects can flush unpredictably.
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -242,6 +242,15 @@ export async function mountEcran(element: React.ReactElement): Promise<Screen> {
       await Promise.resolve();
       await Promise.resolve();
     });
+    // LISTER-VRAI-1 (AUDIT-B+2 F-56) — « DID THE TREE SURVIVE THE TAP » MUST NOT
+    // BECOME TRIVIALLY TRUE. With a boundary at the root, a throw no longer
+    // blanks the tree: it shows « Recharger ». So the harness looks for that
+    // screen after every settle and fails the walk that reached it — unless
+    // the walk is the one proving the boundary itself.
+    if (options.crashAttendu !== true) {
+      const arret = tree.root.findAll((n) => typeof n.type === 'string' && n.props['testID'] === 'limite-erreur');
+      if (arret.length > 0) throw new Error('the tree CRASHED: the « Recharger » screen is showing — a throw was caught at the root');
+    }
   };
   // The first read fires in an effect; give it its answer before returning, or
   // every caller would have to remember to settle by hand.
@@ -249,9 +258,8 @@ export async function mountEcran(element: React.ReactElement): Promise<Screen> {
 
   /**
    * ⚠ A CONTROL IS ANYTHING WITH AN `onPress`, not just a `Pressable`. This app
-   * uses `<Text onPress accessibilityRole="link">` for its secondary actions
-   * (the accueil's « engagement » and « gratuité » links are exactly that), and
-   * a harness blind to them would report real controls as absent.
+   * has used `<Text onPress accessibilityRole="link">` for secondary actions,
+   * and a harness blind to them would report real controls as absent.
    */
   const textNodes = (): ReactTestInstance[] =>
     tree.root.findAll((n) => typeof n.type === 'string' && textOf(n) !== '', { deep: true });

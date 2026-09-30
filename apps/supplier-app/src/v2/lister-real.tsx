@@ -71,6 +71,7 @@ import { avecVideo, decideVideoChoisie, videoEchecKey, videoRefusKey } from '../
 import { pickVideo } from '../studio/pick-video';
 import type { VideoEtat } from './screens2';
 import { readStoredOpsKey, resolveOperationsService, storeOpsKey } from '../operations/service';
+import { useCouche } from '../ui/retour-web';
 
 
 /** Set at authoring — the founder is the only supplier. HARD GATE in authoring.ts. */
@@ -323,6 +324,12 @@ export function SListerReal({ st, d, captures, session, onKeySaved }: {
    * flow's own landing spot after publish — one tap, same destination.
    */
   const exitToProduits = (): void => d({ t: 'TAB', tab: 'produits' });
+  // F-57: the result pane is its own layer — Back leaves it the way its one
+  // exit does (never four invisible wizard steps). While the send is in
+  // flight, Back is absorbed: leaving cannot cancel a send.
+  useCouche(pub === null ? null : pub.kind === 'sending' ? 'envoi' : 'resultat', () => {
+    if (pub?.kind !== 'sending') exitToProduits();
+  });
 
   /** The interceptor — see the module header. Everything else passes through. */
   const dd = (a: A): void => {
