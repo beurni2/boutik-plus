@@ -125,6 +125,7 @@ export type ActeFondsResult =
         | 'close_reason_required'
         | 'sera_routing'
         | 'invalid'
+        | 'zero_amount'
         | 'unreachable';
     };
 
@@ -202,6 +203,7 @@ const RAISONS: Record<string, Exclude<ActeFondsResult, { ok: true }>['reason']> 
   invalid_state: 'invalid',
   claim_unknown: 'invalid',
   command_id_required: 'invalid',
+  zero_claim_amount: 'zero_amount',
 };
 
 export function resolveFondsService(): FondsServicePort | null {

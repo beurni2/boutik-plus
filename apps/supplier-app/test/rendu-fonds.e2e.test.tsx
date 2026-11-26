@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react-test-renderer';
 import { mountEcran, storage, wiredEnv, type Screen } from './rendu';
-import { SZoneFonds } from '../src/fonds/zone';
+import { RAISON_MESSAGE, SZoneFonds } from '../src/fonds/zone';
+import { t } from '../src/i18n';
+import { resolveFondsService } from '../src/fonds/service';
 import { miniflareDuDepot, voisin } from './bundle-voisin';
 
 /**
@@ -86,6 +88,20 @@ afterEach(() => {
   delete process.env['EXPO_PUBLIC_PROTECTION_BASE'];
 });
 
+const ZERO = "Une réclamation s'ouvre seulement pour un montant dû";
+
+// Runs everywhere, CI included: the form refuses a 0 before the book can, so
+// the service's own zero refusal never reaches this screen in a walk — its
+// words are pinned here instead.
+describe('the words for each refusal of the book', () => {
+  it('a 0-franc refusal is said as one, and only an unanswered book is called unreachable', () => {
+    expect(RAISON_MESSAGE.zero_amount).toBe('fonds.montant_zero');
+    expect(t(RAISON_MESSAGE.zero_amount)).toContain(ZERO);
+    const injoignable = Object.entries(RAISON_MESSAGE).filter(([, cle]) => cle === 'fonds.injoignable').map(([raison]) => raison);
+    expect(injoignable, 'no named refusal may borrow « ne répond pas »').toEqual(['unreachable']);
+  });
+});
+
 describe.skipIf(PLATFORM.raisonSaut !== null)(PLATFORM.titre('F-81 — the Fonds zone, pressed against the real Fund book'), () => {
   it('key → declare the balance → open a claim → under review: each act reaches the BOOK, and the screen follows it', async () => {
     const { mf, demander, appels } = livre();
@@ -132,6 +148,64 @@ describe.skipIf(PLATFORM.raisonSaut !== null)(PLATFORM.titre('F-81 — the Fonds
     expect(examen, 'ASK THE BOOK: the claim moved').toContain('under_review');
     expect(screen.canPress('Passer en examen'), 'the act it was is done; the next ones are offered').toBe(false);
     screen.unmount();
+    await mf.dispose();
+  }, 60_000);
+
+  it('a claim of 0 francs is refused on screen, in plain words, and never reaches the book', async () => {
+    const { mf, demander, appels } = livre();
+    storage({ [CLE_SLOT]: OPS });
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => screen.canPress('Nouvelle réclamation'), 'the book read with the stored key');
+
+    await screen.press('Nouvelle réclamation');
+    await screen.type('ord-fonds-zero', 'Commande concernée');
+    await screen.type('0', 'Montant en francs');
+    await screen.type('Rien à payer', "Ce qui s'est passé");
+    await screen.type('evb-zero-1', 'Référence de la preuve');
+    await screen.press('Enregistrer la réclamation');
+    await screen.settle();
+    await attendre(screen, () => screen.shows(ZERO), 'the zero refusal on screen');
+
+    expect(screen.shows('ne répond pas'), 'the book did answer: never say it did not').toBe(false);
+    expect(appels, 'nothing is sent for a 0-franc claim').not.toContain('POST /claims');
+    const montant = screen.tree.root.findAll((n) => n.props.label === 'Montant en francs' && typeof n.props.value === 'string');
+    expect(montant.length, 'the amount field is still on screen').toBeGreaterThan(0);
+    expect(montant[0]?.props.value, 'his typing is kept so he can fix it').toBe('0');
+    expect(screen.canPress('Enregistrer la réclamation'), 'the form stays open: he can fix the amount and go on').toBe(true);
+    const avant = ((await demander('/claims')) as { claims?: unknown }).claims;
+    expect(Array.isArray(avant), 'ASK THE BOOK: the claims were read').toBe(true);
+    expect(JSON.stringify(avant), 'ASK THE BOOK: no claim was opened').not.toContain('ord-fonds-zero');
+
+    // He fixes the amount and goes on: the same form, his other fields kept.
+    await screen.type('5000', 'Montant en francs');
+    await screen.press('Enregistrer la réclamation');
+    await attendre(screen, () => screen.shows('ord-fonds-zero'), 'the claim on screen after the fixed amount');
+    const apres = ((await demander('/claims')) as { claims?: unknown }).claims;
+    expect(Array.isArray(apres), 'ASK THE BOOK: the claims were read').toBe(true);
+    expect(JSON.stringify(apres), 'ASK THE BOOK: the fixed claim exists').toContain('ord-fonds-zero');
+    expect(screen.shows(ZERO), 'the refusal is gone once the claim is open').toBe(false);
+    screen.unmount();
+    await mf.dispose();
+  }, 60_000);
+
+  it('the port names the service refusal of a 0-franc claim instead of calling the book unreachable', async () => {
+    const { mf, demander, appels } = livre();
+    const port = resolveFondsService();
+    expect(port, 'the port is configured').not.toBeNull();
+    const r = await port!.ouvrir(OPS, {
+      orderId: 'ord-fonds-zero-port',
+      motif: 'Rien à payer',
+      faute: 'seller',
+      montantFcfa: 0,
+      preuve: 'evb-zero-2',
+    });
+    expect(appels, 'the port really called the book').toContain('POST /claims');
+    expect(r).toEqual({ ok: false, reason: 'zero_amount' });
+    if (r.ok) throw new Error('the refusal was asserted above');
+    expect(t(RAISON_MESSAGE[r.reason]), 'the words the desk shows for this answer').toContain(ZERO);
+    const claims = ((await demander('/claims')) as { claims?: unknown }).claims;
+    expect(Array.isArray(claims), 'ASK THE BOOK: the claims were read').toBe(true);
+    expect(JSON.stringify(claims), 'ASK THE BOOK: no claim was opened').not.toContain('ord-fonds-zero-port');
     await mf.dispose();
   }, 60_000);
 
