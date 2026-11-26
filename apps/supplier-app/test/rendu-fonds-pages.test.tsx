@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { act } from 'react-test-renderer';
+import { act, type ReactTestInstance } from 'react-test-renderer';
 import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './rendu';
 import { SZoneFonds } from '../src/fonds/zone';
 import { SCommandesReel } from '../src/commandes/screen';
@@ -42,10 +42,11 @@ const ANCIENNE_LIGNE = 'Cliente à rembourser en premier';
 const SELON_SHOP = 'Son remboursement, selon Shop+';
 const SANS_CLE = 'Pour voir ici si la cliente est remboursée, entrez une fois la clé Shop+ dans la zone Revendeuses.';
 const AUCUN = "Shop+ n'a aucun remboursement pour cette commande.";
-const INTROUVABLE = "Shop+ n'a pas envoyé cette commande dans sa liste. Son remboursement ne peut donc pas être lu ici.";
+const INTROUVABLE = "Cette commande n'est pas dans la liste lue chez Shop+. Son remboursement ne peut donc pas être lu ici.";
 const ILLISIBLE = "Son remboursement n'a pas pu être lu. Réessayez, ou regardez la commande dans Commandes.";
 const PLUS_ANCIENNES = 'Voir les réclamations plus anciennes';
 const INJOIGNABLE = 'Le registre ne répond pas';
+const LECTURE = 'Lecture du remboursement chez Shop+…';
 
 /** A Shop+ key-C row with exactly the Worker's key set (see the Commandes
  *  refund walk for where it is pinned). The rows Shop+'s own suite recorded
@@ -113,6 +114,42 @@ function carte(screen: Screen, orderId: string, ids: readonly string[]): string[
 }
 
 const fois = (screen: Screen, texte: string): number => screen.texts().filter((t) => t === texte).length;
+
+/** Holds back every request whose address `retenue` names until `lacher()`;
+ *  each is then answered by the book as it is AT THAT MOMENT, as a slow
+ *  network does. Only `fetch` is wrapped. `demandes` is every address the
+ *  screen asked for, in order, at the moment it asked. */
+function retenir(retenue: (url: string) => boolean): { readonly demandes: string[]; lacher(): void } {
+  const reel = globalThis.fetch;
+  const demandes: string[] = [];
+  let ouvrir: () => void = () => undefined;
+  const tenue = new Promise<void>((r) => {
+    ouvrir = r;
+  });
+  globalThis.fetch = (async (input: string, init?: RequestInit) => {
+    demandes.push(String(input));
+    if (retenue(String(input))) await tenue;
+    return reel(input, init);
+  }) as typeof fetch;
+  return { demandes, lacher: () => ouvrir() };
+}
+
+/** Two taps on one control before the screen redraws, as a hurried thumb
+ *  does: both reach the handler the screen drew. */
+async function doubleTape(screen: Screen, label: string): Promise<void> {
+  const porteurs = screen.tree.root.findAll((n) => n.children.some((c) => typeof c === 'string' && c.includes(label)));
+  expect(porteurs.length, `« ${label} » on screen`).toBeGreaterThan(0);
+  let n: ReactTestInstance | null = porteurs[0]!;
+  while (n !== null && typeof n.props['onPress'] !== 'function') n = n.parent;
+  expect(n, `« ${label} » can be pressed`).not.toBeNull();
+  const onPress = n!.props['onPress'] as () => void;
+  await act(async () => {
+    onPress();
+    onPress();
+    await Promise.resolve();
+  });
+  await screen.settle();
+}
 
 describe('a seller-fault claim says what is true, and shows the buyer’s refund beside it', () => {
   const LIVRE: ReclamationStockee[] = [
@@ -355,6 +392,120 @@ describe('the desk reads only what it shows: the open claims and one closed page
     expect(fois(screen, 'ord-r02')).toBe(1);
     screen.unmount();
   }, 30_000);
+
+  it('the closed page is asked only once the open claims have answered: a claim closed in between shows once, closed', async () => {
+    storage({ [FONDS_SLOT]: CLE_FONDS });
+    const x = { orderId: 'ord-x01', faute: 'buyer' as const, ouverteLe: h(1) };
+    const reste = reclamation({ orderId: 'ord-x02', faute: 'buyer', etat: 'opened', ouverteLe: h(2) });
+    const avant = livreFondsSubstitut({ cle: CLE_FONDS, claims: [reclamation({ ...x, etat: 'opened' }), reste], mode: 'pages' });
+    const apres = livreFondsSubstitut({ cle: CLE_FONDS, claims: [reclamation({ ...x, etat: 'closed_no_payout', fermeeLe: h(3) }), reste], mode: 'pages' });
+    let maintenant = avant;
+    wire([(path, body, search, headers) => maintenant.route(path, body, search, headers)]);
+    const reseau = retenir((u) => u.includes('part=open'));
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => reseau.demandes.some((u) => u.includes('part=open')), 'the open claims asked');
+    expect(reseau.demandes.filter((u) => u.includes('part=closed')), 'no closed page before the open claims answer').toEqual([]);
+    // The founder closes ord-x01 while the open claims are on their way.
+    maintenant = apres;
+    reseau.lacher();
+    await attendre(screen, () => screen.shows('ord-x02'), 'the first view');
+    expect(fois(screen, 'ord-x01'), 'a claim closed between the reads is never in neither').toBe(1);
+    const sa = carte(screen, 'ord-x01', ['ord-x01', 'ord-x02']);
+    expect(sa, 'as the book now holds it').toContain('Classée — rien à payer');
+    expect(sa).not.toContain('Ouverte');
+    screen.unmount();
+  }, 30_000);
+
+  it('a first view with no seller-fault claim, then an older page that brings one: Shop+ is read once, and the card gets its refund', async () => {
+    storage({ [FONDS_SLOT]: CLE_FONDS, [CLE_C_SLOT]: 'cle-c' });
+    const g = (n: number): string => `ord-g${String(n).padStart(2, '0')}`;
+    // 23 closed buyer claims, except g02 (on the older page), a seller's.
+    const livreG = Array.from({ length: 23 }, (_, i) =>
+      reclamation({ orderId: g(i + 1), faute: i + 1 === 2 ? 'seller' : 'buyer', etat: 'closed_no_payout', ouverteLe: h(i + 1), fermeeLe: h(60 + i) }),
+    );
+    const idsG = livreG.map((c) => c.claim.orderId);
+    const livre = livreFondsSubstitut({ cle: CLE_FONDS, claims: livreG, mode: 'pages' });
+    const fil = wire([livre.route, shop([ligne(g(2), { etat: 'fait' })])]);
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => screen.canPress(PLUS_ANCIENNES), 'the first view');
+    expect(screen.shows(g(2))).toBe(false);
+    expect(fil.calls.some((c) => c.path === '/checkout/dispatch'), 'no seller-fault claim shown: nothing asked of Shop+').toBe(false);
+    await screen.press(PLUS_ANCIENNES);
+    await attendre(screen, () => screen.shows('Cliente remboursée'), 'the refund of the older seller-fault claim');
+    expect(carte(screen, g(2), idsG)).toContain('Cliente remboursée');
+    expect(screen.shows(LECTURE), 'never « reading » for ever').toBe(false);
+    expect(fil.calls.filter((c) => c.path === '/checkout/dispatch').length, 'one Shop+ read').toBe(1);
+    for (const x of idsG) expect(fois(screen, x), `${x} shows once`).toBe(1);
+    screen.unmount();
+  }, 30_000);
+
+  it('« Actualiser » landing while an older page is on its way, after a claim was settled: no gap, nothing twice', async () => {
+    storage({ [FONDS_SLOT]: CLE_FONDS });
+    const avant = livreFondsSubstitut({ cle: CLE_FONDS, claims: PAGE_LIVRE, mode: 'pages' });
+    const p01Reglee = reclamation({ orderId: 'ord-p01', faute: 'seller', etat: 'resolved', ouverteLe: h(30), examineeLe: h(90), fermeeLe: h(100) });
+    const apres = livreFondsSubstitut({ cle: CLE_FONDS, claims: [p01Reglee, ...PAGE_LIVRE.slice(1)], mode: 'pages' });
+    let maintenant = avant;
+    wire([(path, body, search, headers) => maintenant.route(path, body, search, headers)]);
+    const reseau = retenir((u) => u.includes('before='));
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => screen.canPress(PLUS_ANCIENNES), 'the first view');
+    await screen.press(PLUS_ANCIENNES);
+    expect(reseau.demandes.filter((u) => u.includes('before=4')), 'the page before 4 is on its way').toHaveLength(1);
+    // ord-p01 is settled, then the reload lands before that page does.
+    maintenant = apres;
+    await screen.press('Actualiser la liste');
+    await attendre(screen, () => screen.shows(id(5)) && !screen.shows(id(4)), 'the reload (ord-p01 is now the newest closed claim)');
+    reseau.lacher();
+    await attendre(screen, () => apres.lus.some((l) => l.includes('before=4')), 'the late page answered');
+    await screen.settle();
+    expect(fois(screen, id(3)), 'a page asked before the reload is not added after it').toBe(0);
+    expect(screen.canPress(PLUS_ANCIENNES), 'the way to what the reload left older').toBe(true);
+    await screen.press(PLUS_ANCIENNES);
+    await attendre(screen, () => screen.shows(id(1)), 'the older page');
+    expect(apres.lus.filter((l) => l.includes('before=')).sort()).toEqual(['/claims?part=closed&limit=20&before=4', '/claims?part=closed&limit=20&before=5']);
+    for (const x of PAGE_IDS) expect(fois(screen, x), `${x} shows once`).toBe(1);
+    expect(carte(screen, 'ord-p01', PAGE_IDS)).toContain('Réglée');
+    expect(screen.shows(PLUS_ANCIENNES), 'the end is reached').toBe(false);
+    screen.unmount();
+  }, 30_000);
+
+  it('an older page that repeats a claim already shown: it shows once', async () => {
+    storage({ [FONDS_SLOT]: CLE_FONDS });
+    const livre = livreFondsSubstitut({ cle: CLE_FONDS, claims: PAGE_LIVRE, mode: 'pages' });
+    // The real book never gives one closing number twice. This one answer is
+    // forged, the page asked one number too high, only to hold the desk's
+    // own rule: a claim already on screen is never added again.
+    const unDeTrop: Route = (path, _b, search, headers) =>
+      path === '/claims' && search.get('before') === '4'
+        ? livre.repondre('/claims', 'part=closed&limit=20&before=5', headers['authorization'])
+        : null;
+    wire([unDeTrop, livre.route]);
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => screen.canPress(PLUS_ANCIENNES), 'the first view');
+    expect(fois(screen, id(4))).toBe(1);
+    await screen.press(PLUS_ANCIENNES);
+    await attendre(screen, () => screen.shows(id(1)), 'the older page');
+    for (const x of PAGE_IDS) expect(fois(screen, x), `${x} shows once`).toBe(1);
+    expect(screen.shows(PLUS_ANCIENNES)).toBe(false);
+    screen.unmount();
+  }, 30_000);
+
+  it('two quick taps on « Voir les réclamations plus anciennes » send ONE page read', async () => {
+    storage({ [FONDS_SLOT]: CLE_FONDS });
+    const livre = livreFondsSubstitut({ cle: CLE_FONDS, claims: PAGE_LIVRE, mode: 'pages' });
+    wire([livre.route]);
+    const reseau = retenir((u) => u.includes('before='));
+    const screen = await mountEcran(<SZoneFonds />);
+    await attendre(screen, () => screen.canPress(PLUS_ANCIENNES), 'the first view');
+    await doubleTape(screen, PLUS_ANCIENNES);
+    expect(reseau.demandes.filter((u) => u.includes('before=')), 'one read for two taps').toHaveLength(1);
+    reseau.lacher();
+    await attendre(screen, () => screen.shows(id(1)), 'the older page');
+    for (const x of PAGE_IDS) expect(fois(screen, x), `${x} shows once`).toBe(1);
+    expect(screen.shows(PLUS_ANCIENNES)).toBe(false);
+    expect(screen.canPress('Nouvelle réclamation'), 'the tree survived the taps').toBe(true);
+    screen.unmount();
+  }, 30_000);
 });
 
 describe('the Commandes tab files a claimed order under « Incidents » from two bounded reads', () => {
@@ -419,6 +570,31 @@ describe('the Commandes tab files a claimed order under « Incidents » from two
     expect(livre.lus.includes('/fund'), 'the figures are not this tab’s business').toBe(false);
     await screen.press('Incidents');
     for (const nom of ['Pagne wax', 'Sac en cuir', 'Bazin riche']) expect(screen.shows(nom), nom).toBe(true);
+    screen.unmount();
+  }, 30_000);
+
+  it('the closed claims are asked only once the open ones have answered: an order whose claim closes in between stays an incident', async () => {
+    storage({ [OPS_SLOT]: 'cle-ops', [FONDS_SLOT]: CLE_FONDS });
+    const x = { orderId: 'ord-ouverte', faute: 'seller' as const, ouverteLe: h(1) };
+    const avant = livreFondsSubstitut({ cle: CLE_FONDS, claims: [reclamation({ ...x, etat: 'opened' })], mode: 'pages' });
+    const apres = livreFondsSubstitut({
+      cle: CLE_FONDS,
+      claims: [reclamation({ ...x, etat: 'resolved', examineeLe: h(2), fermeeLe: h(3) })],
+      mode: 'pages',
+    });
+    let maintenant = avant;
+    wire([...ops, (path, body, search, headers) => maintenant.route(path, body, search, headers)]);
+    const reseau = retenir((u) => u.includes('part=open'));
+    const screen = await mountEcran(<SCommandesReel />);
+    await attendre(screen, () => reseau.demandes.some((u) => u.includes('part=open')), 'the open claims asked');
+    expect(reseau.demandes.filter((u) => u.includes('part=closed')), 'no closed claims asked before the open ones answer').toEqual([]);
+    // The founder settles ord-ouverte while the open claims are on their way.
+    maintenant = apres;
+    reseau.lacher();
+    await attendre(screen, () => avant.lus.length + apres.lus.length >= 2, 'both claim reads answered');
+    await screen.settle();
+    await screen.press('Incidents');
+    expect(screen.shows('Pagne wax'), 'its claim is in one answer at least').toBe(true);
     screen.unmount();
   }, 30_000);
 });

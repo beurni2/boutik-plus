@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -156,7 +156,8 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [remb, setRemb] = useState<LectureRemboursements>({ kind: 'inutile' });
-  const [pageEnCours, setPageEnCours] = useState(false);
+  // A ref, not state: two taps before the screen redraws both see it.
+  const pageEnCours = useRef(false);
 
   /** The buyers' refunds, from the ONE key-C read the console already makes
    *  (the Commandes tab's): asked once per view, only for a seller-fault
@@ -185,10 +186,10 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
   /** The next older page of closed claims, added once each below the others.
    *  A page that fails keeps what is shown, and the way to try again. */
   async function lirePlusAnciennes(avant: number): Promise<void> {
-    if (pageEnCours) return;
-    setPageEnCours(true);
+    if (pageEnCours.current) return;
+    pageEnCours.current = true;
     const page = await service.lirePlusAnciennes(cle, avant);
-    setPageEnCours(false);
+    pageEnCours.current = false;
     if (!page.ok) {
       if (page.reason === 'bad_key') onCleRefusee();
       else setFeedback('fonds.injoignable');
