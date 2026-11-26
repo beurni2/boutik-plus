@@ -171,7 +171,8 @@ export class HttpMediaService implements MediaServicePort {
   async uploadVideo(bytes: Uint8Array): Promise<ServiceResult<VideoRefInput>> {
     // Same laws as uploadImage: hash BEFORE upload over the same bytes; raw
     // body; the service's typed refusals travel verbatim (too_long,
-    // unreadable_duration, too_large, unsupported_type — his screen says why).
+    // unreadable_duration, too_large, unsupported_type, location_present,
+    // unreadable_metadata — his screen says why).
     const sha256 = await sha256Hex(bytes);
     let res: Response;
     try {

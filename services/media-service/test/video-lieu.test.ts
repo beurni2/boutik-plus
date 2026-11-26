@@ -18,10 +18,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * `pretest`) on workerd, and the outcome is asked of the BUCKET, never taken
  * from the answer.
  *
- * The controls matter as much as the refusals: a clean clip in each real
- * phone layout (Android's writer, the iPhone's `moov/meta`), a QuickTime
- * `udta` with its 4-byte zero terminator, and a clean clip whose `mdat`
- * happens to contain every marker — all still stored, byte-identical.
+ * The controls matter as much as the refusals: a clean clip in each phone
+ * layout (Android's writer and the iPhone both write a QuickTime-layout
+ * `moov/meta`), the ISO full-box `meta`, a QuickTime `udta` with its 4-byte
+ * zero terminator or a longer zero tail, and a clean clip whose `mdat` happens
+ * to contain every marker — all still stored, byte-identical.
+ *
+ * Every layout here is built by hand from the published box layouts; no file
+ * from a real device is walked in this suite.
  */
 
 const BUNDLE = fileURLToPath(new URL('../dist/worker/worker.mjs', import.meta.url));
@@ -80,10 +84,11 @@ const keys = (...names: string[]): Uint8Array =>
   fullBox('keys', u32(names.length), ...names.map((n) => concat(u32(8 + utf8(n).length), enc('mdta'), utf8(n))));
 const ilstDe = (...values: string[]): Uint8Array =>
   box('ilst', ...values.map((v, i) => rawBox(u32(i + 1), box('data', u32(1), u32(0), utf8(v)))));
-/** iPhone layout: QuickTime `meta` (NO version/flags), hdlr mdta, keys, ilst. */
+/** QuickTime layout: `meta` with NO version/flags, then hdlr mdta, keys, ilst —
+ *  what the iPhone writes, and Android's MPEG4Writer (`writeMoovLevelMetaBox`). */
 const metaQt = (entries: Array<[string, string]>): Uint8Array =>
   box('meta', hdlr('mdta'), keys(...entries.map(([k]) => k)), ilstDe(...entries.map(([, v]) => v)));
-/** Android writer layout: ISO full-box `meta`, hdlr mdta, keys, ilst. */
+/** ISO layout: full-box `meta` (version/flags first), hdlr mdta, keys, ilst. */
 const metaIso = (entries: Array<[string, string]>): Uint8Array =>
   fullBox('meta', hdlr('mdta'), keys(...entries.map(([k]) => k)), ilstDe(...entries.map(([, v]) => v)));
 
@@ -94,17 +99,21 @@ const xmpPaquet = (inner: string): Uint8Array =>
 /** A `mebx` timed-metadata sample entry: SampleEntry fields, then its key table. */
 const mebx = (...keyNames: string[]): Uint8Array =>
   box('mebx', zeros(6), u16(1), box('keys', ...keyNames.map((k, i) => rawBox(u32(i + 1), box('keyd', enc('mdta'), utf8(k))))));
-/** A track the duration walk accepts: mdia carries mdhd; extra boxes ride beside it. */
-const trak = (opts: { udta?: Uint8Array; meta?: Uint8Array; stsdEntry?: Uint8Array } = {}): Uint8Array =>
+/** A track the duration walk accepts: mdia carries mdhd; extra boxes ride beside it.
+ *  `stsd` replaces the whole sample-description box (for its malformed edges). */
+const trak = (
+  opts: { udta?: Uint8Array; meta?: Uint8Array; uuid?: Uint8Array; stsdEntry?: Uint8Array; stsd?: Uint8Array } = {},
+): Uint8Array =>
   box(
     'trak',
     ...(opts.udta !== undefined ? [opts.udta] : []),
     ...(opts.meta !== undefined ? [opts.meta] : []),
+    ...(opts.uuid !== undefined ? [opts.uuid] : []),
     box(
       'mdia',
       mdhd(4),
       hdlr(opts.stsdEntry !== undefined ? 'meta' : 'vide'),
-      box('minf', box('stbl', fullBox('stsd', u32(1), opts.stsdEntry ?? box('avc1', zeros(78))))),
+      box('minf', box('stbl', opts.stsd ?? fullBox('stsd', u32(1), opts.stsdEntry ?? box('avc1', zeros(78))))),
     ),
   );
 
@@ -113,7 +122,8 @@ const clip = (children: Uint8Array[], o: { top?: Uint8Array[]; mdat?: Uint8Array
   concat(o.ftyp ?? FTYP, ...(o.top ?? []), ...(o.mdat !== undefined ? [box('mdat', o.mdat)] : []), box('moov', mvhd(4), ...children));
 
 const LIEU = '+12.3714-001.5197/';
-const ANDROID_PROPRE = metaIso([['com.android.version', '14']]);
+const ANDROID_PROPRE = metaQt([['com.android.version', '14'], ['com.android.capture.fps', '30.0']]);
+const XMP_LAT = (): Uint8Array => box('uuid', XMP_UUID, xmpPaquet('exif:GPSLatitude="12,22.284N"'));
 const IPHONE_CLES: Array<[string, string]> = [
   ['com.apple.quicktime.make', 'Apple'],
   ['com.apple.quicktime.model', 'iPhone 13'],
@@ -123,7 +133,14 @@ const IPHONE_CLES: Array<[string, string]> = [
 
 /** Located clips: each MUST be refused, by name, with nothing stored. */
 const LOCALISEES: Array<[string, Uint8Array]> = [
-  ['the movie user data carries ©xyz (Android writer layout)', clip([ANDROID_PROPRE, box('udta', udtaTexte('©xyz', LIEU)), trak()])],
+  [
+    'the movie user data carries ©xyz beside the Android writer’s QuickTime-layout movie meta',
+    clip([ANDROID_PROPRE, box('udta', udtaTexte('©xyz', LIEU)), trak()]),
+  ],
+  ['an ISO full-box movie meta names an Apple location key', clip([metaIso([['com.apple.quicktime.location.ISO6709', LIEU]]), trak()])],
+  ['a FILE-level meta names an Apple location key', clip([trak()], { top: [metaQt([['com.apple.quicktime.location.ISO6709', LIEU]])] })],
+  ['a movie-level XMP uuid names exif:GPSLatitude', clip([XMP_LAT(), trak()])],
+  ['a TRACK-level XMP uuid names exif:GPSLatitude', clip([trak({ uuid: XMP_LAT() })])],
   ['a TRACK user data carries ©xyz', clip([trak({ udta: box('udta', udtaTexte('©xyz', LIEU)) })])],
   ['the FILE-level user data carries ©xyz', clip([trak()], { top: [box('udta', udtaTexte('©xyz', LIEU))] })],
   ['the movie user data carries a 3GPP loci', clip([box('udta', loci()), trak()])],
@@ -145,12 +162,14 @@ const LOCALISEES: Array<[string, Uint8Array]> = [
 /** Clean clips: each MUST be stored and read back byte-identical. */
 const PROPRES: Array<[string, Uint8Array]> = [
   ['a bare clip', clip([trak()])],
-  ['the Android writer layout without location', clip([ANDROID_PROPRE, trak()])],
+  ['the Android writer’s QuickTime-layout movie meta, without location', clip([ANDROID_PROPRE, trak()])],
+  ['an ISO full-box movie meta with no location key', clip([metaIso([['com.android.version', '14']]), trak()])],
   ['the iPhone layout with make, model, software and creation date', clip([trak(), metaQt(IPHONE_CLES)], { ftyp: FTYP_QT })],
   [
     'a QuickTime udta (make, model) ending with its 4-byte zero terminator',
     clip([box('udta', udtaTexte('©mak', 'samsung'), udtaTexte('©mod', 'SM-A155F'), zeros(4)), trak()]),
   ],
+  ['a udta (make) ending with 12 zero bytes of padding', clip([box('udta', udtaTexte('©mak', 'samsung'), zeros(12)), trak()])],
   ['an XMP packet with no coordinates', clip([box('udta', box('XMP_', xmpPaquet('xmp:CreatorTool="Montage"'))), trak()])],
   ['a mebx track whose keys name no location', clip([trak(), trak({ stsdEntry: mebx('com.apple.quicktime.still-image-time') })])],
   [
@@ -173,6 +192,17 @@ const ILLISIBLES: Array<[string, Uint8Array]> = [
   // The terminator's edge: 4 zero bytes are accepted ONLY as the last thing in a udta.
   ['a udta child claiming size 4 with a whole box after it', clip([box('udta', udtaTexte('©mak', 'samsung'), u32(4), udtaTexte('©mod', 'SM-A155F')), trak()])],
   ['a udta zero « terminator » with a whole box after it', clip([box('udta', udtaTexte('©mak', 'samsung'), zeros(4), udtaTexte('©mod', 'SM-A155F')), trak()])],
+  // Padding's edge: a zero tail is accepted only if nothing but zeros follows.
+  ['a udta holding 12 zero bytes and then a ©xyz box', clip([box('udta', udtaTexte('©mak', 'samsung'), zeros(12), udtaTexte('©xyz', LIEU)), trak()])],
+  [
+    'a key table that counts more keys than it holds',
+    clip([box('meta', hdlr('mdta'), fullBox('keys', u32(3), concat(u32(8 + 19), enc('mdta'), utf8('com.android.version'))), ilstDe('14')), trak()]),
+  ],
+  [
+    'a mebx whose key table runs past the mebx',
+    clip([trak(), trak({ stsdEntry: box('mebx', zeros(6), u16(1), u32(64), enc('keys'), zeros(8)) })]),
+  ],
+  ['a sample-description box too short for its version, flags and entry count', clip([trak({ stsd: box('stsd', zeros(4)) })])],
 ];
 
 /* --------------------------------------------------------- the real door -- */
