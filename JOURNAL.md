@@ -3,6 +3,16 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · DEP-B library update MERGED on the founder's approval (PR #2)
+
+**Founder order (2026-11-26 05:22 UTC).** « Go on all three », on the decision card after the report of Boutik+ PR #2, Séra PR #1 and Shop+ PR #1.
+- **Re-checked before merging:** `main` had not moved (`36ce921`). Merged as `6bdc260` (merge commit; `12affd8`, its merge `fd8580e` and the journal `2c23852` kept). PR gates green on `2c23852`.
+- **expo-preview 261 green:** the supplier app is published on the new libraries.
+- **ci 385 green** on `6bdc260` — the first fully green `main` run since the dependency-audit baseline went red.
+- **Not deployed:** the supplier web page, the console and the offer Worker take zod 4.6.7 only when their deploys run, each on the founder's word. The console's first deploy read-back gives its real size headroom (verifier note: its deploy build has run ~5.8 KB above its board build).
+
+---
+
 ## 2026-11-26 · DEP-B — library update: shell-quote 1.12.0 and zod 4.6.7, supplier page limits re-signed · on the branch, NOT merged, NOT deployed
 
 **Founder order (2026-11-26 04:24 UTC).** « go », on « updating the libraries ». Built by the coordinator (lock file and package files are coordinator-only), in its own worktree, as `12affd8` from `main` `36ce921`; merged here `--no-ff` at `fd8580e`.
