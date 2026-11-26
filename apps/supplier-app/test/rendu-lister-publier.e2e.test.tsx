@@ -17,6 +17,8 @@ import { initialState, reduce, type A, type S } from '../src/v2/machine';
 import { resolveOperationsService } from '../src/operations/service';
 import { SUPPLIER_ID } from '../src/supply/service';
 import { bytesToBase64 } from '../src/studio/normalization';
+import { decideVideoChoisie, videoEchecKey } from '../src/supply/video';
+import { resolveMediaService } from '../src/supply/media';
 import { t } from '../src/i18n';
 
 /**
@@ -160,13 +162,18 @@ afterEach(() => {
 /* ─────────────────────── the shell in miniature ─────────────────────── */
 
 const etat: { st: S | null } = { st: null };
+/** The clip the shell already holds when the wizard mounts — what AppV2's
+ *  session carries after a pick. The pick gesture itself is browser-only
+ *  (`pick-video.web.ts`) and is not walked here; under vitest `pickVideo`
+ *  resolves to the phone half. */
+const semence: { video: ListingSession['video'] } = { video: null };
 
 function Coquille() {
   const [st, setSt] = useState<S>(() => reduce(reduce(initialState(), { t: 'BOOT_DONE' }).s, { t: 'OPEN_WIZ' }).s);
   etat.st = st;
   const d = useCallback((a: A) => setSt((prev) => reduce(prev, a).s), []);
   const captures = useRef<CaptureSet | null>(null);
-  const session = useRef<ListingSession>({ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: null, roles: null });
+  const session = useRef<ListingSession>({ codeTouched: false, suffixBytes: null, pourFournisseur: '', video: semence.video, roles: null });
   if (st.view?.s === 'studio') return <S26StudioReal d={d} onApproved={(set) => { captures.current = set; }} />;
   if (st.view?.s === 'add') return <SListerReal st={st} d={d} captures={captures} session={session} />;
   return null;
@@ -263,4 +270,136 @@ describe('F-15 — « Publier » on the real wizard reaches the real product ser
     expect(src.match(/<S20Wizard\b[^>]*?\bd=\{dd\}/gs), '« Publier » would reach the demo branch').toHaveLength(1);
     expect(src).not.toMatch(/<S20Wizard\b[^>]*?\bd=\{d\}/s);
   });
+});
+
+/* ───────────── a clip that still says where it was filmed ───────────── */
+
+const enc = (x: string): Uint8Array => new Uint8Array([...x].map((c) => c.charCodeAt(0) & 255));
+const u32 = (v: number): Uint8Array => new Uint8Array([(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]);
+const coller = (...parts: Uint8Array[]): Uint8Array => {
+  const out = new Uint8Array(parts.reduce((n, q) => n + q.length, 0));
+  let at = 0;
+  for (const q of parts) { out.set(q, at); at += q.length; }
+  return out;
+};
+const boite = (type: string, ...payload: Uint8Array[]): Uint8Array => {
+  const corps = coller(...payload);
+  return coller(u32(8 + corps.length), enc(type), corps);
+};
+const horloge = (type: 'mvhd' | 'mdhd', secondes: number): Uint8Array => {
+  const q = new Uint8Array(100);
+  q.set(u32(1_000), 12);
+  q.set(u32(secondes * 1_000), 16);
+  return boite(type, q);
+};
+const LIEU = '+12.3714-001.5197/';
+/** 4 s, the Android writer's layout: the place in `moov/udta/©xyz`. */
+const CLIP_LOCALISE = coller(
+  boite('ftyp', enc('isom'), new Uint8Array(4), enc('isommp41')),
+  boite('mdat', new Uint8Array(64)),
+  boite(
+    'moov',
+    horloge('mvhd', 4),
+    boite('udta', boite('\u00a9xyz', new Uint8Array([0, LIEU.length, 0x15, 0xc7]), enc(LIEU))),
+    boite('trak', boite('mdia', horloge('mdhd', 4))),
+  ),
+);
+const SECONDES_MESUREES = 4; // what the browser's own decoder reads off this clip
+
+type Seau = { list(o?: unknown): Promise<{ objects: { httpMetadata?: { contentType?: string } }[] }> };
+/** ASK THE MEDIA WORKER'S BUCKET: how many clips it holds. */
+async function clipsStockes(): Promise<number> {
+  const seau = await (media as unknown as { getR2Bucket(n: string): Promise<Seau> }).getR2Bucket('BUCKET');
+  const { objects } = await seau.list({ include: ['httpMetadata'] });
+  return objects.filter((o) => o.httpMetadata?.contentType === 'video/mp4').length;
+}
+
+/** His path to the final check, by the words on the screen (as the walk above). */
+async function jusquAuControle(screen: Screen, nom: string): Promise<void> {
+  await screen.press('Continuer');
+  await screen.type(nom, t('publier.champ_nom'));
+  await screen.press('Continuer');
+  await screen.type('12000', t('publier.champ_prix'));
+  await screen.type('1000', t('publier.ligne_commission'));
+  await attendre(screen, () => screen.canPress('Continuer'), '« Continuer » after his figures');
+  await screen.press('Continuer');
+  await screen.press(t('publier.ouvrir_studio'));
+  armerSelecteur(choix(3));
+  await screen.press(t('studio.depuis_telephone'));
+  await attendre(screen, () => screen.canPress(t('studio.continuer')), 'the Studio taking his three photos');
+  await screen.press(t('studio.continuer'));
+  await attendre(screen, () => etat.st?.view?.s === 'add', 'the Studio handing his photos back');
+}
+
+describe('a clip that still says where it was filmed — refused by the real media Worker, said plainly on his screen', () => {
+  afterEach(() => { semence.video = null; });
+
+  it('the console\u2019s OWN media port gets the named refusal, and it maps to its own sentence; the bucket holds no clip', async () => {
+    const avant = await clipsStockes();
+    const port = resolveMediaService();
+    expect(port, 'the media port is configured').not.toBeNull();
+    const up = await port!.uploadVideo(CLIP_LOCALISE);
+    expect(appels.filter((a) => a.method === 'POST' && a.path === '/media/video'), 'the port really called the door').toHaveLength(1);
+    expect(up.ok).toBe(false);
+    if (up.ok) throw new Error('the refusal was asserted above');
+    expect(up.cause).toBe('http');
+    expect(up.reason).toContain('"location_present"');
+    expect(videoEchecKey(up.reason)).toBe('publier.video_lieu');
+    expect(await clipsStockes(), 'ASK THE BUCKET: no clip was stored').toBe(avant);
+  }, 30_000);
+
+  it('he publishes with a located clip: the product goes out WITHOUT it, he reads why, and he can leave', async () => {
+    const code = await resolveOperationsService()!.mintCode(OPS, SUPPLIER_ID);
+    expect(code.ok, JSON.stringify(code)).toBe(true);
+    const choisi = decideVideoChoisie(SECONDES_MESUREES, CLIP_LOCALISE.length);
+    expect(choisi.ok, 'the clip passes the device judgement, as after a real pick').toBe(true);
+    if (!choisi.ok) throw new Error('asserted above');
+    semence.video = { bytes: CLIP_LOCALISE, durationSec: choisi.durationSec };
+    const avant = await clipsStockes();
+    appels.length = 0;
+
+    const nom = 'Panier tressé filmé chez lui';
+    const screen = await mountEcran(<Coquille />);
+    await jusquAuControle(screen, nom);
+    expect(screen.shows(t('publier.video_prete')), 'the shell-held clip is on his screen').toBe(true);
+    await screen.press('Continuer');
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await attendre(screen, () => screen.shows(t('publier.publie')), '« C\u2019est publié »');
+
+    expect(appels.filter((a) => a.method === 'POST' && a.path === '/media/video'), 'the clip went to the door').toHaveLength(1);
+    expect(screen.shows(t('publier.video_lieu')), 'he reads why the clip did not ride').toBe(true);
+    expect(screen.shows(t('publier.video_echec_envoi')), 'never the generic « n\u2019est pas partie »').toBe(false);
+    const ligne = (await inventaire()).find((r) => r.name === nom) as { videoRef?: string; assetRefs: string[] } | undefined;
+    expect(ligne, 'ASK THE LEDGER: the product is published').toBeDefined();
+    expect(ligne!.assetRefs.length, 'its photographs rode').toBeGreaterThanOrEqual(3);
+    expect(ligne!.videoRef, 'ASK THE LEDGER: no clip is attached').toBeUndefined();
+    expect(await clipsStockes(), 'ASK THE BUCKET: no clip was stored').toBe(avant);
+    expect(screen.canPress(t('publier.retour')), 'the way out is there and pressable').toBe(true);
+    screen.unmount();
+  }, 30_000);
+
+  it('he removes the located clip before publishing: nothing goes to the clip door and no refusal is said', async () => {
+    const code = await resolveOperationsService()!.mintCode(OPS, SUPPLIER_ID);
+    expect(code.ok, JSON.stringify(code)).toBe(true);
+    const choisi = decideVideoChoisie(SECONDES_MESUREES, CLIP_LOCALISE.length);
+    if (!choisi.ok) throw new Error('the fixture must pass the device judgement');
+    semence.video = { bytes: CLIP_LOCALISE, durationSec: choisi.durationSec };
+    appels.length = 0;
+
+    const nom = 'Panier tressé sans la vidéo';
+    const screen = await mountEcran(<Coquille />);
+    await jusquAuControle(screen, nom);
+    await screen.press(t('publier.video_retirer'));
+    expect(screen.canPress(t('publier.video_ajouter')), 'he can pick another').toBe(true);
+    await screen.press('Continuer');
+    await screen.press(CONFIRMATION);
+    await screen.press(PUBLIER);
+    await attendre(screen, () => screen.shows(t('publier.publie')), '« C\u2019est publié »');
+
+    expect(appels.filter((a) => a.path === '/media/video'), 'no clip was sent').toHaveLength(0);
+    expect(screen.shows(t('publier.video_lieu'))).toBe(false);
+    expect((await inventaire()).some((r) => r.name === nom), 'ASK THE LEDGER: the product is published').toBe(true);
+    screen.unmount();
+  }, 30_000);
 });

@@ -105,6 +105,8 @@ describe('videoEchecKey — the service 400 surfaces in its OWN sentence', () =>
     expect(videoEchecKey('HTTP 400: {"error":"rejected","reason":"too_large"}')).toBe('publier.video_trop_lourde');
     expect(videoEchecKey('HTTP 400: {"error":"rejected","reason":"unsupported_type"}')).toBe('publier.video_illisible');
     expect(videoEchecKey('HTTP 400: {"error":"rejected","reason":"unreadable_duration"}')).toBe('publier.video_illisible');
+    expect(videoEchecKey('HTTP 400: {"error":"rejected","reason":"location_present"}')).toBe('publier.video_lieu');
+    expect(videoEchecKey('HTTP 400: {"error":"rejected","reason":"unreadable_metadata"}')).toBe('publier.video_illisible');
   });
 
   it('an untyped failure (401, empty body, network text) falls back to the generic sentence', () => {
@@ -115,7 +117,7 @@ describe('videoEchecKey — the service 400 surfaces in its OWN sentence', () =>
   it('every sentence the mapper can answer EXISTS in the catalog', () => {
     const cat = JSON.parse(readFileSync(join(__dirname, '..', 'i18n', 'catalog.json'), 'utf8')) as Array<{ key: string; fr: string }>;
     const keys = new Set(cat.map((e) => e.key));
-    for (const k of ['publier.video_trop_longue', 'publier.video_trop_lourde', 'publier.video_illisible', 'publier.video_echec_envoi']) {
+    for (const k of ['publier.video_trop_longue', 'publier.video_trop_lourde', 'publier.video_illisible', 'publier.video_lieu', 'publier.video_echec_envoi']) {
       expect(keys.has(k), `missing catalog key: ${k}`).toBe(true);
     }
   });

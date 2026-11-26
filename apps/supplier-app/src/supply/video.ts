@@ -79,6 +79,13 @@ export function avecVideo(assets: ProductAssetsInput, uploaded: VideoRefInput): 
 export function videoEchecKey(httpReason: string): string {
   if (httpReason.includes('"too_long"')) return 'publier.video_trop_longue';
   if (httpReason.includes('"too_large"')) return 'publier.video_trop_lourde';
-  if (httpReason.includes('"unsupported_type"') || httpReason.includes('"unreadable_duration"')) return 'publier.video_illisible';
+  if (httpReason.includes('"location_present"')) return 'publier.video_lieu';
+  if (
+    httpReason.includes('"unsupported_type"') ||
+    httpReason.includes('"unreadable_duration"') ||
+    httpReason.includes('"unreadable_metadata"')
+  ) {
+    return 'publier.video_illisible';
+  }
   return 'publier.video_echec_envoi';
 }
