@@ -3,6 +3,115 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · A-VERIFIER-1 — the founder sees what needs checking on his Commandes tab · lane P · on the branch, NOT merged, NOT deployed
+
+**Spec.**
+- Execution Contract §6: alerts on the minimum list.
+- Execution Contract §8 item 7: « **Alerts reach a named operator.** »
+- Execution Contract E2 exit: « DLQ + stuck-saga detection live ».
+- Shop-Plus-Build-Spec §7 SP6: the refund that cannot finish is told to the founder on his console. The existing refund pill is unchanged.
+- Ten Laws #2: the console computes no amount.
+- Contract §10.5: the French Voice Standard.
+
+**Built.**
+- Lane P built `9223740` and `3b60ebf`, then the review fix `e85f08b`.
+- The lane merged the coordinator's pin `5737774` as `f0240ce`. The whole slice is merged here `--no-ff` as `7af12ea`.
+- The verifier's fixes `8dc19e6` were merged here `--no-ff` as `5f75df2`.
+
+*Reader (`dispatch-service.ts`).*
+- `LivraisonRow.aVerifier` is parsed strictly, but a bad field never costs the row:
+  - a class this console does not know is kept as « autre », never dropped;
+  - an unreadable field becomes one « autre » item;
+  - the refund status and the phone beside it always survive.
+- 26 classes are named in `CLASSES_ALERTE`, each with its sentence in the catalog.
+- `compterDlq` reads exactly `/checkout/dlq?compte=1` with key C. A count it cannot read is never shown as 0.
+
+*Commandes tab (`screen.tsx`, `view.ts`).*
+- A second pill, « À vérifier », sits beside the order's pill. It never replaces it, and the refund pill stays byte-identical.
+- Opening the order names each alert in plain words with « il y a … », plus « D'autres alertes de cette commande n'ont pas pu être gardées. » when the record was clipped. That line carries no number: above its cap, the record counts a redelivered clipped alert again, so a figure could be false.
+- The head says how many orders need checking, counted once per order, and says nothing on a partial sweep. Beside it: « N messages de paiement refusés à lire », or « Le nombre … n'a pas pu être lu » when the count failed.
+- The orders Shop+ flags that his book does not list get a block above the segments, each with « Cette commande n'apparaît pas dans le carnet ci-dessous. » (true also when the book read is partial, or when he removed the order). It shows the order number, product version, quartier and pill. It never shows the buyer's contact.
+- The count shown is the last one read. A later key-C refusal or absence, a failed rows read, or a card that clears key C takes it away. While a reload is in flight it keeps the last count, like the rest of the tab's quiet refresh.
+
+*Catalog.* 36 new strings, approved one by one by the coordinator. The 26 alert sentences carry the money register where they speak of money. There is no « séquestre » and no « nos comptes ». Alerts are never cleared, so every sentence that spoke of the current state now speaks of what happened then (16 texts, approved after the verifier), and stays true after the problem is solved. Three sentences were split to fit the reading budget.
+
+*Gate.* `no-consumer-storefront` gained two allow entries tagged A-VERIFIER-1. They cover the two new test files, which are founder-only key-C reads, the same class as BC-1c. The count client was already carved out.
+
+*Existing walks.* Each change was ruled one by one:
+- `aVerifier: null` in the stand-in dispatch rows of 4 walk files;
+- the real Worker's object form on `ord-bloquee`, with its assertions untouched;
+- one zero-held count route per route list that reaches the count. That is 6 lines across 3 files.
+
+Each file was red on the new pin before its edit and green after.
+
+**Evidence.**
+- *Screen walk.* `test/rendu-commandes-a-verifier.test.tsx`, 7 of 7, over the dispatch page the real Shop+ Worker served (8 orders, every row a recorded form). The page was captured by Shop+'s own seam and never edited. Only `fetch` is faked. The walk checks:
+  - the tab survives;
+  - both reads are called with key C, and the count door is asked exactly `compte=1`;
+  - « 7 commandes à vérifier » and « Un message de paiement refusé à lire » appear, and exactly 6 « À vérifier » pills under « À traiter » (the clean order there carries none);
+  - the blocked order shows both pills, and opening it says why, « il y a 2 heures »;
+  - the 6 off-book orders open to their alerts; two of them carry the buyer's contact on the row, and not one byte of her phone, quartier or repère reaches the screen;
+  - a clipped record says so once, with no number;
+  - an unreadable count is said, never 0, and the refund pill still shows;
+  - a later key-C refusal takes the count away;
+  - with no key C, nothing is read and nothing is claimed;
+  - a clean tab (the captured clean row alone, in the recorded envelope: the only page not captured whole) shows no pill, no count line and no off-book block.
+- *Unit.* `test/a-verifier-lecture.test.ts`: the strict reader and the count reader.
+- *Seam.* Shop+'s `a-verifier.e2e.test.ts` drives this console's own port, bundled from this tree, against the real Shop+ Worker: 11 of 11.
+- *Mutations.* 14 in all, every one red, each anchor matched once and the file restored byte-identical:
+  - the console drops an unknown class;
+  - the new pill replaces the refund pill;
+  - the head counts an off-book order twice;
+  - the count read is skipped;
+  - the screen asks the full book;
+  - the count is not cleared on a key-C refusal;
+  - after the verifier: the off-book card renders the phone; the count line shows on 0; an in-book row given an empty alert object;
+  - plus the five on the Shop+ side.
+- Coordinator re-run on `5f75df2`: the walk and the reader 14/14; the count line on 0 red, restored by `cmp`.
+- **Coordinator board of record on `5f75df2`** (`pnpm install --frozen-lockfile`, `pnpm build`, `TURBO_CONCURRENCY=1 run-gates.sh`): ALL GATES GREEN, and every negative fixture failed as required. It covers typecheck across the workspace, the supplier app 1275/1275, the offer service 476/476, media 134/134, and the three in-repo mocks certified. (The first board, on `7af12ea` before the verifier's fixes, was green too.)
+
+**Verifier.** One fresh-context pass. It was given only the spec quotes, the brief with its definition of done, the rulings, and the three diffs (`078243a..b5fec57`, `9870d3b..88251fe`, `fa6af67..7af12ea`). It read the code and ran no suite. Verdict: 0 blockers, 6 should-fix, 7 notes.
+
+It found sound:
+- no personal data, amount, provider key or event body in the row;
+- the key list grows by exactly `aVerifier`;
+- the refund field and the refund pill are untouched;
+- the strict reader: an unknown class becomes « autre », and a bad field never costs the row;
+- the count door: key C first, exactly `?compte=1`, numbers only, every other query byte-identical;
+- an unreadable count is never shown as 0;
+- each order is counted once;
+- the seam drives the real port, and the walk mounts the real screen;
+- the strings, the scope and the release order.
+
+Each finding was handled once, and the slice was not re-inspected:
+- *Should-fix, fixed: sentences about the current state.* Alerts are never cleared, so a payment that answered late, or a refund confirmed later, read false. Every such sentence now says what happened then: 16 texts, not only the 4 named.
+- *Should-fix, fixed: the capture comparison.* The seam compared only the keys and a few fields of the captured page. It now compares each row whole. It masks only what the Worker's own clock and random source write, and checks each masked value against its pattern. One changed byte goes red.
+- *Should-fix, fixed: « never her contact ».* That walk assertion could not fail, because no captured row carried a contact. Two new captured orders now carry one, the seam's own input. The walk asserts that none of it reaches the screen, and a mutation that renders the phone goes red.
+- *Should-fix, fixed: missing on-screen checks.* The clean state, the exact pill count and the refund pill under an unreadable count were not asserted on screen. Added:
+  - a clean-tab walk;
+  - an exact count of 6 pills under « À traiter »;
+  - the refund pill check.
+
+  Two mutations each go red: showing the count line on 0, and giving in-book rows an empty alert object.
+- *Should-fix, fixed: the off-book sentence.* « pas encore dans le carnet » was false when the book read is partial or when he removed the order. It is now « n'apparaît pas dans le carnet ci-dessous », which is true in every case. There is no logic change, so flagged orders stay visible.
+- *Should-fix, fixed: the clipped count.* A stuck mark that the cap clipped was shown again from its own key, and still counted as clipped. The count now leaves it out: 53 alerts, 51 shown, 2 clipped.
+- *Journalled: redelivered clipped alerts.* Above its cap, the alert record counts a redelivered clipped alert again. This predates the slice. It is closed on screen, because the clipped line carries no number. The record itself is out of scope.
+- *Journalled: alert names.* The class name comes only from fixed names in the code, at every place that mints an alert. A check for a case that cannot occur is out under the working law. A stored alert with no body cannot occur today either.
+- *Journalled: a ruled deviation.* The refund walk's object form on `ord-bloquee` goes beyond the C2 ruling that existing walks only gain `aVerifier: null`. It was ruled at the time, because no recorded null form exists for that row, and it is listed here.
+- *Fixed in part, rest journalled: Worker roads never raised end to end.*
+  - The supplier-never-told road, and its clipped re-show, are now raised on the real Worker and read through the console's port.
+  - The refund-never-confirmed road is raised and asserted on the Worker's door and through the port, but as the file's last test, off the capture. Its row (`confirmed` with `bloque / sans_confirmation`) is not a recorded form yet, so no Boutik+ walk may read it. Recording it is a canon step for a later slice.
+- *Journalled: alert times.* A webhook alert's time is the provider's own signed time, as ruled. A future time reads « À l'instant ».
+- *Journalled: reloads.* During a reload, the count keeps the last one read until this pass answers, like the rest of the tab's quiet refresh.
+- *Journalled: release.* The platform-contracts merge must keep its commit, never a squash, because both pins point at it. A full record opens as 50 identical sentences; grouping them is the named follow-on.
+
+**Release.** On the founder's word, after the platform-contracts merge and the Shop+ storefront deploy and merge: this PR merges, and once `ci` is green on main, the console publishes from main with `web-deploy.yml` (Pages; it goes live only from main's newest green commit) and is checked.
+
+**Still open (own slices).**
+- Acknowledging or clearing an alert.
+- Grouping unanswered payments. An abandoned checkout keeps its stuck-payment alert (see the Shop+ journal).
+- A push channel.
+
 ## 2026-11-26 · DEPLOYED on the founder's word: offer Worker, supplier page, console (main `6bdc260`)
 
 **Founder order (2026-11-26 05:44 UTC).** « Ship them now », answering the report that named the supplier web page, the console and the offer service as ready to deploy.
