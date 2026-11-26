@@ -252,7 +252,11 @@ function LivreCommandes({
       else echec = true;
     }
     const dispatch = resolveDispatchService();
-    if (cleC === null || dispatch === null) setLivraisons('cle_c_absente');
+    // The count is shown only when THIS pass read it.
+    if (cleC === null || dispatch === null) {
+      setLivraisons('cle_c_absente');
+      setDlq(null);
+    }
     else {
       const l = await dispatch.listLivraisons(cleC);
       if (l.ok) {
@@ -269,9 +273,11 @@ function LivreCommandes({
         clearStoredCleC();
         setCleCRefusee(true);
         setLivraisons('cle_c_absente');
+        setDlq(null);
       } else {
         echec = true;
         setLivraisons('echec');
+        setDlq(null);
       }
     }
     setLectureEchouee(echec);
@@ -477,6 +483,7 @@ function LivreCommandes({
                 clearStoredCleC();
                 setCleCRefusee(true);
                 setLivraisons('cle_c_absente');
+                setDlq(null);
               }}
               onChanged={() => void charger()}
               onCleRefusee={onCleRefusee}

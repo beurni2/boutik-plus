@@ -186,6 +186,36 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     screen.unmount();
   });
 
+  it('a later reload that finds key C refused takes the count away — a number is shown only when it was read', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // The first read of the rows answers; every later one is refused (the
+    // key was rotated). The reload is the one « Noter : j’ai appelé » makes.
+    let lectures = 0;
+    const fil = wire([
+      (path) => {
+        if (path !== '/checkout/dispatch') return null;
+        lectures += 1;
+        return lectures === 1 ? { status: 200, json: PAGE } : { status: 401, json: { error: 'unauthorized' } };
+      },
+      (path, body) =>
+        path === '/fulfillment/relance' && typeof body?.['orderId'] === 'string' ? { status: 200, json: { ok: true } } : null,
+      ...routesAvec(dlqUn),
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(screen.texts()).toContain('Un message de paiement refusé à lire');
+
+    await screen.press('Bazin riche');
+    await screen.press('Noter : j’ai appelé');
+    await screen.settle();
+    expect(lectures, 'the tab was not read again').toBeGreaterThan(1);
+    expect(fil.calls.filter((c) => c.path === '/checkout/dlq').length, 'the count was asked again').toBe(1);
+    expect(screen.shows('message de paiement refusé à lire'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    // The tree survived: the book is still there.
+    expect(screen.shows('Bazin riche')).toBe(true);
+    screen.unmount();
+  });
+
   it('without key C nothing is read from Shop+ and nothing is claimed', async () => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops' });
     const fil = wire(routesAvec(dlqRefuse));
