@@ -34,10 +34,15 @@ const capture = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/a-verifier-lignes.json'), 'utf8'),
 ) as { roles: Record<string, string>; pages: string[] };
 const R = capture.roles as Record<
-  'montant_faux' | 'paye_apres_echec' | 'paiement_en_attente' | 'propre' | 'remboursement_bloque' | 'fiche_pleine',
+  | 'montant_faux' | 'paye_apres_echec' | 'paiement_en_attente' | 'propre' | 'remboursement_bloque' | 'fiche_pleine'
+  | 'fournisseur_jamais_prevenu' | 'fiche_pleine_fournisseur',
   string
 >;
-const PAGE = JSON.parse(capture.pages[0]!) as Record<string, unknown>;
+const PAGE = JSON.parse(capture.pages[0]!) as { ok: true; orders: Record<string, unknown>[] };
+/** The buyer's contact the seam gave the orders that carry one. */
+const CONTACT = { phone: '70 33 44 55', quartier: 'Tampouy', repere: 'Derrière la mosquée' };
+/** The two in-book orders, the six off-book ones, the seven flagged — from the capture. */
+const HORS_CARNET = [R.montant_faux, R.paye_apres_echec, R.paiement_en_attente, R.fiche_pleine, R.fournisseur_jamais_prevenu, R.fiche_pleine_fournisseur];
 
 const BASE = {
   productPhotoRef: '',
@@ -96,7 +101,7 @@ afterEach(() => {
 });
 
 describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes tab', () => {
-  it('the head counts five orders and one refused payment message, both read with his key C', async () => {
+  it('the head counts seven orders and one refused payment message, both read with his key C', async () => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
     const fil = wire(routesAvec(dlqUn));
     const screen = await mountEcran(<SCommandesReel />);
@@ -110,9 +115,13 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     // Exactly the count, never the full book.
     expect(requetesDlq).toEqual(['compte=1']);
 
-    // Five of the six real rows carry alerts; the clean one does not.
-    expect(screen.texts(), `On screen: ${JSON.stringify(screen.texts())}`).toContain('5 commandes à vérifier');
+    // Seven of the eight real rows carry alerts; the clean one does not.
+    expect(screen.texts(), `On screen: ${JSON.stringify(screen.texts())}`).toContain('7 commandes à vérifier');
     expect(screen.texts()).toContain('Un message de paiement refusé à lire');
+    // Under « À traiter »: the six off-book cards carry the pill; the clean
+    // order there carries none.
+    expect(screen.shows('Bazin riche')).toBe(true);
+    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(6);
     screen.unmount();
   });
 
@@ -127,14 +136,15 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     await screen.press('Incidents');
     expect(screen.shows('Sac en cuir')).toBe(true);
     expect(screen.texts()).toContain('Remboursement bloqué');
-    // Its card: both pills. Four off-book cards + this one = five « À vérifier ».
-    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(5);
+    // Its card: both pills. Six off-book cards + this one = seven « À vérifier ».
+    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(7);
 
     await screen.press('Sac en cuir');
     expect(screen.canPress('Retirer cette commande'), 'the card did not open').toBe(true);
-    expect(screen.texts()).toContain(
-      'Le message de refus de Séra n’a pas pu être lu : le remboursement n’a pas commencé. · il y a 2 heures'.replace(/’/g, "'"),
-    );
+    // Its time is the Worker's own clock (masked in the capture): the sentence is pinned.
+    expect(screen.shows(
+      "Un message de refus de Séra n'a pas pu être lu. À ce moment-là, le remboursement n'a pas pu commencer. · ",
+    ), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
     screen.unmount();
   });
 
@@ -144,23 +154,41 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     const screen = await mountEcran(<SCommandesReel />);
     await screen.settle();
 
-    for (const id of [R.montant_faux, R.paye_apres_echec, R.paiement_en_attente, R.fiche_pleine]) {
+    for (const id of HORS_CARNET) {
       expect(screen.texts(), `${id} missing`).toContain(id);
     }
-    expect(screen.texts().filter((t) => t === 'Cette commande n\'est pas encore dans le carnet du fournisseur.').length).toBe(4);
-    // Never her contact: the captured rows carry none for these, and the cards
-    // show no phone shape at all.
-    expect(screen.texts().some((t) => /\b\d{2} \d{2} \d{2} \d{2}\b/.test(t))).toBe(false);
+    expect(screen.texts().filter((t) => t === 'Cette commande n\'apparaît pas dans le carnet ci-dessous.').length).toBe(6);
+    // Never her contact: two of these rows carry it (the seam's own input), and
+    // not one of its bytes reaches the screen — nor any phone shape at all.
+    const jamais = () => {
+      for (const t of screen.texts()) {
+        for (const octet of [CONTACT.phone, CONTACT.quartier, CONTACT.repere]) expect(t.includes(octet), `« ${octet} » on screen`).toBe(false);
+        expect(/\b\d{2} \d{2} \d{2} \d{2}\b/.test(t), t).toBe(false);
+      }
+    };
+    jamais();
 
     await screen.press(R.montant_faux);
     expect(screen.texts()).toContain('Le montant payé ne correspond pas au prix de la commande. · il y a 2 heures');
-    expect(screen.texts()).toContain(
-      'Le paiement de la cliente attend toujours la réponse du service de paiement. La commande n\'est pas encore confirmée. · il y a 2 heures',
-    );
+    // The alarm's own time is masked in the capture: the sentence is pinned.
+    expect(screen.shows(
+      "Le service de paiement n'a pas répondu à temps pour le paiement de la cliente. Regardez si la commande est confirmée. · ",
+    ), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
 
-    // The full record: what the cap could not keep is said, once.
+    // The supplier never told: its card opens to that sentence, and still no contact.
+    await screen.press(R.fournisseur_jamais_prevenu);
+    expect(screen.shows("Cette commande est payée, mais le fournisseur n'a pas été prévenu à temps. · ")).toBe(true);
+    jamais();
+
+    // The full records: what the cap could not keep is said, with no number.
+    const coupees = "D'autres alertes de cette commande n'ont pas pu être gardées.";
     await screen.press(R.fiche_pleine);
-    expect(screen.texts()).toContain('Et 3 autres alertes que la fiche n\'a pas pu garder.');
+    expect(screen.texts().filter((t) => t === coupees)).toHaveLength(1);
+    // One off-book card is open at a time: this one replaces the last.
+    await screen.press(R.fiche_pleine_fournisseur);
+    expect(screen.texts().filter((t) => t === coupees)).toHaveLength(1);
+    expect(screen.texts().filter((t) => t.startsWith("Cette commande est payée, mais le fournisseur n'a pas été prévenu à temps."))).toHaveLength(1);
+    jamais();
 
     await screen.press(R.paye_apres_echec);
     expect(screen.texts()).toContain(
@@ -182,7 +210,9 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
       'Le nombre de messages de paiement refusés n\'a pas pu être lu. Réessayez plus tard.',
     );
     expect(screen.shows('message de paiement refusé à lire')).toBe(false);
-    expect(screen.texts()).toContain('5 commandes à vérifier');
+    expect(screen.texts()).toContain('7 commandes à vérifier');
+    await screen.press('Incidents');
+    expect(screen.texts()).toContain('Remboursement bloqué');
     screen.unmount();
   });
 
@@ -213,6 +243,32 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     expect(screen.shows('message de paiement refusé à lire'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
     // The tree survived: the book is still there.
     expect(screen.shows('Bazin riche')).toBe(true);
+    screen.unmount();
+  });
+
+  it('a clean tab: the rows and the count are read, and nothing on screen says there is anything to check', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // The ONE page here not captured whole: the recorded envelope holding exactly
+    // the captured clean row, its bytes unchanged. The harness checks it like any page.
+    const propre = PAGE.orders.find((r) => r['orderId'] === R.propre)!;
+    const fil = wire([
+      (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [PROPRE] } } : null),
+      (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
+      (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dispatch' ? { status: 200, json: { ok: true, orders: [propre] } } : null),
+      (path, _b, search) =>
+        path === '/checkout/dlq' && search.toString() === 'compte=1' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(fil.calls.some((c) => c.path === '/checkout/dispatch'), 'the rows were never read').toBe(true);
+    expect(fil.calls.filter((c) => c.path === '/checkout/dlq')).toHaveLength(1);
+    expect(screen.shows('Bazin riche')).toBe(true);
+    expect(screen.shows('À vérifier'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.shows('à vérifier')).toBe(false);
+    expect(screen.shows('message de paiement refusé')).toBe(false);
+    expect(screen.shows('messages de paiement refusés')).toBe(false);
+    expect(screen.shows("n'apparaît pas dans le carnet")).toBe(false);
     screen.unmount();
   });
 

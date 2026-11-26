@@ -185,10 +185,10 @@ export function phraseAlerte(e: ElementAVerifier, nowMs: number): { readonly phr
   return { phrase, quand: d === 'commandes.instant' ? tr(d) : tr('commandes.a_verifier_il_y_a').replace('{d}', d) };
 }
 
-/** What the record's cap could not keep, said once under the items. */
+/** What the record's cap could not keep, said once under the items — with no
+ *  number: a full record counts redeliveries again, so a figure could be false. */
 export function phraseCoupees(coupees: number): string | null {
-  if (coupees <= 0) return null;
-  return coupees === 1 ? tr('commandes.a_verifier_coupees_un') : tr('commandes.a_verifier_coupees').replace('{n}', String(coupees));
+  return coupees > 0 ? tr('commandes.a_verifier_coupees') : null;
 }
 
 /**

@@ -5281,7 +5281,7 @@
   },
   {
     "key": "commandes.a_verifier_hors_carnet",
-    "fr": "Cette commande n'est pas encore dans le carnet du fournisseur.",
+    "fr": "Cette commande n'apparaît pas dans le carnet ci-dessous.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5292,32 +5292,26 @@
     "screenClass": "label"
   },
   {
-    "key": "commandes.a_verifier_coupees_un",
-    "fr": "Et 1 autre alerte que la fiche n'a pas pu garder.",
-    "register": "neutral",
-    "screenClass": "status"
-  },
-  {
     "key": "commandes.a_verifier_coupees",
-    "fr": "Et {n} autres alertes que la fiche n'a pas pu garder.",
+    "fr": "D'autres alertes de cette commande n'ont pas pu être gardées.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_stuck_paiement",
-    "fr": "Le paiement de la cliente attend toujours la réponse du service de paiement. La commande n'est pas encore confirmée.",
+    "fr": "Le service de paiement n'a pas répondu à temps pour le paiement de la cliente. Regardez si la commande est confirmée.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_stuck_fournisseur",
-    "fr": "Cette commande est payée, mais le fournisseur n'a pas encore été prévenu.",
+    "fr": "Cette commande est payée, mais le fournisseur n'a pas été prévenu à temps.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_stuck_remboursement",
-    "fr": "Le remboursement est demandé, mais le service de paiement ne l'a pas encore confirmé.",
+    "fr": "Le remboursement a été demandé, mais le service de paiement ne l'a pas confirmé à temps.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5371,7 +5365,7 @@
   },
   {
     "key": "commandes.alerte_refusal_fact_unreadable",
-    "fr": "Le message de refus de Séra n'a pas pu être lu : le remboursement n'a pas commencé.",
+    "fr": "Un message de refus de Séra n'a pas pu être lu. À ce moment-là, le remboursement n'a pas pu commencer.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5383,7 +5377,7 @@
   },
   {
     "key": "commandes.alerte_eligibility_before_funded_legs",
-    "fr": "Séra a validé la livraison avant que tout soit payé. Rien n'est encore noté pour le fournisseur ni la revendeuse.",
+    "fr": "Séra a validé la livraison avant que tout soit payé. À ce moment-là, rien n'était noté pour le fournisseur ni la revendeuse.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5401,61 +5395,61 @@
   },
   {
     "key": "commandes.alerte_confirmed_without_funded_checkout_leg",
-    "fr": "La commande est confirmée, mais son paiement n'est pas noté.",
+    "fr": "La commande a été confirmée sans que son paiement soit noté.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_escrow_without_paid_order",
-    "fr": "De l'argent est noté pour une commande qui n'est pas payée.",
+    "fr": "De l'argent a été noté pour une commande qui n'était pas payée.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_door_projection_diverges_from_escrow",
-    "fr": "Le paiement à la porte ne correspond pas à ce qui est noté.",
+    "fr": "Le paiement à la porte ne correspondait pas à ce qui était noté.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_obligations_on_refunded_order",
-    "fr": "Des paiements au fournisseur ou à la revendeuse sont notés sur une commande remboursée.",
+    "fr": "Des paiements au fournisseur ou à la revendeuse ont été notés sur une commande remboursée.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_obligations_without_confirmed_order",
-    "fr": "Des paiements au fournisseur ou à la revendeuse sont notés sur une commande pas confirmée.",
+    "fr": "Des paiements au fournisseur ou à la revendeuse ont été notés sur une commande pas confirmée.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_obligations_while_door_leg_due",
-    "fr": "Des paiements au fournisseur ou à la revendeuse sont notés. Mais la cliente n'a pas encore payé à la porte.",
+    "fr": "Des paiements au fournisseur ou à la revendeuse ont été notés. La cliente n'avait pas encore payé à la porte.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_obligation_diverges_from_quote",
-    "fr": "Un paiement au fournisseur ou à la revendeuse ne correspond pas au prix de la commande.",
+    "fr": "Un paiement au fournisseur ou à la revendeuse ne correspondait pas au prix de la commande.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_provider_charge_unmatched_in_ledger",
-    "fr": "Le service de paiement a reçu un paiement qui n'est pas noté chez nous.",
+    "fr": "Le service de paiement a reçu un paiement qui n'était pas noté chez nous.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_provider_amount_diverges_from_ledger",
-    "fr": "Le montant du service de paiement ne correspond pas à ce qui est noté chez nous.",
+    "fr": "Le montant du service de paiement ne correspondait pas à ce qui était noté chez nous.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "commandes.alerte_ledger_leg_unmatched_at_provider",
-    "fr": "Un paiement est noté chez nous, mais le service de paiement ne le connaît pas.",
+    "fr": "Un paiement était noté chez nous, mais le service de paiement ne le connaissait pas.",
     "register": "money",
     "screenClass": "status"
   },
