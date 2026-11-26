@@ -3,6 +3,34 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · DEPLOYED on the founder's word: offer Worker, supplier page, console (main `6bdc260`)
+
+**Founder order (2026-11-26 05:44 UTC).** « Ship them now », answering the report that named the supplier web page, the console and the offer service as ready to deploy.
+
+**What each deploy carried (read before dispatching, runtime files only).**
+- Offer Worker, last deployed at `bb7af22` (offer-deploy 50): only the library update (zod 4.6.7 in its package file and the lock file). Nothing else under `services/` or the bundled packages changed.
+- Console, last deployed at `a864fa7` (web-deploy 87): the library update and B1 (the fund desk refuses a 0-franc claim and names the book's refusal).
+- Supplier page, last deployed at `d179077` (fournisseur-web-deploy 30): the library update, plus the 26 unused strings of the retired old-codes desk dropped (recorded as riding until its next deploy, CODES-RETIRES-1). The fund desk is not on this surface.
+
+**Deploys (all from `main` `6bdc260`, the deploy lock confirmed main's newest commit with ci 385 green on it).**
+- **offer-deploy 51:** upload 1012.40 KiB / gzip 167.23 KiB; the Séra intake key and the supplier attestations (1 id) written again as on every run; « PROVENANCE OK — live Worker is `6bdc260` speaking canon 3.26.0 ».
+- **fournisseur-web-deploy 31:** capability ruling holds on the deployed artifact (authoring client absent); every never-ships needle absent; « web-size OK — fournisseur first load: 453.2 KB gzip (464 065 B) … within the signed ceiling of 460.0 KB (471 040 B) »; offline shell OK.
+- **web-deploy 88 (console):** every never-ships needle absent, « bac à sable » included; « web-size OK — console first load: 514.9 KB gzip (527 233 B) … within the signed ceiling of 530.0 KB (542 720 B) » (the DEP-B note projected about 527 100 B); offline shell OK.
+
+**Not deployed.** The media Worker also resolves the shared canon packages, so its next deploy takes zod 4.6.7 too; it was not named and keeps running its earlier build.
+
+---
+
+## 2026-11-26 · DEP-B library update MERGED on the founder's approval (PR #2)
+
+**Founder order (2026-11-26 05:22 UTC).** « Go on all three », on the decision card after the report of Boutik+ PR #2, Séra PR #1 and Shop+ PR #1.
+- **Re-checked before merging:** `main` had not moved (`36ce921`). Merged as `6bdc260` (merge commit; `12affd8`, its merge `fd8580e` and the journal `2c23852` kept). PR gates green on `2c23852`.
+- **expo-preview 261 green:** the supplier app is published on the new libraries.
+- **ci 385 green** on `6bdc260` — the first fully green `main` run since the dependency-audit baseline went red.
+- **Not deployed:** the supplier web page, the console and the offer Worker take zod 4.6.7 only when their deploys run, each on the founder's word. The console's first deploy read-back gives its real size headroom (verifier note: its deploy build has run ~5.8 KB above its board build).
+
+---
+
 ## 2026-11-26 · DEP-B — library update: shell-quote 1.12.0 and zod 4.6.7, supplier page limits re-signed · on the branch, NOT merged, NOT deployed
 
 **Founder order (2026-11-26 04:24 UTC).** « go », on « updating the libraries ». Built by the coordinator (lock file and package files are coordinator-only), in its own worktree, as `12affd8` from `main` `36ce921`; merged here `--no-ff` at `fd8580e`.
