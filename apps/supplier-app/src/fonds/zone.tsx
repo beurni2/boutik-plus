@@ -70,6 +70,7 @@ const RAISON_MESSAGE: Record<Exclude<ActeFondsResult, { ok: true }>['reason'], s
   close_reason_required: 'fonds.motif_requis',
   sera_routing: 'fonds.faute_sera_note',
   invalid: 'fonds.champ_manquant',
+  zero_amount: 'fonds.montant_zero',
   unreachable: 'fonds.injoignable',
 };
 
@@ -498,6 +499,12 @@ function OuvrirReclamation({ busy, onOuvrir }: {
                 const m = montantEntier(montant);
                 if (m === null) {
                   setRefus('fonds.montant_invalide');
+                  return;
+                }
+                // A claim opens only for money owed: refused here, before the
+                // append-only book, and said as what it is.
+                if (m === 0) {
+                  setRefus('fonds.montant_zero');
                   return;
                 }
                 setRefus(null);

@@ -3060,6 +3060,12 @@
     "screenClass": "status"
   },
   {
+    "key": "fonds.montant_zero",
+    "fr": "Une réclamation s'ouvre seulement pour un montant dû — écrivez un montant plus grand que 0.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
     "key": "fonds.fermer",
     "fr": "Fermer",
     "register": "neutral",
