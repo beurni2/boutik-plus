@@ -3,6 +3,24 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · VIDEO-SANS-LIEU-1 — MERGED, then the media Worker and the console DEPLOYED
+
+**Founder.** « Release all three » (2026-11-26 21:17 UTC, decision card), which named for Boutik+: merge, then put the media service live, then the console.
+
+**Merge.** main re-checked unchanged at `2923492`; PR #4 merged as `cd822eb`. On main: ci 389 green · expo-preview 263 (supplier app) green.
+
+**Deploy.**
+- media-deploy 14 (id 45897924800) from main `cd822eb`: the deploy lock confirmed main's newest commit, green in ci; « PROVENANCE OK — live media Worker is `cd822eb…` speaking canon 3.26.0 ». The last media deploy was 13, at `bb7af22` (2026-09-29); the only media-service commits since are this slice's two.
+- web-deploy 90 (id 45898106811) from main `cd822eb`, after it: the deploy lock confirmed main's newest commit, green in ci. Every never-ships needle absent, « bac à sable » included; « web-size OK — console first load: 517.2 KB gzip (529585 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 529 493 B at web-deploy 89; 13 135 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Not deployed.** The supplier page: only a comment changed in the supplier app's source, and it was not named. The offer Worker is untouched by this slice.
+
+**Not checked.** No real phone file has gone through the new walk; every phone layout in the tests is hand-built. The check runs on new uploads only. The entry below says a clip stored before this change « is checked at release »: it was not, because the live services cannot be read from where this release ran, and it stays open. Both were in the report he approved.
+
+**Still open.** A real phone clip through the walk (two short test clips asked of the founder); the voice-note upload; the pick gesture itself is not walked (since MEDIA-PORTE-1).
+
+---
+
 ## 2026-11-26 · VIDEO-SANS-LIEU-1 — a product clip that still says where it was filmed is refused, and the console says why · lane B2 · on the branch, NOT merged, NOT deployed
 
 **Founder ruling (2026-11-26, project chat):** « refuse any clip still carrying a location, with a clear message, never edit the clip ». This closes the 2026-09-29 hold on the clip's filming place (« what to do … two real phone clips »). The « clean it » half is NOT built: no stripping and no re-muxing. Started on his « go » (19:26 UTC).
