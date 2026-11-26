@@ -3,6 +3,17 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · B1 fund desk MERGED on the founder's approval (PR #1)
+
+**Founder order (2026-11-26 04:23 UTC).** « approved », on the B1 report and PR #1.
+- **Re-checked before merging:** `main` had not moved (`d1a4d72`). Merged as `36ce921` (merge commit; the lane shas `1438a3f`, `f26cd2c` and the journal `eb1f386` kept). Its tree is byte-identical to the PR head's (`31c9db6`).
+- **expo-preview 260 green:** the supplier app is published with the 0-franc refusal.
+- **ci 383 red, only on the recorded baseline:** `dependency-audit-positive` (critical shell-quote under react-native's devtools, high zod under catalog-service). supplier-app `1254 passed | 7 skipped (1261)`; copy-lint `874 entries, 0 violations`. Same as the PR's own run.
+- **Release order kept:** the platform fund service that answers `zero_claim_amount` was deployed only after expo-preview 260 (see the platform journal).
+- **This entry** is on the designated branch only; it reaches `main` with the next merge the founder approves.
+
+---
+
 ## 2026-11-26 · B1 — fund desk: a 0-franc claim is refused on screen and named when the book refuses it · on the branch, NOT merged
 
 **Lane B, one task agent, coordinated.** Lane commits `1438a3f` + `f26cd2c` (branch `claude/project-thread-10n1jr`, from `main` `d1a4d72`), merged here with `--no-ff` so their shas are kept. Four files, all on the written claim: `apps/supplier-app/src/fonds/service.ts` (+2), `apps/supplier-app/src/fonds/zone.tsx` (+9/-1), `apps/supplier-app/i18n/catalog.json` (+1 entry), `apps/supplier-app/test/rendu-fonds.e2e.test.tsx` (+76/-1).
