@@ -5323,7 +5323,7 @@
   },
   {
     "key": "commandes.alerte_genuine_webhook_after_local_failure",
-    "fr": "Le service de paiement dit que la cliente a payé, mais la commande était déjà notée comme non payée.",
+    "fr": "Le service de paiement dit que la cliente a payé. Mais la commande était déjà notée comme non payée.",
     "register": "money",
     "screenClass": "status"
   },
@@ -5431,7 +5431,7 @@
   },
   {
     "key": "commandes.alerte_obligations_while_door_leg_due",
-    "fr": "Des paiements au fournisseur ou à la revendeuse sont notés, mais la cliente n'a pas encore payé à la porte.",
+    "fr": "Des paiements au fournisseur ou à la revendeuse sont notés. Mais la cliente n'a pas encore payé à la porte.",
     "register": "money",
     "screenClass": "status"
   },

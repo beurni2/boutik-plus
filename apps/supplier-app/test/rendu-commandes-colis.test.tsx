@@ -45,7 +45,7 @@ const C2 = { ...BASE, orderId: 'c2', productVersionId: 'pv-c2', productName: 'Sa
 
 const dispatch = (orderId: string, remboursement: unknown, contact: unknown) => ({
   ok: true, exists: true, orderId, state: 'confirmed', createdAt: '2026-09-23T07:00:00.000Z',
-  contact, productVersionId: `pv-${orderId}`, zoneTo: 'Ouagadougou', remboursement,
+  contact, productVersionId: `pv-${orderId}`, zoneTo: 'Ouagadougou', remboursement, aVerifier: null,
 });
 
 const LIBRE = {
@@ -66,6 +66,7 @@ function routes(): { routes: Route[]; admise: { v: boolean } } {
       (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [C1, C2] } } : null),
       (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
       (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
       (path) =>
         path === '/checkout/dispatch'
           ? {

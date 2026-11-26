@@ -1,4 +1,4 @@
-import type { RemboursementOperateur } from '../operations/dispatch-service';
+import type { AVerifier, ElementAVerifier, LivraisonRow, RemboursementOperateur } from '../operations/dispatch-service';
 import { t as tr } from '../i18n';
 import type { PaidOrderRow, SupplierContact } from '../operations/service';
 
@@ -165,4 +165,41 @@ export function raisonBlocage(r: RemboursementOperateur | undefined): string | n
     : r.raison === 'sans_confirmation'
       ? 'commandes.remb_bloque_sans_confirmation'
       : 'commandes.remb_bloque_illisible';
+}
+
+/**
+ * « À vérifier » — the second pill, beside the one that says where the order
+ * stands (never in its place: a blocked refund and an alert are two facts).
+ * Absent when Shop+'s row says there is nothing to check.
+ */
+export function pilluleAVerifier(av: AVerifier | undefined): { readonly label: string; readonly ton: 'alerte' } | null {
+  return av === undefined ? null : { label: 'commandes.pill_a_verifier', ton: 'alerte' };
+}
+
+/** One alert in his words, with how long ago it was raised when Shop+ gave a time. */
+export function phraseAlerte(e: ElementAVerifier, nowMs: number): { readonly phrase: string; readonly quand: string | null } {
+  const phrase = tr(`commandes.alerte_${e.classe}`);
+  if (e.le === undefined) return { phrase, quand: null };
+  const d = attenteDepuis(e.le, nowMs);
+  if (d === '') return { phrase, quand: null };
+  return { phrase, quand: d === 'commandes.instant' ? tr(d) : tr('commandes.a_verifier_il_y_a').replace('{d}', d) };
+}
+
+/** What the record's cap could not keep, said once under the items. */
+export function phraseCoupees(coupees: number): string | null {
+  if (coupees <= 0) return null;
+  return coupees === 1 ? tr('commandes.a_verifier_coupees_un') : tr('commandes.a_verifier_coupees').replace('{n}', String(coupees));
+}
+
+/**
+ * The orders to check: every key-C row carrying alerts, counted once per order
+ * whether it sits in the supplier's book or in the block above the segments.
+ * `horsCarnet` keeps Shop+'s order for the rows the book does not hold yet.
+ */
+export function aVerifierCommandes(
+  livraisons: ReadonlyMap<string, LivraisonRow>,
+  bookOrderIds: ReadonlySet<string>,
+): { readonly total: number; readonly horsCarnet: readonly LivraisonRow[] } {
+  const avec = [...livraisons.values()].filter((r) => r.aVerifier !== undefined);
+  return { total: avec.length, horsCarnet: avec.filter((r) => !bookOrderIds.has(r.orderId)) };
 }
