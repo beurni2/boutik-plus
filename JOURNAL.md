@@ -3,6 +3,26 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · DEP-B — library update: shell-quote 1.12.0 and zod 4.6.7, supplier page limits re-signed · on the branch, NOT merged, NOT deployed
+
+**Founder order (2026-11-26 04:24 UTC).** « go », on « updating the libraries ». Built by the coordinator (lock file and package files are coordinator-only), in its own worktree, as `12affd8` from `main` `36ce921`; merged here `--no-ff` at `fd8580e`.
+
+**What changed (4 files).**
+- `pnpm-lock.yaml`: shell-quote `1.9.0 → 1.12.0` under react-native's devtools (inside react-devtools-core's own `^1.6.1`); zod `4.4.3 → 4.6.7` everywhere it resolves, with one dedupe moving the shared rules packages (`@platform/contracts`, `@platform/i18n`, `@platform/kernel-types`, `@platform/certification`) and the build tools (`eas-cli`, `@expo/eas-build-job`) onto the same copy. zod `3.25.76` under `@expo/cli` stays (native build step, allow-listed). Two metadata lines pnpm rewrote itself, both matching the registry: `@expo/bunyan` engines and an `http-call` `deprecated:` line. Package and snapshot key sets unchanged (1 054 before and after); integrity values match the registry for both versions.
+- `services/catalog-service/package.json`, `services/offer-service/package.json`: only `zod` `^4.1.5 → ^4.6.7`.
+- `gates/web-budgets.json`: zod 4.6 adds code the bundle cannot drop (a schema compiler, 11 new error-message languages, larger core schemas): +28 719 B gzip on the supplier page, +28 700 B on the console. **Founder signature 2026-11-26 04:39 UTC, « Raise both limits »:** supplier page `440 320 → 471 040 B` (460 KB), console `512 000 → 542 720 B` (530 KB).
+
+**Evidence.**
+- `dependency-audit-positive`: red on `main` (critical shell-quote, high zod under catalog-service), OK on `12affd8` (« critical 0 · high 41 », only allow-listed build tooling). A narrower fix without the dedupe was tried first and left zod 4.4.3 under the shared rules packages: still red.
+- Board before the limit change: only `web-size` red (supplier 463 994 B over 440 320; console 521 281 B over 512 000); every suite green.
+- **Board of record on `12affd8`:** `pnpm install --frozen-lockfile`, `pnpm build`, `run-gates.sh` (86 gates) — **ALL GATES GREEN**. `web-size` OK on both pages (463 994 B within 471 040; 521 281 B within 542 720); copy-lint 874/0; supplier-app 1254 passed / 7 skipped, offer-service 476, media-service 134, fulfillment-service 45, catalog-service 16. The package suites were replayed from the turbo cache of the full run on the same inputs one commit earlier (only the budgets file differs); the gates ran fresh.
+
+**Verifier.** One fresh-context pass, handled once: 0 blocker · 0 major · 1 minor · 4 note. The minor (the signed note named the compiler as the whole growth and mixed two meanings of « KB ») is fixed in the wording above and in the commit message. Notes, recorded: the console's deploy build has run about 5.8 KB above its board build, so the first deploy read-back gives the real headroom (projected ~527 100 B of 542 720); the Workers built on the canon packages grow too (offer Worker 123 408 → 160 542 B gzip), with no Worker size gate and far below Cloudflare's limits; zod 4.6 tightens a few formats the canon does not use today (datetime seconds, ulid, base64url, email); the other repositories still resolve zod 4.4.3 (Shop+ follows after its current slice). A differential run of 110 canon schemas × 6 170 inputs gave byte-identical results under both versions.
+
+**Release.** Merging publishes the supplier app (expo-preview). The supplier web page, the console and the offer Worker take the new zod only when their deploys run, each on the founder's word.
+
+---
+
 ## 2026-11-26 · B1 fund desk MERGED on the founder's approval (PR #1)
 
 **Founder order (2026-11-26 04:23 UTC).** « approved », on the B1 report and PR #1.
