@@ -13,9 +13,11 @@ import type { PaidOrderRow, SupplierContact } from '../operations/service';
  * stages (his order, 2026-08-09: « rename actual terminées to prêt à livrer,
  * another screen en route for product in transit, and another Terminées for
  * product delivered and all completed »). Precedence:
- *   · `incidents`  — the order has a protection-fund claim (any state): a
- *     signaled order is an incident FIRST, whatever its stage says, because
- *     the founder must never see a contested order filed as settled work.
+ *   · `incidents`  — the order has a protection-fund claim that is open, or
+ *     among the 100 most recently closed: a signaled order is an incident
+ *     FIRST, whatever its stage says, because the founder must never see a
+ *     contested order filed as settled work. Its bound: a claim closed before
+ *     the 100 most recent no longer files its order here.
  *   · `terminees`  — DELIVERED: Séra validated the drop and the settlement
  *     records folded (the gains read's own `livree`, never inferred).
  *   · `en_route`   — a LIVE Séra assignment carries it (the board's active
