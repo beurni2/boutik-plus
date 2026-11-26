@@ -3,6 +3,22 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · A-VERIFIER-1 — MERGED, then the console DEPLOYED
+
+**Founder.** « Deploy and merge both » (2026-11-26 18:41 UTC, decision card), which named for Boutik+: after the platform-contracts merge and the Shop+ deploy and merge, merge PR #3, then publish the console from main and check it.
+
+**Before it.** platform-contracts merged as `f61b704` (keeping `b5fec57`, which the supplier app pins); storefront-deploy 126 put Shop+ live at `74738b0` (canon 3.27.0, custody armed, smokes OK); Shop+ PR #4 merged as `2c63572`.
+
+**Merge.** main re-checked unchanged at `6bdc260`; merged as `2923492`. On main: ci 387 green · expo-preview 262 green.
+
+**Deploy.** web-deploy 89 (id 45879085177) from main `2923492`; the deploy lock confirmed main's newest commit, green in ci. Every never-ships needle absent, « bac à sable » included; « web-size OK — console first load: 517.1 KB gzip (529 493 B) … within the signed ceiling of 530.0 KB (542 720 B) » (was 514.9 KB at web-deploy 88; 13 227 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Not deployed.** The supplier page has its own orders screen, not this tab; it was not named and keeps its earlier build. The offer and media Workers are untouched by this slice.
+
+**Still open.** Letting the founder mark an alert as checked, or grouping unanswered payments; recording the refund-never-confirmed row form so this walk can read it.
+
+---
+
 ## 2026-11-26 · A-VERIFIER-1 — the founder sees what needs checking on his Commandes tab · lane P · on the branch, NOT merged, NOT deployed
 
 **Spec.**
