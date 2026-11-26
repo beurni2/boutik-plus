@@ -419,7 +419,8 @@ export async function handleVideoUpload(request: Request, env: MediaWorkerEnv, n
   const outcome = await service.uploadVideo(bytes, now);
   if (!outcome.ok) {
     // The validator's TYPED reason, verbatim — empty · too_large ·
-    // unsupported_type · unreadable_duration · too_long — never a bare 400.
+    // unsupported_type · unreadable_duration · too_long · location_present ·
+    // unreadable_metadata — never a bare 400.
     return Response.json({ error: 'rejected', reason: outcome.reason }, { status: 400 });
   }
   const { key, contentType, durationSeconds, byteLength } = outcome.video;

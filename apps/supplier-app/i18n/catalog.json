@@ -726,6 +726,12 @@
     "screenClass": "status"
   },
   {
+    "key": "publier.video_lieu",
+    "fr": "Cette vidéo garde l’endroit où elle a été filmée. Le produit est publié sans elle. Coupez la localisation de l’appareil photo, puis filmez à nouveau.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "publier.video_sans_photos",
     "fr": "La vidéo part avec les photos. Ajoutez les photos, puis renvoyez-la.",
     "register": "neutral",
