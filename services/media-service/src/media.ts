@@ -321,8 +321,9 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
  *
  * `null` = a metadata box that cannot be walked. Upstream that is a refusal,
  * the same law as the duration walk: a check you can dodge by malforming a box
- * is a suggestion. Inside a container a box may not claim « to the end », and
- * only zero bytes — QuickTime's 4-byte terminator — may trail its last child.
+ * is a suggestion. Inside a container no box may claim « to the end »: after
+ * the last child, only zero bytes may follow — QuickTime's 4-byte terminator,
+ * or longer padding — and a zero size followed by anything else is refused.
  */
 export function mp4LocationVerdict(bytes: Uint8Array): 'clean' | 'location' | null {
   interface Box { readonly type: string; readonly body: number; readonly end: number }
@@ -345,7 +346,9 @@ export function mp4LocationVerdict(bytes: Uint8Array): 'clean' | 'location' | nu
         size = be32(bytes, i + 8) * 2 ** 32 + be32(bytes, i + 12);
         header = 16;
       } else if (size === 0) {
-        if (!racine) return null;
+        // Inside a container a zero size can only start padding: stop here,
+        // and the tail check below refuses anything that is not all zeros.
+        if (!racine) break;
         size = to - i;
       }
       if (size < header || i + size > to) return null;
