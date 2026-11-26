@@ -3,6 +3,33 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · B1 — fund desk: a 0-franc claim is refused on screen and named when the book refuses it · on the branch, NOT merged
+
+**Lane B, one task agent, coordinated.** Lane commits `1438a3f` + `f26cd2c` (branch `claude/project-thread-10n1jr`, from `main` `d1a4d72`), merged here with `--no-ff` so their shas are kept. Four files, all on the written claim: `apps/supplier-app/src/fonds/service.ts` (+2), `apps/supplier-app/src/fonds/zone.tsx` (+9/-1), `apps/supplier-app/i18n/catalog.json` (+1 entry), `apps/supplier-app/test/rendu-fonds.e2e.test.tsx` (+76/-1).
+
+**Why now.** The platform's fund service (merged there in PR #1, not yet deployed) answers a claim opened at 0 francs with `400 { "error": "zero_claim_amount" }`. This desk did not know that code and read it as « Le registre ne répond pas — réessayez dans un moment. », which is untrue. The receiving side of a wire goes out before the sender.
+
+**What changed.**
+- The claim form refuses an amount of 0 before anything is sent: « Une réclamation s'ouvre seulement pour un montant dû. S'il n'y a rien à payer, il n'y a rien à ouvrir. » (`fonds.montant_zero`, register `money`, screen class `status`). The founder's typing stays in the field; fixing the amount opens the claim.
+- The service's `zero_claim_amount` maps to the new port reason `zero_amount`, and that reason to the same sentence — never to `unreachable`. `RAISON_MESSAGE` is exported so its words are pinned by a test.
+- Not changed: an empty or non-digit amount keeps today's refusal; a declared balance of 0 is still accepted (`montantEntier` untouched); no change to the key door, the ladder, the reads, `localStorage` or any other screen. §9.1 (« Ops never edits the ledger ») and Desk 1 (buyer refunds never gated on the fund) are not touched.
+
+**Proof.**
+- Screen walk against the REAL protection bundle under Miniflare: type 0, press « Enregistrer la réclamation » — the sentence shows, « ne répond pas » does not, no `POST /claims` leaves, the field keeps « 0 », and the book's own `GET /claims` holds no such claim; then retype 5000, press again — the claim shows, the book holds it, the zero sentence is gone. Red on `main`'s code, green after.
+- Port seam: the app's own `ouvrir` with 0 against the real bundle answers `{ ok: false, reason: 'zero_amount' }` and the book stays empty. Red on `main`'s code (`unreachable`).
+- Words pin (runs in CI too): `zero_amount → fonds.montant_zero` with its sentence; only `unreachable` maps to `fonds.injoignable`.
+- Mutations, each anchor matched once, restored byte-identical: form check removed → walk red; `zero_claim_amount` line removed → seam red; `zero_amount` mapped to `fonds.injoignable` → pin and seam red. The coordinator re-ran the words-pin mutation: red, then restored.
+- Coordinator re-run: fund walks **5/5** with `PLATFORM_REPO` set to a platform checkout at `main` `09c366c`; without it, **1 passed, 4 skipped** (the pin runs, the bundle walks skip). Typecheck clean; copy-lint `874 entries, 0 violations`.
+- **Board of record (coordinator, `f26cd2c`, after `pnpm build`):** one `GATE FAILED (expected pass): dependency-audit-positive` — the recorded baseline (critical shell-quote under the supplier app's react-native devtools, high zod under catalog-service). supplier-app `1254 passed | 7 skipped (1261)`; inside the board the fund bundle walks skip (turbo does not pass `PLATFORM_REPO` through), which is why they were run directly above.
+
+**Verifier (one fresh-context pass, given the spec quotes, the diff and the definition of done).** 0 BLOCKER · 0 MAJOR · 2 MINOR · 4 NOTE. Handed back ONCE and fixed in `f26cd2c`: the refusal's words are pinned by a test that runs without the bundle; the walk goes on past the refusal to a real claim; `Array.isArray` checked before each « not in the book » assertion; the sentence reworded to fit copy-lint's status budget (18 words). The two other notes were outside this slice. Not re-inspected (NO-LOOP).
+
+**Known.** CI checks out one repository, so the bundle walks skip there; the words pin runs in CI.
+
+**Release order.** On merge, `main` publishes the supplier app (expo-preview). The protection service deploy that answers `zero_claim_amount` follows only after that, on the founder's go.
+
+---
+
 ## 2026-11-26 · Wave 0 MERGED on the founder's « go » (RÈGLES-UNIFIÉES-1)
 
 **Founder order (2026-11-26, 03:00 UTC).** « you can go » — on the Wave 0 report (RÈGLES-UNIFIÉES-1 in all five repositories; LOCK-LABELS-1 in Shop+, which also carried the 2026-10-02 journal commit `90e3653`).
