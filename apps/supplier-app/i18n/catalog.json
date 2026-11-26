@@ -3061,7 +3061,7 @@
   },
   {
     "key": "fonds.montant_zero",
-    "fr": "Une réclamation s'ouvre seulement pour un montant dû — écrivez un montant plus grand que 0.",
+    "fr": "Une réclamation s'ouvre seulement pour un montant dû. S'il n'y a rien à payer, il n'y a rien à ouvrir.",
     "register": "money",
     "screenClass": "status"
   },

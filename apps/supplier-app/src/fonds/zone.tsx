@@ -62,7 +62,7 @@ function Chiffre({ labelKey, valeur }: { labelKey: string; valeur: string }) {
   );
 }
 
-const RAISON_MESSAGE: Record<Exclude<ActeFondsResult, { ok: true }>['reason'], string> = {
+export const RAISON_MESSAGE: Record<Exclude<ActeFondsResult, { ok: true }>['reason'], string> = {
   bad_key: 'fonds.cle_refusee',
   duplicate: 'fonds.deja_ouverte',
   not_forward: 'fonds.pas_en_arriere',
