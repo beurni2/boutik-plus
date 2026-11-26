@@ -228,7 +228,7 @@ describe('ACCUEIL — the counts count what they say (STOCK-VRAI-1, F-53)', () =
   const ligne = (orderId: string, remboursement: unknown) => ({
     ok: true, exists: true, orderId, state: 'confirmed', createdAt: T,
     contact: { phone: '70 11 22 33', quartier: 'Gounghin', repere: 'Face à la pharmacie' },
-    productVersionId: 'pv', zoneTo: 'Gounghin', remboursement,
+    productVersionId: 'pv', zoneTo: 'Gounghin', remboursement, aVerifier: null,
   });
   const dispatch = (statut = 200): Route => (path) =>
     path === '/checkout/dispatch'

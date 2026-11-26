@@ -91,6 +91,7 @@ const ligneShop = (orderId: string, remboursement: unknown, phone: string | null
   productVersionId: `pv-${orderId}`,
   zoneTo: 'Gounghin',
   remboursement,
+  aVerifier: null,
 });
 
 beforeEach(() => {
@@ -213,6 +214,7 @@ describe('F-02 — « Annuler et rembourser », HIS act on an order nobody will 
       livre(() => [ATTENTE]),
       contacts,
       (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
       (path) =>
         path === '/checkout/dispatch'
           ? { status: 200, json: { ok: true, orders: [ligneShop('ord-attente', { etat: 'en_cours' })] } }
@@ -310,6 +312,7 @@ describe('F-61 — a Shop+ read cut short by its page cap is said as partial', (
       livre(() => [PRETE]),
       contacts,
       (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
       (path, _b, search) =>
         path === '/checkout/dispatch'
           ? { status: 200, json: { ok: true, orders: [], next: `p${Number(search.get('cursor')?.slice(1) ?? '0') + 1}` } }
@@ -331,6 +334,7 @@ describe('F-69 — the buyers\' contacts are read ONCE for the tab, never again 
       contacts,
       preuve,
       (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
       (path) => (path === '/checkout/dispatch' ? { status: 200, json: { ok: true, orders: [ligneShop('ord-prete', null)] } } : null),
     ]);
     const screen = await mountEcran(<SCommandesReel />);
@@ -352,6 +356,7 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
     livre(() => [REVENUE, RAMASSAGE_REFUSE, commande('ord-refusee', 'Tissu', { refusedAt: '2026-09-26T08:00:00.000Z' })]),
     contacts,
     (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+    (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
     (path) =>
       path === '/checkout/dispatch'
         ? {

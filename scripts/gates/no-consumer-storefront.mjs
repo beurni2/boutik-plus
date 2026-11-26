@@ -66,6 +66,13 @@ runScanGate({
     { file: 'apps/supplier-app/test/rendu-commandes-colis.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s walk over the dispatch/gains wires, a colis whose supplier refused one article (COLIS-FOURNISSEUR-1, verifier M1)' },
     { file: 'apps/supplier-app/test/rendu-console.test.tsx', pattern: 'checkout-route', ruling: 'the home’s read-only walk over the dispatch/gains wires, its counts matching the Commandes tab (STOCK-VRAI-1, F-53)' },
     /**
+     * A-VERIFIER-1: same class as BC-1c. Founder-only key-C reads of
+     * /checkout/dispatch and /checkout/dlq?compte=1. No buyer surface, no
+     * order created, no money moves in Boutik+.
+     */
+    { file: 'apps/supplier-app/test/a-verifier-lecture.test.ts', pattern: 'checkout-route', ruling: 'the dispatch client’s « À vérifier » and count wire pins (A-VERIFIER-1)' },
+    { file: 'apps/supplier-app/test/rendu-commandes-a-verifier.test.tsx', pattern: 'checkout-route', ruling: 'the Commandes screen’s « À vérifier » walk over the dispatch/gains/count wires (A-VERIFIER-1)' },
+    /**
      * READINESS-RETURN-1b (founder order 2026-08-02: « Yes build the return
      * signal from Boutik+ »). Boutik+ DELIVERS `fulfillment.accepted.v1` /
      * `fulfillment.ready.v1` to the Shop+ Worker, whose deployed name is
