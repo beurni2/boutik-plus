@@ -3,6 +3,89 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-26 · VIDEO-SANS-LIEU-1 — a product clip that still says where it was filmed is refused, and the console says why · lane B2 · on the branch, NOT merged, NOT deployed
+
+**Founder ruling (2026-11-26, project chat):** « refuse any clip still carrying a location, with a clear message, never edit the clip ». This closes the 2026-09-29 hold on the clip's filming place (« what to do … two real phone clips »). The « clean it » half is NOT built: no stripping and no re-muxing. Started on his « go » (19:26 UTC).
+
+**Spec.**
+- Boutik-Plus-Build-Spec l.213, CI gates: « imaging gates (… price-free, **contact-free**, … **EXIF stripped** …) ».
+- Shop-Plus-Build-Spec l.21: « Shop+ MUST NOT reveal supplier identity/**pickup**/base economics/contact beyond approved trust projections. »
+- Canon `commerce.ts` l.68: a clip is « stored and played, never processed or generated ». The refusal reads the container and stores nothing, so it keeps this rule.
+- `CLAUDE.md` §3 law 6 and §5's trust test.
+
+**Built.** Lane B2 built `45fa531`, then `c142e2c` from the one review below. Both were merged here `--no-ff` (`a3f774f`, `c4edf2f`).
+
+*Before.* The console sent a picked clip's bytes unchanged, and the media Worker stored and served them unchanged. A phone that writes where a clip was filmed had that place handed to every buyer who opened the product.
+
+*Now.*
+- **`services/media-service/src/media.ts`.** New `mp4LocationVerdict(bytes)` walks the container's metadata boxes only:
+  - at file level: `moov`, `udta`, `meta`, `uuid`;
+  - in `moov`: `udta`, `meta`, `uuid`, `trak`;
+  - in each `trak`: `udta`, `meta`, `uuid`, and the sample descriptions down `mdia/minf/stbl/stsd`.
+
+  It never enters `mdat`. It answers `location` when it finds any of these forms:
+  - a `©xyz` or 3GPP `loci` in user data;
+  - an Apple `com.apple.quicktime.location…` key in a `meta` key table, in either the QuickTime or the ISO layout;
+  - an `ilst` `©xyz`;
+  - an XMP packet (`udta/XMP_` or the XMP `uuid`) naming `GPSLatitude` or `GPSLongitude`;
+  - a `mebx` timed-metadata track that declares a location key.
+
+  Metadata without a place (make, model, software, creation date, handler) is accepted. A box that cannot be walked answers `null`: inside a container no box may claim « to the end », and only zero bytes may follow its last child (a QuickTime terminator or longer padding).
+- **`uploadVideo`**, after the duration checks and before the key is minted or anything is stored:
+  - `null` gives `unreadable_metadata`;
+  - `location` gives `location_present` (HTTP 400, the reason verbatim).
+
+  Nothing is written when it refuses.
+- **Console** (`apps/supplier-app/src/supply/video.ts`):
+  - `location_present` maps to the new `publier.video_lieu`: « Cette vidéo garde l’endroit où elle a été filmée. Le produit est publié sans elle. Coupez la localisation de l’appareil photo, puis filmez à nouveau. » (neutral, status, approved at C1);
+  - `unreadable_metadata` maps to the existing `publier.video_illisible`.
+  - As with any refused clip, the product is published without it.
+- The clip is never edited, on the console or the server.
+
+**Evidence.**
+- `test/video-lieu.test.ts`, 32 cases on the real bundled Worker under workerd, each asked of the BUCKET:
+  - every located form at file, movie and track level is refused by name, and nothing is stored;
+  - every malformed form is refused as unreadable, and nothing is stored;
+  - clean clips are stored and read back byte-identical: the Android writer's QuickTime-layout movie `meta`, the ISO layout, the iPhone keys, a `udta` with its 4-byte terminator or 12 zero bytes, and a clean clip whose `mdat` holds every marker.
+- Red on main: 15 failed, 7 clean passed (coordinator re-run).
+- Seam: the console's own media port against the real Worker answers `location_present`, the console key is `publier.video_lieu`, and the bucket is unchanged.
+- Lister walks (only `globalThis.fetch` faked, routed to the real Workers):
+  - the founder publishes with a located clip, the tree survives, and he sees the new sentence and not the generic one;
+  - the offer ledger holds the product with its photos and no clip;
+  - « Retour » is pressable, and removing the clip sends nothing to the clip door.
+- Mutations, each anchor matched once, restored with cmp OK, bundle rebuilt before each, all red:
+  - the walk entering `mdat`;
+  - the `mebx` check off;
+  - the track level off;
+  - file-level `meta`, `moov/uuid` and `trak/uuid` each unwalked;
+  - padding refused again;
+  - padding accepted with no tail check;
+  - plus the lane's own set: the check removed, one form dropped, the store before the check, the console mapping to the generic key, the key table made tolerant.
+- media-service 166/166 and supplier app 1278/1278 on `c4edf2f`; both typechecks 0. Boutik+ board on `a3f774f`: ALL GATES GREEN (the lane's board on `c142e2c` is also green).
+- The console's first load is 523 499 B (+92 B against main) of the 542 720 B ceiling. The 529 493 B figure in the coordinator's brief was a stale measurement.
+
+**The one independent review:** 0 blockers, 2 should-fix, 4 notes, handled once.
+- Fixed: three walk branches had no test; the fixture labelled « Android » used the ISO layout, while Android's stock writer writes the QuickTime one.
+- Done from the notes: zero padding accepted; unreadable fixtures for the key table, `mebx` and the `stsd` bound; the console comment's reason list.
+- Not done: the `stsd` entry count is not read. The walk visits every entry present.
+
+The slice was not re-inspected after the fixes.
+
+**Bound, stated plainly.**
+- Every phone layout in these tests is built by hand from the published box layouts. No file from a real device has been walked.
+- The check reads metadata boxes, never the picture or timed samples, and it is built for what phone writers write, not for hand-crafted files. The coordinator keeps the full list of what lies outside it.
+
+**Release (after his word).** Boutik+ deploys main's newest green commit only, so the order is:
+1. merge;
+2. `media-deploy` from main;
+3. the console's `web-deploy`.
+
+Either deploy order is safe: an old console shows the generic sentence for the new reason. A clip stored before this change is checked at release.
+
+**Still open.** The voice-note upload (out of this slice); the pick gesture itself is not walked (since MEDIA-PORTE-1).
+
+---
+
 ## 2026-11-26 · A-VERIFIER-1 — MERGED, then the console DEPLOYED
 
 **Founder.** « Deploy and merge both » (2026-11-26 18:41 UTC, decision card), which named for Boutik+: after the platform-contracts merge and the Shop+ deploy and merge, merge PR #3, then publish the console from main and check it.
