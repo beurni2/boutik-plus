@@ -45,6 +45,87 @@ export interface LivraisonRow {
    *  when it cannot finish by itself, why. Absent from a Worker built before
    *  it, and when nothing is refunded. */
   readonly remboursement?: RemboursementOperateur;
+  /** What the founder must check on this order, as Shop+'s order object
+   *  recorded it. Absent when there is nothing (or from an older Worker). */
+  readonly aVerifier?: AVerifier;
+}
+
+/** Every alert class a Shop+ order object can record, by its own name. */
+export const CLASSES_ALERTE = [
+  'stuck_paiement',
+  'stuck_fournisseur',
+  'stuck_remboursement',
+  'genuine_webhook_after_local_failure',
+  'conflicting_provider_confirmation',
+  'webhook_names_foreign_charge',
+  'provider_amount_contradicts_quote',
+  'door_confirmation_without_door_pending_order',
+  'webhook_names_foreign_refund',
+  'provider_refund_contradicts_request',
+  'conflicting_provider_refund',
+  'refusal_fact_unreadable',
+  'provider_refused_refund',
+  'eligibility_before_funded_legs',
+  'eligibility_after_refund',
+  'reservation_held_after_payment_failure',
+  'confirmed_without_funded_checkout_leg',
+  'escrow_without_paid_order',
+  'door_projection_diverges_from_escrow',
+  'obligations_on_refunded_order',
+  'obligations_without_confirmed_order',
+  'obligations_while_door_leg_due',
+  'obligation_diverges_from_quote',
+  'provider_charge_unmatched_in_ledger',
+  'provider_amount_diverges_from_ledger',
+  'ledger_leg_unmatched_at_provider',
+] as const;
+/** `autre` is any class this console does not know yet: kept, never dropped. */
+export type ClasseAlerte = (typeof CLASSES_ALERTE)[number] | 'autre';
+
+export interface ElementAVerifier {
+  readonly classe: ClasseAlerte;
+  /** The alert's time, Shop+'s one ISO format; absent when it was unreadable. */
+  readonly le?: string;
+}
+export interface AVerifier {
+  readonly elements: readonly ElementAVerifier[];
+  /** Alerts the order's record could not keep (its cap). */
+  readonly coupees: number;
+}
+
+const CONNUES: ReadonlySet<string> = new Set(CLASSES_ALERTE);
+const ISO_SHOP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const AUTRE: ElementAVerifier = { classe: 'autre' };
+
+/** Strict, but never at the row's cost: a field that cannot be read is still
+ *  something to check, so it becomes « another alert » — the refund status and
+ *  the phone beside it are never dropped for it. `undefined` = nothing. */
+function lireAVerifier(v: unknown): AVerifier | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== 'object' || Array.isArray(v)) return { elements: [AUTRE], coupees: 0 };
+  const r = v as Record<string, unknown>;
+  const elements: ElementAVerifier[] = [];
+  if (Array.isArray(r['elements'])) {
+    for (const e of r['elements']) {
+      if (e === null || typeof e !== 'object' || typeof (e as Record<string, unknown>)['classe'] !== 'string') {
+        elements.push(AUTRE);
+        continue;
+      }
+      const brut = (e as Record<string, unknown>)['classe'] as string;
+      const le = (e as Record<string, unknown>)['le'];
+      elements.push({
+        classe: CONNUES.has(brut) ? (brut as ClasseAlerte) : 'autre',
+        ...(typeof le === 'string' && ISO_SHOP.test(le) ? { le } : {}),
+      });
+    }
+  } else {
+    elements.push(AUTRE);
+  }
+  const c = r['coupees'];
+  const coupeesLisible = typeof c === 'number' && Number.isSafeInteger(c) && c >= 0;
+  if (!coupeesLisible) elements.push(AUTRE);
+  const coupees = coupeesLisible ? c : 0;
+  return elements.length === 0 && coupees === 0 ? undefined : { elements, coupees };
 }
 
 export type RemboursementOperateur =
@@ -73,8 +154,15 @@ export type LivraisonsResult =
   | { readonly ok: true; readonly rows: readonly LivraisonRow[]; readonly incomplet: boolean }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
+export type DlqCompteResult =
+  | { readonly ok: true; readonly n: number }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
 export interface DispatchServicePort {
   listLivraisons(cleC: string): Promise<LivraisonsResult>;
+  /** How many refused payment messages wait to be read — Shop+'s count only
+   *  (`/checkout/dlq?compte=1`), never the bodies. */
+  compterDlq(cleC: string): Promise<DlqCompteResult>;
 }
 
 /**
@@ -146,6 +234,26 @@ export function resolveDispatchService(): DispatchServicePort | null {
       // the cap ended the sweep with a next still standing — DECLARED partial
       return { ok: true, rows, incomplet: true };
     },
+    async compterDlq(cleC: string): Promise<DlqCompteResult> {
+      let res: Response;
+      try {
+        res = await fetchBorne(
+          `${trimmed}/checkout/dlq?compte=1`,
+          { headers: { Accept: 'application/json', Authorization: `Bearer ${cleC}` } },
+          DISPATCH_TIMEOUT_MS,
+        );
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
+      if (res.status === 401) return { ok: false, reason: 'bad_key' };
+      if (!res.ok) return { ok: false, reason: 'unreachable' };
+      const body = (await res.json().catch(() => null)) as { ok?: unknown; held?: unknown } | null;
+      // A count that cannot be read is never shown as « 0 ».
+      if (body?.ok !== true || typeof body.held !== 'number' || !Number.isSafeInteger(body.held) || body.held < 0) {
+        return { ok: false, reason: 'unreachable' };
+      }
+      return { ok: true, n: body.held };
+    },
   };
 }
 
@@ -216,6 +324,7 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
   }
   const remboursement = lireRemboursement(r['remboursement']);
   if (remboursement === null) return null;
+  const aVerifier = lireAVerifier(r['aVerifier']);
   return {
     orderId: r['orderId'],
     state: r['state'],
@@ -224,6 +333,7 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     productVersionId: r['productVersionId'],
     zoneTo: r['zoneTo'],
     ...(remboursement !== undefined ? { remboursement } : {}),
+    ...(aVerifier !== undefined ? { aVerifier } : {}),
   };
 }
 
