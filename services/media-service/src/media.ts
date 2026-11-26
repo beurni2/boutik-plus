@@ -291,6 +291,193 @@ export function mp4DurationSeconds(bytes: Uint8Array): number | null {
 }
 
 /**
+ * ═══ WHERE THE CLIP WAS FILMED — read, never edited (founder ruling 2026-11-26) ═══
+ *
+ * « refuse any clip still carrying a location, with a clear message, never
+ * edit the clip ». A product clip never carries the place it was filmed.
+ * This answers what the container's METADATA says, so the door can refuse
+ * before anything is stored — canon's « stored and played, never processed »
+ * holds, because nothing is rewritten.
+ *
+ * THE PICTURE IS NEVER READ. Only these boxes are entered: the file's top
+ * level → `moov` · `udta` · `meta` · `uuid`; `moov` → `udta` · `meta` · `uuid`
+ * · `trak`; `trak` → `udta` · `meta` · `uuid` · the one path
+ * `mdia/minf/stbl/stsd` (sample descriptions). `mdat`, `moof` and every other
+ * box are stepped over by their size, so no frame can ever look like a place.
+ *
+ * WHAT COUNTS AS A PLACE:
+ *   · `udta/©xyz` — QuickTime's ISO 6709 string; what Android's writer and
+ *     older iPhones record when the camera has location on;
+ *   · `udta/loci` — the 3GPP Location Information box;
+ *   · a `keys` entry starting `com.apple.quicktime.location` in a `meta` — the
+ *     iPhone's own record (ISO6709 and the keys beside it);
+ *   · an `ilst` item `©xyz` — the same string in item-list form;
+ *   · an XMP packet (`udta/XMP_` or the XMP `uuid`) naming GPSLatitude or
+ *     GPSLongitude — searched inside that one box only, never the file;
+ *   · a `mebx` timed-metadata sample entry whose key table declares a
+ *     `com.apple.quicktime.location` key.
+ * A phone model, a date, a handler name, XMP without coordinates: not a place,
+ * accepted.
+ *
+ * `null` = a metadata box that cannot be walked. Upstream that is a refusal,
+ * the same law as the duration walk: a check you can dodge by malforming a box
+ * is a suggestion. Inside a container no box may claim « to the end »: after
+ * the last child, only zero bytes may follow — QuickTime's 4-byte terminator,
+ * or longer padding — and a zero size followed by anything else is refused.
+ */
+export function mp4LocationVerdict(bytes: Uint8Array): 'clean' | 'location' | null {
+  interface Box { readonly type: string; readonly body: number; readonly end: number }
+  const LIEU_APPLE = 'com.apple.quicktime.location';
+  const XMP_UUID = [0xbe, 0x7a, 0xcf, 0xcb, 0x97, 0xa9, 0x42, 0xe8, 0x9c, 0x71, 0x99, 0x94, 0x91, 0xe3, 0xaf, 0xac];
+  const texte = (from: number, to: number): string => {
+    let out = '';
+    for (let i = from; i < to; i += 1) out += String.fromCharCode(bytes[i]!);
+    return out;
+  };
+  const typeA = (at: number, end: number): string | null => (at + 8 <= end ? texte(at + 4, at + 8) : null);
+  const enfants = (from: number, to: number, racine: boolean): Box[] | null => {
+    const out: Box[] = [];
+    let i = from;
+    while (i + 8 <= to) {
+      let size = be32(bytes, i);
+      let header = 8;
+      if (size === 1) {
+        if (i + 16 > to) return null;
+        size = be32(bytes, i + 8) * 2 ** 32 + be32(bytes, i + 12);
+        header = 16;
+      } else if (size === 0) {
+        // Inside a container a zero size can only start padding: stop here,
+        // and the tail check below refuses anything that is not all zeros.
+        if (!racine) break;
+        size = to - i;
+      }
+      if (size < header || i + size > to) return null;
+      out.push({ type: texte(i + 4, i + 8), body: i + header, end: i + size });
+      i += size;
+    }
+    if (!racine) for (; i < to; i += 1) if (bytes[i] !== 0) return null;
+    return out;
+  };
+
+  let lieu = false;
+  const xmp = (from: number, to: number): void => {
+    const paquet = texte(from, to);
+    if (paquet.includes('GPSLatitude') || paquet.includes('GPSLongitude')) lieu = true;
+  };
+  const uuid = (b: Box): boolean => {
+    if (b.body + 16 > b.end) return false;
+    if (XMP_UUID.every((v, k) => bytes[b.body + k] === v)) xmp(b.body + 16, b.end);
+    return true;
+  };
+  /** Apple `mdta` keys: version+flags, count, then (size, namespace, name). */
+  const cles = (b: Box): boolean => {
+    if (b.body + 8 > b.end) return false;
+    const n = be32(bytes, b.body + 4);
+    let i = b.body + 8;
+    for (let e = 0; e < n; e += 1) {
+      if (i + 8 > b.end) return false;
+      const size = be32(bytes, i);
+      if (size < 8 || i + size > b.end) return false;
+      if (texte(i + 8, i + size).startsWith(LIEU_APPLE)) lieu = true;
+      i += size;
+    }
+    return true;
+  };
+  /** ISO puts version+flags before `hdlr`; QuickTime puts `hdlr` first. */
+  const meta = (b: Box): boolean => {
+    const depuis = typeA(b.body, b.end) === 'hdlr' ? b.body : typeA(b.body + 4, b.end) === 'hdlr' ? b.body + 4 : -1;
+    if (depuis < 0) return false;
+    const kids = enfants(depuis, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type === 'keys' && !cles(k)) return false;
+      if (k.type === 'ilst') {
+        const items = enfants(k.body, k.end, false);
+        if (items === null) return false;
+        if (items.some((it) => it.type === '\u00a9xyz')) lieu = true;
+      }
+    }
+    return true;
+  };
+  const udta = (b: Box): boolean => {
+    const kids = enfants(b.body, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type === '\u00a9xyz' || k.type === 'loci') lieu = true;
+      else if (k.type === 'XMP_') xmp(k.body, k.end);
+      else if (k.type === 'meta' && !meta(k)) return false;
+    }
+    return true;
+  };
+  /** A `mebx` sample entry: 6 reserved + 2 data-reference bytes, then its boxes;
+   *  `keys` holds one box per local key, each with a `keyd` (namespace, name). */
+  const mebx = (b: Box): boolean => {
+    const kids = enfants(b.body + 8, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type !== 'keys') continue;
+      const entrees = enfants(k.body, k.end, false);
+      if (entrees === null) return false;
+      for (const e of entrees) {
+        const decl = enfants(e.body, e.end, false);
+        if (decl === null) return false;
+        for (const d of decl) if (d.type === 'keyd' && d.body + 4 <= d.end && texte(d.body + 4, d.end).startsWith(LIEU_APPLE)) lieu = true;
+      }
+    }
+    return true;
+  };
+  /** Down the one path to the sample descriptions: mdia → minf → stbl → stsd. */
+  const descriptions = (b: Box, chemin: readonly string[]): boolean => {
+    const kids = enfants(b.body, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type !== chemin[0]) continue;
+      if (chemin.length > 1) {
+        if (!descriptions(k, chemin.slice(1))) return false;
+        continue;
+      }
+      // stsd: version+flags, entry count, then one box per sample entry.
+      if (k.body + 8 > k.end) return false;
+      const entrees = enfants(k.body + 8, k.end, false);
+      if (entrees === null) return false;
+      for (const e of entrees) if (e.type === 'mebx' && !mebx(e)) return false;
+    }
+    return true;
+  };
+  const trak = (b: Box): boolean => {
+    const kids = enfants(b.body, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type === 'udta' && !udta(k)) return false;
+      if (k.type === 'meta' && !meta(k)) return false;
+      if (k.type === 'uuid' && !uuid(k)) return false;
+    }
+    return descriptions(b, ['mdia', 'minf', 'stbl', 'stsd']);
+  };
+  const moov = (b: Box): boolean => {
+    const kids = enfants(b.body, b.end, false);
+    if (kids === null) return false;
+    for (const k of kids) {
+      if (k.type === 'udta' && !udta(k)) return false;
+      if (k.type === 'meta' && !meta(k)) return false;
+      if (k.type === 'uuid' && !uuid(k)) return false;
+      if (k.type === 'trak' && !trak(k)) return false;
+    }
+    return true;
+  };
+
+  const racine = enfants(0, bytes.length, true);
+  if (racine === null) return null;
+  for (const b of racine) {
+    if (b.type === 'moov' && !moov(b)) return null;
+    if (b.type === 'udta' && !udta(b)) return null;
+    if (b.type === 'meta' && !meta(b)) return null;
+    if (b.type === 'uuid' && !uuid(b)) return null;
+  }
+  return lieu ? 'location' : 'clean';
+}
+
+/**
  * ═══ REPERE-AUDIO-REEL — THE BUYER'S VOICE NOTE (founder order 2026-08-08) ═══
  *
  * « On the buyer's screen the repère audio recording is still a mock. » Law 5's
@@ -343,7 +530,14 @@ export type AudioUploadOutcome =
   | { readonly ok: true; readonly audio: StoredAudio }
   | { readonly ok: false; readonly reason: AudioRejectReason };
 
-export type VideoRejectReason = 'empty' | 'too_large' | 'unsupported_type' | 'unreadable_duration' | 'too_long';
+export type VideoRejectReason =
+  | 'empty'
+  | 'too_large'
+  | 'unsupported_type'
+  | 'unreadable_duration'
+  | 'too_long'
+  | 'location_present'
+  | 'unreadable_metadata';
 
 export interface StoredVideo {
   /** The OPAQUE object key — this is what travels as `ProductAssets.video.ref`. */
@@ -499,6 +693,10 @@ export class ProductMediaService {
     const durationSeconds = mp4DurationSeconds(bytes);
     if (durationSeconds === null || durationSeconds <= 0) return { ok: false, reason: 'unreadable_duration' };
     if (durationSeconds > VIDEO_MAX_SECONDS) return { ok: false, reason: 'too_long' };
+    // Before the store, never after: a refused clip leaves nothing behind.
+    const lieu = mp4LocationVerdict(bytes);
+    if (lieu === null) return { ok: false, reason: 'unreadable_metadata' };
+    if (lieu === 'location') return { ok: false, reason: 'location_present' };
 
     const contentType = 'video/mp4';
     const key = mintMediaKey(); // fresh CSPRNG token — never derived, never sequential
