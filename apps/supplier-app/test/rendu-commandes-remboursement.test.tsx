@@ -82,6 +82,7 @@ const ligne = (orderId: string, remboursement: unknown) => ({
   productVersionId: 'pv',
   zoneTo: 'Gounghin',
   remboursement,
+  aVerifier: null,
 });
 
 const routes: Route[] = [
@@ -89,6 +90,7 @@ const routes: Route[] = [
     path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [REFUSEE, BLOQUEE, ORDINAIRE] } } : null,
   (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
   (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+  (path) => (path === '/checkout/dlq' ? { status: 200, json: { ok: true, held: 0, dropped: 0, oversize: 0 } } : null),
   (path) =>
     path === '/checkout/dispatch'
       ? {
@@ -97,7 +99,10 @@ const routes: Route[] = [
             ok: true,
             orders: [
               ligne('ord-refusee', { etat: 'en_cours' }),
-              ligne('ord-bloquee', { etat: 'bloque', raison: 'refus_du_prestataire' }),
+              {
+                ...ligne('ord-bloquee', { etat: 'bloque', raison: 'refus_du_prestataire' }),
+                aVerifier: { elements: [{ classe: 'provider_refused_refund', le: '2026-09-23T08:30:00.000Z' }], coupees: 0 },
+              },
               ligne('ord-ordinaire', null),
             ],
           },

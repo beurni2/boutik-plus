@@ -21,6 +21,7 @@ import {
   resolveDispatchService,
   resolveGainsService,
   storeCleC,
+  type AVerifier,
   type LivraisonRow,
   type RemboursementOperateur,
 } from '../operations/dispatch-service';
@@ -34,8 +35,12 @@ import { ConfierCoursier } from './confier';
 import { SignalerRefus } from './signaler';
 import { telEnPaires } from './telephone';
 import {
+  aVerifierCommandes,
   attenteDepuis,
   nomFournisseur,
+  phraseAlerte,
+  phraseCoupees,
+  pilluleAVerifier,
   pilluleCommande,
   raisonBlocage,
   segmenter,
@@ -200,6 +205,13 @@ function LivreCommandes({
   const [lectureEchouee, setLectureEchouee] = useState(false);
   /** Shop+ refused the key C this device held — the door says so. */
   const [cleCRefusee, setCleCRefusee] = useState(false);
+  /** The key-C sweep stopped at its page cap: its « À vérifier » count is not
+   *  claimed (the partial-read banner already says something is missing). */
+  const [livraisonsIncompletes, setLivraisonsIncompletes] = useState(false);
+  /** Payment messages Shop+ refused and holds for him to read: a number, or
+   *  `illisible` when the count could not be read — never shown as zero. */
+  const [dlq, setDlq] = useState<number | 'illisible' | null>(null);
+  const [ouvertHorsCarnet, setOuvertHorsCarnet] = useState<string | null>(null);
   const mediaBase = useMemo(() => resolveMediaBase(), []);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -240,13 +252,20 @@ function LivreCommandes({
       else echec = true;
     }
     const dispatch = resolveDispatchService();
-    if (cleC === null || dispatch === null) setLivraisons('cle_c_absente');
+    // The count is shown only when THIS pass read it.
+    if (cleC === null || dispatch === null) {
+      setLivraisons('cle_c_absente');
+      setDlq(null);
+    }
     else {
       const l = await dispatch.listLivraisons(cleC);
       if (l.ok) {
         setLivraisons(new Map(l.rows.map((r) => [r.orderId, r] as const)));
+        setLivraisonsIncompletes(l.incomplet);
         // A sweep the page cap cut short is a partial read, said as one.
         if (l.incomplet) echec = true;
+        const d = await dispatch.compterDlq(cleC);
+        setDlq(d.ok ? d.n : d.reason === 'bad_key' ? null : 'illisible');
       }
       else if (l.reason === 'bad_key') {
         // A refused key C clears back to its door — the rotation moment, same
@@ -254,9 +273,11 @@ function LivreCommandes({
         clearStoredCleC();
         setCleCRefusee(true);
         setLivraisons('cle_c_absente');
+        setDlq(null);
       } else {
         echec = true;
         setLivraisons('echec');
+        setDlq(null);
       }
     }
     setLectureEchouee(echec);
@@ -331,6 +352,9 @@ function LivreCommandes({
   const bloques = [...remboursements.values()].filter((r) => r.etat === 'bloque').length;
   const livraisonDe = (orderId: string): LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec' =>
     typeof livraisons === 'object' ? (livraisons.get(orderId) ?? 'echec') : livraisons;
+  const aVerifier = typeof livraisons === 'object'
+    ? aVerifierCommandes(livraisons, new Set(read.orders.map((o) => o.orderId)))
+    : null;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -355,6 +379,43 @@ function LivreCommandes({
       {read.kind === 'ok' && read.incomplet === true ? (
         <View style={{ marginTop: 12 }}>
           <Banner tone="warn">{t('operations.carnet_partiel')}</Banner>
+        </View>
+      ) : null}
+      {/* « À vérifier » — what Shop+'s own records flag on his orders, counted
+          once per order. A sweep cut short claims no count. */}
+      {aVerifier !== null && aVerifier.total > 0 && !livraisonsIncompletes ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="warn">
+            {aVerifier.total === 1
+              ? t('commandes.a_verifier_un')
+              : t('commandes.a_verifier_n').replace('{n}', String(aVerifier.total))}
+          </Banner>
+        </View>
+      ) : null}
+      {typeof dlq === 'number' && dlq > 0 ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="warn">
+            {dlq === 1 ? t('commandes.dlq_un') : t('commandes.dlq_n').replace('{n}', String(dlq))}
+          </Banner>
+        </View>
+      ) : dlq === 'illisible' ? (
+        <View style={{ marginTop: 12 }}>
+          <Banner tone="info">{t('commandes.dlq_illisible')}</Banner>
+        </View>
+      ) : null}
+      {/* Orders Shop+ flags that the supplier's book does not hold yet: only
+          what identifies the order — never the buyer's contact. */}
+      {aVerifier !== null && aVerifier.horsCarnet.length > 0 ? (
+        <View style={{ marginTop: 12, gap: 10 }}>
+          {aVerifier.horsCarnet.map((r) => (
+            <CarteHorsCarnet
+              key={r.orderId}
+              row={r}
+              nowMs={now}
+              ouvert={ouvertHorsCarnet === r.orderId}
+              onToggle={() => setOuvertHorsCarnet(ouvertHorsCarnet === r.orderId ? null : r.orderId)}
+            />
+          ))}
         </View>
       ) : null}
       <ScrollView
@@ -409,6 +470,7 @@ function LivreCommandes({
               coursier={nomCoursierPour(o.orderId, boardSera)}
               articlesColis={articlesColis(o)}
               remboursement={remboursements.get(o.orderId)}
+              aVerifier={typeof livraisons === 'object' ? livraisons.get(o.orderId)?.aVerifier : undefined}
               livraison={livraisonDe(o.orderId)}
               cleCRefusee={cleCRefusee}
               onCleC={(k) => {
@@ -421,6 +483,7 @@ function LivreCommandes({
                 clearStoredCleC();
                 setCleCRefusee(true);
                 setLivraisons('cle_c_absente');
+                setDlq(null);
               }}
               onChanged={() => void charger()}
               onCleRefusee={onCleRefusee}
@@ -562,6 +625,7 @@ function RangCommande({
   coursier,
   articlesColis,
   remboursement,
+  aVerifier,
   livraison,
   cleCRefusee,
   onCleC,
@@ -584,6 +648,8 @@ function RangCommande({
   articlesColis: readonly { orderId: string; libelle: string }[];
   /** REMBOURSEMENT-2 — the buyer's refund on this order, when there is one. */
   remboursement: RemboursementOperateur | undefined;
+  /** What Shop+'s records flag on this order, when anything. */
+  aVerifier: AVerifier | undefined;
   /** REMBOURSABLE-1 (F-69) — this order's key-C row, from the tab's ONE read. */
   livraison: LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec';
   /** Shop+ refused the key C this device held (it was cleared). */
@@ -598,6 +664,7 @@ function RangCommande({
 }) {
   const qui = nomFournisseur(row.supplierId, contacts);
   const pill = pilluleCommande(row, segment, remboursement);
+  const pillAVerifier = pilluleAVerifier(aVerifier);
   const raison = raisonBlocage(remboursement);
   const attente = attenteDepuis(row.paidAt, nowMs);
   // AUDIT-B+2 F-59 — the canon's own state pairs (each held to AA by the
@@ -619,6 +686,7 @@ function RangCommande({
               <View style={{ backgroundColor: pillBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 }}>
                 <Text style={[role({ f: 'BG', w: 800, s: 11 }, pillFg)]}>{t(pill.label)}</Text>
               </View>
+              {pillAVerifier !== null ? <PilluleAVerifier label={pillAVerifier.label} /> : null}
             </View>
             <Text style={[CORPS, { marginTop: 4 }]} numberOfLines={1}>
               {row.productName !== '' ? row.productName : row.productVersionId} · {row.zoneTo}
@@ -636,6 +704,7 @@ function RangCommande({
           </View>
         </View>
       </Pressable>
+      {ouvert && aVerifier !== undefined ? <ElementsAVerifier av={aVerifier} nowMs={nowMs} /> : null}
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
           <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} cleCRefusee={cleCRefusee} onCleC={onCleC} onChanged={onChanged} />
@@ -700,6 +769,62 @@ function RangCommande({
       {ouvert ? (
         <RetraitCommande row={row} service={service} cle={cle} onChanged={onChanged} onCleRefusee={onCleRefusee} />
       ) : null}
+    </Card>
+  );
+}
+
+function PilluleAVerifier({ label }: { label: string }) {
+  return (
+    <View style={{ backgroundColor: P.dangerBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 6 }}>
+      <Text style={[role({ f: 'BG', w: 800, s: 11 }, P.dangerFg)]}>{t(label)}</Text>
+    </View>
+  );
+}
+
+/** The alerts on one order, each in his words with how long ago it came. */
+function ElementsAVerifier({ av, nowMs }: { av: AVerifier; nowMs: number }) {
+  const coupees = phraseCoupees(av.coupees);
+  return (
+    <View style={{ marginTop: 12, gap: 6 }}>
+      {av.elements.map((e, i) => {
+        const { phrase, quand } = phraseAlerte(e, nowMs);
+        return (
+          <Text key={i} style={CORPS}>
+            {phrase}
+            {quand !== null ? ` · ${quand}` : ''}
+          </Text>
+        );
+      })}
+      {coupees !== null ? <Text style={PETIT}>{coupees}</Text> : null}
+    </View>
+  );
+}
+
+/**
+ * An order Shop+ flags that is not in the supplier's book yet: its number, its
+ * product version, its quartier and the pill. Nothing else of the row — the
+ * buyer's contact stays where it is.
+ */
+function CarteHorsCarnet({ row, nowMs, ouvert, onToggle }: {
+  row: LivraisonRow;
+  nowMs: number;
+  ouvert: boolean;
+  onToggle: () => void;
+}) {
+  const pill = pilluleAVerifier(row.aVerifier);
+  return (
+    <Card variant="Llg">
+      <Pressable onPress={onToggle} accessibilityRole="button">
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[NOM_FORT, { flexShrink: 1 }]} numberOfLines={1}>{row.orderId}</Text>
+          {pill !== null ? <PilluleAVerifier label={pill.label} /> : null}
+        </View>
+        <Text style={[CORPS, { marginTop: 4 }]} numberOfLines={1}>
+          {row.productVersionId} · {row.zoneTo}
+        </Text>
+        <Text style={[PETIT, { marginTop: 2 }]}>{t('commandes.a_verifier_hors_carnet')}</Text>
+      </Pressable>
+      {ouvert && row.aVerifier !== undefined ? <ElementsAVerifier av={row.aVerifier} nowMs={nowMs} /> : null}
     </Card>
   );
 }
