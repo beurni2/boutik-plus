@@ -123,7 +123,10 @@ describe.skipIf(PLATFORM.raisonSaut !== null)(PLATFORM.titre('F-81 — the Fonds
     await screen.press('Déclarer le solde');
     await screen.type('500000', 'Solde du compte en francs');
     await screen.press('Enregistrer le solde daté');
-    await attendre(screen, () => !screen.shows('Pas encore déclaré'), 'the declared balance on screen');
+    // The zone re-reads the book after the save, and its loading line has no
+    // « Pas encore déclaré » either: wait for the re-read to land, not for that
+    // line to go.
+    await attendre(screen, () => !screen.shows('Pas encore déclaré') && screen.canPress('Nouvelle réclamation'), 'the declared balance on screen');
     const fund = (await demander('/fund')) as { declaration?: { balanceFcfa?: number } };
     expect(fund.declaration?.balanceFcfa, 'ASK THE BOOK: the declaration landed').toBe(500_000);
     expect(screen.shows('Pas encore déclaré'), 'the screen read the book again').toBe(false);
