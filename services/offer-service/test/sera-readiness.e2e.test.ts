@@ -37,7 +37,11 @@ const ORDER = 'ord-sera-0001';
 
 /** Every request Séra's door received, verbatim. */
 const seraPosts: { auth: string | null; path: string; body: string }[] = [];
-let seraRespond: 'ok' | 'down' | 'unauthorized' | 'notfound' | 'malformed' = 'ok';
+let seraRespond: 'ok' | 'down' | 'unauthorized' | 'notfound' | 'malformed' | 'silent' = 'ok';
+/** In « silent », THIS order's request is taken and never answered; every other order is answered 200. */
+const SILENCE = 'ord-sera-0007';
+/** A request held open until its test lets it go, then answered 200: a slow Séra, not a silent one. */
+const tenus = new Map<string, Promise<void>>();
 let seraServer: Server;
 let seraBase = '';
 
@@ -54,6 +58,15 @@ beforeAll(async () => {
         path: req.url ?? '',
         body: Buffer.concat(chunks).toString('utf8'),
       });
+      if (seraRespond === 'silent' && seraPosts[seraPosts.length - 1]!.body.includes(`"orderId":"${SILENCE}"`)) return;
+      const tenu = [...tenus].find(([id]) => seraPosts[seraPosts.length - 1]!.body.includes(`"orderId":"${id}"`));
+      if (tenu !== undefined) {
+        void tenu[1].then(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, applied: true }));
+        });
+        return;
+      }
       const code =
         seraRespond === 'down' ? 503
         : seraRespond === 'unauthorized' ? 401
@@ -101,6 +114,7 @@ let firstDrive: { confirmedAt: string; challenge: string; code: string };
 afterAll(async () => {
   await mf?.dispose();
   if (unwired !== undefined) await unwired.dispose();
+  seraServer.closeAllConnections();
   await new Promise<void>((resolve) => seraServer.close(() => resolve()));
   rmSync(persist, { recursive: true, force: true });
   rmSync(persistUnwired, { recursive: true, force: true });
@@ -397,4 +411,66 @@ describe('SE-LIVE-2b verifier round — only a 400 parks the Séra row', () => {
     expect(postsFor(order), 'a 400 must park rather than retry forever').toBe(afterFirst);
     seraRespond = 'ok';
   });
+});
+
+/**
+ * A Séra that takes the request and never answers must not hold the outbox.
+ * The whole book is one object, and one alarm walks every waiting row in
+ * turn, so a call with no end would stop every row behind it. The call gives
+ * up on its own clock, counts as one failed try, the walk goes on to the next
+ * row, and the ladder's first rung (1 s) brings the silent row's next try.
+ */
+describe('a silent Séra: the readiness call gives up on its own clock, the walk goes on, and the ladder tries again', () => {
+  const persistSilence = mkdtempSync(join(tmpdir(), 'sera-readiness-silence-'));
+  /** A book of its own, so no row left retrying by the tests above shares these walks. */
+  let livre: Miniflare;
+  /** Sorts after SILENCE, so its row waits behind the silent one in the same walk. */
+  const VOISINE = 'ord-sera-0008';
+  /** Holds the first walk open while both rows are written, so they wait for the same walk. */
+  const TENUE = 'ord-sera-0010';
+
+  afterAll(async () => {
+    await livre?.dispose();
+    rmSync(persistSilence, { recursive: true, force: true });
+  });
+
+  const postsFor = (orderId: string): number =>
+    seraPosts.filter((p) => p.body.includes(`"orderId":"${orderId}"`)).length;
+
+  it('the order behind the silent one leaves within the ceiling, and the silent one is tried again 10.5 to 14 s after its first try', async () => {
+    livre = makeMf(persistSilence, true);
+    let lacher!: () => void;
+    tenus.set(TENUE, new Promise<void>((r) => { lacher = r; }));
+    seraRespond = 'silent';
+    const silence: number[] = [];
+    let voisine: number | null = null;
+    try {
+      await driveToReady(livre, TENUE);
+      for (const debut = Date.now(); postsFor(TENUE) < 1 && Date.now() - debut < 8_000;) await new Promise((r) => setTimeout(r, 20));
+      expect(postsFor(TENUE), 'the first walk is out, waiting on Séra').toBe(1);
+      await driveToReady(livre, SILENCE);
+      await driveToReady(livre, VOISINE);
+      expect(postsFor(SILENCE) + postsFor(VOISINE), 'both rows wait for the next walk').toBe(0);
+      lacher();
+
+      const debut = Date.now();
+      while ((silence.length < 2 || voisine === null) && Date.now() - debut < 30_000) {
+        if (postsFor(SILENCE) > silence.length) silence.push(Date.now());
+        else if (voisine === null && postsFor(VOISINE) > 0) voisine = Date.now();
+        else await new Promise((r) => setTimeout(r, 20));
+      }
+      expect(silence.length, 'the readiness fact reached Séra once').toBeGreaterThanOrEqual(1);
+      expect(voisine, 'the row behind the silent one in the same walk was never sent').not.toBeNull();
+      expect(voisine! - silence[0]!, 'it left behind the silent one, within its ceiling and a small margin').toBeLessThanOrEqual(11_500);
+      expect(voisine!, 'and after it: one walk, in turn').toBeGreaterThanOrEqual(silence[0]!);
+      expect(silence.length, 'a silent Séra held the outbox: no second try within 30 s').toBe(2);
+      const ecart = silence[1]! - silence[0]!;
+      expect(ecart, 'the first try waited its ceiling before giving up').toBeGreaterThanOrEqual(10_500);
+      expect(ecart, 'then the ladder\'s first rung, not a longer wait').toBeLessThanOrEqual(14_000);
+    } finally {
+      lacher();
+      tenus.delete(TENUE);
+      seraRespond = 'ok';
+    }
+  }, 45_000);
 });

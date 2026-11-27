@@ -52,8 +52,12 @@ describe('THE WIRE CONTRACT — read from the CALLER’s source, not agreed in p
    */
   const shopSource = join(import.meta.dirname, '..', '..', '..', '..', 'shop-plus', 'services', 'storefront-service', 'src', 'supply-source.ts');
   const siblingPresent = existsSync(shopSource);
+  // Under CI (which clones shop-plus beside this repo) an absent sibling is a failure with its reason, never a skip.
+  const enCI = (process.env['CI'] ?? '').trim() !== '';
+  const raison = `pas de source shop-plus à ${shopSource} (clone shop-plus à côté de ce dépôt)`;
 
-  it.skipIf(!siblingPresent)('matches what shop-plus actually sends (storefront-service/src/supply-source.ts)', () => {
+  it.skipIf(!siblingPresent && !enCI)(`matches what shop-plus actually sends (storefront-service/src/supply-source.ts)${siblingPresent || enCI ? '' : ` — SAUTÉ : ${raison}`}`, () => {
+    if (!siblingPresent) throw new Error(raison);
     const src = readFileSync(shopSource, 'utf8');
     expect(src).toMatch(/Authorization:\s*`Bearer \$\{this\.readSecret\}`/);
     expect(BEARER_HEADER).toBe('Authorization');

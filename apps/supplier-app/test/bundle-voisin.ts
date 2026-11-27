@@ -16,10 +16,12 @@ import { fileURLToPath } from 'node:url';
  *   must be loud, never a quiet skip (the vignette seam's rule).
  * · A NEIGHBOUR'S BUNDLE (Séra's logistics, the platform's protection fund)
  *   lives in another repo. It is looked for beside this clone or where its
- *   env var points. Absent — as in this repo's CI, which checks out one repo —
- *   the tests SKIP, and the reason is written into their titles so a green run
- *   never reads as « proven ». Present but OLDER than its own source, it is
- *   REFUSED: a stale bundle proves a service that no longer exists.
+ *   env var points. Absent on a laptop, the tests SKIP, and the reason is
+ *   written into their titles so a green run never reads as « proven ».
+ *   Absent under CI (which clones the neighbours beside this one), nothing
+ *   skips: the first use FAILS with the same reason, because a CI run that
+ *   skipped them would read as proven. Present but OLDER than its own source,
+ *   it is REFUSED: a stale bundle proves a service that no longer exists.
  */
 
 type MiniflareCtor = new (opts: Record<string, unknown>) => {
@@ -48,13 +50,19 @@ export function voisin(o: { depot: string; env: string; service: string; dist: s
   const racine = brut !== undefined && brut.trim() !== '' ? brut.trim() : fileURLToPath(new URL(`../../../../${o.depot}`, import.meta.url));
   const service = join(racine, o.service);
   const bundle = join(service, o.dist);
-  const raisonSaut = existsSync(bundle)
+  const absent = existsSync(bundle)
     ? null
     : `pas de bundle ${o.depot} à ${bundle} (clone ${o.depot} à côté de ce dépôt ou ${o.env}, puis ${o.rebuild})`;
+  // Under CI nothing skips, and the failure waits for the point of use: SERA is
+  // built when this helper loads, so a throw here would fail the platform-only
+  // files for Séra's reason.
+  const enCI = (process.env['CI'] ?? '').trim() !== '';
+  const raisonSaut = enCI ? null : absent;
   return {
     bundle,
     raisonSaut,
     exigerAJour: () => {
+      if (absent !== null) throw new Error(absent);
       const b = statSync(bundle).mtimeMs;
       const source = Math.max(...['worker', 'src'].map((d) => join(service, d)).filter(existsSync).map(plusRecent));
       if (source > b) {

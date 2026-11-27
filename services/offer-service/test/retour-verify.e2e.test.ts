@@ -46,7 +46,7 @@ const codesRetour: Record<string, string> = { [ORDER]: 'RTR-K7M' };
 const codesRamassage: Record<string, string> = { [ORDER]: 'KVN-38M' };
 const retourPosts: { auth: string | null; body: string }[] = [];
 const ramassagePosts: string[] = [];
-let seraMode: 'ok' | 'down' | 'garbage' = 'ok';
+let seraMode: 'ok' | 'down' | 'garbage' | 'silent' = 'ok';
 let seraServer: Server;
 let seraBase = '';
 
@@ -70,6 +70,8 @@ beforeAll(async () => {
         return;
       }
       retourPosts.push({ auth: req.headers['authorization'] ?? null, body });
+      // Taken, and never answered.
+      if (seraMode === 'silent') return;
       if (seraMode === 'down') {
         res.writeHead(503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false }));
@@ -132,6 +134,7 @@ function makeMf(persistDir: string, wired: boolean): Miniflare {
 afterAll(async () => {
   await mf?.dispose();
   await unwired?.dispose();
+  seraServer.closeAllConnections();
   await new Promise<void>((resolve) => seraServer.close(() => resolve()));
   rmSync(persist, { recursive: true, force: true });
   rmSync(persistUnwired, { recursive: true, force: true });
@@ -304,4 +307,32 @@ describe('the supplier’s RETURN door proves the order is HIS, asks Séra’s r
     expect(jamais.status).toBe(503);
     expect(jamais.json).toEqual({ ok: false, reason: 'sera_unreachable' });
   });
+});
+
+/**
+ * The return check mirrors the pickup check: a Séra that takes it and never
+ * answers ends in « Séra injoignable » from this door on its own clock (12 s),
+ * before his phone's 25 s wait runs out, and his retry replays Séra's first
+ * verdict (same order, same said code, same command id).
+ */
+describe('a silent Séra: the return check answers sera_unreachable on its own clock', () => {
+  it('503 sera_unreachable after at least 11.5 s and within 15 s', async () => {
+    seraMode = 'silent';
+    try {
+      const avant = retourPosts.length;
+      const debut = Date.now();
+      const res = await Promise.race([
+        verifier(mf, codeA, ORDER, 'RTR-K7M'),
+        new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
+      ]);
+      const duree = Date.now() - debut;
+      expect(retourPosts.length, 'Séra was asked').toBe(avant + 1);
+      expect(res, 'no answer from this door within 15 s: his phone would be left waiting on it').not.toBeNull();
+      expect(res!.status).toBe(503);
+      expect(res!.json).toEqual({ ok: false, reason: 'sera_unreachable' });
+      expect(duree, 'the door waited its ceiling before giving up').toBeGreaterThanOrEqual(11_500);
+    } finally {
+      seraMode = 'ok';
+    }
+  }, 40_000);
 });
