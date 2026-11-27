@@ -48,7 +48,7 @@ describe('phraseCourse — on a course or not, as the phone reported it', () => 
 describe('the two fixed values of the desk', () => {
   it('re-read every 15 s (ruled against the flagged 60 s answer target), answered as « founder »', () => {
     // The walks move the strip's clock by this much; a change here is a change
-    // the coordinator rules and Bernard is told.
+    // the coordinator rules and the founder is told.
     expect(SOS_RELECTURE_MS).toBe(15_000);
     expect(SOS_PAR).toBe('founder');
   });

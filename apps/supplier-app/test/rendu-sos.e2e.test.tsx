@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, type ReactTestInstance } from 'react-test-renderer';
 import { mountEcran, storage, wiredEnv, type Screen } from './rendu';
+import { armerPermissionCamera } from './doubles/expo-camera';
 import { AppV2 } from '../src/v2/AppV2';
+import { t } from '../src/i18n';
 import { SERA, miniflareDuDepot } from './bundle-voisin';
 
 /**
@@ -41,7 +43,7 @@ const T = '2026-11-27T09:00:00.000Z';
 
 const VU = "J'ai vu, j'appelle";
 const TITRE = `SOS de ${NOM} · ${TEL}`;
-const PAS_RECU = "Séra n'a pas reçu votre réponse. Réessayez.";
+const PAS_CONFIRME = "Séra n'a pas confirmé votre réponse. Réessayez.";
 const SANS_CLE = 'Les alertes SOS des coursiers ont besoin de la clé Séra';
 const RELU_IMPOSSIBLE = "Les alertes SOS n'ont pas pu être relues";
 /** SOS_RELECTURE_MS, pinned in `sos-vue.test.ts`. */
@@ -66,6 +68,8 @@ interface Livre {
   incidents(): Promise<Incident[]>;
   /** The rider presses SOS: the body the rider app's sender posts (`sos-wire.ts`). */
   lever(commandId: string, activeCourseId: string | null): Promise<void>;
+  /** His answer from another browser, straight into the book. */
+  acquitter(commandId: string): Promise<void>;
   /** The network drops every request this says yes to. */
   couper(f: (cle: string) => boolean): void;
   /** The next `cle` request is held: before it reaches Séra, or after Séra
@@ -129,6 +133,10 @@ async function livre(): Promise<Livre> {
         { command_id: commandId, riderId: RIDER, hours: 'in_hours', onShift: true, activeCourseId, raisedAt: T },
         code,
       );
+      expect(r.status, await r.clone().text()).toBe(200);
+    },
+    acquitter: async (commandId) => {
+      const r = await direct('/ops/sos/ack', { command_id: commandId, by: 'founder' }, OPS);
       expect(r.status, await r.clone().text()).toBe(200);
     },
     couper: (f) => {
@@ -198,6 +206,7 @@ async function doubleTape(screen: Screen, label: string): Promise<void> {
 
 const acks = (l: Livre): number => l.appels.filter((c) => c === 'POST /ops/sos/ack').length;
 const lectures = (l: Livre): number => l.appels.filter((c) => c === 'GET /ops/sos').length;
+const etatDe = async (l: Livre, commandId: string): Promise<string | undefined> => (await l.incidents()).find((i) => i.commandId === commandId)?.state;
 
 /** Every screen of the console, each reached and still itself, with the alert above it. */
 async function partout(screen: Screen, attendu: string): Promise<void> {
@@ -261,7 +270,7 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('SOS-DESK — a rider\'s SO
 
     l.couper((cle) => cle === 'POST /ops/sos/ack');
     await screen.press(VU);
-    await attendre(screen, () => screen.shows(PAS_RECU), 'the « Réessayez » sentence');
+    await attendre(screen, () => screen.shows(PAS_CONFIRME), 'the « Réessayez » sentence');
     expect(screen.shows(TITRE), 'a lost answer never takes the alert away').toBe(true);
     expect(screen.canPress(VU), 'and the button is there to try again').toBe(true);
     expect((await l.incidents()).find((i) => i.commandId === 'sos-walk-2')?.state, 'ASK THE BOOK: still open').toBe('open');
@@ -269,7 +278,7 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('SOS-DESK — a rider\'s SO
     l.couper(() => false);
     await screen.press(VU);
     await attendre(screen, () => !screen.shows(TITRE), 'the strip emptying on the retry');
-    expect(screen.shows(PAS_RECU), 'the failure sentence leaves with the alert').toBe(false);
+    expect(screen.shows(PAS_CONFIRME), 'the failure sentence leaves with the alert').toBe(false);
     expect((await l.incidents()).find((i) => i.commandId === 'sos-walk-2')?.state, 'ASK THE BOOK: answered').toBe('acknowledged');
     screen.unmount();
   }, 60_000);
@@ -350,5 +359,123 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('SOS-DESK — a rider\'s SO
     expect(screen.shows(TITRE), 'the late read, taken before his answer, does not undo it').toBe(false);
     expect((await l.incidents()).find((i) => i.commandId === 'sos-walk-6')?.state).toBe('acknowledged');
     screen.unmount();
+  }, 60_000);
+
+  it('a key refused on his answer is cleared, and the alert he was shown stays, said not confirmed, until Séra records an answer', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const l = await livre();
+    await l.lever('sos-walk-7', null);
+    const stored = storage({ [CLE_SERA]: OPS });
+    const screen = await demarrer();
+    await attendre(screen, () => screen.shows(TITRE), 'the rider\'s SOS on screen');
+
+    // Between the read and his press, the key on this browser became one Séra refuses.
+    stored.set(CLE_SERA, 'une-cle-que-sera-refuse');
+    await screen.press(VU);
+    await attendre(screen, () => !stored.has(CLE_SERA), 'the refused key leaving this browser');
+    expect(screen.shows(TITRE), 'a refused key never takes away an alert Séra still holds open').toBe(true);
+    expect(await etatDe(l, 'sos-walk-7'), 'ASK THE BOOK: still open').toBe('open');
+    expect(screen.shows(PAS_CONFIRME), 'the card he pressed says his answer was not confirmed').toBe(true);
+    expect(screen.shows(SANS_CLE), 'and the strip says where the key goes, above it').toBe(true);
+    expect(screen.canPress(VU), 'the button is there to try again').toBe(true);
+
+    // He types the good key again in « Coursiers »: the next read keeps the alert, and his answer lands.
+    stored.set(CLE_SERA, OPS);
+    await tic(screen);
+    await attendre(screen, () => !screen.shows(SANS_CLE) && lectures(l) === 2, 'a read with the good key');
+    expect(screen.shows(TITRE), 'still open in the book, still on screen').toBe(true);
+    await screen.press(VU);
+    await attendre(screen, () => !screen.shows(TITRE), 'the strip emptying on Séra\'s answer');
+    expect(await etatDe(l, 'sos-walk-7'), 'ASK THE BOOK: answered').toBe('acknowledged');
+    expect(l.inattendus, 'nothing but Séra was asked').toEqual([]);
+    screen.unmount();
+  }, 60_000);
+
+  it('a read refused after a good read keeps the alert it read and says where the key goes, even with no operator door; a good read without it takes it away', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    // No operator door on this browser: only the Séra key typed in « Coursiers ».
+    (globalThis as { window?: unknown }).window = { location: { hash: '' } };
+    const l = await livre();
+    await l.lever('sos-walk-8', null);
+    const stored = storage({ [CLE_SERA]: OPS });
+    const screen = await demarrer();
+    await attendre(screen, () => screen.shows(TITRE), 'the rider\'s SOS on screen');
+    expect(screen.canPress('Opérations'), 'no operator door on this browser').toBe(false);
+
+    // Between two reads, the key on this browser became one Séra refuses.
+    stored.set(CLE_SERA, 'une-cle-que-sera-refuse');
+    await tic(screen);
+    await attendre(screen, () => !stored.has(CLE_SERA), 'the refused key leaving this browser');
+    expect(screen.shows(TITRE), 'a refused read never takes away an alert Séra still holds open').toBe(true);
+    expect(screen.shows(SANS_CLE), 'and the strip says where the key goes, above it').toBe(true);
+    expect(await etatDe(l, 'sos-walk-8'), 'ASK THE BOOK: still open').toBe('open');
+    // He presses with no key on this browser: nothing leaves, and the card says so.
+    await screen.press(VU);
+    expect(acks(l), 'no key: no answer sent').toBe(0);
+    expect(screen.shows(PAS_CONFIRME), 'the card says his answer was not confirmed').toBe(true);
+    expect(screen.shows(TITRE), 'and the alert stays').toBe(true);
+
+    // Answered from another browser: the next read with a good key no longer carries it.
+    await l.acquitter('sos-walk-8');
+    stored.set(CLE_SERA, OPS);
+    await tic(screen);
+    await attendre(screen, () => !screen.shows(TITRE), 'the alert leaving on a good read without it');
+    expect(screen.shows(SANS_CLE), 'a good key: no key sentence').toBe(false);
+    screen.unmount();
+  }, 60_000);
+
+  it('a read refused with the old key after he saved a new one leaves the new key where he put it', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const l = await livre();
+    await l.lever('sos-walk-9', null);
+    const stored = storage({ [CLE_SERA]: 'ancienne-cle-que-sera-refuse' });
+    const enRoute = l.retenir('GET /ops/sos', 'avant');
+    const screen = await demarrer();
+    await attendre(screen, () => lectures(l) === 1, 'the first read leaving with the old key');
+    // He saves the new key in « Coursiers » while that read is on its way.
+    stored.set(CLE_SERA, OPS);
+    enRoute();
+    for (let i = 0; i < 20; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+      await screen.settle();
+    }
+    expect(stored.get(CLE_SERA), 'only the key Séra refused is forgotten').toBe(OPS);
+    await tic(screen);
+    await attendre(screen, () => screen.shows(TITRE), 'the SOS read with the new key');
+    screen.unmount();
+  }, 60_000);
+
+  it('the Studio, opened from the wizard, has the open alert above it, and his answer works from there', async () => {
+    const l = await livre();
+    await l.lever('sos-walk-10', null);
+    // The wizard asks for his operator key before it lets him list. Only Séra
+    // answers in this walk: the product service's calls fail as a network would.
+    storage({ [CLE_SERA]: OPS, 'boutik.operateur.cle': 'cle-operateur-du-fondateur' });
+    // The phone's answer to the camera question: yes, so the Studio itself shows.
+    armerPermissionCamera({ granted: true, canAskAgain: true, status: 'granted' });
+    try {
+      const screen = await demarrer();
+      await attendre(screen, () => screen.shows(TITRE), 'the rider\'s SOS on screen');
+      // His road to the Studio, by the words on the screen (as `rendu-lister-publier.e2e`).
+      await screen.press('Vendre un nouveau produit');
+      await screen.press('Continuer');
+      await screen.type('Sac en raphia tressé', t('publier.champ_nom'));
+      await screen.press('Continuer');
+      await screen.type('12000', t('publier.champ_prix'));
+      await screen.type('1000', t('publier.ligne_commission'));
+      await attendre(screen, () => screen.canPress('Continuer'), '« Continuer » after his figures');
+      await screen.press('Continuer');
+      await screen.press(t('publier.ouvrir_studio'));
+      expect(screen.canPress(t('studio.depuis_telephone')), 'the Studio is reached and is itself').toBe(true);
+      expect(screen.shows(TITRE), 'the Studio: the alert is above it').toBe(true);
+      expect(screen.canPress(VU), `the Studio: « ${VU} » is pressable`).toBe(true);
+      await screen.press(VU);
+      await attendre(screen, () => !screen.shows(TITRE), 'the strip emptying on Séra\'s answer');
+      expect(await etatDe(l, 'sos-walk-10'), 'ASK THE BOOK: answered').toBe('acknowledged');
+      expect(screen.canPress(t('studio.depuis_telephone')), 'the tree survived the press, in the Studio').toBe(true);
+      screen.unmount();
+    } finally {
+      armerPermissionCamera(null);
+    }
   }, 60_000);
 });
