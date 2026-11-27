@@ -133,13 +133,13 @@ describe('PORTÉE-MEDIA — the AVPlayer probe road (ranged reads, R2-native)', 
 
   it('the AVPlayer probe — Range: bytes=0-1 answers 206 with exactly two bytes and the total', async () => {
     const key = mintMediaKey();
-    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: 'audio/mp4' } });
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: 'image/jpeg' } });
     const probe = await handleMediaRead(reqRange(key, 'bytes=0-1'), key, { BUCKET: bucket });
     expect(probe.status, 'a ranged ask must be answered 206, never 200-full — iOS refuses the media otherwise').toBe(206);
     expect(probe.headers.get('Content-Range')).toBe('bytes 0-1/11');
     expect(probe.headers.get('Accept-Ranges')).toBe('bytes');
     expect(probe.headers.get('Content-Length')).toBe('2');
-    expect(probe.headers.get('Content-Type')).toBe('audio/mp4');
+    expect(probe.headers.get('Content-Type')).toBe('image/jpeg');
     // The bounded Cache-Control rides the ranged road too — a slice of a
     // revocable object is exactly as revocable as the object.
     expect(probe.headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=3600');
@@ -174,7 +174,7 @@ describe('PORTÉE-MEDIA — the AVPlayer probe road (ranged reads, R2-native)', 
 
   it('the full GET stays a 200 full body — and now SAYS ranges are welcome', async () => {
     const key = mintMediaKey();
-    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: 'audio/mp4' } });
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: 'image/jpeg' } });
     const full = await handleMediaRead(req(key), key, { BUCKET: bucket });
     expect(full.status).toBe(200);
     expect(full.headers.get('Accept-Ranges')).toBe('bytes');
@@ -257,7 +257,7 @@ describe('EDGE CACHE — the origin-sparing property (fan-out is the whole point
 
   it('PORTÉE-MEDIA: ranged asks BYPASS the edge both ways — never stored, never answered from a stored 200', async () => {
     const key = mintMediaKey();
-    const { bucket, reads } = fakeBucket({ [key]: { body: 'IMAGE-BYTES', contentType: 'audio/mp4' } });
+    const { bucket, reads } = fakeBucket({ [key]: { body: 'IMAGE-BYTES', contentType: 'image/jpeg' } });
     const { cache, size } = fakeCache();
     const globals = globalThis as { caches?: unknown };
     const saved = globals.caches;
@@ -293,6 +293,136 @@ describe('EDGE CACHE — the origin-sparing property (fan-out is the whole point
     const b = await handleMediaRead(req(key), key, { BUCKET: bucket });
     expect([a.status, b.status]).toEqual([200, 200]);
     expect(reads).toEqual([key, key]); // both hit the origin — honest about the cost
+  });
+});
+
+/**
+ * ═══ THE SAME PROBE ROAD ON THE VOICE-NOTE DOOR (`AudioRead`) ═══
+ *
+ * The rider's player and the founder's console now reach her note through
+ * `handleAudioRead`, never the open read; the iPhone still probes in ranges.
+ * Every assertion the open read's probe road carries is held here, on an
+ * `audio/*` object, with the door's own `private, no-store`.
+ */
+describe('AudioRead — the AVPlayer probe road on the voice-note door', () => {
+  const BODY = 'IMAGE-BYTES'; // 11 bytes, the same fixture as above
+  const NOTE = 'audio/mp4';
+  const NO_STORE = 'private, no-store';
+  const porte = async () =>
+    (await import('../worker/index.js')) as unknown as {
+      handleAudioRead: (r: Request, env: MediaWorkerEnv) => Promise<Response>;
+    };
+
+  it('the AVPlayer probe — Range: bytes=0-1 answers 206 with exactly two bytes and the total', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    const probe = await handleAudioRead(reqRange(key, 'bytes=0-1'), { BUCKET: bucket });
+    expect(probe.status).toBe(206);
+    expect(probe.headers.get('Content-Range')).toBe('bytes 0-1/11');
+    expect(probe.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(probe.headers.get('Content-Length')).toBe('2');
+    expect(probe.headers.get('Content-Type')).toBe(NOTE);
+    expect(probe.headers.get('Cache-Control')).toBe(NO_STORE);
+    expect(await probe.text()).toBe('IM');
+  });
+
+  it('open-ended and suffix ranges serve the right slices', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    const tail = await handleAudioRead(reqRange(key, 'bytes=6-'), { BUCKET: bucket });
+    expect(tail.status).toBe(206);
+    expect(tail.headers.get('Content-Range')).toBe('bytes 6-10/11');
+    expect(await tail.text()).toBe('BYTES');
+    const suffix = await handleAudioRead(reqRange(key, 'bytes=-5'), { BUCKET: bucket });
+    expect(suffix.status).toBe(206);
+    expect(suffix.headers.get('Content-Range')).toBe('bytes 6-10/11');
+    expect(await suffix.text()).toBe('BYTES');
+  });
+
+  it('a range past the end answers 416 with the total, never a crash', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    for (const ask of ['bytes=999-', 'bytes=11-', 'bytes=999-1000']) {
+      const beyond = await handleAudioRead(reqRange(key, ask), { BUCKET: bucket });
+      expect(beyond.status, ask).toBe(416);
+      expect(beyond.headers.get('Content-Range'), ask).toBe('bytes */11');
+      expect(beyond.headers.get('Accept-Ranges'), ask).toBe('bytes');
+      expect(beyond.headers.get('Cache-Control'), ask).toBe(NO_STORE);
+    }
+  });
+
+  it('the full GET is a 200 full body that SAYS ranges are welcome, and is never stored', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    const full = await handleAudioRead(req(key), { BUCKET: bucket });
+    expect(full.status).toBe(200);
+    expect(full.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(full.headers.get('Content-Type')).toBe(NOTE);
+    expect(full.headers.get('Cache-Control')).toBe(NO_STORE);
+    expect(await full.text()).toBe(BODY);
+  });
+
+  it('a malformed or multi-range header is IGNORED per RFC 7233 — the full body answers, never a 500', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    for (const ask of ['zorbles=nope', 'bytes=0-1,4-5', 'bytes=-', 'bytes=5-2']) {
+      const res = await handleAudioRead(reqRange(key, ask), { BUCKET: bucket });
+      expect(res.status, ask).toBe(200);
+      expect(await res.text(), ask).toBe(BODY);
+    }
+  });
+
+  it('a missing object, a photograph, a malformed key, no binding → one uniform 404, the bucket never asked for a bad key', async () => {
+    const { handleAudioRead } = await porte();
+    const absent = mintMediaKey();
+    const photo = mintMediaKey();
+    const { bucket, reads } = fakeBucket({ [photo]: { body: BODY, contentType: 'image/jpeg' } });
+    const corps: string[] = [];
+    for (const [r, env] of [
+      [req(absent), { BUCKET: bucket }],
+      [reqRange(absent, 'bytes=0-1'), { BUCKET: bucket }],
+      [req(photo), { BUCKET: bucket }],
+      [reqRange(photo, 'bytes=0-1'), { BUCKET: bucket }],
+      [reqRange(photo, 'bytes=999-'), { BUCKET: bucket }],
+      [req(absent), {}],
+    ] as const) {
+      const res = await handleAudioRead(r, env as MediaWorkerEnv);
+      expect(res.status).toBe(404);
+      corps.push(await res.text());
+    }
+    const avant = reads.length;
+    for (const key of ['media/1', 'media/../x', 'private/master/x']) {
+      const res = await handleAudioRead(req(key), { BUCKET: bucket });
+      expect(res.status, key).toBe(404);
+      corps.push(await res.text());
+    }
+    expect(reads.length, 'a malformed key never reaches the bucket').toBe(avant);
+    expect(new Set(corps).size).toBe(1);
+    expect(JSON.parse(corps[0]!)).toEqual({ error: 'not_found' });
+  });
+
+  it('it never reads nor writes the edge cache', async () => {
+    const { handleAudioRead } = await porte();
+    const key = mintMediaKey();
+    const { bucket, reads } = fakeBucket({ [key]: { body: BODY, contentType: NOTE } });
+    let touche = 0;
+    const globals = globalThis as { caches?: unknown };
+    const saved = globals.caches;
+    globals.caches = { default: { match: async () => { touche += 1; return undefined; }, put: async () => { touche += 1; }, delete: async () => { touche += 1; return true; } } };
+    try {
+      expect((await handleAudioRead(req(key), { BUCKET: bucket })).status).toBe(200);
+      expect((await handleAudioRead(req(key), { BUCKET: bucket })).status).toBe(200);
+      expect(touche).toBe(0);
+      expect(reads).toEqual([key, key]);
+    } finally {
+      if (saved === undefined) delete globals.caches;
+      else globals.caches = saved;
+    }
   });
 });
 

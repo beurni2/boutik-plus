@@ -1,5 +1,7 @@
 import handler from './index.js';
 
+export { AudioRead } from './audio-read.js';
+
 /**
  * ═══ THE DEPLOYED ENTRY MODULE — DEFAULT EXPORT AND NOTHING ELSE ═══
  *
@@ -32,5 +34,9 @@ import handler from './index.js';
  * ⚠ ANY FUTURE ENTRYPOINT — a Durable Object class, a WorkerEntrypoint — is
  * added HERE, by name, and nowhere else. A constant exported from this file
  * stops the Worker from starting.
+ *
+ * AUDIO-READ — the first one: `AudioRead`, the buyer's voice note behind a
+ * service binding (`audio-read.ts`). `cloudflare:workers` stays external in
+ * `bundle:worker`; the runtime provides it.
  */
 export default handler;

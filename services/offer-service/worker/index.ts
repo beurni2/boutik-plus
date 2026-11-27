@@ -1,6 +1,6 @@
 import offerRouter, { OfferDO } from './offer-do.js';
 import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderAnnuler, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
-import { makeSupplyFetch } from '../src/supply-endpoint.js';
+import { makeSupplyFetch, OPAQUE_MEDIA_REF } from '../src/supply-endpoint.js';
 import { handleSupplyGrouping } from '../src/supply-grouping.js';
 import { stockDueMs } from '../src/stock-freeze.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
@@ -322,6 +322,9 @@ interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
    * with it. UNSET ⇒ the ops read is 401 for everyone, including Shop+.
    */
   FULFILLMENT_OPS_SECRET?: string;
+  /** AUDIO-READ — media-service's `AudioRead` entrypoint (service binding, no
+   *  URL): the only road to a buyer's voice note. */
+  MEDIA_AUDIO?: { fetch(request: Request): Promise<Response> };
   /** READINESS-WIRE-1a TEST KNOB, never a secret: overrides the 10-minute
    *  challenge TTL so the e2e can prove expiry without waiting. Production
    *  never sets it; unset or unparseable falls to the canon value. */
@@ -385,6 +388,30 @@ const SUPPLY_GROUPING = '/supply-grouping';
  * key (browsers strip custom headers from preflights), grants nothing, and
  * must succeed for the authed request behind it to even be attempted.
  */
+/** AUDIO-READ — `GET /fulfillment/repere-audio?ref=media/<uuid>` behind his key. */
+async function handleRepereAudio(ref: string, env: Env): Promise<Response> {
+  const introuvable = (): Response => Response.json({ error: 'not_found' }, { status: 404 });
+  if (!OPAQUE_MEDIA_REF.test(ref)) return introuvable();
+  const indisponible = (): Response => Response.json({ error: 'media_indisponible' }, { status: 502 });
+  if (env.MEDIA_AUDIO === undefined) return indisponible();
+  let res: Response;
+  try {
+    // The host is a placeholder: a service binding routes by binding.
+    res = await env.MEDIA_AUDIO.fetch(new Request(`https://media/${ref}`));
+  } catch {
+    return indisponible();
+  }
+  if (res.status === 404) return introuvable();
+  if (res.status !== 200) return indisponible();
+  return new Response(res.body, {
+    status: 200,
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') ?? 'application/octet-stream',
+      'Cache-Control': 'private, no-store',
+    },
+  });
+}
+
 const CORS_HEADERS: Readonly<Record<string, string>> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -511,6 +538,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
       if (refused) return refused;
       return handleOrderEvidence(request, env);
+    }
+    // AUDIO-READ — the buyer's voice note, for HIS ears: his key first (the 401
+    // is never an oracle), then the media Worker's `AudioRead` over its
+    // binding. Never cached: her voice says how to find her home. Any ref his
+    // console holds came from Shop+'s dispatch view, so no book check here.
+    if (request.method === 'GET' && fp === '/fulfillment/repere-audio') {
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      if (refused) return refused;
+      return handleRepereAudio(new URL(request.url).searchParams.get('ref') ?? '', env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-contact') {
       const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);

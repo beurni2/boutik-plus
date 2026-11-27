@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import * as entry from '../worker/entry.js';
 
 /**
  * ═══ THE DEPLOYED ENTRY MUST BE LOADABLE BY workerd ═══
@@ -26,21 +25,35 @@ import * as entry from '../worker/entry.js';
  * exactly how the original hole was dug.
  */
 
+/*
+ * AUDIO-READ — the entry now carries ONE more entrypoint, by name: `AudioRead`
+ * (a `WorkerEntrypoint` from `cloudflare:workers`). Node cannot load that
+ * module, so the entry is pinned by its SOURCE here, and the proof that
+ * workerd STARTS the bundle with exactly `default` and `AudioRead` lives in
+ * `audio-read.e2e.test.ts`, on workerd itself — the runtime that refuses a
+ * stray export.
+ */
 describe('the media Worker’s deployed entry module', () => {
-  it('exports the handler and NOTHING ELSE', () => {
-    // A named export that is not a handler stops the Worker from starting.
-    expect(Object.keys(entry).sort()).toEqual(['default']);
+  const src = readFileSync(new URL('../worker/entry.ts', import.meta.url), 'utf8');
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+  it('exports the handler and AudioRead, by name, and NOTHING ELSE', () => {
+    const exports = [...code.matchAll(/^\s*export\s+(.*)$/gm)].map((m) => m[1]!.trim()).sort();
+    expect(exports).toEqual(["default handler;", "{ AudioRead } from './audio-read.js';"]);
   });
 
-  it('the default export is an ExportedHandler with a fetch', () => {
-    expect(typeof (entry.default as { fetch?: unknown }).fetch).toBe('function');
+  it('the default export is the index handler with a fetch', async () => {
+    const index = (await import('../worker/index.js')).default as { fetch?: unknown };
+    expect(typeof index.fetch).toBe('function');
+    expect(code).toMatch(/import handler from '\.\/index\.js';/);
   });
 
-  it('and the bundle is built FROM it — a pin, because the whole fix is which file esbuild is pointed at', () => {
+  it('and the bundle is built FROM it, with cloudflare:workers left to the runtime', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
       scripts: Record<string, string>;
     };
     expect(pkg.scripts['bundle:worker']).toContain('worker/entry.ts');
     expect(pkg.scripts['bundle:worker']).not.toContain('worker/index.ts');
+    expect(pkg.scripts['bundle:worker']).toContain('--external:cloudflare:workers');
   });
 });

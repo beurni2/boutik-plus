@@ -3690,6 +3690,12 @@
     "screenClass": "status"
   },
   {
+    "key": "commandes.contact_masque",
+    "fr": "Commande terminée : son contact n’est plus affiché.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
     "key": "commandes.repere_voix_ecouter",
     "fr": "Écouter le repère (sa voix)",
     "register": "neutral",
@@ -3700,6 +3706,24 @@
     "fr": "Pause",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "commandes.repere_voix_chargement",
+    "fr": "Un instant, sa voix arrive…",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "commandes.repere_voix_absente",
+    "fr": "Sa note vocale n’est pas disponible. Appelez la cliente pour le repère.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "commandes.repere_voix_injoignable",
+    "fr": "La note n’est pas arrivée. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
   },
   {
     "key": "commandes.pill_incident",

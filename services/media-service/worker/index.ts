@@ -141,6 +141,22 @@ const notFound = (): Response =>
   Response.json({ service: 'media-service', status: 'not_found', reason: 'unknown_media_key' }, { status: 404 });
 
 /**
+ * AUDIO-READ — A BUYER'S VOICE NOTE IS NOT A PRODUCT PHOTOGRAPH. Her note says
+ * how to find her home; it shares this bucket with the photographs, so the
+ * open read answers it exactly as it answers a key that names nothing (no
+ * oracle), on every road, and never puts it in the edge. Notes are the only
+ * `audio/*` objects (`uploadAudio` derives the type from the bytes).
+ */
+const estAudio = (contentType: string | null | undefined): boolean =>
+  (contentType ?? '').toLowerCase().startsWith('audio/');
+
+async function refuseAudio(res: Response): Promise<Response> {
+  if (!estAudio(res.headers.get('Content-Type'))) return res;
+  await res.body?.cancel();
+  return notFound();
+}
+
+/**
  * MEDIA-PORTE-1 (AUDIT-B+2 F-43) — no R2 binding, no write. Before, the store
  * fell back to memory and every writing door answered 201 with a ref the next
  * read 404ed: a deploy missing its binding looked healthy while losing every
@@ -270,7 +286,16 @@ export async function handleMediaRead(
   const cache = edgeCache();
   if (range === null) {
     const hit = await cache?.match(request);
-    if (hit) return hit;
+    if (hit) {
+      // A voice note cached before the open read refused audio: the entry
+      // dies here and the answer is the unknown key's, word for word.
+      if (estAudio(hit.headers.get('Content-Type'))) {
+        await hit.body?.cancel();
+        await cache?.delete(request);
+        return notFound();
+      }
+      return hit;
+    }
   }
 
   // 3 — the private bucket. No binding (CI/local) is an honest 404, never a crash.
@@ -300,13 +325,18 @@ export async function handleMediaRead(
     // Serving the parent under `?v=thumb` is the same fallback as below, so it
     // earns the same short TTL while a vignette could still arrive.
     const cacheControl = wantsThumb && (await stillOpen(env, key)) ? FALLBACK_CACHE_CONTROL : CACHE_CONTROL;
-    return (await serveRangedObject(bucket, key, range, cacheControl)) ?? notFound();
+    return refuseAudio((await serveRangedObject(bucket, key, range, cacheControl)) ?? notFound());
   }
 
   const thumb = wantsThumb ? await bucket.get(thumbKeyFor(key)) : null;
   const served = thumb !== null && thumb.body !== null ? thumb : null;
   const object = served ?? (await bucket.get(key));
   if (object === null || object.body === null) return notFound();
+  // Never served here and never cached: her voice is read through `AudioRead`.
+  if (estAudio(object.httpMetadata?.contentType)) {
+    await object.body.cancel();
+    return notFound();
+  }
   /**
    * Asked for the vignette, answered with the photograph, AND a vignette could
    * still arrive — the only case that earns the short TTL. An OLD photograph
@@ -333,6 +363,57 @@ export async function handleMediaRead(
     else await store;
   }
   return res;
+}
+
+/**
+ * AUDIO-READ — `AudioRead`'s fetch (the class is in `audio-read.ts`, exported
+ * by name from `entry.ts`). It has no URL: only a Worker that declares the
+ * `MEDIA_AUDIO` service binding reaches it (Séra's logistics for the rider,
+ * offer-service for the founder), so it needs no secret of its own.
+ *
+ * `GET /media/<uuid>` of an `audio/*` object → its bytes, its stored type,
+ * `private, no-store`; one range is the open read's own range road. Anything
+ * else — a photograph, an unknown or malformed key, another method, no
+ * binding — is one uniform 404. It never reads or writes the edge cache.
+ * How long a note is kept is the founder's open decision: nothing here
+ * deletes or revokes.
+ */
+export const AUDIO_CACHE_CONTROL = 'private, no-store';
+const audioIntrouvable = (): Response => Response.json({ error: 'not_found' }, { status: 404 });
+
+export async function handleAudioRead(request: Request, env: MediaWorkerEnv): Promise<Response> {
+  if (request.method !== 'GET') return audioIntrouvable();
+  let key: string;
+  try {
+    key = decodeURIComponent(new URL(request.url).pathname.slice(1));
+  } catch {
+    return audioIntrouvable();
+  }
+  if (!isOpaqueMediaKey(key)) return audioIntrouvable();
+  const bucket = env.BUCKET;
+  if (bucket === undefined || typeof bucket.get !== 'function') return audioIntrouvable();
+
+  const range = parseRange(request.headers.get('Range'));
+  if (range !== null) {
+    const res = await serveRangedObject(bucket, key, range, AUDIO_CACHE_CONTROL);
+    if (res === null) return audioIntrouvable();
+    if (!estAudio(res.headers.get('Content-Type'))) {
+      await res.body?.cancel();
+      return audioIntrouvable();
+    }
+    return res;
+  }
+  const object = await bucket.get(key);
+  if (object === null || object.body === null) return audioIntrouvable();
+  const contentType = object.httpMetadata?.contentType;
+  if (!estAudio(contentType)) {
+    await object.body.cancel();
+    return audioIntrouvable();
+  }
+  return new Response(object.body, {
+    status: 200,
+    headers: { 'Content-Type': contentType!, 'Cache-Control': AUDIO_CACHE_CONTROL, 'Accept-Ranges': 'bytes' },
+  });
 }
 
 const health = makeHealthFetch('media-service');
@@ -624,7 +705,8 @@ async function handle(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv,
     // THE WRITE GATE, at the one deployed entry, BEFORE any dispatch or storage
     // touch — so a rejected upload never reaches R2 and the 401 is never an
     // existence oracle. Reads (GET) short-circuit through untouched: the media
-    // read route is open by design.
+    // read route is open by design — for photographs and clips; a voice note
+    // is refused there and read only through `AudioRead`.
     const denied = await rejectUnauthorizedWrite(request, env);
     if (denied) return denied;
 

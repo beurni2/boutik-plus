@@ -306,6 +306,11 @@ export type EvidenceResult =
   | { readonly ok: true; readonly evidence: OrderEvidence }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' | 'not_ready' | 'unknown_order' };
 
+/** AUDIO-READ — her voice note, fetched with his key (never an open link). */
+export type RepereAudioResult =
+  | { readonly ok: true; readonly note: Blob }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'absente' | 'unreachable' };
+
 export interface OperationsServicePort {
   listPaidOrders(opsKey: string): Promise<PaidOrdersResult>;
   /** RB-1 — read his contact cards, save one (last write wins), and read one
@@ -315,6 +320,9 @@ export interface OperationsServicePort {
   listInventaire(opsKey: string): Promise<InventaireResult>;
   saveSupplierContact(opsKey: string, card: SupplierContact): Promise<SaveContactResult>;
   orderEvidence(opsKey: string, orderId: string): Promise<EvidenceResult>;
+  /** AUDIO-READ — the buyer's voice note, through his own door, his key in
+   *  the header. The bytes come back for a `blob:` player; nothing caches them. */
+  repereAudio(opsKey: string, audioRef: string): Promise<RepereAudioResult>;
   /** Records « j'ai appelé le fournisseur ». NO timestamp crosses the wire —
    *  the Worker stamps its own clock. */
   recordRelance(opsKey: string, orderId: string): Promise<RelanceResult>;
@@ -713,6 +721,20 @@ export function resolveOperationsService(): OperationsServicePort | null {
           variant: typeof body['variant'] === 'string' ? body['variant'] : '',
         },
       };
+    },
+
+    async repereAudio(opsKey: string, audioRef: string): Promise<RepereAudioResult> {
+      try {
+        const res = await fetchBorne(`${trimmed}/fulfillment/repere-audio?ref=${encodeURIComponent(audioRef)}`, {
+          headers: { Authorization: `Bearer ${opsKey}` },
+        }, LECTURE_MS);
+        if (res.status === 401) return { ok: false, reason: 'bad_key' };
+        if (res.status === 404) return { ok: false, reason: 'absente' };
+        if (!res.ok) return { ok: false, reason: 'unreachable' };
+        return { ok: true, note: await res.blob() };
+      } catch {
+        return { ok: false, reason: 'unreachable' };
+      }
     },
 
     async recordRelance(opsKey: string, orderId: string): Promise<RelanceResult> {
