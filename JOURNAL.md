@@ -3,6 +3,24 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — MERGED, then the media, offer and console DEPLOYED
+
+**Founder.** « Release all four » (2026-11-27 14:34 UTC, decision card, on the buyer-privacy batch report), which named for Boutik+: media, offer, console, after the shared record and Shop+. Every Boutik+ deploy is locked to main's newest commit green in ci, so the merge came first and the three deploys followed it, media first because the offer service and Séra both bind its new private entrypoint.
+
+**Merge.** PR #9 merged as `dce2fb5` (merge commit, the branch shas kept). On main: ci 400 green, ALL GATES GREEN, its log showing the audio read on the real media Worker 10 passed, the founder's audio door on the real offer Worker 6 passed, the « Écouter » walk 9 passed and the held-back-contact walk 2 passed · expo-preview 268 (supplier app) green.
+
+**Deploy.**
+- media-deploy 15 (id 46019680841) from main `dce2fb5`: the deploy lock passed; « PROVENANCE OK — live media Worker is dce2fb5 speaking canon 3.26.0 ».
+- offer-deploy 53 (id 46019969631) from main `dce2fb5`: the deploy lock passed; Séra's intake key armed; the founder's attestations written (1 supplier); « PROVENANCE OK — live Worker is dce2fb5 speaking canon 3.26.0 » (the live Worker was `b23af69` before).
+- web-deploy 94 (id 46020220262) from main `dce2fb5`: the deploy lock passed; every never-ships needle absent; « web-size OK — console first load: 524.7 KB gzip (537296 B) … within the signed ceiling of 530.0 KB (542720 B) » (536 891 B at web-deploy 93, so +405 B; 5 424 B of room left; the branch report's 537 148 B was a local measure); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+- No fournisseur deploy: the fournisseur surface keeps its own order list, which never shows the buyer's contact, and none of its files changed.
+
+**Not checked.** The live console was not opened from here. The founder's first view is the check: a finished order's card and « Écouter » on a real note.
+
+**Still open.** As named in the slice entry below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — the buyer's voice note reaches the founder through his own key, his map through Shop+, and a finished order says her contact is held back · lane B7 · on the branch, NOT merged, NOT deployed
 
 **Founder.**
