@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
 import { GEO } from '../ui/v2/tokens';
@@ -22,6 +22,10 @@ import { phraseCourse, phraseRecu, quandOuaga, titreSos } from './view';
  * key on this browser, Séra not answering. Those sentences are for the founder
  * only (`operateur`): the same root is a supplier's app. With nothing open,
  * the strip takes no space.
+ *
+ * A refused key never takes an alert away: what was shown was read from Séra,
+ * and Séra still holds it open. The no-key sentence then shows above it, door
+ * or no door, because only a browser with a working Séra key could have read it.
  *
  * It re-reads every 15 s while the page is in front of him and not while the
  * tab is hidden (the console's refresh rule, CROISSANCE-1): a hidden strip
@@ -49,15 +53,17 @@ export function SBandeauSos({ operateur }: { operateur: boolean }) {
 
   const sansCle = useCallback((): void => {
     setCle(null);
-    setOuverts((o) => (o.length === 0 ? o : []));
     setIllisible(false);
     setDernierLu(null);
   }, []);
 
-  const cleRefusee = useCallback((): void => {
-    // Cleared on 401, like every other key in this console.
-    clearStoredCleCoursiers();
-    sansCle();
+  const cleRefusee = useCallback((refusee: string): void => {
+    // Cleared on 401, like every other key in this console, but only if it is
+    // still the key Séra refused: one typed meanwhile in « Coursiers » stays.
+    if (readStoredCleCoursiers() === refusee) clearStoredCleCoursiers();
+    const k = readStoredCleCoursiers();
+    if (k === null) sansCle();
+    else setCle(k);
   }, [sansCle]);
 
   const charger = useCallback(async (): Promise<void> => {
@@ -76,7 +82,7 @@ export function SBandeauSos({ operateur }: { operateur: boolean }) {
       const lu = await service.lire();
       if (!monte.current) return;
       if (lu.kind === 'bad_key') {
-        cleRefusee();
+        cleRefusee(k);
         return;
       }
       if (lu.kind !== 'ok') {
@@ -109,7 +115,11 @@ export function SBandeauSos({ operateur }: { operateur: boolean }) {
     if (envoisEnCours.current.has(commandId)) return;
     const k = readStoredCleCoursiers();
     const service = k === null ? null : resolveSosService(k);
-    if (service === null) return;
+    if (k === null || service === null) {
+      // No key to answer with: say so on the card, never a button that does nothing.
+      setEnvois((e) => ({ ...e, [commandId]: 'echec' }));
+      return;
+    }
     envoisEnCours.current.add(commandId);
     setEnvois((e) => ({ ...e, [commandId]: 'envoi' }));
     try {
@@ -126,22 +136,20 @@ export function SBandeauSos({ operateur }: { operateur: boolean }) {
         });
         return;
       }
-      if (r.kind === 'bad_key') {
-        cleRefusee();
-        return;
-      }
       setEnvois((e) => ({ ...e, [commandId]: 'echec' }));
+      if (r.kind === 'bad_key') cleRefusee(k);
     } finally {
       envoisEnCours.current.delete(commandId);
     }
   }, [cleRefusee]);
 
   if (!relie) return operateur ? <Ligne texte={t('sos.pas_relie')} /> : null;
-  if (cle === null) return operateur ? <Ligne texte={t('sos.sans_cle')} /> : null;
+  if (cle === null && ouverts.length === 0) return operateur ? <Ligne texte={t('sos.sans_cle')} /> : null;
   if (ouverts.length === 0 && !illisible) return null;
   const maintenant = new Date();
   return (
     <View style={{ paddingHorizontal: GEO.screenPad.side, paddingTop: 12, gap: 10 }}>
+      {cle === null ? <Banner tone="warn">{t('sos.sans_cle')}</Banner> : null}
       {illisible ? (
         <Banner tone="warn">
           {dernierLu === null
@@ -149,9 +157,12 @@ export function SBandeauSos({ operateur }: { operateur: boolean }) {
             : t('sos.illisible_depuis').replace('{quand}', quandOuaga(dernierLu, maintenant))}
         </Banner>
       ) : null}
-      {ouverts.map((o) => (
-        <CarteSos key={o.commandId} o={o} maintenant={maintenant} envoi={envois[o.commandId]} onRepondre={() => void repondre(o.commandId)} />
-      ))}
+      {/* Several open alerts scroll inside half the frame: the screen he is on stays reachable. */}
+      <ScrollView style={{ maxHeight: GEO.frame.h / 2 }} contentContainerStyle={{ gap: 10 }}>
+        {ouverts.map((o) => (
+          <CarteSos key={o.commandId} o={o} maintenant={maintenant} envoi={envois[o.commandId]} onRepondre={() => void repondre(o.commandId)} />
+        ))}
+      </ScrollView>
     </View>
   );
 }

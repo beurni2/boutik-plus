@@ -5569,7 +5569,7 @@
   },
   {
     "key": "sos.ack_echec",
-    "fr": "Séra n'a pas reçu votre réponse. Réessayez.",
+    "fr": "Séra n'a pas confirmé votre réponse. Réessayez.",
     "register": "neutral",
     "screenClass": "status"
   },

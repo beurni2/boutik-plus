@@ -143,4 +143,27 @@ describe('the SOS strip says why it cannot read, on every screen, and only to th
     expect(appels, 'the strip asks again on its own clock').toEqual([`GET ${SERA_BASE}/ops/sos`, `GET ${SERA_BASE}/ops/sos`]);
     screen.unmount();
   }, 20_000);
+
+  it('once the console is closed, the strip asks Séra nothing more', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    porteOuverte();
+    storage({ [CLE_SERA]: 'cle-sera-du-fondateur' });
+    const appels: string[] = [];
+    (globalThis as { fetch: unknown }).fetch = async (input: string, init?: RequestInit): Promise<Response> => {
+      appels.push(`${init?.method ?? 'GET'} ${String(input)}`);
+      throw new TypeError('Failed to fetch');
+    };
+    const screen = await demarrer();
+    for (let i = 0; i < 40 && appels.length < 1; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+    }
+    expect(appels, 'the strip read once while the console was open').toEqual([`GET ${SERA_BASE}/ops/sos`]);
+
+    screen.unmount();
+    await act(async () => { vi.advanceTimersByTime(RELECTURE * 3); });
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+    }
+    expect(appels, 'its clock stopped with it: no read after the console is gone').toEqual([`GET ${SERA_BASE}/ops/sos`]);
+  }, 20_000);
 });
