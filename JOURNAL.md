@@ -3,6 +3,36 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · ACCENTS-INVISIBLES-1 (pin) — the copy-lint here now compares words without their accents and without invisible characters · coordinator · on the branch, NOT merged
+
+**Founder.** Batch 5 of the plan he approved (« Now you start working on the next batch », 2026-11-27 15:13 UTC): « The French wording check catches « sequestre » without its accent. » The rule lives in the shared record (`platform-contracts` `34c1569`, see its journal); this repository only moves its pin.
+
+**What changed.** `@platform/i18n` repinned to `34c1569` in the root and supplier-app `package.json` and the lock file. A new negative fixture, `gates/fixtures/negative/catalog.accents.json`, holds four sentences whose ONLY faults are a missing accent, a soft hyphen or a zero-width space inside a banned word, and the §10.5 bad example; `scripts/run-gates.sh` runs it as a must-fail step. On the old pin it passes with 0 violations; on the new pin it fails with 4, so a pin that slides back turns the board red. No product code, no sentence and no screen changed: the supplier app's 969 strings lint clean on the new pin.
+
+**Evidence (82a77be).** Full board with the siblings beside the clone, `CI=true`, turbo forced (0 cached): ALL GATES GREEN, the accent fixture failing with 4 as required; supplier app 1 405, offer 485, media 183, service-auth 58, fulfillment 45 passed. Console size, the deploy's way (cold export, `EXPO_PUBLIC_ROOT=v2`, placeholder bases, separate clones): main `dce2fb5` 537 150 B, this branch 537 186 B (+36 B; the console imports the catalog schema from the package root, which now carries the fold), ceiling 542 720 B, 5 534 B of room.
+
+**Release.** Merge only: nothing the console does changes, and its next deploy carries the pin.
+
+---
+
+## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — MERGED, then the media, offer and console DEPLOYED
+
+**Founder.** « Release all four » (2026-11-27 14:34 UTC, decision card, on the buyer-privacy batch report), which named for Boutik+: media, offer, console, after the shared record and Shop+. Every Boutik+ deploy is locked to main's newest commit green in ci, so the merge came first and the three deploys followed it, media first because the offer service and Séra both bind its new private entrypoint.
+
+**Merge.** PR #9 merged as `dce2fb5` (merge commit, the branch shas kept). On main: ci 400 green, ALL GATES GREEN, its log showing the audio read on the real media Worker 10 passed, the founder's audio door on the real offer Worker 6 passed, the « Écouter » walk 9 passed and the held-back-contact walk 2 passed · expo-preview 268 (supplier app) green.
+
+**Deploy.**
+- media-deploy 15 (id 46019680841) from main `dce2fb5`: the deploy lock passed; « PROVENANCE OK — live media Worker is dce2fb5 speaking canon 3.26.0 ».
+- offer-deploy 53 (id 46019969631) from main `dce2fb5`: the deploy lock passed; Séra's intake key armed; the founder's attestations written (1 supplier); « PROVENANCE OK — live Worker is dce2fb5 speaking canon 3.26.0 » (the live Worker was `b23af69` before).
+- web-deploy 94 (id 46020220262) from main `dce2fb5`: the deploy lock passed; every never-ships needle absent; « web-size OK — console first load: 524.7 KB gzip (537296 B) … within the signed ceiling of 530.0 KB (542720 B) » (536 891 B at web-deploy 93, so +405 B; 5 424 B of room left; the branch report's 537 148 B was a local measure); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+- No fournisseur deploy: the fournisseur surface keeps its own order list, which never shows the buyer's contact, and none of its files changed.
+
+**Not checked.** The live console was not opened from here. The founder's first view is the check: a finished order's card and « Écouter » on a real note.
+
+**Still open.** As named in the slice entry below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — the buyer's voice note reaches the founder through his own key, his map through Shop+, and a finished order says her contact is held back · lane B7 · on the branch, NOT merged, NOT deployed
 
 **Founder.**
