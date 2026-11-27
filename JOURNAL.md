@@ -3,6 +3,24 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · SOS-DESK-1 + SERA-DELAIS-1 — MERGED, then the offer service and the console DEPLOYED
+
+**Founder.** « Release all three » (2026-11-27 04:19 UTC, decision card on the batch report), which named for Boutik+: merge, wait for its checks on main with the cross-repo tests passed and none skipped, put the offer service live, then publish the console.
+
+**Merge.** main re-checked unchanged at `fe89054`; PR #6 merged as `b23af69` (merge commit, the branch shas kept). On main: ci 393 green, its log showing every cross-repo file run and passed (courses-retrait, retirer-coursier, sos-desk, rendu-sos, rendu-fonds, livre-fonds-substitut, the read gate), supplier-app 1 338 tests with none skipped, the silent-Séra checks at about 12 s (pickup) and 20 s (return) · expo-preview 265 (supplier app) green.
+
+**Deploy.**
+- offer-deploy 52 (id 45940191668) from main `b23af69`: the deploy lock confirmed main's newest commit, green in ci; « PROVENANCE OK — live Worker is `b23af69…` speaking canon 3.26.0 ».
+- web-deploy 92 (id 45940363316) from main `b23af69`: every never-ships needle absent; « web-size OK — console first load: 521.0 KB gzip (533524 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 530 922 B at web-deploy 91; 9 196 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Deploy note, as reported.** After the offer service went live, a readiness row stalled before it is retried by its stored alarm, with bounded calls; nothing to migrate. On a browser with no Séra key stored, behind the operator door, the console says where to type it; once typed, an open alert shows within 15 s.
+
+**Not checked.** The live console was not opened from here (the live services cannot be read from where this release ran). The founder's first view is the check, and the bounded scroll needs his eyes on a phone with three open alerts.
+
+**Still open.** As named in the two slice entries below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · SERA-DELAIS-1 — every call the offer service makes to Séra ends on this side's clock, three tests assert before they narrow, and the cross-repo proofs run on GitHub · lane B5 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « You can start the next batch » (2026-11-27 01:21 UTC), on the plan whose batch 2 says, for Boutik+: « Calls to Séra get a time limit. Three tests that stop early now check what they claim. The three proofs that cross into Séra and the fund run on GitHub. »
