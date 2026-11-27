@@ -115,11 +115,11 @@ function carte(screen: Screen, orderId: string, ids: readonly string[]): string[
 
 const fois = (screen: Screen, texte: string): number => screen.texts().filter((t) => t === texte).length;
 
-/** Holds back every request whose address `retenue` names until `lacher()`;
+/** Holds back every request whose address `aRetenir` names until `lacher()`;
  *  each is then answered by the book as it is AT THAT MOMENT, as a slow
  *  network does. Only `fetch` is wrapped. `demandes` is every address the
  *  screen asked for, in order, at the moment it asked. */
-function retenir(retenue: (url: string) => boolean): { readonly demandes: string[]; lacher(): void } {
+function retenir(aRetenir: (url: string) => boolean): { readonly demandes: string[]; lacher(): void } {
   const reel = globalThis.fetch;
   const demandes: string[] = [];
   let ouvrir: () => void = () => undefined;
@@ -128,7 +128,7 @@ function retenir(retenue: (url: string) => boolean): { readonly demandes: string
   });
   globalThis.fetch = (async (input: string, init?: RequestInit) => {
     demandes.push(String(input));
-    if (retenue(String(input))) await tenue;
+    if (aRetenir(String(input))) await tenue;
     return reel(input, init);
   }) as typeof fetch;
   return { demandes, lacher: () => ouvrir() };
