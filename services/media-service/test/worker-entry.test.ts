@@ -14,7 +14,8 @@ import { describe, expect, it } from 'vitest';
  *
  * Nothing in this repo could see it, because every media test drove the default
  * export as a plain function in Node, where a stray string export means nothing.
- * `worker/entry.ts` now carries the deploy and exports ONLY the handler.
+ * `worker/entry.ts` now carries the deploy and exports only the handler, plus
+ * the `AudioRead` entrypoint by name.
  *
  * ⚠ NOT A PRODUCTION OUTAGE, and the distinction matters: `media-deploy` has run
  * seven times successfully and Cloudflare accepts that module today. What was

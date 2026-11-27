@@ -79,7 +79,9 @@ const routes = (contact: unknown): Route[] => [
 const AVEC_NOTE = { phone: '70112233', quartier: 'Gounghin', repere: 'Face à la pharmacie', audioRef: REF };
 
 /** The one binary answer: HIS door, wrapped around the harness wire. */
-type Reponse = 'note' | 'absente' | 'refusee' | 'coupee';
+type Reponse = 'note' | 'tenue' | 'absente' | 'refusee' | 'coupee';
+/** 'tenue': the door's answer waits until the walk releases it. */
+let relacher: (() => void) | null = null;
 function porteNote(fil: Wire, suite: Reponse[]): { appels: { url: string; auth: string | undefined }[] } {
   const appels: { url: string; auth: string | undefined }[] = [];
   const dessous = globalThis.fetch;
@@ -90,6 +92,7 @@ function porteNote(fil: Wire, suite: Reponse[]): { appels: { url: string; auth: 
     appels.push({ url: url.toString(), auth });
     fil.calls.push({ path: url.pathname, method: init?.method ?? 'GET', body: null, headers: auth === undefined ? {} : { authorization: auth } });
     const r = suite.length > 1 ? suite.shift()! : suite[0]!;
+    if (r === 'tenue') await new Promise<void>((fin) => { relacher = fin; });
     if (r === 'coupee') throw new TypeError('Failed to fetch');
     if (r === 'refusee') return Response.json({ error: 'unauthorized' }, { status: 401 });
     if (r === 'absente') return Response.json({ error: 'not_found' }, { status: 404 });
@@ -123,7 +126,9 @@ class FauxAudio {
 }
 
 const liberees: string[] = [];
+const creees: string[] = [];
 const revokeReel = URL.revokeObjectURL;
+const createReel = URL.createObjectURL;
 
 beforeEach(() => {
   wiredEnv();
@@ -133,6 +138,13 @@ beforeEach(() => {
   FauxAudio.jouer = 'ok';
   (globalThis as { Audio?: unknown }).Audio = FauxAudio;
   liberees.length = 0;
+  creees.length = 0;
+  relacher = null;
+  URL.createObjectURL = (b: Blob) => {
+    const u = createReel(b);
+    creees.push(u);
+    return u;
+  };
   URL.revokeObjectURL = (u: string) => {
     liberees.push(u);
     revokeReel(u);
@@ -143,6 +155,7 @@ afterEach(() => {
   delete (globalThis as { Audio?: unknown }).Audio;
   delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
   URL.revokeObjectURL = revokeReel;
+  URL.createObjectURL = createReel;
 });
 
 const ECOUTER = 'Écouter le repère (sa voix)';
@@ -191,6 +204,37 @@ describe('the order card plays her note through his own door', () => {
     const blob = lecteur.src;
     screen.unmount();
     expect(liberees, 'the blob: address is released when the card goes away').toContain(blob);
+  });
+
+  it('while her note is on its way the label says so, a second tap asks nothing more, and it plays when it lands', async () => {
+    const { note, screen } = await ouvrirCommande(AVEC_NOTE, ['tenue']);
+    await screen.press(ECOUTER);
+    await screen.settle();
+    expect(screen.shows('Un instant, sa voix arrive…'), JSON.stringify(screen.texts())).toBe(true);
+    await screen.press('Un instant, sa voix arrive…');
+    await screen.settle();
+    expect(note.appels.length, 'one fetch at a time').toBe(1);
+    expect(relacher, 'the door was asked').not.toBeNull();
+    relacher!();
+    await screen.settle();
+    expect(FauxAudio.crees.length).toBe(1);
+    expect(screen.canPress('Pause'), JSON.stringify(screen.texts())).toBe(true);
+    screen.unmount();
+  });
+
+  it('a note that lands after he closed the card never plays and leaves no address behind', async () => {
+    const { note, screen } = await ouvrirCommande(AVEC_NOTE, ['tenue']);
+    await screen.press(ECOUTER);
+    await screen.settle();
+    expect(note.appels.length).toBe(1);
+    await screen.press('Pagne tissé'); // he closes the card while it travels
+    await screen.settle();
+    expect(screen.canPress('Un instant, sa voix arrive…'), 'the card is closed').toBe(false);
+    relacher!();
+    await screen.settle();
+    expect(FauxAudio.crees.length, 'her voice started with no control on screen').toBe(0);
+    expect(creees.filter((u) => !liberees.includes(u)), 'a blob: address nothing will release').toEqual([]);
+    screen.unmount();
   });
 
   it('nothing in the console reaches the open media link for her voice', async () => {

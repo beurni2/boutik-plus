@@ -3,7 +3,7 @@ import handler from './index.js';
 export { AudioRead } from './audio-read.js';
 
 /**
- * ═══ THE DEPLOYED ENTRY MODULE — DEFAULT EXPORT AND NOTHING ELSE ═══
+ * ═══ THE DEPLOYED ENTRY MODULE — THE DEFAULT HANDLER, PLUS `AudioRead` BY NAME ═══
  *
  * WHY THIS FILE EXISTS (found 2026-08-11, by the first test that ever tried to
  * run this Worker on real workerd): `worker/index.ts` exports its route paths
@@ -27,8 +27,8 @@ export { AudioRead } from './audio-read.js';
  * correct either way now.
  *
  * THE FIX IS A SHAPE, NOT A BEHAVIOUR. This module re-exports the same handler
- * and adds nothing; `bundle:worker` points here, so the deployed artifact now
- * carries exactly one export. `worker/index.ts` keeps its named exports for the
+ * and adds nothing; `bundle:worker` points here, so the deployed artifact
+ * carries the default handler and, by name, only the `AudioRead` entrypoint. `worker/index.ts` keeps its named exports for the
  * unit suites, which is what they are for.
  *
  * ⚠ ANY FUTURE ENTRYPOINT — a Durable Object class, a WorkerEntrypoint — is

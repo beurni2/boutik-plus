@@ -367,27 +367,6 @@ const isSupplyRoute = (pathname: string): boolean =>
  */
 const SUPPLY_GROUPING = '/supply-grouping';
 
-/**
- * BOUTIK-WEB-W1 — CORS at the one deployed entry (Boutik-Plus-Web North Star,
- * founder-ruled 2026-07-26). The supplier surface now also runs in browsers,
- * and a browser is the one client that asks permission before sending: a GET
- * carrying `X-Write-Key` is not a "simple request", so the browser sends a
- * bare OPTIONS preflight first and refuses to hand the page any response that
- * lacks `Access-Control-Allow-Origin`. Without this block the web app cannot
- * read this service at all — not as a 401, as a browser-side wall.
- *
- * `*` is deliberate and safe HERE, and only here: this worker holds no cookie
- * and no ambient credential — every write and the admin read are gated by an
- * explicit header a page must knowingly attach, and the supply routes by a
- * Bearer secret — so allowing all origins grants an attacker's page nothing it
- * would not still need the key for. THE TRIPWIRE: the moment any cookie or
- * session state enters this worker, `*` stops being safe and this comment is
- * the review flag.
- *
- * The preflight answers before the write gate ON PURPOSE: OPTIONS carries no
- * key (browsers strip custom headers from preflights), grants nothing, and
- * must succeed for the authed request behind it to even be attempted.
- */
 /** AUDIO-READ — `GET /fulfillment/repere-audio?ref=media/<uuid>` behind his key. */
 async function handleRepereAudio(ref: string, env: Env): Promise<Response> {
   const introuvable = (): Response => Response.json({ error: 'not_found' }, { status: 404 });
@@ -412,6 +391,27 @@ async function handleRepereAudio(ref: string, env: Env): Promise<Response> {
   });
 }
 
+/**
+ * BOUTIK-WEB-W1 — CORS at the one deployed entry (Boutik-Plus-Web North Star,
+ * founder-ruled 2026-07-26). The supplier surface now also runs in browsers,
+ * and a browser is the one client that asks permission before sending: a GET
+ * carrying `X-Write-Key` is not a "simple request", so the browser sends a
+ * bare OPTIONS preflight first and refuses to hand the page any response that
+ * lacks `Access-Control-Allow-Origin`. Without this block the web app cannot
+ * read this service at all — not as a 401, as a browser-side wall.
+ *
+ * `*` is deliberate and safe HERE, and only here: this worker holds no cookie
+ * and no ambient credential — every write and the admin read are gated by an
+ * explicit header a page must knowingly attach, and the supply routes by a
+ * Bearer secret — so allowing all origins grants an attacker's page nothing it
+ * would not still need the key for. THE TRIPWIRE: the moment any cookie or
+ * session state enters this worker, `*` stops being safe and this comment is
+ * the review flag.
+ *
+ * The preflight answers before the write gate ON PURPOSE: OPTIONS carries no
+ * key (browsers strip custom headers from preflights), grants nothing, and
+ * must succeed for the authed request behind it to even be attempted.
+ */
 const CORS_HEADERS: Readonly<Record<string, string>> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',

@@ -159,6 +159,45 @@ describe('GET /fulfillment/repere-audio — his key, the media door, nothing cac
     expect((await porte(ref, {}, sansMedia)).status).toBe(401);
   }, LIMITE);
 
+  it('a media door that errs or throws → 502 by name, never her bytes and never a 404', async () => {
+    const ref = 'media/00000000-0000-4000-8000-000000000000';
+    // The media side is a real Worker on workerd, so a throw in it reaches the
+    // caller the way a broken binding does in production.
+    const avec = async (media: string): Promise<Response> => {
+      const sur = new Miniflare({
+        durableObjectsPersist: dossier(),
+        workers: [
+          {
+            name: 'offer-service',
+            modules: true,
+            scriptPath: OFFER,
+            compatibilityDate: '2025-07-05',
+            durableObjects: { OFFER: 'OfferDO', FULFILLMENT: 'FulfillmentDO' },
+            bindings: { FULFILLMENT_OPS_SECRET: OPS },
+            serviceBindings: { MEDIA_AUDIO: 'media-casse' },
+          },
+          { name: 'media-casse', modules: true, script: media, compatibilityDate: '2025-07-05' },
+        ],
+      });
+      try {
+        await sur.ready;
+        const res = await porte(ref, cle, sur);
+        return new Response(await res.text(), { status: res.status, headers: res.headers });
+      } finally {
+        await sur.dispose();
+      }
+    };
+    for (const [nom, media] of [
+      ['answers 500', "export default { fetch: () => new Response('boom', { status: 500, headers: { 'Content-Type': 'audio/webm' } }) };"],
+      ['throws', "export default { fetch() { throw new Error('binding down'); } };"],
+    ] as const) {
+      const res = await avec(media);
+      expect(res.status, nom).toBe(502);
+      expect(res.headers.get('Content-Type') ?? '', nom).not.toMatch(/^audio\//);
+      expect(JSON.parse(await res.text()), nom).toEqual({ error: 'media_indisponible' });
+    }
+  }, LIMITE);
+
   it('the preflight lets his console send its key header', async () => {
     const pre = (await mf.dispatchFetch('http://o/fulfillment/repere-audio', {
       method: 'OPTIONS',

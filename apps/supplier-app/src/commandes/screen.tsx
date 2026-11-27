@@ -753,7 +753,7 @@ function RangCommande({
                 <SignalerRefus
                   orderId={row.orderId}
                   cleC={readStoredCleC()}
-                  aUnNumero={typeof livraison === 'object' && livraison.contact !== null}
+                  aUnNumero={typeof livraison === 'object' && (livraison.contact !== null || livraison.contactMasque === true)}
                   onCleCRefusee={onCleCRefusee}
                 />
               )
@@ -1289,9 +1289,16 @@ function EcouterRepere({ service, cle, audioRef, onCleRefusee }: {
   const [etat, setEtat] = useState<'pret' | 'chargement' | 'absente' | 'injoignable'>('pret');
   const lecteur = useRef<LecteurAudio | null>(null);
   const adresse = useRef<string | null>(null);
-  useEffect(() => () => {
-    lecteur.current?.pause();
-    if (adresse.current !== null) URL.revokeObjectURL(adresse.current);
+  // An answer that lands after the card closed must do nothing: no blob, no
+  // player, no sound with no control on screen.
+  const monte = useRef(true);
+  useEffect(() => {
+    monte.current = true;
+    return () => {
+      monte.current = false;
+      lecteur.current?.pause();
+      if (adresse.current !== null) URL.revokeObjectURL(adresse.current);
+    };
   }, []);
   const AudioCtor = (globalThis as { Audio?: new (src: string) => LecteurAudio }).Audio;
   if (AudioCtor === undefined) return null;
@@ -1323,6 +1330,7 @@ function EcouterRepere({ service, cle, audioRef, onCleRefusee }: {
             }
             setEtat('chargement');
             void service.repereAudio(cle, audioRef).then((r) => {
+              if (!monte.current) return;
               if (!r.ok) {
                 if (r.reason === 'bad_key') {
                   onCleRefusee();

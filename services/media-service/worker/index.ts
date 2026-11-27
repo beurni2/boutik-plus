@@ -168,10 +168,12 @@ const storageUnbound = (): Response =>
 /**
  * ═══ PORTÉE-MEDIA — THE iPHONE'S PLAYER ASKS IN RANGES ═══
  *
- * The Séra rider plays the buyer's « repère » voice note from THIS route, and
- * iOS AVPlayer probes any media URL with `Range: bytes=0-1`, REFUSING the whole
- * resource when the answer is 200-full-body with no `Accept-Ranges` — exactly
- * what this route did. The founder heard silence on his iPhone. Same bug, same
+ * The Séra rider USED to play the buyer's « repère » voice note from this route
+ * (it now hears it through Séra's door on `AudioRead`, which keeps this same
+ * range road), and iOS AVPlayer probes any media URL with `Range: bytes=0-1`,
+ * REFUSING the whole resource when the answer is 200-full-body with no
+ * `Accept-Ranges` — exactly what this route did. It still holds for photos and
+ * clips here. The founder heard silence on his iPhone. Same bug, same
  * fix as shop-plus's media read Worker (PORTÉE-MEDIA, 2026-08-13, proven on a
  * real device): parse a SINGLE range to R2's own range shape and let R2 serve
  * the slice NATIVELY — never read the whole body and cut it in the Worker.

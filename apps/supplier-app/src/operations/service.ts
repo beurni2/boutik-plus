@@ -24,7 +24,7 @@
  * this port reads is already refused-or-true.
  */
 
-import { fetchBorne, LECTURE_MS } from '../reseau';
+import { fetchBorne, LECTURE_MS, PHOTO_MS } from '../reseau';
 
 /**
  * CONSOLE-2 — the operator's own chase mark, merged onto the row by the book.
@@ -727,7 +727,8 @@ export function resolveOperationsService(): OperationsServicePort | null {
       try {
         const res = await fetchBorne(`${trimmed}/fulfillment/repere-audio?ref=${encodeURIComponent(audioRef)}`, {
           headers: { Authorization: `Bearer ${opsKey}` },
-        }, LECTURE_MS);
+          // A note can be 2 MiB: on the reference network that alone is ~11 s.
+        }, PHOTO_MS);
         if (res.status === 401) return { ok: false, reason: 'bad_key' };
         if (res.status === 404) return { ok: false, reason: 'absente' };
         if (!res.ok) return { ok: false, reason: 'unreachable' };
