@@ -166,7 +166,7 @@ describe('« Colis perdu en route » sits in Opérations, beside the SOS alerts'
     expect(screen.shows('Commande ord-perdu-1 · chez Awa')).toBe(true);
     expect(screen.canPress(DECLARER), 'the action is present and pressable').toBe(true);
     const lecture = w.calls.find((c) => c.path === '/ops/board');
-    expect(lecture?.headers['authorization'], 'the board is read on his Séra key').toBe('Bearer cle-sera-du-fondateur');
+    expect(lecture?.headers['authorization'], 'the board is read on his Séra key').toBe(`Bearer ${CLES[CLE_SERA]}`);
     screen.unmount();
   }, 20_000);
 
