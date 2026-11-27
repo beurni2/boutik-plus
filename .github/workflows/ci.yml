@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Every morning at 05:00 UTC the board runs again on main's newest commit,
+  # so a check that turns red without a push (an expired date, a moved
+  # dependency) is seen. A red newest run also stops service releases.
+  schedule:
+    - cron: '0 5 * * *'
 
 # DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — this job READS the tree and nothing
 # else; the default token could write.
