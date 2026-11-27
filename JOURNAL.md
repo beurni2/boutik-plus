@@ -3,6 +3,32 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · SORTIES-SURES-1 — a service goes live only from main's newest green commit, with the founder's approval; the supplier app publishes only after green checks; a rollback page; the board and a live check every day · lane O5 · on the branch, NOT merged, NOT deployed
+
+**Founder.** « Go on for batch 6 » (2026-11-27 19:38 UTC), batch 6 of the plan he approved: « A service goes live only after its checks passed on that exact version, with your approval in front of it. Apps publish only after green checks. One page per app says how to roll back, and we practise it once. The boards run every day, not only when someone pushes. A daily watch checks that the live services run `main`. Public logs stop printing order numbers, amounts and your catalogue. » His card on the GitHub approval is still open; this is built on its recommended answer (service releases wait for his approval; app updates need green checks only).
+
+**Lane.** Lane O5 (all five repositories), Boutik+ commits `c722c25` (red first), `f5a2d2b` and the review's fixes `bb44059` on `255d12f`. Integrated on `claude/project-thread-jqj97g` as `662fd63` on `6176ec1`. Files byte-identical to the lane's.
+
+**Spec.** Execution Contract §7.1 (« promotion rules … Required approvals on money/custody/attribution releases ») and §11 (« secrets management · key rotation »); this repository's rule since DEPLOI-VERROU-1: every deploy is locked to main.
+
+**What changed.**
+- *Service releases* (`offer-deploy`, `media-deploy`, `web-deploy`, `fournisseur-web-deploy`): the first step of every deploying job is `scripts/deploy-only-main.sh`, which now also requires the most recently created finished ci run on main's newest commit to be green (a push run on it must have passed, as before). Every release job names `environment: production`, so each run waits for the founder's approval in GitHub.
+- *The supplier app* (`expo-preview`): starts when a ci run on main finishes (a successful push run, or a dispatch on main); `scripts/publish-decision.sh` ships main's newest commit only when its ci is green, else skips; the publishing job queues and never cancels.
+- *The live check* (`live-check`) prints counts only: live products, hidden from Shop+, with a clip, without a rayon, photos, and photos by HTTP answer. `live-check-log-proof` runs the step's own text against a stand-in and fails the board if anything else reaches the log.
+- *Rollback.* A `rollback` workflow (dispatch on main only, `production`) lists the newest versions of the offer or media service and points one back at the previous or a named version, rebuilding nothing; it names each key that went back with the version and how to write it again. `docs/runbooks/ROLLBACK.md` in plain words, with the founder console, the supplier web page and the supplier app's Expo channel.
+- *Every day.* ci at 05:00 UTC. A new `live-watch` at 05:30 UTC asks the live offer and media Workers which commit they were built from and goes red unless main has changed nothing they are built from (each folder, the packages it bundles, the lock file, the workspace files, `tsconfig.base.json`, `turbo.json`); a missing input, an unknown release or « dev » is red.
+- *The gate.* `scripts/gates/deploy-chain-locked.mjs` extended to the release chain with its legal and negative fixtures, and the proofs `deploy-only-main-proof`, `publish-decision-proof`, `live-watch-proof`, `live-check-log-proof`, each driving the real script.
+
+**Evidence.** Lane: each new gate and proof red on main for the right reason, then green; mutations each red, restored byte-identical. Coordinator: every workflow and script change read; the gate and proofs re-run at the lane heads. Full board on `662fd63` with the siblings beside the clone, `CI=true`, turbo forced: ALL GATES GREEN.
+
+**Verifier.** One fresh-context pass across the five repositories, handled once: the publish queue moved onto the publishing job; the gate checks the publish obeys the decision, that every deploying job starts with its guard and that the conditions sit in the job's own `if:`; the watch refuses an input missing from main and lists the shared TypeScript base and the build plan; the rollback page says keys go back with the version (the media keys are written by no workflow and go back by hand).
+
+**Release.** The merge, then the media, offer, console and supplier web page deploys from main, each through the guard and his approval. The merge publishes the supplier app once its ci is green.
+
+**Still open.** Held in the private batch record until their fixes deploy. The daily watch reads red for the offer and media services until they are deployed from main.
+
+---
+
 ## 2026-11-27 · ACCENTS-INVISIBLES-1 (pin) — MERGED
 
 **Founder.** « Release all five » (2026-11-27 17:59 UTC, decision card, on the batch 5 report), which named Boutik+: merge only, after the platform-contracts pull request.
