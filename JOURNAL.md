@@ -3,6 +3,57 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · FONDS-PAGES-1 — the console's fund desk says a seller-fault claim refunds no one, shows the buyer's refund as Shop+ has it, and reads only what it shows · lane B3 · on the branch, NOT merged, NOT deployed
+
+**Founder.** « Start batch 1 » (2026-11-26 22:03 UTC, decision card on the batch plan, whose batch 1 says the seller-fault claim stops reading as a refund of the buyer, shows whether she was refunded, and the fund desk stops re-reading its whole history on every view).
+
+**Spec.**
+- Boutik-Plus-Build-Spec l.57, B+I-13: « No seller-caused refund or logistics loss may delay the buyer's refund ».
+- ECOSYSTEM-MASTER-REFERENCE l.529: « A buyer owed money is paid whether the fund is healthy or empty. The fund protects *sellers* from fault-cost; it never stands between a buyer and her refund. »
+- Shop-Plus-Build-Spec SP6: « A refund that cannot finish by itself is told to the founder, on his console » (what the Commandes refund pill already says).
+- `CLAUDE.md` §3 law 6 and §5's trust test (never a guessed state).
+- The protection service's paged reading, as the platform's FONDS-3 builds it (fixed): `?part=open` every open claim, never paged; `?part=closed[&limit 1-100, default 20][&before=N]` → `{ claims, nextBefore }`; bad parameters `400 invalid_page`; the service live before it ignores the parameters and answers its full list with no `nextBefore`.
+
+**Built.** Lane B3 built `33f95c6`, then `f70436f` from the one review below; both merged here `--no-ff` (`4e26cae`, `20d8850`). The coordinator added the new walk file to the storefront scan's allow list in its own commit (`26fc0a6`, one line, the same class as the walks beside it: a test that serves and counts the console's own key-C read), and renamed one test parameter (`7f4ff18`, below).
+
+**What changed (console, `apps/supplier-app`).**
+- **The seller-fault line.** `fonds.cliente_dabord` (« Cliente à rembourser en premier ») is gone. A seller-fault card now says `fonds.ne_rembourse_pas`: « Cette réclamation ne rembourse pas la cliente. »
+- **The buyer's refund beside it.** Under that line, the card shows that order's own refund as Shop+ has it, in the Commandes tab's pill words and tone (`pilluleRemboursement`, the same as `pilluleCommande` for all six refund states), with the blocked reason when there is one. It comes from the key-C read the console already makes (`listLivraisons`), asked once per load and only when a seller-fault claim is on screen; no new Shop+ route or key. Where it cannot be read, the card says so in its own sentence and never guesses:
+  - no key C on this device: « Pour voir ici si la cliente est remboursée, entrez une fois la clé Shop+ dans la zone Revendeuses. »
+  - a read refused or failed: « Son remboursement n'a pas pu être lu. Réessayez, ou regardez la commande dans Commandes. »
+  - the order is not in the list read: « Cette commande n'est pas dans la liste lue chez Shop+. Son remboursement ne peut donc pas être lu ici. »
+  - Shop+ holds no refund for it: « Shop+ n'a aucun remboursement pour cette commande. »
+  - The desk never clears or rewrites key C.
+- **The desk reads only what it shows.** Each view reads `/fund` and `/claims?part=open` together, then `/claims?part=closed&limit=20` once the open claims have answered (so a claim that closes in between is the newest closed one and is kept once, closed). « Voir les réclamations plus anciennes » loads the next page while `nextBefore` is a number, adds it once (only where it was asked for, de-duplicated by order), and goes away at the end; one press sends one read. Against the service live before the paged reading (no `nextBefore` key), its full list is shown alone, once, with no button.
+- **The Commandes tab** files a claimed order under « Incidents » from two bounded reads, the open claims then the 100 most recently closed; its comment states the bound.
+- Catalog: `fonds.cliente_dabord` out; eight `fonds.*` entries in, each with its register.
+
+**Evidence.**
+- The fund stand-in the walks use is certified against the REAL protection service of both readings, each from its own build: platform `871ebc4` (the paged reading, FONDS-3's final head) and `ae0b76e` (today's live). It deep-compares status and body for every read the console makes, every closed page to the end at two page sizes, every refusal, a wrong key and the figures; the claim builder is compared field for field. In this repo's CI the certification skips (its title says why: no platform build beside the checkout).
+- Seam walks: the real « Fonds » zone, its fetch routed into each real book: the first view's three reads, every claim the book holds shown exactly once, the older page from the real `nextBefore`, the whole book never asked for.
+- 17 screen walks on the real fund zone and Commandes tab (only fetch and storage faked, Shop+ answers checked against its recorded forms), view checks, and the earlier fund walk on both builds: 43/43, no skips.
+- Red on main where new (14 at the first red, 4 more at the review's fixes, each for its reason).
+- Supplier-app suite green; `tsc` 0; copy-lint OK (918 entries, 0 violations).
+- Mutations, each anchor matched once, restored byte-identical, all red except one: the old sentence key back; the old words back; the refund taken without its order match; « see older » shown with `nextBefore` null, or kept on the old book; the Commandes tab back on the full list, or on 20 closed; the old-book rule always on; no de-duplication; a failed refund read clearing key C; a stand-in accepting a page over 100, or paging the open claims; the reads sent together again (desk and Commandes); the older-page Shop+ read removed; the « only where asked » check removed; the page de-duplication removed; the in-flight check removed; the Shop+ read made with no seller-fault claim (a first form of that one did not compile and was redone). The survivor: the old-book rule removed, because the de-duplication alone already shows each claim once on the old book; it is kept so both fund desks follow one rule.
+- Console first load, the deploy's measure (cold export, root v2, placeholder base URLs, `web-artifact-checks`): `cd822eb` 529 470 B, this branch 530 809 B (+1 339 B), ceiling 542 720 B; offline shell OK.
+- Boutik+ board on `7f4ff18`, after `pnpm build`: ALL GATES GREEN (supplier-app 1 303 passed, 4 skipped for want of a platform build beside the checkout; copy-lint OK; the storefront and seller-debit scans OK; board console measure 524 472 B). The first board on `20d8850` failed one scan: the seller-debit scan reads « retenue » as money withheld, and a walk helper used it to name the requests it holds back; the coordinator renamed that parameter (`7f4ff18`, no assertion changed).
+
+**The one independent review:** 0 blockers, 0 major, 3 minor, 3 notes, handled once.
+- Fixed: the two reads asked together could miss a claim closing between them (now one after the other, with a hold-back walk on the desk and on Commandes); the missing-order sentence blamed Shop+ for what the console may have dropped (new words); four guards on the older-page path had no test (four walks, and the in-flight check is now a ref).
+- Journalled: the old-book proof rests on the de-duplication (above); the certification runs only beside platform builds (above); a product question for the founder below.
+
+The slice was not re-inspected after the fixes.
+
+**Release (after his word).** The desk works against both readings, so it is safe on either side of the protection service's deploy. The batch order: `protection-deploy`, then `ops-console-deploy` (platform), then here merge, `ci` green on that commit, then `web-deploy` (the console). Each first view now waits one extra round trip for the closed page.
+
+**Still open, named.**
+- The banner `fonds.loi_cliente` is unchanged; its wording is the founder's to rule.
+- A claim closed before the 100 most recent no longer files its order under « Incidents » (pinned by a walk).
+- The desk shows Shop+'s word on the refund; opening or unblocking a refund stays in Commandes.
+- A seller-fault claim whose order Shop+ holds no refund for states that fact with no next step (a product question for the founder).
+
+---
+
 ## 2026-11-26 · VIDEO-SANS-LIEU-1 — MERGED, then the media Worker and the console DEPLOYED
 
 **Founder.** « Release all three » (2026-11-26 21:17 UTC, decision card), which named for Boutik+: merge, then put the media service live, then the console.
