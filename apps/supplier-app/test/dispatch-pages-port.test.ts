@@ -136,8 +136,8 @@ describe('REMBOURSEMENT-2 — the refund on a Livraisons row, in Shop+’s own w
       { ...lrow('ord-2'), remboursement: { etat: 'bloque', raison: 'refus_du_prestataire' } },
       { ...lrow('ord-3'), remboursement: { etat: 'bloque', raison: 'sans_confirmation' } },
       { ...lrow('ord-4'), remboursement: { etat: 'bloque', raison: 'refus_illisible' } },
-      { ...lrow('ord-5'), remboursement: { etat: 'fait' } },
-      { ...lrow('ord-6'), remboursement: { etat: 'rien' } },
+      { ...lrow('ord-5'), contact: null, contactMasque: true, remboursement: { etat: 'fait' } },
+      { ...lrow('ord-6'), contact: null, contactMasque: true, remboursement: { etat: 'rien' } },
       { ...lrow('ord-7'), remboursement: null },
       lrow('ord-8'),
     ] } }]);
@@ -162,7 +162,7 @@ describe('REMBOURSEMENT-2 — the refund on a Livraisons row, in Shop+’s own w
       { ...lrow('ord-2'), remboursement: { etat: 'bloque', raison: 'autre' } },
       { ...lrow('ord-3'), remboursement: { etat: 'rembourse' } },
       { ...lrow('ord-4'), remboursement: 'en_cours' },
-      { ...lrow('ord-5'), remboursement: { etat: 'fait' } },
+      { ...lrow('ord-5'), contact: null, contactMasque: true, remboursement: { etat: 'fait' } },
     ] } }]);
     const res = await resolveDispatchService()!.listLivraisons('cle-c');
     if (!res.ok) throw new Error(res.reason);
