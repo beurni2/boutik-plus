@@ -3,6 +3,23 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · SORTIES-SURES-1 — MERGED; media and offer services DEPLOYED
+
+**Founder.** « Release all five » (2026-11-27 22:43 UTC, decision card, on the batch 6 report), which named for Boutik+: the merge, then the media and offer services, so the morning watch starts green. The two consoles and the supplier web page did not change in this batch and were not deployed.
+
+**Merge.** platform-contracts PR #5 merged first (`b36e360`). PR #11 merged as `d1ecbbe` (merge commit, the branch shas kept). On main: ci 404 green · expo-preview 270 (supplier app preview) green, both on their first attempt.
+
+**Deployed from main at `d1ecbbe`, each through the new guard.**
+- media-deploy 16 (id 46079271242) green: the guard passed; the first health read still showed the previous release, the next one « PROVENANCE OK — live media Worker is d1ecbbe… speaking canon 3.26.0 ».
+- offer-deploy 54 (id 46079477143) green, after media: the guard passed, the steps that write the Séra intake key and the supplier attestations green, and the first health read « PROVENANCE OK — live Worker is d1ecbbe… speaking canon 3.26.0 ».
+- Both jobs name the `production` environment, but GitHub started them without waiting for an approval; the founder approved in chat, and the environment's reviewer setting is being checked.
+
+**Not checked.** The first scheduled live watch (05:30 UTC on 2026-11-28) is the check that both services run `main`.
+
+**Still open.** As named in the slice entry below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · SORTIES-SURES-1 — a service goes live only from main's newest green commit, with the founder's approval; the supplier app publishes only after green checks; a rollback page; the board and a live check every day · lane O5 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Go on for batch 6 » (2026-11-27 19:38 UTC), batch 6 of the plan he approved: « A service goes live only after its checks passed on that exact version, with your approval in front of it. Apps publish only after green checks. One page per app says how to roll back, and we practise it once. The boards run every day, not only when someone pushes. A daily watch checks that the live services run `main`. Public logs stop printing order numbers, amounts and your catalogue. » His card on the GitHub approval is still open; this is built on its recommended answer (service releases wait for his approval; app updates need green checks only).
