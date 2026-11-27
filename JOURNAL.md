@@ -3,6 +3,48 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — the buyer's voice note reaches the founder through his own key, his map through Shop+, and a finished order says her contact is held back · lane B7 · on the branch, NOT merged, NOT deployed
+
+**Founder.**
+- « Now you can start the next batch » (2026-11-27 11:31 UTC): the buyer-privacy batch of the approved plan.
+- Sentence card (2026-11-27 11:44 UTC), option « Séra team, rider, his maps app »: the exact point goes to the Séra team and her rider, and his maps app may use it.
+
+**Lane.** Lane B, slice B7. Lane commits `a1f169c` and `1df58da` on `4624101`. Integrated on `claude/project-thread-jqj97g` as `4b03759` (the lane diff, plus two comments put in the present tense), then the coordinator's gate commit `f4ce027` and pin commit `cacdc1d`.
+
+**Spec.**
+- Sera-Build-Spec SE4: « Landmark-first nav & masked relay — unchanged; no street address; access expires. » Sera-Building-Plan SE0.3: « masked relay; access expires ».
+- Shop-Plus-Build-Spec §12: « ⏳ Customer consent/retention/deletion. » Shop-Plus-Building-Plan, decision gates: « Customer consent/retention/deletion | M6.3 | minimum-data; explicit consent ». Master reference Part 15: « Consent / data retention / deletion (BF law) | Launch | Strictest ». Nothing is deleted; how long anything is kept stays the founder's open decision.
+
+**What changed.**
+- *The media service.* Its open read answers audio with the one uniform 404 on every road (an edge-cache hit, the full read, a range, a thumbnail), drops an audio entry it finds in the edge cache, and never caches audio. A named entrypoint `AudioRead`, reachable only through a service binding, serves a stored voice note: GET only, `private, no-store`, ranges kept (206 and 416); anything else is the same 404. No new secret.
+- *The offer service.* `GET /fulfillment/repere-audio?ref=` sits behind the founder's operations key (header only) and reads the note through the `MEDIA_AUDIO` binding. A missing note is 404; a media door that errs, throws or is not bound is 502 `media_indisponible`. The note's download has the photo-sized time limit, because a note can be 2 MiB.
+- *The console.* « Écouter » fetches the note through that door and plays it from a `blob:` address, released when the card closes. It says when the note is on its way, missing or unreachable (with a retry), and sends a refused key to the key door. A note that lands after the card closed never plays. Map tiles come from the Shop+ tile relay; with no Shop+ base there are no tiles, never an outside map host.
+- *A finished order.* When Shop+ holds a finished order's contact back, the card says « Commande terminée : son contact n’est plus affiché. », never « she left none », and shows no phone and no « Écouter ». « Signaler » stays on a returned order, because Shop+ finds her number on its own side.
+- *Four sentences* in the console catalog: the note on its way, missing, unreachable, and the held-back contact.
+
+**Evidence.**
+- Seam tests on workerd: the media door on the real bundle (audio refused on every open road, the cache entry dropped, `AudioRead` 200/206/416/404), and the offer door on the real offer and media bundles (the key, the 404, and the 500, throw and unbound arms each 502).
+- Screen walks on the real Commandes tab: the voice note (9 walks: plays, loading, one fetch, missing, unreachable and retry, refused key, closed card), the tiles, and the new held-back-contact walk (2 walks).
+- Lane runs on the final tree: supplier-app 1372 passed, 31 skipped; media-service 183; offer-service 485; every typecheck clean.
+- Coordinator re-runs on a clean worktree: console walks 65/65, media 45/45, offer 6/6, typechecks clean. On the integrated head with the new recorded answers: supplier-app 113 files, 1401 passed, 4 skipped, tsc clean.
+- Mutations, each anchor matched once, each file restored byte-identical: a cache hit lets audio through → red; `AudioRead` made cacheable → 6 red; the founder door's key check removed → 2 red; tiles back to an outside host → 5 red; the closed-card guard removed → red; the one-fetch guard removed → red; the offer door's try/catch removed → red; the screen ignoring the held-back flag → both new walks red.
+- Recorded answers: the stand-in rows are judged against Shop+'s new record run (platform-contracts `8d0e7a8`, which `cacdc1d` pins). Three stand-in rows that Shop+ no longer gives now carry what it gives.
+- Cross-checks: Séra's rider door against this real `AudioRead` (offered 404, accepted 200, range 206 with its length, 416, a photo 404), and the console's tile addresses against Shop+'s relay (z13 to z19 answered).
+- Full board on `cacdc1d` after `pnpm build` (`TURBO_CONCURRENCY=1`), with Séra (`ea6c74b`), Shop+ (`72efef5`) and platform (main's tree) beside the clone: ALL GATES GREEN. The changed packages ran fresh: supplier-app 1401 passed and 4 skipped, media-service 183, offer-service 485, their typechecks green.
+- Console size, the deploy's way (cold `expo export --platform web --clear`, `EXPO_PUBLIC_ROOT=v2`, placeholder bases, `web-artifact-checks.mjs … console`, in throwaway clones): main `4624101` 536 741 B gzip, branch `cacdc1d` 537 148 B, +407 B, under the 542 720 B ceiling with 5 572 B left.
+
+**Independent review.** One fresh-context pass, handled once: 0 blocker, 4 major, 5 minor, 4 notes. Fixed in this build: the closed-card note, the loading and one-fetch walk, the photo-sized time limit, « Signaler » on a held-back order, a detached comment, stale comments, the offer door's two failure arms. The gate allow-list lines and the release order were the coordinator's, done at integration. The rest is kept in the private batch record.
+
+**Release order.** platform-contracts first. Shop+ before this console: today's Shop+ relay refuses zoom 13, and today's console shows a held-back contact as « no contact left ». Then here: the media deploy, the offer deploy, merge, main CI, the console deploy. Then Séra.
+- From the media deploy until Séra's door and the rider update are live, an installed rider app cannot play a note. Riders are not live, and Séra follows in the same release.
+- A play the browser refuses after the fetch is silent; the label comes back and the next tap plays.
+
+**Follow-on.** The offer seam test copies media's bundle flags by hand. Retention stays the founder's open decision.
+
+**Where it stands.** On the branch, not merged, not deployed.
+
+---
+
 ## 2026-11-27 · COLIS-PERDU-1 — MERGED, then the console DEPLOYED
 
 **Founder.** « Release all four » (2026-11-27 10:54 UTC, decision card, on the lost-parcel batch report), which named for Boutik+: its checks read Séra's main, so re-run them once after Séra merges, merge, then publish the console. No offer-deploy: only the console changed.
