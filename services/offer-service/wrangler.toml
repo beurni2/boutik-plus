@@ -100,6 +100,15 @@ new_sqlite_classes = ["FulfillmentDO"]
 binding = "STOREFRONT"
 service = "storefront-service"
 
+# AUDIO-READ — the buyer's voice note, for the founder's console
+# (GET /fulfillment/repere-audio, his FULFILLMENT_OPS_SECRET). A binding to
+# media-service's NAMED entrypoint: it has no URL and needs no new secret.
+# Deploy media-service first, so the entrypoint exists when this binds.
+[[services]]
+binding = "MEDIA_AUDIO"
+service = "media-service"
+entrypoint = "AudioRead"
+
 # A FIFTH SECRET, AND IT IS ITS OWN. `PROGRESS_WRITE_SECRET` gates ONLY
 # Shop+'s POST /fulfillment/progress intake. It is deliberately NOT
 # FULFILLMENT_WRITE_SECRET: that one is Shop+'s key to write INTO this Worker,

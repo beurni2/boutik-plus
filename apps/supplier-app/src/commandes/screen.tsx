@@ -706,7 +706,7 @@ function RangCommande({
       {ouvert && aVerifier !== undefined ? <ElementsAVerifier av={aVerifier} nowMs={nowMs} /> : null}
       {ouvert ? (
         segment === 'pret' || segment === 'en_route' || segment === 'terminees' ? (
-          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} cleCRefusee={cleCRefusee} onCleC={onCleC} onChanged={onChanged} />
+          <DetailTerminee row={row} service={service} cle={cle} mediaBase={mediaBase} etape={segment} coursier={coursier} articlesColis={articlesColis} buyer={livraison} cleCRefusee={cleCRefusee} onCleC={onCleC} onChanged={onChanged} onCleRefusee={onCleRefusee} />
         ) : (
           <>
             <DetailATraiter
@@ -753,7 +753,7 @@ function RangCommande({
                 <SignalerRefus
                   orderId={row.orderId}
                   cleC={readStoredCleC()}
-                  aUnNumero={typeof livraison === 'object' && livraison.contact !== null}
+                  aUnNumero={typeof livraison === 'object' && (livraison.contact !== null || livraison.contactMasque === true)}
                   onCleCRefusee={onCleCRefusee}
                 />
               )
@@ -1100,6 +1100,7 @@ function DetailTerminee({
   cleCRefusee,
   onCleC,
   onChanged,
+  onCleRefusee,
 }: {
   row: PaidOrderRow;
   service: OperationsServicePort;
@@ -1114,6 +1115,7 @@ function DetailTerminee({
   cleCRefusee: boolean;
   onCleC: (cle: string) => void;
   onChanged: () => void;
+  onCleRefusee: () => void;
 }) {
   const [preuve, setPreuve] = useState<OrderEvidence | 'chargement' | 'echec'>('chargement');
 
@@ -1170,12 +1172,14 @@ function DetailTerminee({
                     they live in their own labelled sections in the compose
                     fold now, and one fact on one card lives in one place. */}
                 <Text style={TITRE}>{telEnPaires(buyer.contact.phone)}</Text>
-                {buyer.contact.audioRef !== undefined && mediaBase !== null ? (
-                  <EcouterRepere url={`${mediaBase}/${buyer.contact.audioRef}`} />
+                {buyer.contact.audioRef !== undefined ? (
+                  <EcouterRepere service={service} cle={cle} audioRef={buyer.contact.audioRef} onCleRefusee={onCleRefusee} />
                 ) : null}
               </>
             ) : (
-              <Text style={CORPS}>{t('commandes.cliente_sans_contact')}</Text>
+              // CONTACT-MASQUE — Shop+ holds a finished order's contact back and says so;
+              // « she left none » would then be untrue.
+              <Text style={CORPS}>{t(buyer.contactMasque === true ? 'commandes.contact_masque' : 'commandes.cliente_sans_contact')}</Text>
             )}
           </View>
         )}
@@ -1272,52 +1276,94 @@ function dureeVoix(seconds: number): string {
  * the clock is added: this button has never carried an icon, and giving it one
  * would be a redesign nobody asked for.
  */
-function EcouterRepere({ url }: { url: string }) {
+function EcouterRepere({ service, cle, audioRef, onCleRefusee }: {
+  service: OperationsServicePort;
+  cle: string;
+  audioRef: string;
+  onCleRefusee: () => void;
+}) {
   const [lecture, setLecture] = useState(false);
   const [seconde, setSeconde] = useState(0);
+  // AUDIO-READ — her note comes through HIS door (his key in a header), then
+  // plays from a `blob:` address this card owns and releases.
+  const [etat, setEtat] = useState<'pret' | 'chargement' | 'absente' | 'injoignable'>('pret');
   const lecteur = useRef<LecteurAudio | null>(null);
-  useEffect(() => () => lecteur.current?.pause(), []);
+  const adresse = useRef<string | null>(null);
+  // An answer that lands after the card closed must do nothing: no blob, no
+  // player, no sound with no control on screen.
+  const monte = useRef(true);
+  useEffect(() => {
+    monte.current = true;
+    return () => {
+      monte.current = false;
+      lecteur.current?.pause();
+      if (adresse.current !== null) URL.revokeObjectURL(adresse.current);
+    };
+  }, []);
   const AudioCtor = (globalThis as { Audio?: new (src: string) => LecteurAudio }).Audio;
   if (AudioCtor === undefined) return null;
+  if (etat === 'absente') {
+    return <Text style={[CORPS, { marginTop: 8 }]}>{t('commandes.repere_voix_absente')}</Text>;
+  }
+  const jouer = (audio: LecteurAudio): void => {
+    void audio.play().then(
+      () => setLecture(true),
+      () => { setLecture(false); setSeconde(0); }, // a refused play never leaves a lying label
+    );
+  };
   return (
-    <View style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <BtnSoft
-        label={t(lecture ? 'commandes.repere_voix_pause' : 'commandes.repere_voix_ecouter')}
-        onPress={() => {
-          let audio = lecteur.current;
-          if (audio === null) {
-            audio = new AudioCtor(url);
-            const repos = (): void => { setLecture(false); setSeconde(0); };
-            audio.addEventListener('ended', repos);
-            audio.addEventListener('error', repos);
-            // EVERY way playback can stop puts the control back — including a
-            // pause this code did not ask for (audio focus lost, another tab
-            // taking the media session). Without it the label sat on « Pause »
-            // over silence, which is the defect this whole change is about.
-            // It stops the CLAIM and keeps the POSITION — the same thing the
-            // button's own pause does, so the two cannot disagree.
-            audio.addEventListener('pause', () => setLecture(false));
-            // The position, straight off the element — never a timer of our own
-            // counting alongside a note it cannot see.
-            audio.addEventListener('timeupdate', () => setSeconde(lecteur.current?.currentTime ?? 0));
-            lecteur.current = audio;
-          }
-          if (lecture) {
-            audio.pause();
-            setLecture(false); // the position STAYS: he can see where he stopped
-            return;
-          }
-          void audio.play().then(
-            () => setLecture(true),
-            () => { setLecture(false); setSeconde(0); }, // a refused play never leaves a lying label
-          );
-        }}
-      />
-      {/* Blank before the first tap — a clock over a note nobody started would
-          be claiming a position that does not exist. */}
-      {lecture || seconde > 0 ? (
-        <Text style={[CORPS, { fontVariant: ['tabular-nums'] }]}>{dureeVoix(seconde)}</Text>
-      ) : null}
+    <View style={{ marginTop: 8, alignSelf: 'flex-start', gap: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BtnSoft
+          label={t(etat === 'chargement' ? 'commandes.repere_voix_chargement' : lecture ? 'commandes.repere_voix_pause' : 'commandes.repere_voix_ecouter')}
+          onPress={() => {
+            if (etat === 'chargement') return; // one fetch at a time
+            const audio = lecteur.current;
+            if (audio !== null) {
+              if (lecture) {
+                audio.pause();
+                setLecture(false); // the position STAYS: he can see where he stopped
+                return;
+              }
+              jouer(audio);
+              return;
+            }
+            setEtat('chargement');
+            void service.repereAudio(cle, audioRef).then((r) => {
+              if (!monte.current) return;
+              if (!r.ok) {
+                if (r.reason === 'bad_key') {
+                  onCleRefusee();
+                  return;
+                }
+                setEtat(r.reason === 'absente' ? 'absente' : 'injoignable');
+                return;
+              }
+              setEtat('pret');
+              adresse.current = URL.createObjectURL(r.note);
+              const audio = new AudioCtor(adresse.current);
+              const repos = (): void => { setLecture(false); setSeconde(0); };
+              audio.addEventListener('ended', repos);
+              audio.addEventListener('error', repos);
+              // EVERY way playback can stop puts the control back — including a
+              // pause this code did not ask for (audio focus lost, another tab
+              // taking the media session). It stops the CLAIM and keeps the
+              // POSITION — the same thing the button's own pause does.
+              audio.addEventListener('pause', () => setLecture(false));
+              // The position, straight off the element — never a timer of our own.
+              audio.addEventListener('timeupdate', () => setSeconde(lecteur.current?.currentTime ?? 0));
+              lecteur.current = audio;
+              jouer(audio);
+            });
+          }}
+        />
+        {/* Blank before the first tap — a clock over a note nobody started would
+            be claiming a position that does not exist. */}
+        {lecture || seconde > 0 ? (
+          <Text style={[CORPS, { fontVariant: ['tabular-nums'] }]}>{dureeVoix(seconde)}</Text>
+        ) : null}
+      </View>
+      {etat === 'injoignable' ? <Text style={CORPS}>{t('commandes.repere_voix_injoignable')}</Text> : null}
     </View>
   );
 }

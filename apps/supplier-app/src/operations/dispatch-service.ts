@@ -48,6 +48,10 @@ export interface LivraisonRow {
   /** What the founder must check on this order, as Shop+'s order object
    *  recorded it. Absent when there is nothing (or from an older Worker). */
   readonly aVerifier?: AVerifier;
+  /** CONTACT-MASQUE — TRUE when Shop+ held this finished order's contact back (`contact`
+   *  is then null). Shop+ sends the key only as `true`; anything else reads as
+   *  not held back, and never drops the row. */
+  readonly contactMasque?: true;
 }
 
 /** Every alert class a Shop+ order object can record, by its own name. */
@@ -334,6 +338,7 @@ function readLivraisonRow(value: unknown): LivraisonRow | null {
     zoneTo: r['zoneTo'],
     ...(remboursement !== undefined ? { remboursement } : {}),
     ...(aVerifier !== undefined ? { aVerifier } : {}),
+    ...(r['contactMasque'] === true ? { contactMasque: true as const } : {}),
   };
 }
 

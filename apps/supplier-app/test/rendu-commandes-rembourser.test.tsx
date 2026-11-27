@@ -364,7 +364,8 @@ describe('F-10 — « Signaler » is back, under Incidents, and it is wired', ()
             json: {
               ok: true,
               orders: [
-                ligneShop('ord-revenue', { etat: 'rien' }),
+                // Over and refunded nothing: Shop+ holds her contact back.
+                { ...ligneShop('ord-revenue', { etat: 'rien' }, null), contactMasque: true },
                 ligneShop('ord-ramassage', { etat: 'en_cours' }),
                 ligneShop('ord-refusee', { etat: 'en_cours' }),
               ],

@@ -12,7 +12,7 @@ import type { R2BucketLike, R2ObjectBodyLike } from '../src/media-store.js';
  * head, Ogg's capture pattern, the MP4 family's ftyp); the byte ceiling is the
  * wall for the containers that carry no cheap clock; the MP4 family's clock IS
  * read and bounded; the same write gate stands in front; and a stored note
- * reads back through the public media route with the DERIVED content type —
+ * reads back through the voice-note door (never the open read) with the DERIVED content type —
  * the whole road the founder's Commandes player will drive.
  */
 
@@ -145,7 +145,7 @@ describe('POST /media/audio — the deployed door, gate first, then the whole re
     expect(objects.size).toBe(0);
   });
 
-  it('SEAM: a keyed WebM note stores 201 {ref}, and the PUBLIC read route serves the very bytes back as audio/webm', async () => {
+  it('SEAM: a keyed WebM note stores 201 {ref}; the open read refuses it, and only the voice-note door serves the very bytes back as audio/webm', async () => {
     const { bucket } = stubBucket();
     const env = { BUCKET: bucket, MEDIA_WRITE_SECRET: SECRET };
     const note = webmNote(200);
@@ -155,10 +155,18 @@ describe('POST /media/audio — the deployed door, gate first, then the whole re
     expect(isOpaqueMediaKey(body.ref)).toBe(true);
     expect(body.contentType).toBe('audio/webm');
     expect(body.byteLength).toBe(note.length);
-    // The founder's player drives exactly this: GET /{ref}, open by design.
-    const read = await worker.fetch(new Request(`https://media.boutik.test/${body.ref}`), env);
+    // Her voice is not a product photograph: the open read answers the same
+    // 404 as an unknown key…
+    const open = await worker.fetch(new Request(`https://media.boutik.test/${body.ref}`), env);
+    expect(open.status).toBe(404);
+    // …and the bytes come back only through the door a binding reaches.
+    const { handleAudioRead } = (await import('../worker/index.js')) as unknown as {
+      handleAudioRead: (r: Request, e: typeof env) => Promise<Response>;
+    };
+    const read = await handleAudioRead(new Request(`https://media/${body.ref}`), env);
     expect(read.status).toBe(200);
     expect(read.headers.get('Content-Type')).toBe('audio/webm');
+    expect(read.headers.get('Cache-Control')).toBe('private, no-store');
     expect(new Uint8Array(await read.arrayBuffer())).toEqual(note);
   });
 

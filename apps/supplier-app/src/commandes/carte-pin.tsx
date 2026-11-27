@@ -9,7 +9,7 @@
  * gesture moves HER point. The view has a centre and a zoom; her pin renders
  * at its GEOGRAPHIC position inside that view (glued to the ground, never to
  * the frame), so sliding away simply leaves it behind and « Recentrer »
- * brings it back. OpenStreetMap tiles, their credit riding the view (the
+ * brings it back. OpenStreetMap tiles through Shop+'s relay, their credit riding the view (the
  * no-emoji chrome rule bans the copyright glyph, so the words « Cartes
  * OpenStreetMap » carry it).
  *
@@ -31,8 +31,8 @@
  * WHAT THIS MODULE NEVER DOES: no sensor, no link-out — and it keeps no
  * coordinate beyond its own view state. The pin is the same privacy class
  * as her phone: it renders on the founder's authenticated console and exits
- * nowhere new (the tile server learns only which map squares were fetched,
- * exactly as it already does for her own capture on the buyer PWA).
+ * nowhere new (the tiles come through Shop+'s relay, exactly as her own
+ * capture's do on the buyer PWA: the map host never sees his address).
  */
 import { useRef, useState } from 'react';
 import { Image, Pressable, Text, View, type GestureResponderEvent, type ViewStyle } from 'react-native';
@@ -87,12 +87,19 @@ export function mondeVersGeo(x: number, y: number, zoom: number): { lat: number;
 }
 
 /** Tile URL — x wraps around the antimeridian, y outside the globe is null
- *  (those rows do not exist; the view shows its own calm ground). */
+ *  (those rows do not exist; the view shows its own calm ground).
+ *
+ *  TUILES-RELAIS — through Shop+'s tile relay (`/tiles/{z}/{x}/{y}.png` on
+ *  the Shop+ Worker, the base the dispatch read already uses), so the
+ *  map host never learns her area from his address. No base, no tile: never
+ *  a fallback to the map host itself. Dot access for Metro's inliner. */
 export function urlTuile(zoom: number, xt: number, yt: number): string | null {
+  const base = process.env.EXPO_PUBLIC_SHOP_CHECKOUT_BASE;
+  if (base === undefined || base === '') return null;
   const cote = Math.pow(2, zoom);
   if (yt < 0 || yt >= cote) return null;
   const x = ((xt % cote) + cote) % cote;
-  return `https://tile.openstreetmap.org/${zoom}/${x}/${yt}.png`;
+  return `${base.replace(/\/+$/, '')}/tiles/${zoom}/${x}/${yt}.png`;
 }
 
 export interface TuilePosee {
