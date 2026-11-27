@@ -213,10 +213,13 @@ function livreSera(): { routes: readonly Route[]; etat: { retiree: boolean } } {
 beforeEach(() => {
   wiredEnv();
   process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'] = 'http://logistics.test';
+  // The map's tiles come through Shop+'s relay, at the base the dispatch read uses.
+  process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'] = 'http://shop.test';
   storage({ [CLE_SLOT]: 'cle-ops-test' });
 });
 afterEach(() => {
   delete (globalThis as { fetch?: unknown }).fetch;
+  delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
 });
 
 describe('REFUS-NOMMÉ — « Créer la course » on an order whose course already lives at Séra', () => {
@@ -628,7 +631,7 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
    * CONFIER-AUTO's auto-ride is walked above and stays the only road. */
 
   const tuilesVisibles = (screen: Screen): string[] =>
-    screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/'));
+    screen.images().filter((u) => u.startsWith('http://shop.test/tiles/'));
 
   /** The pin's COMPUTED anchor (marginLeft = its view offset − half the
    *  glyph). A number the app derived, read like `images()` reads computed
@@ -689,8 +692,11 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     // (wrong zoom, wrong axis, degrees/radians slip) goes red HERE. The full
     // window (±215×±100 plus the drag ring) is twenty tiles.
     const tuiles = tuilesVisibles(screen);
-    expect(tuiles, 'the card must actually ask for tiles').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
+    expect(tuiles, 'the card must actually ask for tiles').toContain('http://shop.test/tiles/16/32491/30498.png');
     expect(new Set(tuiles).size).toBe(20);
+    // Her area is never asked of OpenStreetMap from his computer: every tile
+    // goes through the Shop+ relay.
+    expect(screen.images().filter((u) => u.includes('openstreetmap')), 'a tile asked of OpenStreetMap directly').toEqual([]);
     // The controls are present AND pressable; the primary action stands.
     expect(screen.canPress('+')).toBe(true);
     expect(screen.canPress('−')).toBe(true);
@@ -707,24 +713,24 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
 
     // One step in: z17 tiles on her point, no z16 tile left on screen.
     await screen.press('+');
-    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/17/64982/60996.png');
+    expect(tuilesVisibles(screen)).toContain('http://shop.test/tiles/17/64982/60996.png');
     expect(tuilesVisibles(screen).some((u) => u.includes('/16/'))).toBe(false);
     // Up to the z19 CEILING (OSM's deepest tile)…
     await screen.press('+');
     await screen.press('+');
-    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/19/259930/243984.png');
+    expect(tuilesVisibles(screen)).toContain('http://shop.test/tiles/19/259930/243984.png');
     // …where one more press changes nothing: an escaped ceiling would fetch
     // nonexistent z20 tiles, every one 404s, and the card would go blank
     // (verifier MINOR — the ceiling was unwalked and its mutation survived).
     await screen.press('+');
-    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/19/259930/243984.png');
+    expect(tuilesVisibles(screen)).toContain('http://shop.test/tiles/19/259930/243984.png');
     expect(tuilesVisibles(screen).some((u) => u.includes('/20/'))).toBe(false);
     // Back down, past the start, to the z13 floor…
     for (let i = 0; i < 6; i += 1) await screen.press('−');
-    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/13/4061/3812.png');
+    expect(tuilesVisibles(screen)).toContain('http://shop.test/tiles/13/4061/3812.png');
     // …where one MORE press changes nothing: the floor holds.
     await screen.press('−');
-    expect(tuilesVisibles(screen)).toContain('https://tile.openstreetmap.org/13/4061/3812.png');
+    expect(tuilesVisibles(screen)).toContain('http://shop.test/tiles/13/4061/3812.png');
     expect(tuilesVisibles(screen).some((u) => u.includes('/12/'))).toBe(false);
     expect(screen.canPress('Créer la course'), 'the tree survives the whole zoom road').toBe(true);
     screen.unmount();
@@ -742,7 +748,7 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     expect(ancreEpingle(screen), 'the pin opens ON her point (offset 0 − half the glyph)').toBe(-18);
     await glisserCarte(screen, { x: 200, y: 100 }, { x: -100, y: 40 });
     const apres = tuilesVisibles(screen);
-    expect(apres, 'the new east edge must be fetched').toContain('https://tile.openstreetmap.org/16/32494/30498.png');
+    expect(apres, 'the new east edge must be fetched').toContain('http://shop.test/tiles/16/32494/30498.png');
     expect(apres.some((u) => u.includes('/16/32489/')), 'the old west edge must be gone').toBe(false);
     // GLUED TO THE GROUND, proven at the screen: after the (-300, ·) drag
     // the app anchors the pin exactly 300 dp west of the new centre.
@@ -751,7 +757,7 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     // original window returns exactly, the pin back on its point.
     await screen.press('Recentrer');
     const retour = tuilesVisibles(screen);
-    expect(retour).toContain('https://tile.openstreetmap.org/16/32489/30498.png');
+    expect(retour).toContain('http://shop.test/tiles/16/32489/30498.png');
     expect(retour.some((u) => u.includes('/16/32494/'))).toBe(false);
     expect(ancreEpingle(screen)).toBe(-18);
     expect(screen.canPress('Créer la course'), 'the tree survives the slide and the return').toBe(true);
@@ -825,7 +831,7 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
     const apres = tuilesVisibles(screen);
     expect(apres.length, 'the dead tile must be hidden, not left as a broken glyph').toBe(19);
     expect(apres).not.toContain(avant[0]!);
-    expect(apres, 'the other tiles must survive their neighbour').toContain('https://tile.openstreetmap.org/16/32491/30498.png');
+    expect(apres, 'the other tiles must survive their neighbour').toContain('http://shop.test/tiles/16/32491/30498.png');
     expect(screen.shows('Sa position'), 'the card itself must survive').toBe(true);
     expect(screen.canPress('Créer la course'), 'the tree must survive a dead tile').toBe(true);
     screen.unmount();
@@ -839,7 +845,7 @@ describe('CONFIER-AUTO — the fold without the GPS and repère sections', () =>
 
     expect(screen.shows('Sa position')).toBe(false);
     expect(
-      screen.images().filter((u) => u.startsWith('https://tile.openstreetmap.org/')).length,
+      screen.images().filter((u) => u.includes('/tiles/') || u.includes('openstreetmap')).length,
       'no point ⇒ no tile is ever fetched',
     ).toBe(0);
     expect(screen.canPress('Créer la course')).toBe(true);

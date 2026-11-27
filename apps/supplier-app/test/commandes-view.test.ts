@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -183,6 +183,21 @@ describe('[source-text checks] the tab’s discipline', () => {
 
 describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
   const PIN = { lat: 12.371532, lng: -1.519931 };
+  // The tiles come through Shop+'s relay at the dispatch base (a trailing
+  // slash must not double the path).
+  beforeEach(() => {
+    process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'] = 'http://shop.test/';
+  });
+  afterEach(() => {
+    delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
+  });
+
+  it('without the Shop+ base no tile is asked of anyone — never a fallback to OpenStreetMap', async () => {
+    const { tuilesPourVue, urlTuile, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
+    delete process.env['EXPO_PUBLIC_SHOP_CHECKOUT_BASE'];
+    expect(urlTuile(CARTE_ZOOM, 32491, 30498)).toBeNull();
+    expect(tuilesPourVue(PIN, CARTE_ZOOM)).toEqual([]);
+  });
 
   it('covers the window (plus the drag ring) around the view centre with exactly the right tiles', async () => {
     const { tuilesPourVue, urlTuile, CARTE_ZOOM } = await import('../src/commandes/carte-pin');
@@ -198,7 +213,7 @@ describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
     for (let xt = 32489; xt <= 32493; xt += 1) {
       for (let yt = 30496; yt <= 30499; yt += 1) {
         expect(urls, `tile ${String(xt)}/${String(yt)} missing`).toContain(
-          `https://tile.openstreetmap.org/16/${String(xt)}/${String(yt)}.png`,
+          `http://shop.test/tiles/16/${String(xt)}/${String(yt)}.png`,
         );
       }
     }
@@ -208,10 +223,10 @@ describe('CONFIER-CARTE — the tile arithmetic under the map card', () => {
     expect(Math.round(centre!.dx)).toBe(-78);
     expect(Math.round(centre!.dy)).toBe(-32);
     // A zoom step re-derives the whole grid: z17 doubles the world.
-    expect(tuilesPourVue(PIN, 17).map((p) => p.url)).toContain('https://tile.openstreetmap.org/17/64982/60996.png');
+    expect(tuilesPourVue(PIN, 17).map((p) => p.url)).toContain('http://shop.test/tiles/17/64982/60996.png');
     // Off-globe rows do not exist; the antimeridian wraps.
     expect(urlTuile(CARTE_ZOOM, 0, -1)).toBeNull();
-    expect(urlTuile(CARTE_ZOOM, Math.pow(2, CARTE_ZOOM), 0)).toBe('https://tile.openstreetmap.org/16/0/0.png');
+    expect(urlTuile(CARTE_ZOOM, Math.pow(2, CARTE_ZOOM), 0)).toBe('http://shop.test/tiles/16/0/0.png');
   });
 
   it('the pin is glued to the GROUND: its view offset is (0,0) at centre, and exactly the drag delta after a slide', async () => {
