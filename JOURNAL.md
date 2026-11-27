@@ -3,6 +3,22 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · FONDS-PAGES-1 — MERGED, then the console DEPLOYED
+
+**Founder.** « Release all four » (2026-11-27 00:42 UTC, in the project chat, on the batch report), which named for Boutik+: merge, wait for its checks, then publish the console. The platform's protection service (`d509c76`, its provenance read back) and ops console went live first, as the batch order says.
+
+**Merge.** main re-checked unchanged at `cd822eb`; PR #5 merged as `fe89054` (merge commit, the branch shas kept). On main: ci 391 green · expo-preview 264 (supplier app) green.
+
+**Deploy.** web-deploy 91 (id 45919590761) from main `fe89054`: the deploy lock confirmed main's newest commit, green in ci. Every never-ships needle absent; « web-size OK — console first load: 518.5 KB gzip (530922 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 529 585 B at web-deploy 90; 11 798 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Not deployed.** No service: this slice changed only the console.
+
+**Not checked.** The live desk was not opened from here (the live services cannot be read from where this release ran). The founder's first view is the check: the seller-fault card reads « Cette réclamation ne rembourse pas la cliente. » with the buyer's refund under it, and the desk loads the open claims and the 20 most recently closed.
+
+**Still open.** As named in the slice entry below.
+
+---
+
 ## 2026-11-27 · FONDS-PAGES-1 — the console's fund desk says a seller-fault claim refunds no one, shows the buyer's refund as Shop+ has it, and reads only what it shows · lane B3 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Start batch 1 » (2026-11-26 22:03 UTC, decision card on the batch plan, whose batch 1 says the seller-fault claim stops reading as a refund of the buyer, shows whether she was refunded, and the fund desk stops re-reading its whole history on every view).
