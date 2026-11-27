@@ -142,6 +142,12 @@ describe('what he types, and what may be sent again', () => {
     }
   });
 
+  it('a 503 never says « nothing was declared »: Séra may have finished part of the parcel', () => {
+    const phrase = t(phraseReponse({ kind: 'custody' }));
+    expect(phrase).toBe("Séra n'a pas pu finir la déclaration. Réessayez : ce qui est déjà fait ne sera pas refait.");
+    expect(phrase).not.toContain("Rien n'a été déclaré");
+  });
+
   it('every answer has its sentence in the catalog', () => {
     for (const k of ['declare', 'deja_declare', 'no_active_course', 'pas_chez_le_livreur', 'montants_incomplets', 'malformed', 'custody', 'bad_key', 'non_su'] as const) {
       expect(t(phraseReponse({ kind: k })).length, k).toBeGreaterThan(0);

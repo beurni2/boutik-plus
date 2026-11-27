@@ -38,9 +38,9 @@ export function phraseReponse(r: ReponseColis): string {
 
 /**
  * The answers after which the SAME declaration may be sent again, under the
- * same command id: nobody knows yet whether it landed, or Séra said nothing
- * moved because custody could not be asked. A new id here could open a
- * second claim; every other answer ends the act.
+ * same command id: nobody knows yet whether it landed, or Séra could not
+ * finish (custody not reached) and part of it may already be declared. A new
+ * id here could open a second claim; every other answer ends the act.
  */
 export function aRenvoyer(r: ReponseColis): boolean {
   return r.kind === 'non_su' || r.kind === 'custody';

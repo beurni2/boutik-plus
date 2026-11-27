@@ -42,7 +42,8 @@ export type ReponseColis =
   | { kind: 'pas_chez_le_livreur' }
   | { kind: 'montants_incomplets' }
   | { kind: 'malformed' }
-  /** Séra said nothing moved because custody could not be asked: the same command may be sent again. */
+  /** Séra could not finish (custody not reached): part of the parcel may already be declared,
+   *  so the same command is sent again, never a new one. */
   | { kind: 'custody' }
   | { kind: 'bad_key' }
   /** No answer, or one this port cannot read: nobody knows whether it was declared. */

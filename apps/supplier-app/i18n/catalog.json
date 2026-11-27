@@ -5761,7 +5761,7 @@
   },
   {
     "key": "perdu.pas_fini",
-    "fr": "Séra n'a pas pu finir. Rien n'a été déclaré. Réessayez.",
+    "fr": "Séra n'a pas pu finir la déclaration. Réessayez : ce qui est déjà fait ne sera pas refait.",
     "register": "neutral",
     "screenClass": "status"
   },
