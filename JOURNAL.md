@@ -3,6 +3,61 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · LOIS-PARTOUT-1 — every tracked file refuses the retired names; an earner's balance is caught as a whole word or with its currency · lane O4 · on the branch, NOT merged
+
+**Founder.** « after everything is released, you can start the next batch 3 » (2026-11-27 04:21 UTC, project chat). The plan he approved says « every repository checks for the retired names ».
+
+**Lane.** Lane O, slice O4 (lane commits `d8d4f0f`, `603aa61`). Integrated on `claude/project-thread-jqj97g` as one commit, `bc35caf`.
+
+**Spec.**
+- CLAUDE.md §4: « every invariant gate + the copy-lint + the contracts drift-check live from the first PR in every repo … A gate added later is a gate that already let something through. »
+- CLAUDE.md §3: Law 10 (the retired names) and Law 2 (« No wallet/balance module exists anywhere »).
+
+**What changed.** Gate files only: no app code, catalog, workflow or dependency.
+
+*The retired-names gate.*
+- It is the same file in all five repositories, and the board pins its sha256 (`cdfd9208…02dd`).
+- It reads every tracked file except a printed list: the 12 canon files by name, `design-reference/`, CLAUDE.md, AGENTS.md, JOURNAL.md, `_review/`, the gate itself, the roster, and its own negative fixtures. A throwaway-repository probe pins both edges of that list.
+- It refuses the two names whatever separates the words: white space, an escaped space or an HTML entity. It still refuses them right after an escape that ends in a letter, and it refuses « Mon shop » in lowercase. « ma boutique », « mon Shop+ » and « mon shopping » stay legal.
+- It has seven negative fixtures, each also run alone, and one legal fixture. The roster holds its six patterns, and the coverage gate proves each one load-bearing.
+
+*The wallet gate.* Its earner-balance pattern now refuses the balance of a seller, a supplier, a rider and the other earners, as a whole word or with its currency. It comes with its roster entry, the English fixture `earner-balance-forms.ts` (also run alone), and one French line in `solde-vendeur.fr.ts`.
+
+*The board.* The retired-names steps sit above the coverage comment, and the English earner-balance steps sit beside the wallet negative. No existing board line was removed.
+
+*Coordinator change at integration.* The left-out reason for the canon said the canon « states Law 10 itself ». It does not. It now reads « product truth, changed only by a canon slice », and the hash was re-pinned on all five boards.
+
+**Evidence.**
+- `pnpm build` exit 0. `TURBO_CONCURRENCY=1 bash scripts/run-gates.sh` on `bc35caf`, with the sibling repositories beside the clone as CI has them: « ALL GATES GREEN », exit 0, no failed step. The name check read 521 text files; coverage holds 67 patterns across 5 gates.
+- Red first, by the lane: a planted retired name and an earner's balance pass main `b23af69` and fail the branch.
+- Mutations. The lane ran ten (three at the first build, seven at the fix): each anchor matched once, each turned the board red, and each file was restored byte-identical. The coordinator re-ran two on `bc35caf`. With the earner tail reverted, its fixture passes alone and coverage exits 1. With the word gap back to a plain space, the escaped-space fixture passes alone and coverage exits 1. Both were restored, and `git status` was empty.
+
+**Independent review.** One fresh-context pass, handled once: 0 blocker, 2 major, 6 minor, 6 notes. Every major and minor was fixed in this build. The notes were fixed, or kept in the private batch record.
+
+**Still open.** Follow-ons for the gates are held in the private batch record.
+
+**Where it stands.** On the branch, not merged. Gate files only: merging is the whole release, and there is no deploy.
+
+---
+
+## 2026-11-27 · SOS-DESK-1 + SERA-DELAIS-1 — MERGED, then the offer service and the console DEPLOYED
+
+**Founder.** « Release all three » (2026-11-27 04:19 UTC, decision card on the batch report), which named for Boutik+: merge, wait for its checks on main with the cross-repo tests passed and none skipped, put the offer service live, then publish the console.
+
+**Merge.** main re-checked unchanged at `fe89054`; PR #6 merged as `b23af69` (merge commit, the branch shas kept). On main: ci 393 green, its log showing every cross-repo file run and passed (courses-retrait, retirer-coursier, sos-desk, rendu-sos, rendu-fonds, livre-fonds-substitut, the read gate), supplier-app 1 338 tests with none skipped, the silent-Séra checks at about 12 s (pickup) and 20 s (return) · expo-preview 265 (supplier app) green.
+
+**Deploy.**
+- offer-deploy 52 (id 45940191668) from main `b23af69`: the deploy lock confirmed main's newest commit, green in ci; « PROVENANCE OK — live Worker is `b23af69…` speaking canon 3.26.0 ».
+- web-deploy 92 (id 45940363316) from main `b23af69`: every never-ships needle absent; « web-size OK — console first load: 521.0 KB gzip (533524 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 530 922 B at web-deploy 91; 9 196 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Deploy note, as reported.** After the offer service went live, a readiness row stalled before it is retried by its stored alarm, with bounded calls; nothing to migrate. On a browser with no Séra key stored, behind the operator door, the console says where to type it; once typed, an open alert shows within 15 s.
+
+**Not checked.** The live console was not opened from here (the live services cannot be read from where this release ran). The founder's first view is the check, and the bounded scroll needs his eyes on a phone with three open alerts.
+
+**Still open.** As named in the two slice entries below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · SERA-DELAIS-1 — every call the offer service makes to Séra ends on this side's clock, three tests assert before they narrow, and the cross-repo proofs run on GitHub · lane B5 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « You can start the next batch » (2026-11-27 01:21 UTC), on the plan whose batch 2 says, for Boutik+: « Calls to Séra get a time limit. Three tests that stop early now check what they claim. The three proofs that cross into Séra and the fund run on GitHub. »
