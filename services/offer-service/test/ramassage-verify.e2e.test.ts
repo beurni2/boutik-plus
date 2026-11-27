@@ -376,8 +376,9 @@ describe('the delivery arrives from Shop+, and the supplier’s own list moves',
  * The coursier stands at the stall while this door asks Séra. A Séra that
  * takes the check and never answers must end in « Séra injoignable » from this
  * door, on its own clock (12 s), before his phone's 25 s wait for the whole
- * check runs out. Giving up is safe: the same order and said code always carry
- * the same command id, so his retry replays Séra's first verdict.
+ * check runs out. Giving up is safe: Séra works the verdict out again from the
+ * live course on every call, and its confirmation instant is first-wins, so
+ * while the course is live his retry hears « confirmé » again.
  */
 describe('a silent Séra: the pickup check answers sera_unreachable on its own clock', () => {
   it('503 sera_unreachable after at least 11.5 s and within 15 s', async () => {

@@ -36,9 +36,9 @@ export function miniflareDuDepot(): MiniflareCtor {
 
 /**
  * One Worker bundle from a NEIGHBOUR repo (Séra's logistics, the platform's
- * protection fund): found beside this clone or where its env var points,
- * skipped with the reason in the title when absent, refused when older than
- * its own source.
+ * protection fund): found beside this clone or where its env var points.
+ * Absent, it is skipped with the reason in the title on a laptop, and under CI
+ * it is a failure at first use. Refused when older than its own source.
  */
 export function voisin(o: { depot: string; env: string; service: string; dist: string; rebuild: string }): {
   bundle: string;

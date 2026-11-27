@@ -310,29 +310,32 @@ describe('the supplier’s RETURN door proves the order is HIS, asks Séra’s r
 });
 
 /**
- * The return check mirrors the pickup check: a Séra that takes it and never
- * answers ends in « Séra injoignable » from this door on its own clock (12 s),
- * before his phone's 25 s wait runs out, and his retry replays Séra's first
- * verdict (same order, same said code, same command id).
+ * A Séra that takes the return check and never answers ends in « Séra
+ * injoignable » from this door, on its own clock, before his phone's 25 s wait
+ * for the whole check runs out. Séra works the verdict out again from the live
+ * course on every call, and its confirmation instant is first-wins, so while
+ * the course is live his retry hears « confirmé » again. The rider's handover
+ * closes the course, and a retry after that hears « non confirmé »: so this
+ * door waits longer than the pickup check (20 s), to keep Séra's answer.
  */
 describe('a silent Séra: the return check answers sera_unreachable on its own clock', () => {
-  it('503 sera_unreachable after at least 11.5 s and within 15 s', async () => {
+  it('503 sera_unreachable after at least 19.5 s and within 23 s', async () => {
     seraMode = 'silent';
     try {
       const avant = retourPosts.length;
       const debut = Date.now();
       const res = await Promise.race([
         verifier(mf, codeA, ORDER, 'RTR-K7M'),
-        new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
+        new Promise<null>((r) => setTimeout(() => r(null), 23_000)),
       ]);
       const duree = Date.now() - debut;
       expect(retourPosts.length, 'Séra was asked').toBe(avant + 1);
-      expect(res, 'no answer from this door within 15 s: his phone would be left waiting on it').not.toBeNull();
+      expect(res, 'no answer from this door within 23 s: his phone would be left waiting on it').not.toBeNull();
       expect(res!.status).toBe(503);
       expect(res!.json).toEqual({ ok: false, reason: 'sera_unreachable' });
-      expect(duree, 'the door waited its ceiling before giving up').toBeGreaterThanOrEqual(11_500);
+      expect(duree, `the door gave up at about ${Math.round(duree / 1000)} s, before Séra's answer to a return could still come`).toBeGreaterThanOrEqual(19_500);
     } finally {
       seraMode = 'ok';
     }
-  }, 40_000);
+  }, 45_000);
 });
