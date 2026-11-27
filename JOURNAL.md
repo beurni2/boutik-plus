@@ -44,6 +44,11 @@ Format per entry:
 
 **Independent review.** One fresh-context pass, handled once: 0 blocker, 1 major, 5 minor, 3 notes. Every major and minor was fixed in `29a2d3b`. The major was a refusal sentence that could say « nothing was declared » after part of a parcel moved. The notes are kept in the private batch record.
 
+**Found by GitHub, fixed before the report.** The pull request's first CI run (on `2a5346a`) was red on two tests only:
+- *The lost-parcel seam test found no Séra custody bundle.* The workflow built only Séra's logistics bundle beside the checkout. `7085e87` builds both from one filtered install. Proof: those two steps on a fresh clone of Séra's branch (`0429259`), then the seam test with `CI=1` against it: 5/5.
+- *The Fonds-zone walk against the real Fund book raced again*, as on main ci 395's first attempt. After the balance is saved, the loading line also lacks « Pas encore déclaré », so the wait could end before the re-read landed. `40e8fb9` waits until « Nouvelle réclamation » can be pressed. Red first: with the book's re-read slowed by 400 ms, the old wait fails with the CI's own message, and the new wait passes. At normal speed, five runs in a row: 5/5 each.
+- Full board on `40e8fb9` (`TURBO_FORCE=true`, `TURBO_CONCURRENCY=1`): ALL GATES GREEN, supplier app 1 388 passed and 4 skipped.
+
 **Release order.** Séra's founder door must be live first. This repository's CI clones Séra's main, so its seam test is green on GitHub only after Séra merges.
 
 **Where it stands.** On the branch, not merged, not deployed.
