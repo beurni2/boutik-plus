@@ -395,6 +395,33 @@ done
 log "gate: deploy-only-main — proof of the first step of every deploy (must pass)"
 capture deploy-only-main-proof pass node scripts/gates/deploy-only-main-proof.mjs
 
+# ═══ RELEASES STAY SAFE — the release chain, its guard, the publish rule, the daily watch ═══
+
+# The release rules: a service release starts with its guard and waits in
+# `production`; an app publish follows a green ci on main and never cancels;
+# the rollback only rolls back; the board runs daily. One legal folder, and
+# one negative folder per rule, each breaking that rule alone.
+log "gate: deploy-chain-locked — POSITIVE FIXTURE (a legal set of release workflows, must pass)"
+capture release-chain-legal pass node scripts/gates/deploy-chain-locked.mjs gates/fixtures/release-chain-legal
+
+for fx in gates/fixtures/negative/release-chain/*/; do
+  n="$(basename "$fx")"
+  log "gate: deploy-chain-locked — NEGATIVE RELEASE FIXTURE ALONE ($n, must fail)"
+  capture "release-chain-negative-$n" fail node scripts/gates/deploy-chain-locked.mjs "$fx"
+done
+
+# The guard, the publish decision and the watch run only on GitHub; each proof
+# drives the REAL script against a local repository and local stand-ins.
+
+log "gate: publish-decision — proof of the first step of every app publish (must pass)"
+capture publish-decision-proof pass node scripts/gates/publish-decision-proof.mjs
+
+log "gate: live-watch — proof of the daily « live runs main » watch (must pass)"
+capture live-watch-proof pass node scripts/gates/live-watch-proof.mjs
+
+log "gate: public logs — live-check prints counts only (must pass)"
+capture live-check-log-proof pass node scripts/gates/live-check-log-proof.mjs
+
 # ═══ SCAN-SECRETS-1 (AUDIT-B+2 F-18) — DEPENDENCY + SECRET SCANNING ═══
 log "gate: dependency-audit — pnpm audit --prod, high/critical outside the build-tooling allow-list (must pass)"
 capture dependency-audit-positive pass node scripts/gates/dependency-audit.mjs

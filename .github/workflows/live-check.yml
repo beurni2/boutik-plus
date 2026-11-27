@@ -3,13 +3,11 @@
 # (first use: 2026-07-27, "i also did some deletions and you can double check
 # it").
 #
-# PUBLIC-LOG DISCIPLINE (this repo is public, so these logs are public):
-#   · NEVER echo raw service JSON — it carries product names and prices.
-#   · NEVER print a full media ref — refs are unguessable capability tokens
-#     (the token IS the read authorization); a full ref in a public log is a
-#     leak. Only the first 8 characters of the uuid are printed.
-#   · Ids (offerId / productVersionId) are printed truncated for the same
-#     caution, though they are not capabilities.
+# PUBLIC-LOG DISCIPLINE (this repo is public, so these logs are public): the
+# job prints COUNTS only — never raw service JSON, never an id or a piece of
+# one, never a media ref (a ref is the read authorization), a rayon, a stock
+# figure or a hidden reason. scripts/gates/live-check-log-proof.mjs runs this
+# step's own text against a stand-in and fails the board if any of it leaks.
 # THE KEY (CLE-FONDATEUR-1, 2026-09-26): this read used to ride the shared
 # write key baked into the console page. That key is RETIRED — the live
 # service refuses it — and the list now opens only to the founder's operator
@@ -50,23 +48,20 @@ jobs:
           fi
           body=$(curl -sS --fail-with-body -H "Authorization: Bearer $OPS_KEY" \
             "${OFFER_BASE%/}/offers?supplierId=supplier-founder-001")
-          count=$(jq '.items | length' <<<"$body")
-          echo "LIVE OFFERS: $count"
-          jq -r '.items[] | [(.offerId[:12]), (.productVersionId[:12]), (.assetRefs | length | tostring)] | "offer " + .[0] + "…  pv " + .[1] + "…  photos: " + .[2]' <<<"$body"
-          # RAYON-VIDEO-CHECK (founder report 2026-09-16: « the product with the
-          # video is still not showing » under « Maison » on Shop+). Per product,
-          # what the SUPPLY ROAD decides from — none of it a name, a price or a
-          # ref: the rayon it was published under (Shop+ matches on it exactly),
-          # the declared stock, whether a clip is attached, and the refusal
-          # ladder's own reason when the row is hidden from Shop+ (absent ⇒ live).
-          echo "---- rayon · stock · clip · visibility (the supply road's inputs) ----"
-          jq -r '.items[] | "pv " + (.productVersionId[:12]) + "…  rayon: " + ((.category // "—") | tostring) + "  stock: " + (.available | tostring) + "  clip: " + (if .videoRef then "yes" else "no" end) + "  " + (if .hiddenReason then "HIDDEN: " + .hiddenReason else "live to Shop+" end)' <<<"$body"
-          echo "---- photo liveness (media read route, truncated refs) ----"
+          # Counts only: ids, rayons, stock figures, hidden reasons and media
+          # refs stay out of this public log, even shortened.
+          echo "LIVE PRODUCTS: $(jq '.items | length' <<<"$body")"
+          echo "hidden from Shop+: $(jq '[.items[] | select(.hiddenReason)] | length' <<<"$body")"
+          echo "with a clip: $(jq '[.items[] | select(.videoRef)] | length' <<<"$body")"
+          echo "without a rayon: $(jq '[.items[] | select((.category // "") == "")] | length' <<<"$body")"
+          echo "photos: $(jq '[.items[].assetRefs[]] | length' <<<"$body")"
+          codes=""
           for ref in $(jq -r '.items[].assetRefs[]' <<<"$body"); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' "${MEDIA_BASE%/}/$ref" || echo "ERR")
-            echo "media/${ref#media/}" | cut -c1-14 | tr -d '\n'
-            echo "…  HTTP $code"
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "${MEDIA_BASE%/}/$ref" 2>/dev/null || echo "ERR")
+            codes+="$code"$'\n'
           done
+          printf '%s' "$codes" | sort | uniq -c | while read -r n c; do echo "photos answering HTTP $c: $n"; done
           echo "---- verdict ----"
-          echo "Every product above is what the live service still holds for the founder's supplier id."
-          echo "A deleted product would simply not appear; a photo of a kept product should be HTTP 200."
+          echo "The counts above are what the live service still holds for the founder's supplier id."
+          echo "A deleted product is simply not counted; every photo of a kept product should answer HTTP 200."
+          echo "To see which product is which, open the console's Produits tab."

@@ -8,19 +8,22 @@
 # — on the 2026-08-01 stale-branch outage it would still have printed
 # PROVENANCE OK.
 #
-# So a deploy now goes live only when BOTH hold:
+# So a deploy now goes live only when ALL hold:
 #   1. the commit is main's newest commit — merged work, and nothing older
 #      (a stale branch or an old commit of main is refused; roll back by
 #      reverting on main, which is itself reviewed);
 #   2. the `ci` workflow has a SUCCESSFUL run on that exact commit, and it is
 #      the run main's own push started (event=push, branch=main) — not a
-#      pull-request run, whose ci.yml could be the branch's own.
+#      pull-request run, whose ci.yml could be the branch's own;
+#   3. the most recently CREATED ci run on that commit that has finished is
+#      green too (a re-run keeps the place of the run it repeats; a run being
+#      re-run right now is not finished, so it is not counted until it ends).
 #
 # ITS LIMIT, stated so green is never read as more: this step runs from the
 # commit being deployed, so it stops an accidental or stale dispatch — not a
-# branch that edits this script or its workflow. The guarantee against that
-# is GitHub's environment protection (the Cloudflare secrets scoped to a
-# `main`-only environment), a repository setting only the founder can turn on.
+# branch that edits this script or its workflow. The backstop against that
+# is the `production` environment every release job names: nothing goes out
+# until the founder approves the run, and he sees which commit it is.
 #
 # A refusal is not an outage: nothing was uploaded. Wait for ci to go green
 # on main (or merge the work first), then dispatch again.
@@ -54,6 +57,20 @@ case "$GREEN" in
 esac
 if [ "$GREEN" -lt 1 ]; then
   echo "::error title=Deploy refused::ci has not passed on $GITHUB_SHA yet. Wait for its green run on main, then dispatch again."
+  exit 1
+fi
+
+# GitHub lists runs newest-created first, so this reads the most recently
+# created run that has finished: a newer red run (the daily board) outranks
+# an older green one. A re-run keeps its run's place in that list, and a run
+# being re-run right now is skipped until it finishes.
+NEWEST="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&status=completed&per_page=1" --jq '.workflow_runs[0].conclusion // "none"' 2>/dev/null)" || NEWEST=""
+if [ -z "$NEWEST" ]; then
+  echo "::error title=Deploy refused::could not read ci's newest finished run on $GITHUB_SHA — refusing rather than guessing."
+  exit 1
+fi
+if [ "$NEWEST" != "success" ]; then
+  echo "::error title=Deploy refused::the newest finished ci run on $GITHUB_SHA ended '$NEWEST'. Fix main until ci is green again, then dispatch again."
   exit 1
 fi
 
