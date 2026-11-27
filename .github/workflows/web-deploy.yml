@@ -50,6 +50,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Nothing goes live until the founder approves this run (and sees its commit).
+    environment: production
     steps:
       # DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — every action pinned to a commit SHA,
       # the tag it resolves from kept beside it; `wrangler` is the lockfile's

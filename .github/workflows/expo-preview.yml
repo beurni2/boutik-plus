@@ -7,28 +7,47 @@ name: expo-preview
 # in no committed file, no echoed log line, no lockfile (scan-gated).
 
 on:
-  push:
+  # A publish follows ci: it starts when a ci run on main FINISHES, never on
+  # the push itself (ci was still running then). The decision step below
+  # ships only main's newest commit, only when ci is green on it.
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
-# DEPLOI-VERROU-1 (AUDIT-B+2 F-17) — this job reads the tree; it publishes to
-# Expo with EXPO_TOKEN, never with the repository's own token.
+# This job reads the tree, and reads ci's results with its own token
+# (`actions: read`) to decide; it publishes to Expo with EXPO_TOKEN, never with
+# the repository's own token.
 permissions:
   contents: read
+  actions: read
+
+# Queue, never cancel: a publish in flight always finishes. GitHub keeps only
+# one waiting run here, which is why the decision always ships main's newest.
+concurrency:
+  group: expo-preview
+  cancel-in-progress: false
 
 jobs:
   publish-preview:
-    # DEPLOI-VERROU-1 (verifier, slice 4) — a publish to the founder's preview
-    # channel is a deploy too: only main may publish, whether by the push to
-    # main or by a dispatch. A dispatch from any other branch is skipped.
-    # (Not the ci-green check the four deploys run: ci is still running when
-    # the push to main fires this.)
-    if: github.ref == 'refs/heads/main'
+    # Only a SUCCESSFUL ci run started by a push to main, or a dispatch on
+    # main. The decision step checks the same again from GitHub itself.
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    # DEPLOI-VERROU-1 (F-17) — EXPO_TOKEN is no longer set for the whole job,
-    # where every step (and every action) could read it: only the presence
-    # check and the publish step hold it.
+    # EXPO_TOKEN is not set for the whole job, where every step (and every
+    # action) could read it: only the presence check and the publish step hold it.
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Decide what may ship (main's newest commit, green in ci)
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+        run: bash scripts/publish-decision.sh
       # AUDIT-B+1 F10 — THIS JOB COULD REPORT SUCCESS WITH EVERY STEP SKIPPED.
       #
       # Every step below carries `if: steps.token.outputs.present == 'true'`,
@@ -38,8 +57,8 @@ jobs:
       # here the only thing the skip can hide is a token that was rotated or
       # expired, and it would hide it behind a green tick on every push.
       #
-      # So the skip now depends on WHO IS WATCHING. On `push` to main nobody is
-      # looking, and silence is indistinguishable from success — that is an
+      # So the skip now depends on WHO IS WATCHING. On the automatic start after ci
+      # nobody is looking, and silence is indistinguishable from success — that is an
       # error. On `workflow_dispatch` a human ran this on purpose and can read a
       # notice, so the escape hatch stays for them.
       #
@@ -57,12 +76,13 @@ jobs:
       # previews stop appearing, open the latest run and look at whether the
       # publish step ran at all before assuming the build is fine.
       - name: Check EXPO_TOKEN presence (skip gracefully when absent)
+        if: steps.decide.outputs.publish == 'true'
         id: token
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            if [ "${{ github.event_name }}" = "push" ]; then
+            if [ "${{ github.event_name }}" = "workflow_run" ]; then
               echo "::warning title=Aperçu Expo NON publié::Le secret EXPO_TOKEN est absent ou expiré — RIEN n'a été publié pour ce push. Réarmer le secret dans Settings → Secrets (voir PREVIEW.md)."
             else
               echo "::notice title=Aperçu Expo non publié::Le secret EXPO_TOKEN n'est pas configuré — l'ajouter dans Settings → Secrets pour armer la publication automatique (voir PREVIEW.md)."
@@ -71,8 +91,12 @@ jobs:
           else
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
+      # The commit the decision chose, which may be newer than the one whose
+      # ci run started this.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: steps.token.outputs.present == 'true'
+        with:
+          ref: ${{ steps.decide.outputs.sha }}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0 (what the moving v4 resolves to)
         if: steps.token.outputs.present == 'true'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -106,6 +130,7 @@ jobs:
         # channel. First REAL publish is founder-verified on his phone.
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          PUBLISHED_SHA: ${{ steps.decide.outputs.sha }}
           # Founder ruling 2026-07-17: V2 is the registered preview root.
           # AUDIT-B+2 F-60 retired E1 and with it the dispatch-only root=e1.
           EXPO_PUBLIC_ROOT: v2
@@ -132,4 +157,4 @@ jobs:
         run: |
           pnpm exec eas init --non-interactive --force
           pnpm exec eas update:configure --non-interactive
-          pnpm exec eas update --channel preview --non-interactive --auto --message "${GITHUB_REF_NAME}@${GITHUB_SHA} root=${EXPO_PUBLIC_ROOT}"
+          pnpm exec eas update --channel preview --non-interactive --auto --message "main@${PUBLISHED_SHA} root=${EXPO_PUBLIC_ROOT}"
