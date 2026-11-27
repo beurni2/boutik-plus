@@ -285,14 +285,13 @@ function LivreCommandes({
     // Incidents: joined from the claims book ONLY when the fund key is
     // already on this device (typed once in the Fonds zone). Best-effort —
     // a failure leaves null, and null renders the honest « pas relié » state,
-    // never an empty list pretending nothing is signaled.
+    // never an empty list pretending nothing is signaled. Two bounded reads:
+    // the open claims and the 100 most recently closed.
     const cleFonds = readStoredCleFonds();
     const fonds = cleFonds === null ? null : resolveFondsService();
     if (cleFonds !== null && fonds !== null) {
-      const lecture = await fonds.lire(cleFonds);
-      if (lecture.ok) {
-        setClaims(new Set(lecture.livre.reclamations.map((r) => r.orderId)));
-      }
+      const signalees = await fonds.lireSignalees(cleFonds);
+      if (signalees.ok) setClaims(signalees.orderIds);
     }
   }, [service, cle, onCleRefusee]);
 

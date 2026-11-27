@@ -90,7 +90,8 @@ export interface ReclamationRow {
   /** Present iff closed_no_payout — why the fund owes nothing. */
   readonly motifClassement?: string;
   readonly ouverteLe: string;
-  /** B+I-13 marker — present on seller-fault claims. */
+  /** A seller-fault claim (the book keeps its refund record). The buyer's
+   *  refund itself is Shop+'s, on its own road, never this claim (B+I-13). */
   readonly clienteDabord: boolean;
 }
 
@@ -104,13 +105,26 @@ export interface FondsFigures {
 
 export interface LivreFonds {
   readonly figures: FondsFigures;
+  /** Every open claim, then the closed ones read so far, newest closed first
+   *  (the book still live before paging answers its full list instead). */
   readonly reclamations: readonly ReclamationRow[];
   /** Wire rows this client did not recognize — shown, never silently dropped. */
   readonly nonReconnues: number;
+  /** Where the next older page of closed claims starts; null when none is left
+   *  (or when the book answered everything at once). */
+  readonly plusAnciennes: number | null;
 }
 
 export type LectureFonds =
   | { readonly ok: true; readonly livre: LivreFonds }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type PageFonds =
+  | { readonly ok: true; readonly reclamations: readonly ReclamationRow[]; readonly nonReconnues: number; readonly plusAnciennes: number | null }
+  | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
+
+export type SignaleesFonds =
+  | { readonly ok: true; readonly orderIds: ReadonlySet<string> }
   | { readonly ok: false; readonly reason: 'bad_key' | 'unreachable' };
 
 export type ActeFondsResult =
@@ -138,7 +152,13 @@ export interface OuvrirReclamationInput {
 }
 
 export interface FondsServicePort {
+  /** The figures, every open claim and the newest page of closed ones. */
   lire(cle: string): Promise<LectureFonds>;
+  /** The next older page of closed claims, from a `plusAnciennes` mark. */
+  lirePlusAnciennes(cle: string, avant: number): Promise<PageFonds>;
+  /** The orders with a claim the Commandes tab files under « Incidents »:
+   *  every open claim and the 100 most recently closed. */
+  lireSignalees(cle: string): Promise<SignaleesFonds>;
   ouvrir(cle: string, input: OuvrirReclamationInput): Promise<ActeFondsResult>;
   /** `detail` = the offline payment ref (resolved) or the close reason (closed_no_payout). */
   avancer(cle: string, orderId: string, vers: EtatReclamation, detail?: string): Promise<ActeFondsResult>;
@@ -146,6 +166,10 @@ export interface FondsServicePort {
 }
 
 const ETATS: readonly string[] = ['opened', 'under_review', 'resolved', 'closed_no_payout'];
+
+/** The desk's page of closed claims, and the Commandes tab's single page. */
+export const PAGE_FERMEES = 20;
+export const FERMEES_SIGNALEES = 100;
 const FAUTES: readonly string[] = ['seller', 'buyer', 'payment_provider', 'platform_system', 'unresolved'];
 
 function readRow(raw: unknown): ReclamationRow | null {
@@ -235,6 +259,24 @@ export function resolveFondsService(): FondsServicePort | null {
     }
   }
 
+  type Liste = { ok: true; claims: unknown[]; nextBefore: number | null | undefined } | { ok: false; reason: 'bad_key' | 'unreachable' };
+
+  /** One list of claims. `nextBefore` is undefined when the answer has none —
+   *  the book still live before paging, which ignores the page and answers
+   *  its full list; a mark that is neither null nor a page number is not read. */
+  function listeOf(r: { status: number; body?: unknown } | { status: 0 }): Liste {
+    if (r.status === 0) return { ok: false, reason: 'unreachable' };
+    if (r.status === 401) return { ok: false, reason: 'bad_key' };
+    const body = (r as { body?: unknown }).body as { claims?: unknown; nextBefore?: unknown } | null | undefined;
+    if (r.status !== 200 || typeof body !== 'object' || body === null || !Array.isArray(body.claims)) {
+      return { ok: false, reason: 'unreachable' };
+    }
+    if (!('nextBefore' in body)) return { ok: true, claims: body.claims, nextBefore: undefined };
+    const n = body.nextBefore;
+    if (n === null || (typeof n === 'number' && Number.isSafeInteger(n) && n >= 2)) return { ok: true, claims: body.claims, nextBefore: n };
+    return { ok: false, reason: 'unreachable' };
+  }
+
   function acteOf(r: { status: number; body?: unknown } | { status: 0 }): ActeFondsResult {
     if (r.status === 0) return { ok: false, reason: 'unreachable' };
     if (r.status === 401) return { ok: false, reason: 'bad_key' };
@@ -248,22 +290,36 @@ export function resolveFondsService(): FondsServicePort | null {
 
   return {
     async lire(cle: string): Promise<LectureFonds> {
-      const [claimsRes, fundRes] = await Promise.all([call(cle, '/claims'), call(cle, '/fund')]);
-      if (claimsRes.status === 0 || fundRes.status === 0) return { ok: false, reason: 'unreachable' };
-      if (claimsRes.status === 401 || fundRes.status === 401) return { ok: false, reason: 'bad_key' };
-      if (claimsRes.status !== 200 || fundRes.status !== 200) return { ok: false, reason: 'unreachable' };
+      // The closed page is asked only once the open claims have answered (see
+      // the de-duplication below).
+      const [fundRes, ouvertesRes] = await Promise.all([call(cle, '/fund'), call(cle, '/claims?part=open')]);
+      const fermeesRes = await call(cle, `/claims?part=closed&limit=${PAGE_FERMEES}`);
+      const reponses = [fundRes, ouvertesRes, fermeesRes];
+      if (reponses.some((r) => r.status === 0)) return { ok: false, reason: 'unreachable' };
+      if (reponses.some((r) => r.status === 401)) return { ok: false, reason: 'bad_key' };
+      const ouvertes = listeOf(ouvertesRes);
+      const fermees = listeOf(fermeesRes);
+      if (!ouvertes.ok || !fermees.ok || fundRes.status !== 200) return { ok: false, reason: 'unreachable' };
 
-      const claimsBody = claimsRes.body as { claims?: unknown };
       const fundBody = fundRes.body as {
         declaration?: { balanceFcfa?: unknown; declaredAt?: unknown } | null;
         committedClaimsAmountFcfa?: unknown;
         solvency?: { state?: unknown; availableAfterCommitmentsFcfa?: unknown };
       };
-      if (!Array.isArray(claimsBody?.claims) || typeof fundBody !== 'object' || fundBody === null) {
-        return { ok: false, reason: 'unreachable' };
-      }
-      const rows = claimsBody.claims.map(readRow);
-      const reclamations = rows.filter((r): r is ReclamationRow => r !== null);
+      if (typeof fundBody !== 'object' || fundBody === null) return { ok: false, reason: 'unreachable' };
+      // The book still live before paging answers both reads with its full
+      // list: that list alone, once, in its own order, with no older page.
+      const ancien = fermees.nextBefore === undefined;
+      const lignesOuvertes = ancien ? [] : ouvertes.claims.map(readRow);
+      const lignesFermees = fermees.claims.map(readRow);
+      const valides = (lignes: readonly (ReclamationRow | null)[]): ReclamationRow[] =>
+        lignes.filter((r): r is ReclamationRow => r !== null);
+      // A claim that closes after the open claims answered is then the newest
+      // closed claim, so it is on this first page too: kept once, closed. Asked
+      // together, a claim closing between the two answers could be in neither.
+      const fermeesIds = new Set(valides(lignesFermees).map((r) => r.orderId));
+      const reclamations = [...valides(lignesOuvertes).filter((r) => !fermeesIds.has(r.orderId)), ...valides(lignesFermees)];
+      const nonReconnues = [...lignesOuvertes, ...lignesFermees].filter((r) => r === null).length;
       const decl = fundBody.declaration ?? null;
       const engages = fundBody.committedClaimsAmountFcfa;
       const etat = fundBody.solvency?.state;
@@ -280,9 +336,37 @@ export function resolveFondsService(): FondsServicePort | null {
             etatFonds: etat === 'HEALTHY' || etat === 'CRITICAL' ? etat : null,
           },
           reclamations,
-          nonReconnues: rows.length - reclamations.length,
+          nonReconnues,
+          plusAnciennes: fermees.nextBefore ?? null,
         },
       };
+    },
+
+    async lirePlusAnciennes(cle: string, avant: number): Promise<PageFonds> {
+      const page = listeOf(await call(cle, `/claims?part=closed&limit=${PAGE_FERMEES}&before=${avant}`));
+      if (!page.ok) return page;
+      const lues = page.claims.map(readRow);
+      const reclamations = lues.filter((r): r is ReclamationRow => r !== null);
+      return { ok: true, reclamations, nonReconnues: lues.length - reclamations.length, plusAnciennes: page.nextBefore ?? null };
+    },
+
+    async lireSignalees(cle: string): Promise<SignaleesFonds> {
+      // As in `lire`: the closed claims are asked only once the open ones have
+      // answered, so a claim closing in between is in one answer at least.
+      const ouvertesRes = await call(cle, '/claims?part=open');
+      const fermeesRes = await call(cle, `/claims?part=closed&limit=${FERMEES_SIGNALEES}`);
+      const reponses = [ouvertesRes, fermeesRes];
+      if (reponses.some((r) => r.status === 0)) return { ok: false, reason: 'unreachable' };
+      if (reponses.some((r) => r.status === 401)) return { ok: false, reason: 'bad_key' };
+      const [ouvertes, fermees] = reponses.map(listeOf) as [Liste, Liste];
+      if (!ouvertes.ok || !fermees.ok) return { ok: false, reason: 'unreachable' };
+      const orderIds = new Set(
+        [...ouvertes.claims, ...fermees.claims].flatMap((raw) => {
+          const r = readRow(raw);
+          return r === null ? [] : [r.orderId];
+        }),
+      );
+      return { ok: true, orderIds };
     },
 
     async ouvrir(cle: string, input: OuvrirReclamationInput): Promise<ActeFondsResult> {

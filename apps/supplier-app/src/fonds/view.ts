@@ -12,6 +12,8 @@
  */
 
 import type { EtatReclamation, FauteFonds, LectureFonds, LivreFonds, ReclamationRow } from './service';
+import type { LivraisonRow, RemboursementOperateur } from '../operations/dispatch-service';
+import { raisonBlocage } from '../commandes/view';
 
 export type FondsRead =
   | { readonly kind: 'loading' }
@@ -56,6 +58,8 @@ export function fondsVue(read: FondsRead): FondsVue {
       : { kind: 'failed', message: 'fonds.injoignable' };
   }
   const groupes: GroupeFaute[] = [];
+  // Inside a group the service's order stands: open claims first, then the
+  // closed ones newest first (or the full list's own order, on the old book).
   for (const { faute, titreKey } of ORDRE_FAUTES) {
     const rows = lecture.livre.reclamations.filter((r) => r.faute === faute);
     if (rows.length > 0) groupes.push({ faute, titreKey, rows });
@@ -90,4 +94,59 @@ export function fondsPillule(etat: 'HEALTHY' | 'CRITICAL' | null): {
   if (etat === 'HEALTHY') return { labelKey: 'fonds.solide', tone: 'ok' };
   if (etat === 'CRITICAL') return { labelKey: 'fonds.sous_tension', tone: 'attente' };
   return { labelKey: 'fonds.a_declarer', tone: 'pause' };
+}
+
+/**
+ * The buyer's refund beside a seller-fault claim, as Shop+ judges it — read
+ * through the key-C read the console already makes. What was not read is said
+ * as not read: a refund word is shown only from that order's own row.
+ */
+export type LectureRemboursements =
+  /** No seller-fault claim on screen: nothing is asked of Shop+. */
+  | { readonly kind: 'inutile' }
+  | { readonly kind: 'sans_cle' }
+  | { readonly kind: 'lecture' }
+  | { readonly kind: 'illisible' }
+  | { readonly kind: 'lu'; readonly rows: ReadonlyMap<string, LivraisonRow> };
+
+export type RemboursementCarte =
+  | { readonly kind: 'phrase'; readonly phraseKey: string }
+  | {
+      readonly kind: 'pillule';
+      readonly labelKey: string;
+      readonly ton: 'ok' | 'attente' | 'alerte';
+      /** Why a blocked refund cannot finish by itself; null otherwise. */
+      readonly raisonKey: string | null;
+    };
+
+/** The Commandes tab's refund pill, word for word and tone for tone. */
+export function pilluleRemboursement(r: RemboursementOperateur): { labelKey: string; ton: 'ok' | 'attente' | 'alerte' } {
+  switch (r.etat) {
+    case 'bloque':
+      return { labelKey: 'commandes.pill_remb_bloque', ton: 'alerte' };
+    case 'en_cours':
+      return { labelKey: 'commandes.pill_remb_en_cours', ton: 'attente' };
+    case 'fait':
+      return { labelKey: 'commandes.pill_rembourse', ton: 'ok' };
+    case 'rien':
+      return { labelKey: 'commandes.pill_rien_a_rembourser', ton: 'ok' };
+  }
+}
+
+export function remboursementCarte(orderId: string, lecture: LectureRemboursements): RemboursementCarte {
+  switch (lecture.kind) {
+    case 'sans_cle':
+      return { kind: 'phrase', phraseKey: 'fonds.remb_sans_cle' };
+    case 'inutile':
+    case 'lecture':
+      return { kind: 'phrase', phraseKey: 'fonds.remb_lecture' };
+    case 'illisible':
+      return { kind: 'phrase', phraseKey: 'fonds.remb_illisible' };
+    case 'lu': {
+      const row = lecture.rows.get(orderId);
+      if (row === undefined) return { kind: 'phrase', phraseKey: 'fonds.remb_introuvable' };
+      if (row.remboursement === undefined) return { kind: 'phrase', phraseKey: 'fonds.remb_aucun' };
+      return { kind: 'pillule', ...pilluleRemboursement(row.remboursement), raisonKey: raisonBlocage(row.remboursement) };
+    }
+  }
 }

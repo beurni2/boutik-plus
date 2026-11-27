@@ -2910,10 +2910,52 @@
     "screenClass": "label"
   },
   {
-    "key": "fonds.cliente_dabord",
-    "fr": "Cliente à rembourser en premier",
+    "key": "fonds.ne_rembourse_pas",
+    "fr": "Cette réclamation ne rembourse pas la cliente.",
     "register": "money",
     "screenClass": "status"
+  },
+  {
+    "key": "fonds.remb_selon_shop",
+    "fr": "Son remboursement, selon Shop+",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "fonds.remb_aucun",
+    "fr": "Shop+ n'a aucun remboursement pour cette commande.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.remb_sans_cle",
+    "fr": "Pour voir ici si la cliente est remboursée, entrez une fois la clé Shop+ dans la zone Revendeuses.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.remb_lecture",
+    "fr": "Lecture du remboursement chez Shop+…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.remb_illisible",
+    "fr": "Son remboursement n'a pas pu être lu. Réessayez, ou regardez la commande dans Commandes.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.remb_introuvable",
+    "fr": "Cette commande n'est pas dans la liste lue chez Shop+. Son remboursement ne peut donc pas être lu ici.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "fonds.plus_anciennes",
+    "fr": "Voir les réclamations plus anciennes",
+    "register": "neutral",
+    "screenClass": "label"
   },
   {
     "key": "fonds.reglee_ref",

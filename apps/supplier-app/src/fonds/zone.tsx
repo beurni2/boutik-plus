@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { GEO } from '../ui/v2/tokens';
@@ -16,9 +16,18 @@ import {
   type FondsServicePort,
   type ReclamationRow,
 } from './service';
-import { etatPillule, fondsPillule, fondsVue, type FondsRead } from './view';
+import {
+  etatPillule,
+  fondsPillule,
+  fondsVue,
+  remboursementCarte,
+  type FondsRead,
+  type LectureRemboursements,
+  type RemboursementCarte,
+} from './view';
 import { montantEntier } from './service';
 import { mintCommandId } from '../offline/commandId';
+import { readStoredCleC, resolveDispatchService } from '../operations/dispatch-service';
 
 /**
  * FONDS-CONSOLE-B+ — the « Fonds » zone of the founder's console (founder
@@ -37,13 +46,17 @@ import { mintCommandId } from '../offline/commandId';
  * with retry, and the encouraging honest empty.
  */
 
-const TONES: Record<'ok' | 'attente' | 'pause', { bg: string; fg: string }> = {
+type Ton = 'ok' | 'attente' | 'pause' | 'alerte';
+
+const TONES: Record<Ton, { bg: string; fg: string }> = {
   ok: { bg: P.successBg, fg: P.successFg },
   attente: { bg: P.warnBg, fg: P.warnFg },
   pause: { bg: P.neutralPill, fg: P.sub },
+  // A refund that cannot finish by itself — the Commandes tab's own pair.
+  alerte: { bg: P.dangerBg, fg: P.dangerFg },
 };
 
-function Pillule({ labelKey, tone }: { labelKey: string; tone: 'ok' | 'attente' | 'pause' }) {
+function Pillule({ labelKey, tone }: { labelKey: string; tone: Ton }) {
   const { bg, fg } = TONES[tone];
   return (
     <View style={{ backgroundColor: bg, borderRadius: GEO.r.pill, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'flex-start' }}>
@@ -142,11 +155,67 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
   const [read, setRead] = useState<FondsRead>({ kind: 'loading' });
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [remb, setRemb] = useState<LectureRemboursements>({ kind: 'inutile' });
+  // A ref, not state: two taps before the screen redraws both see it.
+  const pageEnCours = useRef(false);
+
+  /** The buyers' refunds, from the ONE key-C read the console already makes
+   *  (the Commandes tab's): asked once per view, only for a seller-fault
+   *  claim on screen. A refused key C is said as « not read » — this desk
+   *  never clears or rewrites it. */
+  async function lireRemboursements(): Promise<void> {
+    const cleC = readStoredCleC();
+    const dispatch = cleC === null ? null : resolveDispatchService();
+    if (cleC === null || dispatch === null) {
+      setRemb({ kind: 'sans_cle' });
+      return;
+    }
+    setRemb({ kind: 'lecture' });
+    const l = await dispatch.listLivraisons(cleC);
+    setRemb(l.ok ? { kind: 'lu', rows: new Map(l.rows.map((r) => [r.orderId, r] as const)) } : { kind: 'illisible' });
+  }
 
   async function charger(): Promise<void> {
     setRead({ kind: 'loading' });
     const lecture = await service.lire(cle);
     setRead({ kind: 'lecture', lecture });
+    if (lecture.ok && lecture.livre.reclamations.some((r) => r.clienteDabord)) await lireRemboursements();
+    else setRemb({ kind: 'inutile' });
+  }
+
+  /** The next older page of closed claims, added once each below the others.
+   *  A page that fails keeps what is shown, and the way to try again. */
+  async function lirePlusAnciennes(avant: number): Promise<void> {
+    if (pageEnCours.current) return;
+    pageEnCours.current = true;
+    const page = await service.lirePlusAnciennes(cle, avant);
+    pageEnCours.current = false;
+    if (!page.ok) {
+      if (page.reason === 'bad_key') onCleRefusee();
+      else setFeedback('fonds.injoignable');
+      return;
+    }
+    setFeedback(null);
+    setRead((prev) => {
+      // A page is added only where it was asked for: after a reload it is not
+      // the next one any more, and would leave a gap.
+      if (prev.kind !== 'lecture' || !prev.lecture.ok || prev.lecture.livre.plusAnciennes !== avant) return prev;
+      const livre = prev.lecture.livre;
+      const deja = new Set(livre.reclamations.map((r) => r.orderId));
+      return {
+        kind: 'lecture',
+        lecture: {
+          ok: true,
+          livre: {
+            ...livre,
+            reclamations: [...livre.reclamations, ...page.reclamations.filter((r) => !deja.has(r.orderId))],
+            nonReconnues: livre.nonReconnues + page.nonReconnues,
+            plusAnciennes: page.plusAnciennes,
+          },
+        },
+      };
+    });
+    if (remb.kind === 'inutile' && page.reclamations.some((r) => r.clienteDabord)) await lireRemboursements();
   }
   useEffect(() => {
     void charger();
@@ -265,12 +334,26 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
               <Overline level="card">{t(g.titreKey)}</Overline>
             </View>
             {g.rows.map((r) => (
-              <CarteReclamation key={r.orderId} row={r} busy={busy} onAvancer={(vers, detail) =>
-                void agir(service.avancer(cle, r.orderId, vers, detail))
-              } />
+              <CarteReclamation
+                key={r.orderId}
+                row={r}
+                remboursement={r.clienteDabord ? remboursementCarte(r.orderId, remb) : null}
+                busy={busy}
+                onAvancer={(vers, detail) => void agir(service.avancer(cle, r.orderId, vers, detail))}
+              />
             ))}
           </View>
         ))
+      )}
+      {vue.livre.plusAnciennes !== null && (
+        <View style={{ marginTop: 14 }}>
+          <BtnGhost
+            label={t('fonds.plus_anciennes')}
+            onPress={() => {
+              if (vue.livre.plusAnciennes !== null) void lirePlusAnciennes(vue.livre.plusAnciennes);
+            }}
+          />
+        </View>
       )}
 
       <OuvrirReclamation busy={busy} onOuvrir={(input) => agir(service.ouvrir(cle, input))} />
@@ -283,9 +366,30 @@ function LivreFondsZone({ service, cle, onCleRefusee }: {
   );
 }
 
+/** The buyer's refund, as Shop+ judges it, in the Commandes tab's own words —
+ *  or why it could not be read. */
+function RemboursementShop({ carte }: { carte: RemboursementCarte }) {
+  if (carte.kind === 'phrase') {
+    return <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 4 }]}>{t(carte.phraseKey)}</Text>;
+  }
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Overline level="card">{t('fonds.remb_selon_shop')}</Overline>
+      <View style={{ marginTop: 4 }}>
+        <Pillule labelKey={carte.labelKey} tone={carte.ton} />
+      </View>
+      {carte.raisonKey !== null && (
+        <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.inkSoft), { marginTop: 4 }]}>{t(carte.raisonKey)}</Text>
+      )}
+    </View>
+  );
+}
+
 /** One claim, said calmly: who owes what, where it stands, what he can do next. */
-function CarteReclamation({ row, busy, onAvancer }: {
+function CarteReclamation({ row, remboursement, busy, onAvancer }: {
   row: ReclamationRow;
+  /** Present on a seller-fault claim: the buyer's refund beside it. */
+  remboursement: RemboursementCarte | null;
   busy: boolean;
   onAvancer: (vers: 'under_review' | 'resolved' | 'closed_no_payout', detail?: string) => void;
 }) {
@@ -308,10 +412,11 @@ function CarteReclamation({ row, busy, onAvancer }: {
         {`${t('fonds.preuve')} ${row.preuve}`}
       </Text>
       {row.clienteDabord && (
-        <Text style={[role({ f: 'IS', w: 700, s: 11.5 }, P.successFg), { marginTop: 6 }]}>
-          {t('fonds.cliente_dabord')}
+        <Text style={[role({ f: 'IS', w: 700, s: 11.5 }, P.inkSoft), { marginTop: 6 }]}>
+          {t('fonds.ne_rembourse_pas')}
         </Text>
       )}
+      {remboursement !== null && <RemboursementShop carte={remboursement} />}
       {row.reglementRef !== undefined && (
         <Text style={[role({ f: 'IS', w: 400, s: 11.5 }, P.sub), { marginTop: 6 }]}>
           {`${t('fonds.reglee_ref')} ${row.reglementRef}`}
