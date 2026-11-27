@@ -2947,7 +2947,7 @@
   },
   {
     "key": "fonds.remb_introuvable",
-    "fr": "Shop+ n'a pas envoyé cette commande dans sa liste. Son remboursement ne peut donc pas être lu ici.",
+    "fr": "Cette commande n'est pas dans la liste lue chez Shop+. Son remboursement ne peut donc pas être lu ici.",
     "register": "money",
     "screenClass": "status"
   },

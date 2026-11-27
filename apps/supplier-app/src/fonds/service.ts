@@ -290,11 +290,10 @@ export function resolveFondsService(): FondsServicePort | null {
 
   return {
     async lire(cle: string): Promise<LectureFonds> {
-      const [fundRes, ouvertesRes, fermeesRes] = await Promise.all([
-        call(cle, '/fund'),
-        call(cle, '/claims?part=open'),
-        call(cle, `/claims?part=closed&limit=${PAGE_FERMEES}`),
-      ]);
+      // The closed page is asked only once the open claims have answered (see
+      // the de-duplication below).
+      const [fundRes, ouvertesRes] = await Promise.all([call(cle, '/fund'), call(cle, '/claims?part=open')]);
+      const fermeesRes = await call(cle, `/claims?part=closed&limit=${PAGE_FERMEES}`);
       const reponses = [fundRes, ouvertesRes, fermeesRes];
       if (reponses.some((r) => r.status === 0)) return { ok: false, reason: 'unreachable' };
       if (reponses.some((r) => r.status === 401)) return { ok: false, reason: 'bad_key' };
@@ -315,7 +314,9 @@ export function resolveFondsService(): FondsServicePort | null {
       const lignesFermees = fermees.claims.map(readRow);
       const valides = (lignes: readonly (ReclamationRow | null)[]): ReclamationRow[] =>
         lignes.filter((r): r is ReclamationRow => r !== null);
-      // A claim closed between the two reads is in both: kept once, closed.
+      // A claim that closes after the open claims answered is then the newest
+      // closed claim, so it is on this first page too: kept once, closed. Asked
+      // together, a claim closing between the two answers could be in neither.
       const fermeesIds = new Set(valides(lignesFermees).map((r) => r.orderId));
       const reclamations = [...valides(lignesOuvertes).filter((r) => !fermeesIds.has(r.orderId)), ...valides(lignesFermees)];
       const nonReconnues = [...lignesOuvertes, ...lignesFermees].filter((r) => r === null).length;
@@ -350,7 +351,11 @@ export function resolveFondsService(): FondsServicePort | null {
     },
 
     async lireSignalees(cle: string): Promise<SignaleesFonds> {
-      const reponses = await Promise.all([call(cle, '/claims?part=open'), call(cle, `/claims?part=closed&limit=${FERMEES_SIGNALEES}`)]);
+      // As in `lire`: the closed claims are asked only once the open ones have
+      // answered, so a claim closing in between is in one answer at least.
+      const ouvertesRes = await call(cle, '/claims?part=open');
+      const fermeesRes = await call(cle, `/claims?part=closed&limit=${FERMEES_SIGNALEES}`);
+      const reponses = [ouvertesRes, fermeesRes];
       if (reponses.some((r) => r.status === 0)) return { ok: false, reason: 'unreachable' };
       if (reponses.some((r) => r.status === 401)) return { ok: false, reason: 'bad_key' };
       const [ouvertes, fermees] = reponses.map(listeOf) as [Liste, Liste];
