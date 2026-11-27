@@ -3,6 +3,20 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · COLIS-PERDU-1 — MERGED, then the console DEPLOYED
+
+**Founder.** « Release all four » (2026-11-27 10:54 UTC, decision card, on the lost-parcel batch report), which named for Boutik+: its checks read Séra's main, so re-run them once after Séra merges, merge, then publish the console. No offer-deploy: only the console changed.
+
+**Merge.** PR #8's ci 397 re-run once after Séra's PR #9 merged: green (the lost-parcel walk against the real Séra 5 passed). PR #8 merged as `4624101` (merge commit, the branch shas kept). On main: ci 398 green, its log showing the lost-parcel walk against the real Séra 5 passed, its screen walk 18 passed, the Fonds walk 5 passed, supplier-app 1 392 tests with none skipped, ALL GATES GREEN · expo-preview 267 (supplier app) red at Expo's own publish step (« Service Unavailable »), then green on its one re-run.
+
+**Deploy.** web-deploy 93 (id 45988590194) from main `4624101`: the deploy lock confirmed main's newest commit, green in ci; every never-ships needle absent; « web-size OK — console first load: 524.3 KB gzip (536891 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 533 524 B at web-deploy 92; 5 829 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Not checked.** The live console was not opened from here (the live services cannot be read from where this release ran). The founder's first view is the check: the card, the amount box and the final screen on a phone.
+
+**Still open.** As named in the slice entry below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · COLIS-PERDU-1 — « Colis perdu en route » on the founder's console, beside the SOS alerts: only for a parcel a rider holds, his own amount per order, said declared only when Séra says so · lane B6 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Yes, on my Boutik+ console » (2026-11-27 08:35 UTC, decision card): the button sits in Opérations, next to the SOS alerts.
