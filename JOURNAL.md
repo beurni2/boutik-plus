@@ -3,6 +3,18 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · ACCENTS-INVISIBLES-1 (pin) — the copy-lint here now compares words without their accents and without invisible characters · coordinator · on the branch, NOT merged
+
+**Founder.** Batch 5 of the plan he approved (« Now you start working on the next batch », 2026-11-27 15:13 UTC): « The French wording check catches « sequestre » without its accent. » The rule lives in the shared record (`platform-contracts` `34c1569`, see its journal); this repository only moves its pin.
+
+**What changed.** `@platform/i18n` repinned to `34c1569` in the root and supplier-app `package.json` and the lock file. A new negative fixture, `gates/fixtures/negative/catalog.accents.json`, holds four sentences whose ONLY faults are a missing accent, a soft hyphen or a zero-width space inside a banned word, and the §10.5 bad example; `scripts/run-gates.sh` runs it as a must-fail step. On the old pin it passes with 0 violations; on the new pin it fails with 4, so a pin that slides back turns the board red. No product code, no sentence and no screen changed: the supplier app's 969 strings lint clean on the new pin.
+
+**Evidence (82a77be).** Full board with the siblings beside the clone, `CI=true`, turbo forced (0 cached): ALL GATES GREEN, the accent fixture failing with 4 as required; supplier app 1 405, offer 485, media 183, service-auth 58, fulfillment 45 passed. Console size, the deploy's way (cold export, `EXPO_PUBLIC_ROOT=v2`, placeholder bases, separate clones): main `dce2fb5` 537 150 B, this branch 537 186 B (+36 B; the console imports the catalog schema from the package root, which now carries the fold), ceiling 542 720 B, 5 534 B of room.
+
+**Release.** Merge only: nothing the console does changes, and its next deploy carries the pin.
+
+---
+
 ## 2026-11-27 · VIE-PRIVEE-ACHETEUSE — MERGED, then the media, offer and console DEPLOYED
 
 **Founder.** « Release all four » (2026-11-27 14:34 UTC, decision card, on the buyer-privacy batch report), which named for Boutik+: media, offer, console, after the shared record and Shop+. Every Boutik+ deploy is locked to main's newest commit green in ci, so the merge came first and the three deploys followed it, media first because the offer service and Séra both bind its new private entrypoint.
