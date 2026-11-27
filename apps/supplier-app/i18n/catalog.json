@@ -5782,5 +5782,11 @@
     "fr": "Fermer",
     "register": "neutral",
     "screenClass": "label"
+  },
+  {
+    "key": "perdu.custody_refuse",
+    "fr": "Séra a refusé la déclaration. Une partie est peut-être déjà faite : regardez la course dans « Coursiers » avant de recommencer.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

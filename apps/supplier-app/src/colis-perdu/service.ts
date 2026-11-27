@@ -45,6 +45,8 @@ export type ReponseColis =
   /** Séra could not finish (custody not reached): part of the parcel may already be declared,
    *  so the same command is sent again, never a new one. */
   | { kind: 'custody' }
+  /** Custody refused for a reason of its own: part of the parcel may already be declared. */
+  | { kind: 'custody_refuse' }
   | { kind: 'bad_key' }
   /** No answer, or one this port cannot read: nobody knows whether it was declared. */
   | { kind: 'non_su' };
@@ -117,6 +119,7 @@ const REFUS: Readonly<Record<string, ReponseColis>> = {
   malformed: { kind: 'malformed' },
   custody_non_relie: { kind: 'custody' },
   custody_unreachable: { kind: 'custody' },
+  custody_refused: { kind: 'custody_refuse' },
 };
 
 /** Each refusal belongs to one status: a reason under another status is not Séra's word. */
@@ -127,6 +130,7 @@ const STATUT_DU_REFUS: Readonly<Record<string, number>> = {
   malformed: 400,
   custody_non_relie: 503,
   custody_unreachable: 503,
+  custody_refused: 409,
 };
 
 export function httpColisPerdu(

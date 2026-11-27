@@ -29,6 +29,8 @@ export function phraseReponse(r: ReponseColis): string {
       return 'perdu.mal_lu';
     case 'custody':
       return 'perdu.pas_fini';
+    case 'custody_refuse':
+      return 'perdu.custody_refuse';
     case 'bad_key':
       return 'perdu.cle_refusee';
     case 'non_su':

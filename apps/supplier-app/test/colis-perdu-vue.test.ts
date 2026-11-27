@@ -33,6 +33,7 @@ describe('the declare door, answer by answer', () => {
     [400, { ok: false, reason: 'malformed' }, 'malformed'],
     [503, { ok: false, reason: 'custody_non_relie' }, 'custody'],
     [503, { ok: false, reason: 'custody_unreachable' }, 'custody'],
+    [409, { ok: false, reason: 'custody_refused', detail: 'refused' }, 'custody_refuse'],
     [401, { error: 'unauthorized' }, 'bad_key'],
     [403, { error: 'forbidden' }, 'bad_key'],
     // Anything else is not Séra's word: nobody knows whether it landed.
@@ -137,7 +138,7 @@ describe('what he types, and what may be sent again', () => {
   it('only an unknown outcome, or custody not asked, sends the same declaration again', () => {
     expect(aRenvoyer({ kind: 'non_su' })).toBe(true);
     expect(aRenvoyer({ kind: 'custody' })).toBe(true);
-    for (const k of ['declare', 'deja_declare', 'no_active_course', 'pas_chez_le_livreur', 'montants_incomplets', 'malformed', 'bad_key'] as const) {
+    for (const k of ['declare', 'deja_declare', 'no_active_course', 'pas_chez_le_livreur', 'montants_incomplets', 'malformed', 'custody_refuse', 'bad_key'] as const) {
       expect(aRenvoyer({ kind: k }), k).toBe(false);
     }
   });
@@ -148,8 +149,17 @@ describe('what he types, and what may be sent again', () => {
     expect(phrase).not.toContain("Rien n'a été déclaré");
   });
 
+  it('a 409 custody_refused is said by name, never « Séra n\'a pas répondu », and is not sent again', async () => {
+    const r = await doublure(409, { ok: false, reason: 'custody_refused', detail: 'refused' }).port.declarer('cmd-1', 'ord-1', MONTANTS);
+    expect(r).toEqual({ kind: 'custody_refuse' });
+    const phrase = t(phraseReponse(r));
+    expect(phrase).toBe("Séra a refusé la déclaration. Une partie est peut-être déjà faite : regardez la course dans « Coursiers » avant de recommencer.");
+    expect(phrase).not.toContain("Séra n'a pas répondu");
+    expect(aRenvoyer(r)).toBe(false);
+  });
+
   it('every answer has its sentence in the catalog', () => {
-    for (const k of ['declare', 'deja_declare', 'no_active_course', 'pas_chez_le_livreur', 'montants_incomplets', 'malformed', 'custody', 'bad_key', 'non_su'] as const) {
+    for (const k of ['declare', 'deja_declare', 'no_active_course', 'pas_chez_le_livreur', 'montants_incomplets', 'malformed', 'custody', 'custody_refuse', 'bad_key', 'non_su'] as const) {
       expect(t(phraseReponse({ kind: k })).length, k).toBeGreaterThan(0);
     }
   });
