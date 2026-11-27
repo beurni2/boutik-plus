@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react-test-renderer';
 import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './rendu';
 import { AppV2 } from '../src/v2/AppV2';
+import { poserActe } from '../src/colis-perdu/acte';
 
 /**
  * ═══ RENDU-RÉEL — « Colis perdu en route », on the REAL console root ═══
@@ -95,29 +96,45 @@ function planche(lignes: { orderId: string; riderId: string; nom: string; readin
  * The SOS strip reads `/ops/sos` on every boot; that read is not this walk's
  * subject, so it meets a network fault (the network's word, not Séra's).
  *
- * The declare door has no recorded answer yet, so this walk never makes Séra
- * say anything there: `porte` may only be the NETWORK's fault (no answer, a
- * stall, a body that is not JSON). Every answer of the door itself is walked
- * on the real Séra Workers in `rendu-colis-perdu.e2e.test.tsx`. Everything
- * else goes to the recorded stand-in.
+ * The declare door has no recorded answer yet. `porte` is the network's fault
+ * (no answer, a stall, a body that is not JSON) or one of the door's answers
+ * in the exact form Séra gives it; each of those answers is also walked on
+ * the real Séra Workers in `rendu-colis-perdu.e2e.test.tsx`. Everything else
+ * goes to the recorded stand-in.
+ *
+ * `tenir` holds every board read made while it is set, each until its own
+ * release, so a walk can choose which read lands first.
  */
 type Porte = (signal: AbortSignal | undefined) => Promise<Response>;
 
 function brancher(routes: readonly Route[], porte?: Porte) {
   const w = wire(routes);
   const envois: Record<string, unknown>[] = [];
+  const tenues: (() => void)[] = [];
+  const tenir = { v: false };
   const viaWire = (globalThis as { fetch: (i: string, init?: RequestInit) => Promise<Response> }).fetch;
   (globalThis as { fetch: unknown }).fetch = async (input: string, init?: RequestInit): Promise<Response> => {
     const path = new URL(input).pathname;
     if (path === '/ops/sos') throw new TypeError('Failed to fetch');
     if (path === '/ops/colis/perdu') {
       envois.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-      if (porte === undefined) throw new Error('this walk never answers for Séra at the declare door');
+      if (porte === undefined) throw new Error('no answer was set for the declare door in this walk');
       return porte(init?.signal ?? undefined);
     }
+    if (path === '/ops/board' && tenir.v) await new Promise<void>((r) => tenues.push(r));
     return viaWire(input, init);
   };
-  return { ...w, envois };
+  return { ...w, envois, tenues, tenir };
+}
+
+/** The door's answer as Séra writes it. */
+const repond = (status: number, corps: unknown): Porte => async () => Response.json(corps, { status });
+
+/** A send that waits for the walk to let Séra answer. */
+function enAttente(apres: Porte): { porte: Porte; lacher: () => void } {
+  let lacher = (): void => {};
+  const ouvert = new Promise<void>((r) => { lacher = r; });
+  return { porte: async (signal) => { await ouvert; return apres(signal); }, lacher: () => lacher() };
 }
 
 /** A request that never comes back: it ends only when the port gives up on it. */
@@ -131,6 +148,8 @@ const horsLigne: Porte = async () => {
 const pasDuJson: Porte = async () => new Response('<html>502 Bad Gateway</html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
 
 beforeEach(() => {
+  // The open declaration outlives a mounted screen by design: each walk starts with none.
+  poserActe(null);
   wiredEnv();
   process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'] = SERA_BASE;
 });
@@ -315,7 +334,7 @@ describe('the steps: the parcel, one amount per order, a confirmation that says 
     // The console's own money format (its thin and no-break spaces read as spaces here).
     expect(screen.texts().filter((x) => x.startsWith('Commande ord-c-')).map((x) => x.replace(/\s/g, ' '))).toEqual(['Commande ord-c-a : 12 000 FCFA', 'Commande ord-c-b : 2 500 FCFA']);
     expect(screen.canPress('Oui, déclarer perdu')).toBe(true);
-    expect(w.calls.some((c) => c.path === '/ops/colis/perdu'), 'nothing is sent before « Oui »').toBe(false);
+    expect(w.envois, 'nothing is sent before « Oui »').toEqual([]);
     screen.unmount();
   }, 20_000);
 
@@ -377,4 +396,170 @@ describe('a send that does not come back is « not known », never « declared �
     expect(w.calls.filter((c) => c.path === '/ops/board').length, 'the board is asked again').toBe(lectures + 1);
     screen.unmount();
   }, 20_000);
+});
+
+const DECLARE = "Séra a déclaré le colis perdu. L'acheteur sera remboursé en entier, et le coursier est libre.";
+const NON_SU = "Séra n'a pas répondu. On ne sait pas encore si le colis est déclaré. Réessayez.";
+const SANS_CLE = 'Pour déclarer un colis perdu, tapez d\'abord la clé Séra dans « Coursiers ».';
+const CLE_REFUSEE = 'Séra a refusé la clé. Tapez-la de nouveau dans « Coursiers ».';
+const CHARGEMENT = 'On lit chez Séra les colis que les coursiers ont en main…';
+const VIDE = "Aucun coursier n'a de colis en main en ce moment.";
+const OUI = 'Oui, déclarer perdu';
+
+/** This section's « Réessayer », told apart from the other desks' own by counting. */
+const reessais = (screen: Screen) => screen.texts().filter((x) => x === 'Réessayer').length;
+
+describe('each refusal Séra gives by name is said by name, and ends the act', () => {
+  const cas: [string, number, unknown, string][] = [
+    ['no_active_course', 409, { ok: false, reason: 'no_active_course' }, "Cette course n'est plus en route chez Séra. Le colis est peut-être déjà déclaré : regardez dans « Coursiers » avant de recommencer."],
+    ['montants_incomplets', 400, { ok: false, reason: 'montants_incomplets' }, "Séra attend un montant pour chaque commande du colis. Rien n'a été déclaré."],
+    ['malformed', 400, { ok: false, reason: 'malformed' }, "Séra n'a pas pu lire la demande. Rien n'a été déclaré."],
+    ['custody_refused', 409, { ok: false, reason: 'custody_refused', detail: 'refused' }, 'Séra a refusé la déclaration. Une partie est peut-être déjà faite : regardez la course dans « Coursiers » avant de recommencer.'],
+  ];
+  for (const [nom, status, corps, phrase] of cas) {
+    it(`${status} ${nom}: its sentence, no « Réessayer », and « Fermer » gives the list back`, async () => {
+      porteOuverte();
+      storage(CLES);
+      const w = brancher([unePlanche()], repond(status, corps));
+      const screen = await ouvrirOperations();
+      await jusquALaConfirmation(screen);
+      const avant = reessais(screen);
+      await screen.press(OUI);
+      await attendre(screen, () => screen.shows(phrase));
+      expect(screen.shows(phrase), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+      expect(screen.shows(DECLARE)).toBe(false);
+      expect(reessais(screen), 'a refusal by name is not sent again').toBe(avant);
+      expect(w.envois).toHaveLength(1);
+      await screen.press('Fermer');
+      await attendre(screen, () => screen.canPress(DECLARER));
+      expect(screen.canPress(DECLARER)).toBe(true);
+      screen.unmount();
+    }, 20_000);
+  }
+
+  it('401 on the declaration: the key is said refused and cleared, his ops key stays, and « Fermer » reaches the no-key state', async () => {
+    porteOuverte();
+    const disque = storage(CLES);
+    brancher([unePlanche()], repond(401, { error: 'unauthorized' }));
+    const screen = await ouvrirOperations();
+    await jusquALaConfirmation(screen);
+    await screen.press(OUI);
+    await attendre(screen, () => screen.shows(CLE_REFUSEE));
+    expect(screen.shows(CLE_REFUSEE), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(disque.has(CLE_SERA), 'the refused key is not kept').toBe(false);
+    expect(disque.get('boutik.operateur.cle')).toBe(OPS);
+    await screen.press('Fermer');
+    await attendre(screen, () => screen.shows(SANS_CLE));
+    expect(screen.shows(SANS_CLE)).toBe(true);
+    expect(screen.canPress(DECLARER)).toBe(false);
+    screen.unmount();
+  }, 20_000);
+});
+
+describe('a declared parcel leaves the list at once', () => {
+  it('declared while he watches: « Fermer » shows the list as being read, never the old one, until Séra\'s new board lands', async () => {
+    porteOuverte();
+    storage(CLES);
+    let lignes = [AWA];
+    const w = brancher([(path) => (path === '/ops/board' ? { status: 200, json: planche(lignes) } : null)], repond(200, { ok: true, status: 'declare' }));
+    const screen = await ouvrirOperations();
+    await jusquALaConfirmation(screen);
+    await screen.press(OUI);
+    await attendre(screen, () => screen.shows(DECLARE));
+    expect(screen.shows(DECLARE)).toBe(true);
+    w.tenir.v = true;
+    await screen.press('Fermer');
+    await attendre(screen, () => w.tenues.length > 0);
+    expect(screen.shows(CHARGEMENT), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(screen.canPress(DECLARER), 'the declared parcel is not offered again').toBe(false);
+    lignes = [];
+    w.tenir.v = false;
+    for (const r of w.tenues.splice(0)) r();
+    await attendre(screen, () => screen.shows(VIDE));
+    expect(screen.shows(VIDE)).toBe(true);
+    screen.unmount();
+  }, 20_000);
+});
+
+describe('leaving the tab never drops a declaration in flight', () => {
+  it('he leaves Opérations while it is sent; Séra declares it meanwhile; coming back shows the answer, and a late old board never brings the parcel back', async () => {
+    porteOuverte();
+    storage(CLES);
+    let lignes = [AWA];
+    const reponse = enAttente(repond(200, { ok: true, status: 'declare' }));
+    const w = brancher([(path) => (path === '/ops/board' ? { status: 200, json: planche(lignes) } : null)], reponse.porte);
+    const screen = await ouvrirOperations();
+    await jusquALaConfirmation(screen);
+    await screen.press(OUI);
+    expect(screen.shows('Envoi à Séra…')).toBe(true);
+    await screen.press('Accueil');
+    await attendre(screen, () => !screen.shows(TITRE));
+    expect(screen.shows(TITRE), 'Opérations is gone from the screen').toBe(false);
+    reponse.lacher();
+    // Séra's answer lands while Opérations is not on screen.
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+    }
+    // Board reads made on the way back are held: the oldest will land last.
+    w.tenir.v = true;
+    await screen.press('Opérations');
+    await attendre(screen, () => screen.shows(DECLARE));
+    expect(screen.shows(DECLARE), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(w.envois).toHaveLength(1);
+    await screen.press('Fermer');
+    await attendre(screen, () => w.tenues.length >= 2);
+    expect(screen.shows(CHARGEMENT)).toBe(true);
+    // His « Fermer » read is the latest: Séra's new board, without the parcel.
+    lignes = [];
+    w.tenues.pop()!();
+    await attendre(screen, () => screen.shows(VIDE));
+    expect(screen.shows(VIDE)).toBe(true);
+    // The reads from before land now, with the board as it was.
+    lignes = [AWA];
+    w.tenir.v = false;
+    for (const r of w.tenues.splice(0)) r();
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+      await screen.settle();
+    }
+    expect(screen.canPress(DECLARER), 'an older read never sets the list').toBe(false);
+    expect(screen.shows(VIDE)).toBe(true);
+    screen.unmount();
+  }, 30_000);
+
+  it('an unknown answer lands while he is away: coming back shows it; with no key « Réessayer » sends nothing and keeps the act; with the key back it sends the SAME id', async () => {
+    porteOuverte();
+    const disque = storage(CLES);
+    const reponse = enAttente(horsLigne);
+    let n = 0;
+    const w = brancher([unePlanche()], (signal) => (n++ === 0 ? reponse.porte(signal) : repond(200, { ok: true, status: 'declare' })(signal)));
+    const screen = await ouvrirOperations();
+    await jusquALaConfirmation(screen);
+    await screen.press(OUI);
+    await screen.press('Accueil');
+    await attendre(screen, () => !screen.shows(TITRE));
+    reponse.lacher();
+    for (let i = 0; i < 4; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
+    }
+    await screen.press('Opérations');
+    await attendre(screen, () => screen.shows(NON_SU));
+    expect(screen.shows(NON_SU), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+
+    disque.delete(CLE_SERA);
+    await screen.press('Réessayer', 0);
+    await attendre(screen, () => screen.shows(SANS_CLE));
+    expect(screen.shows(SANS_CLE), 'no key: it says where the key goes').toBe(true);
+    expect(screen.shows(CLE_REFUSEE), 'nothing was sent, so no key was refused').toBe(false);
+    expect(w.envois, 'nothing sent without a key').toHaveLength(1);
+    expect(screen.shows('Commande ord-perdu-1 · chez Awa'), 'the act is still open').toBe(true);
+
+    disque.set(CLE_SERA, CLES[CLE_SERA]);
+    await screen.press('Réessayer', 0);
+    await attendre(screen, () => screen.shows(DECLARE));
+    expect(screen.shows(DECLARE)).toBe(true);
+    expect(w.envois).toHaveLength(2);
+    expect(w.envois[1], 'the same declaration, under the same id').toEqual(w.envois[0]);
+    screen.unmount();
+  }, 30_000);
 });

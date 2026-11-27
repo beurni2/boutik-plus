@@ -7,6 +7,7 @@ import { act } from 'react-test-renderer';
 import { mountEcran, storage, wiredEnv, type Screen } from './rendu';
 import { AppV2 } from '../src/v2/AppV2';
 import { httpColisPerdu } from '../src/colis-perdu/service';
+import { poserActe } from '../src/colis-perdu/acte';
 import { SERA, miniflareDuDepot, voisin } from './bundle-voisin';
 
 /**
@@ -67,10 +68,10 @@ const TITRE = 'Colis perdu en route';
 const DECLARER = 'Déclarer ce colis perdu';
 const OUI = 'Oui, déclarer perdu';
 const DECLARE = "Séra a déclaré le colis perdu. L'acheteur sera remboursé en entier, et le coursier est libre.";
-const DEJA = 'Ce colis était déjà déclaré perdu. Rien de plus n\'a été fait.';
+const DEJA = "Ce colis est déjà déclaré perdu : rien n'a été fait deux fois. L'acheteur sera remboursé en entier, et le coursier est libre.";
 const NON_SU = "Séra n'a pas répondu. On ne sait pas encore si le colis est déclaré. Réessayez.";
 const PAS_FINI = "Séra n'a pas pu finir la déclaration. Réessayez : ce qui est déjà fait ne sera pas refait.";
-const PAS_CHEZ = "Séra dit que le coursier n'a pas ce colis en main. Rien n'a été déclaré.";
+const PAS_CHEZ = "Séra dit que le coursier n'a pas ce colis en main. Une partie est peut-être déjà déclarée : regardez la course dans « Coursiers » avant de recommencer.";
 const SANS_CLE = 'Pour déclarer un colis perdu, tapez d\'abord la clé Séra dans « Coursiers ».';
 
 type Json = Record<string, unknown>;
@@ -247,6 +248,8 @@ async function enMain(s: Seres, orderIds: string[], code: string, sceller = true
 }
 
 beforeEach(() => {
+  // The open declaration outlives a mounted screen by design: each walk starts with none.
+  poserActe(null);
   wiredEnv();
   process.env['EXPO_PUBLIC_SERA_LOGISTICS_BASE'] = BASE;
   (globalThis as { window?: unknown }).window = { location: { hash: '#operateur' } };

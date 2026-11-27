@@ -5731,19 +5731,19 @@
   },
   {
     "key": "perdu.deja",
-    "fr": "Ce colis était déjà déclaré perdu. Rien de plus n'a été fait.",
+    "fr": "Ce colis est déjà déclaré perdu : rien n'a été fait deux fois. L'acheteur sera remboursé en entier, et le coursier est libre.",
     "register": "money",
     "screenClass": "status"
   },
   {
     "key": "perdu.pas_chez_livreur",
-    "fr": "Séra dit que le coursier n'a pas ce colis en main. Rien n'a été déclaré.",
+    "fr": "Séra dit que le coursier n'a pas ce colis en main. Une partie est peut-être déjà déclarée : regardez la course dans « Coursiers » avant de recommencer.",
     "register": "neutral",
     "screenClass": "status"
   },
   {
     "key": "perdu.course_finie",
-    "fr": "Cette course n'est plus en route chez Séra. Rien n'a été déclaré.",
+    "fr": "Cette course n'est plus en route chez Séra. Le colis est peut-être déjà déclaré : regardez dans « Coursiers » avant de recommencer.",
     "register": "neutral",
     "screenClass": "status"
   },

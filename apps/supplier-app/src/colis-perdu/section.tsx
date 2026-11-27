@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { P } from '../ui/v2/palette';
 import { role } from '../ui/v2/styles';
@@ -8,15 +8,16 @@ import { mintCommandId } from '../offline/commandId';
 import { formatF } from '../v2/money';
 import { rafraichirQuandVisible } from '../ui/rafraichir';
 import { clearStoredCleCoursiers, readStoredCleCoursiers } from '../coursiers/service';
-import { resolveColisPerdu, type ColisEnMain, type Montant, type ReponseColis } from './service';
+import { resolveColisPerdu, type ColisEnMain, type Montant } from './service';
 import { aRenvoyer, montantTape, phraseReponse } from './view';
+import { abonnerActe, lireActe, poserActe, poserIssue, type Acte, type Issue } from './acte';
 
 /**
  * ═══ COLIS-PERDU — « Colis perdu en route », at the top of Opérations ═══
  *
  * Founder ruling 2026-11-27: the button sits in Opérations, next to the SOS
- * alerts. Mounted under the masthead across every zone, so a zone switch
- * never drops a declaration in flight.
+ * alerts, under the masthead across every zone. The open declaration lives
+ * in `./acte`, not here, so leaving the tab never drops one in flight.
  *
  * Four steps, one primary action each: choose the parcel a rider holds → one
  * empty amount per order → the confirmation that says it is final and what
@@ -38,11 +39,7 @@ type Lecture =
   | { kind: 'echec' }
   | { kind: 'sans_cle' };
 
-type Acte =
-  | { etape: 'montants'; colis: ColisEnMain; saisies: Readonly<Record<string, string>> }
-  | { etape: 'confirmer'; colis: ColisEnMain; montants: readonly Montant[] }
-  | { etape: 'envoi'; colis: ColisEnMain; montants: readonly Montant[]; commandId: string }
-  | { etape: 'issue'; colis: ColisEnMain; montants: readonly Montant[]; commandId: string; reponse: ReponseColis };
+const declare = (r: Issue): boolean => r.kind === 'declare' || r.kind === 'deja_declare';
 
 const phraseColis = (c: ColisEnMain): string =>
   c.commandes.length > 1
@@ -53,12 +50,13 @@ export function SColisPerdu() {
   const base = process.env.EXPO_PUBLIC_SERA_LOGISTICS_BASE;
   const relie = typeof base === 'string' && base.trim() !== '';
   const [lecture, setLecture] = useState<Lecture>({ kind: 'chargement' });
-  const [acte, setActe] = useState<Acte | null>(null);
-  const acteOuvert = useRef(false);
+  const acte = useSyncExternalStore(abonnerActe, lireActe, lireActe);
   const monte = useRef(true);
-  acteOuvert.current = acte !== null;
+  /** Only the latest read may set the list: an older one landing late is dropped. */
+  const derniere = useRef(0);
 
   const charger = useCallback(async (): Promise<void> => {
+    const n = ++derniere.current;
     const k = readStoredCleCoursiers();
     const port = k === null ? null : resolveColisPerdu(k);
     if (k === null || port === null) {
@@ -66,7 +64,7 @@ export function SColisPerdu() {
       return;
     }
     const lu = await port.lire();
-    if (!monte.current) return;
+    if (!monte.current || n !== derniere.current) return;
     if (lu.kind === 'bad_key') {
       // Cleared like every Séra key in this console, only if it is still the one refused.
       if (readStoredCleCoursiers() === k) clearStoredCleCoursiers();
@@ -81,7 +79,7 @@ export function SColisPerdu() {
     if (!relie) return () => { monte.current = false; };
     void charger();
     const arreter = rafraichirQuandVisible(() => {
-      if (!acteOuvert.current) void charger();
+      if (lireActe() === null) void charger();
     }, RELECTURE_MS);
     return () => {
       monte.current = false;
@@ -90,17 +88,23 @@ export function SColisPerdu() {
   }, [charger, relie]);
 
   const envoyer = useCallback(async (colis: ColisEnMain, montants: readonly Montant[], commandId: string): Promise<void> => {
-    setActe({ etape: 'envoi', colis, montants, commandId });
+    poserActe({ etape: 'envoi', colis, montants, commandId });
     const k = readStoredCleCoursiers();
     const port = k === null ? null : resolveColisPerdu(k);
-    const reponse: ReponseColis = port === null ? { kind: 'bad_key' } : await port.declarer(commandId, colis.orderId, montants);
-    if (!monte.current) return;
+    // No key: nothing is sent, and the act keeps its id for when the key is back.
+    const reponse: Issue = k === null || port === null ? { kind: 'sans_cle' } : await port.declarer(commandId, colis.orderId, montants);
     if (reponse.kind === 'bad_key' && k !== null && readStoredCleCoursiers() === k) clearStoredCleCoursiers();
-    setActe({ etape: 'issue', colis, montants, commandId, reponse });
+    if (declare(reponse)) {
+      // That parcel is no longer his rider's to lose: the list waits for Séra's new board.
+      derniere.current += 1;
+      if (monte.current) setLecture({ kind: 'chargement' });
+    }
+    // Lands in the holder even if he left the tab meanwhile.
+    poserIssue(commandId, reponse);
   }, []);
 
   const fermer = useCallback((): void => {
-    setActe(null);
+    poserActe(null);
     void charger();
   }, [charger]);
 
@@ -113,7 +117,7 @@ export function SColisPerdu() {
   }
 
   if (acte !== null) {
-    return <Cadre><Etape acte={acte} onActe={setActe} onEnvoyer={envoyer} onFermer={fermer} /></Cadre>;
+    return <Cadre><Etape acte={acte} onActe={poserActe} onEnvoyer={envoyer} onFermer={fermer} /></Cadre>;
   }
 
   return (
@@ -139,7 +143,7 @@ export function SColisPerdu() {
               <BtnSoft
                 label={t('perdu.choisir')}
                 icon="alertTriangle"
-                onPress={() => setActe({ etape: 'montants', colis: c, saisies: {} })}
+                onPress={() => poserActe({ etape: 'montants', colis: c, saisies: {} })}
               />
             </View>
           ))
@@ -232,13 +236,12 @@ function Etape({ acte, onActe, onEnvoyer, onFermer }: {
   }
 
   const { reponse } = acte;
-  const reussi = reponse.kind === 'declare' || reponse.kind === 'deja_declare';
   return (
     <>
       <Text style={NOM}>{phraseColis(colis)}</Text>
       {lignes}
-      <Banner tone={reussi ? 'success' : 'warn'}>{t(phraseReponse(reponse))}</Banner>
-      {aRenvoyer(reponse) ? (
+      <Banner tone={declare(reponse) ? 'success' : 'warn'}>{t(reponse.kind === 'sans_cle' ? 'perdu.sans_cle' : phraseReponse(reponse))}</Banner>
+      {reponse.kind === 'sans_cle' || aRenvoyer(reponse) ? (
         <>
           <C07BtnPrimary
             label={t('perdu.reessayer')}
