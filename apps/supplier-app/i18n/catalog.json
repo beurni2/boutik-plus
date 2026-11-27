@@ -5506,5 +5506,95 @@
     "fr": "Une autre alerte à vérifier.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "sos.titre",
+    "fr": "SOS de {nom}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.titre_tel",
+    "fr": "SOS de {nom} · {tel}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.heure",
+    "fr": "{h} h {mm}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "sos.quand_aujourdhui",
+    "fr": "aujourd'hui à {heure}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "sos.quand_le",
+    "fr": "le {date} à {heure}",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "sos.recu",
+    "fr": "Reçu {quand}, heure de Ouagadougou.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.en_course",
+    "fr": "En course au moment de l'alerte.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.pas_en_course",
+    "fr": "Pas en course au moment de l'alerte.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.vu",
+    "fr": "J'ai vu, j'appelle",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "sos.envoi",
+    "fr": "Envoi en cours…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.ack_echec",
+    "fr": "Séra n'a pas confirmé votre réponse. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.sans_cle",
+    "fr": "Les alertes SOS des coursiers ont besoin de la clé Séra. Tapez-la dans Opérations, puis « Coursiers ».",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "sos.pas_relie",
+    "fr": "Les alertes SOS ne peuvent pas s'afficher : cette console n'est pas reliée à Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.illisible",
+    "fr": "Les alertes SOS n'ont pas pu être lues. La console réessaie toute seule.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "sos.illisible_depuis",
+    "fr": "Les alertes SOS n'ont pas pu être relues. Dernière lecture réussie {quand}, heure de Ouagadougou.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

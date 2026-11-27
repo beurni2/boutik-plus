@@ -40,7 +40,7 @@ const lire = (rel: string): string => readFileSync(join(racineApp, rel), 'utf8')
  *  load, plus the two top-level modules they import. */
 const DOSSIERS = [
   'src/v2', 'src/ui', 'src/fonds', 'src/accueil', 'src/commandes', 'src/coursiers', 'src/fournisseur',
-  'src/gains', 'src/offline', 'src/operations', 'src/studio', 'src/supply',
+  'src/gains', 'src/offline', 'src/operations', 'src/sos', 'src/studio', 'src/supply',
 ] as const;
 
 /**

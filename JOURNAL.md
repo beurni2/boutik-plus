@@ -3,6 +3,113 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · SERA-DELAIS-1 — every call the offer service makes to Séra ends on this side's clock, three tests assert before they narrow, and the cross-repo proofs run on GitHub · lane B5 · on the branch, NOT merged, NOT deployed
+
+**Founder.** « You can start the next batch » (2026-11-27 01:21 UTC), on the plan whose batch 2 says, for Boutik+: « Calls to Séra get a time limit. Three tests that stop early now check what they claim. The three proofs that cross into Séra and the fund run on GitHub. »
+
+**Spec.**
+- `CLAUDE.md` §6bis NO-LOOP law: « a slice that crosses a seam is not done until ONE test crosses that seam end to end … Drive the app's OWN ports against the REAL service »; §6 « a passing test that asserts nothing is a lie »; §9.7 and §9.8.
+- `apps/supplier-app/src/reseau.ts`: `RELAIS_MS` « A code the Worker checks with Séra while he waits — two hops, not one » (25 000 ms), `LECTURE_MS` 12 000 ms, and the header law « a screen may not enter a waiting state it has no mechanism to leave ».
+- This journal's earlier ruling on the seam proofs: « a missing bundle now REDDENS instead of skipping ».
+
+**Built.** Lane B5, `c00ac92` on B4's `fa1a3aa`, then `43cc2b2` from the one review below; squashed here as `1c90e41` with a neutral message, with one coordinator comment fix (below).
+
+**What changed.**
+- **Offer service (`services/offer-service/worker/fulfillment-do.ts`).** Three module constants beside `progressBackoffMs`, not exported, each with its reason:
+  - `SERA_READINESS_TIMEOUT_MS = 10_000`, the readiness send. A call that does not answer in time counts as one failed try on the existing ladder, and the walk goes on to the next row.
+  - `SERA_VERIFY_TIMEOUT_MS = 12_000`, the pickup check: the same one-hop ceiling as the console's reads, which leaves the phone 13 s of its 25 s wait.
+  - `SERA_RETOUR_TIMEOUT_MS = 20_000`, the return check: a confirmed return closes Séra's course once the rider hands over, after which a retry no longer hears « confirmé », so this door keeps Séra's answer as long as it can and still answers before the phone's 25 s wait.
+  - Each lands in the catch that was already there: readiness counts a failed try, the two checks answer 503 `sera_unreachable`. `deliverToSera`'s comment now says what `undefined` means.
+- **Three tests assert before they narrow** (`asset-refs.test.ts` twice, `supply-endpoint.readmodel-migration.test.ts`): each early `return` on a refused build or serve is now an assertion, then a throw, the file's own pattern. No assertion removed or loosened.
+- **CI (`.github/workflows/ci.yml`, a workflow-only claim for this slice).** Before the install it clones Séra, platform, platform at `ae0b76e` (the fund book's previous reading) and Shop+ beside this repository, read-only and anonymous, each in its own named step; after the install it installs and bundles the three Worker builds the proofs need, each in its own step. No new action, no token, `permissions: contents: read`, `turbo.json` unchanged. One comment says why there is no environment variable: the board's task runner drops it.
+- **Under CI a missing neighbour fails, never skips** (`apps/supplier-app/test/bundle-voisin.ts`, `packages/service-auth/test/read-gate.test.ts`): `voisin()` throws its reason at the first use; on a laptop it still skips with the reason in the title. A new `bundle-voisin.test.ts` pins both rules.
+- Coordinator: `apps/supplier-app/test/livre-fonds-substitut.e2e.test.ts` l.38-39 said this repo's CI fetches one repository; it now says what is true.
+
+**Evidence.**
+- Red first on B4's head: the row behind a silent Séra in the same walk was never sent; the pickup and return checks never answered within the test's watch; the three tests passed under the mutation that should fail them; under `CI=1` with a neighbour absent, the proofs skipped.
+- Green: the silent readiness row is tried twice, 10.5 to 14 s apart, and the row behind it leaves within 11.5 s; the pickup check answers 503 at about 12 s; the return check after at least 19.5 s and within 23 s.
+- CI rehearsal: every `ci.yml` step replayed in order with `CI=true`, a fresh package store and read-only clones of the neighbours (Séra `5163e32`, platform `d509c76`, platform `ae0b76e`, Shop+ `176bead`): all exit 0. Through the board's own path: neighbours present, the seven cross-repo files passed, none skipped; each neighbour absent in turn, each file that needs it FAILED with its reason.
+- Mutations, each anchor matched once, restored byte-identical, the bundle rebuilt to the same hash, all red: each of the three time limits removed; the return check back on the pickup bound; the return bound at 26 s; the pickup bound at 20 s and at 3 s; the readiness bound at 25 s; `voisin()` skipping again under CI, or not naming the neighbour; each of the three tests' guards back to an early return. The read gate's own skip rule cannot be pinned by a test of itself: removing it shows « 13 passed, 1 skipped » against the real code's « 1 failed » with its reason (a command, not a test).
+- Typecheck of the offer service (both configs) 0; copy-lint OK (933 entries, 0 violations).
+- Boutik+ board on `1c90e41`, in the rehearsal tree with `CI=true` and the neighbours beside it, after `pnpm build`: ALL GATES GREEN; supplier-app 107 files, 1 338 tests, none skipped; offer-service 44 files, 479 tests; console first load 526 644 B (the board's measure; ceiling 542 720 B).
+
+**The one independent review:** 0 blockers, 1 major, 1 minor, 4 notes, handled once.
+- Fixed: the slice's first reason for the checks' bound did not hold for the return check (a retry after the rider's handover no longer hears « confirmé »), so the return check got its own, longer bound (above), and the test texts and comments now say what Séra does on a retry. Two comments the slice had made untrue were corrected.
+- Journalled: the notes are in « Still open » below.
+
+The slice was not re-inspected after the fixes.
+
+**Release (after his word).** Ships in the same pull request as SOS-DESK-1. Merge, `ci` green on that commit with the cross-repo files passed and none skipped, then `offer-deploy` (the time limits), then `web-deploy` (the console). After `offer-deploy` the order book restarts; a readiness row that was stalled before it is retried by its stored alarm, with bounded calls. Nothing to migrate. No money, no contract shape, no route.
+
+**Still open, named.**
+- Two follow-ons, one on Séra's side, are held in the private batch record.
+- CI proves against the neighbours' current `main`, so a change there can turn this repository's CI red; the fund book's previous reading is pinned in `ci.yml`.
+- The three extra installs' time on a real runner is not measured.
+- Two route comments from before this slice still say « replay-safe »; what they say of the command id is true.
+- The silent pickup and return tests use the first describe's state: run alone by name they fail at setup, never green.
+
+---
+
+## 2026-11-27 · SOS-DESK-1 — a rider's open SOS shows above every screen of the founder's console until Séra records his answer · lane B4 · on the branch, NOT merged, NOT deployed
+
+**Founder.** « You can start the next batch » (2026-11-27 01:21 UTC), on the plan whose batch 2 says: « A rider's SOS shows at the top of your dispatch console with a « J'ai vu, j'appelle » button. » At 01:31 UTC he chose « Your Boutik+ console » on a decision card.
+
+**Spec.**
+- Sera-Build-Spec §8: « SE8 Safety/SOS/incident — SOS visible from every rider flow; ack within SLA; secure/quarantine custody; live drill before pilot. »
+- Sera-Building-Plan SE7.1: « … persistent signal until ack. »; « live SOS + dispatcher-response drill before pilot ».
+- Séra's journal: « in-hours the DISPATCHER acks (console is the surface) »; the 60 s in-hours answer target is a safest default « the DRILL MEASURES against ». Dispatch hours stay ⏳, not decided here.
+- `CLAUDE.md` §5 (trust test, honest states) and §6bis (screen walk, seam test).
+
+**Built.** Lane B4, `582c5b4` from `main` `fe89054`, then `fa1a3aa` from the one review below; both merged here `--no-ff` (`bb6de1c`, `0848482`).
+
+**What changed (console, `apps/supplier-app`).**
+- **A strip above every screen.** Mounted once in the shell after boot, outside the tab content, so no tab, view, wizard or Studio switch unmounts it. Each open alert, newest first: « SOS de {nom} » (with « · {tel} » only when he typed a phone under « Téléphone (alias) »; the rider id when the roster cannot be read), « Reçu aujourd'hui à 14 h 05, heure de Ouagadougou. » (Burkina keeps UTC all year, so the UTC fields are the rider's hour on any device), and whether a course was under way. Several alerts scroll within half the frame height.
+- **His answer.** « J'ai vu, j'appelle » posts `/ops/sos/ack` `{command_id, by: 'founder'}` once; a second tap while it is on its way sends nothing. Only an answer whose incident reads `acknowledged` takes the alert away; a read that left before his answer cannot bring it back. An answer not confirmed keeps the alert with « Séra n'a pas confirmé votre réponse. Réessayez. »
+- **The reads.** `GET /ops/sos`, then `GET /ops/riders` only when an alert is open (a roster that cannot be read never holds an alert back), with the Séra key he typed in « Coursiers », the same time limit as that zone, one read at a time. Every 15 s while the page is in front of him, nothing while the tab is hidden, at once on his return (the console's refresh rule); the clock stops when the console closes.
+- **Honest states, founder only.** No key on this browser, no Séra address in the build, Séra not answering (before any read, or after one, with « Dernière lecture réussie … »): each is one sentence. A refused key is cleared, as everywhere in this console, but only if it is still the key that was refused, and it never takes away an alert already shown: the card says his answer was not confirmed and the no-key sentence shows above it. A failed read keeps what was shown. With nothing open the strip takes no space. A supplier's phone sees and asks nothing.
+- Catalog: 15 `sos.*` entries, each with its register. `src/sos` joins the inline-string scan.
+
+**Evidence.**
+- Seam: the rider app's own SOS sender (from the Séra build the Worker bundle came from) raises two alerts against the real Séra Worker; the console's own port reads both open, newest first, with name, phone and course; its answer leaves the book saying `acknowledged` by `founder` while the other stays open; a re-answer keeps the first record; an unknown alert is refused `unknown_incident`; a wrong key is `bad_key` on both doors and the book is unchanged.
+- Screen walks press the real console with its fetch routed into the real Séra Worker (only the network's faults injected): every screen, the Studio included; a held answer; an answer not confirmed and its retry; a key refused on his answer; a read refused after a good one; a read refused with the old key after he saved a new one; an empty desk, a new alert at the next tick, a tick skipped while a read is in flight; a failed read after a good one; a late read after his answer. State walks that need no Séra answer run everywhere, CI included.
+- Red on main for the right reason at C2 (nothing showed; the supplier-phone guard green by design), and red on `582c5b4` for each review fix.
+- The four SOS files 24/24, three runs; supplier-app suite green; `tsc` 0; copy-lint OK (933 entries).
+- Mutations, each anchor matched once, each restored byte-identical, all red but one: the strip on one tab; the alert removed on press; the wrong path; a refused key kept; no in-flight guard; no answered set; no double-tap guard; a failed read wiping alerts; the no-key line on a supplier's phone; nothing said with no address; no clock; names never joined; a refused key emptying shown cards; any key cleared; kept cards hidden behind the no-key line; the no-key line above kept cards only behind the door; a refused answer not marked; a press with no key doing nothing; the old sentence back; the clock left running on close; the strip not over the Studio; a late read bringing an answered alert back; two reads in flight. The survivor: any 200 counted as acknowledged without reading the incident's state, equivalent today because the real Worker answers 200 only with `acknowledged`.
+- Console first load, the deploy's measure (cold export, placeholder base URLs): `main` 530 818 B, this branch 533 400 B (+2 582 B), ceiling 542 720 B.
+- Board: with SERA-DELAIS-1 above, on `1c90e41`.
+
+**The one independent review:** 0 blockers, 3 minor, 5 notes, handled once.
+- Fixed: a refused key emptied the shown cards (now kept, as above); any stored key was cleared on a refusal (now only the refused one); the failure line claimed Séra had not received the answer when it may have (new words); several alerts could push the screen away (a bounded scroll); a person's name in a test comment (removed); two missing proofs (the clock on close, the Studio).
+- Journalled: the hidden-tab pause and the equivalent survivor (above); the « Coursiers » zone also clears its key whichever key was refused (a follow-on).
+
+The slice was not re-inspected after the fixes.
+
+**Release (after his word).** Ships with SERA-DELAIS-1, which makes the real-Séra files run on GitHub. Order: merge, `ci` green on that commit, then `offer-deploy`, then `web-deploy` (the console). No Séra change, no money, no contract shape, no migration. The bounded scroll needs his eyes on a phone with three open alerts: no walk claims layout.
+
+**Still open, named.**
+- A hidden tab shows an alert only when he comes back to it; a sound or browser notification is the follow-on.
+- Séra answers its whole SOS history on every read (a Séra follow-on).
+- The rider is not told that the founder has seen it (Séra's half).
+- Night alerts by SMS wait on his SMS account, as he ruled.
+
+---
+
+## 2026-11-27 · FONDS-PAGES-1 — MERGED, then the console DEPLOYED
+
+**Founder.** « Release all four » (2026-11-27 00:42 UTC, in the project chat, on the batch report), which named for Boutik+: merge, wait for its checks, then publish the console. The platform's protection service (`d509c76`, its provenance read back) and ops console went live first, as the batch order says.
+
+**Merge.** main re-checked unchanged at `cd822eb`; PR #5 merged as `fe89054` (merge commit, the branch shas kept). On main: ci 391 green · expo-preview 264 (supplier app) green.
+
+**Deploy.** web-deploy 91 (id 45919590761) from main `fe89054`: the deploy lock confirmed main's newest commit, green in ci. Every never-ships needle absent; « web-size OK — console first load: 518.5 KB gzip (530922 B) … within the signed ceiling of 530.0 KB (542720 B) » (was 529 585 B at web-deploy 90; 11 798 B of room left); offline shell OK. The « project already exists » line is the idempotent create step, as on every run.
+
+**Not deployed.** No service: this slice changed only the console.
+
+**Not checked.** The live desk was not opened from here (the live services cannot be read from where this release ran). The founder's first view is the check: the seller-fault card reads « Cette réclamation ne rembourse pas la cliente. » with the buyer's refund under it, and the desk loads the open claims and the 20 most recently closed.
+
+**Still open.** As named in the slice entry below.
+
+---
+
 ## 2026-11-27 · FONDS-PAGES-1 — the console's fund desk says a seller-fault claim refunds no one, shows the buyer's refund as Shop+ has it, and reads only what it shows · lane B3 · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Start batch 1 » (2026-11-26 22:03 UTC, decision card on the batch plan, whose batch 1 says the seller-fault claim stops reading as a refund of the buyer, shows whether she was refunded, and the fund desk stops re-reading its whole history on every view).

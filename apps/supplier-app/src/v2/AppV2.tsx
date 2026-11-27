@@ -41,6 +41,7 @@ import { SUPPLIER_ID } from '../supply/service';
 import { useWebFonts } from '../ui/web-fonts';
 import { useCouche } from '../ui/retour-web';
 import { S26StudioReal, type CaptureSet } from './studio-real';
+import { SBandeauSos } from '../sos/strip';
 
 export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: MachineView }) {
   // BOUTIK-WEB-W1: on web the Faso Premium faces load at runtime (no config
@@ -146,6 +147,9 @@ export function AppV2({ startTab, startView }: { startTab?: Tab; startView?: Mac
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       <StatusZone />
       <C02StripeTissee width={width} />
+      {/* SOS-DESK — a rider's open SOS, above every tab and view after boot;
+          mounted here, outside the content, so no switch unmounts it. */}
+      {!st.loading && <SBandeauSos operateur={operateurDoor} />}
       <View style={{ flex: 1 }}>
         {st.loading ? (
           <S01 />

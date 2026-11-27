@@ -86,7 +86,8 @@ describe('read-model kit migration — served body is byte-identical pre/post (o
   });
 
   it('the canon envelope schema round-trips the served body with no drift', () => {
-    if (!outcome.ok) return;
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error('setup');
     const parsed = SupplyReadModelSchema.parse(outcome.body);
     expect(JSON.stringify(parsed)).toBe(JSON.stringify(SW1_FROZEN_BODY));
   });
