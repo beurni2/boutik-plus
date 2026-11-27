@@ -3,6 +3,16 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · ACCENTS-INVISIBLES-1 (pin) — MERGED
+
+**Founder.** « Release all five » (2026-11-27 17:59 UTC, decision card, on the batch 5 report), which named Boutik+: merge only, after the platform-contracts pull request.
+
+**Merge.** platform-contracts PR #4 merged first (`dcf9740`). main re-checked unchanged at `dce2fb5`; PR #10 merged as `255d12f` (merge commit, the branch shas kept), after Séra's and Shop+'s merges. On main: ci 402 green · expo-preview 269 (supplier app) green, both on their first attempt.
+
+**No deploy.** No product code, sentence or screen changed. The console's next deploy carries the pin (measured the deploy's way at +36 B, 537 186 B of the 542 720 B ceiling).
+
+---
+
 ## 2026-11-27 · ACCENTS-INVISIBLES-1 (pin) — the copy-lint here now compares words without their accents and without invisible characters · coordinator · on the branch, NOT merged
 
 **Founder.** Batch 5 of the plan he approved (« Now you start working on the next batch », 2026-11-27 15:13 UTC): « The French wording check catches « sequestre » without its accent. » The rule lives in the shared record (`platform-contracts` `34c1569`, see its journal); this repository only moves its pin.
