@@ -5596,5 +5596,197 @@
     "fr": "Les alertes SOS n'ont pas pu être relues. Dernière lecture réussie {quand}, heure de Ouagadougou.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "perdu.titre",
+    "fr": "Colis perdu en route",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.sens",
+    "fr": "Vous seul le déclarez, et seulement quand un coursier a le colis en main.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "perdu.chargement",
+    "fr": "On lit chez Séra les colis que les coursiers ont en main…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.vide",
+    "fr": "Aucun coursier n'a de colis en main en ce moment.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.echec_lecture",
+    "fr": "Les courses n'ont pas pu être lues chez Séra. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.reessayer",
+    "fr": "Réessayer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.sans_cle",
+    "fr": "Pour déclarer un colis perdu, tapez d'abord la clé Séra dans « Coursiers ».",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.pas_relie",
+    "fr": "Cette console n'est pas reliée à Séra. Aucun colis ne peut être déclaré perdu ici.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.course",
+    "fr": "Commande {ref} · chez {nom}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.course_colis",
+    "fr": "Colis de {n} commandes · chez {nom}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.choisir",
+    "fr": "Déclarer ce colis perdu",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.montant_sens",
+    "fr": "Pour chaque commande, tapez le montant de la perte, en francs entiers. Ce n'est pas le remboursement de l'acheteur : Shop+ le rembourse en entier de son côté.",
+    "register": "money",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "perdu.montant_article",
+    "fr": "Commande {ref} · montant en FCFA",
+    "register": "money",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.montant_invalide",
+    "fr": "Chaque montant est un nombre entier de francs, plus grand que zéro.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.continuer",
+    "fr": "Continuer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.final",
+    "fr": "C'est définitif. Une fois déclaré, on ne revient pas en arrière.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.suite",
+    "fr": "L'acheteur est remboursé en entier par Shop+, livraison comprise. Le coursier est libéré.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.ligne_montant",
+    "fr": "Commande {ref} : {montant}",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.oui",
+    "fr": "Oui, déclarer perdu",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.annuler",
+    "fr": "Annuler",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.envoi",
+    "fr": "Envoi à Séra…",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.declare",
+    "fr": "Séra a déclaré le colis perdu. L'acheteur sera remboursé en entier, et le coursier est libre.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.deja",
+    "fr": "Ce colis est déjà déclaré perdu : rien n'a été fait deux fois. L'acheteur sera remboursé en entier, et le coursier est libre.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.pas_chez_livreur",
+    "fr": "Séra dit que le coursier n'a pas ce colis en main. Une partie est peut-être déjà déclarée : regardez la course dans « Coursiers » avant de recommencer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.course_finie",
+    "fr": "Cette course n'est plus en route chez Séra. Le colis est peut-être déjà déclaré : regardez dans « Coursiers » avant de recommencer.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.montants_refuses",
+    "fr": "Séra attend un montant pour chaque commande du colis. Rien n'a été déclaré.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.mal_lu",
+    "fr": "Séra n'a pas pu lire la demande. Rien n'a été déclaré.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.pas_fini",
+    "fr": "Séra n'a pas pu finir la déclaration. Réessayez : ce qui est déjà fait ne sera pas refait.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.non_su",
+    "fr": "Séra n'a pas répondu. On ne sait pas encore si le colis est déclaré. Réessayez.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.cle_refusee",
+    "fr": "Séra a refusé la clé. Tapez-la de nouveau dans « Coursiers ».",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "perdu.fermer",
+    "fr": "Fermer",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "perdu.custody_refuse",
+    "fr": "Séra a refusé la déclaration. Une partie est peut-être déjà faite : regardez la course dans « Coursiers » avant de recommencer.",
+    "register": "neutral",
+    "screenClass": "status"
   }
 ]

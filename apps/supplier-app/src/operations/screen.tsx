@@ -63,6 +63,7 @@ import {
 import { effacerPhotos, garderPhotosRestantes, photosRestantes as photosRestantesTenues, reessayerPhotosRestantes } from '../supply/media';
 import { SZoneFonds } from '../fonds/zone';
 import { SZoneCoursiers } from '../coursiers/zone';
+import { SColisPerdu } from '../colis-perdu/section';
 
 /**
  * CONSOLE-1 — « Opérations », the founder's board (founder directive
@@ -484,6 +485,10 @@ function SBoard({ service, opsKey, onBadKeyReset }: {
           )}
         </View>
         <Text style={[role({ f: 'IS', w: 400, s: 12 }, P.sub), { marginTop: 4 }]}>{t('console.auto')}</Text>
+
+        {/* COLIS-PERDU — founder ruling 2026-11-27: next to the SOS alerts, in every zone,
+            whatever the board's own read says (it answers on Séra's key, not this one). */}
+        <SColisPerdu />
 
         {view.kind === 'loading' && (
           <View style={{ marginTop: 16 }}>

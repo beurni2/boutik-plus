@@ -3,6 +3,70 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-27 · COLIS-PERDU-1 — « Colis perdu en route » on the founder's console, beside the SOS alerts: only for a parcel a rider holds, his own amount per order, said declared only when Séra says so · lane B6 · on the branch, NOT merged, NOT deployed
+
+**Founder.** « Yes, on my Boutik+ console » (2026-11-27 08:35 UTC, decision card): the button sits in Opérations, next to the SOS alerts.
+
+**Lane.** Lane B, slice B6. Lane commits: `91d27c1`, `1eccc0a`, `65f228b`, `16437b0` and `29a2d3b`. Integrated on `claude/project-thread-jqj97g` as merge `3c545ac`. No canon repin is needed: the console reads only Séra's founder door.
+
+**Spec.** Sera-Build-Spec §6.5 (canon 3.28.0): « only the founder declares it, from his Boutik+ console, and only while a courier is the current custodian; the declaration is final … at the amount the founder types for that order (Séra computes no other app's price) ».
+
+**What changed.**
+- *Where it sits.* « Colis perdu en route » sits at the top of Opérations, under the masthead, in every zone.
+- *What it offers.* Only a live course whose every order custody places with the rider, as read on Séra's board. One step at a time, with one primary action each:
+  - he chooses the parcel;
+  - he types one empty whole-franc amount per order, never suggested, split or summed;
+  - he confirms on a screen that says it is final, that Shop+ refunds the buyer in full and that the rider is freed;
+  - he reads the outcome by name.
+- *The call.* `POST /ops/colis/perdu {command_id, orderId, montants}` with the Séra key, within the console's Séra time limit.
+- *How each answer is said.*
+  - Only Séra's `declare` or `deja_declare` is said as declared.
+  - A stall, a lost answer or an unreadable body is « not known », and its retry re-sends the same command id. A 503 is « could not finish », with the same retry.
+  - A refusal Séra can give after part of a parcel moved says that part may already be declared, and points to « Coursiers ».
+  - A refused key is cleared.
+- *What survives a tab switch.* The open declaration and its command id live outside the screen, so leaving the tab keeps them, and an answer that lands meanwhile is shown on return. A retry with no key stored sends nothing and keeps the id. A declared parcel leaves the list at once, and only the latest board read may set the list.
+- New catalog keys `perdu.*`, each with its register.
+
+**Evidence.**
+- Screen walks on the real console (`AppV2`, only `fetch`, storage and timers replaced): 18/18. They cover every door answer by name, the declare 401, a parcel declared while he watches, and two tab-switch walks.
+- Port tests 31/31.
+- Seam test on the real Séra logistics and custody Workers beside the clone: 5/5 on the coordinator's board, with Séra beside the clone at its final head (`0429259`).
+- Mutations, each anchor matched once and each file restored byte-identical:
+  - the same-id retry broken;
+  - the « held by a rider » condition removed;
+  - a timeout read as success;
+  - the open declaration put back in screen state;
+  - the single-flight read removed;
+  - the « chargement » on declare removed.
+  Each turned its walk red.
+- Full board on `3c545ac` after `pnpm build` (`TURBO_FORCE=true`, `TURBO_CONCURRENCY=1`): ALL GATES GREEN. Supplier app 1 388 passed and 4 skipped (the old fund book's proofs skip without its clone beside). The three lost-parcel files run directly: 54/54.
+- Appearance stays with the founder's eyes on a real phone.
+
+**Independent review.** One fresh-context pass, handled once: 0 blocker, 1 major, 5 minor, 3 notes. Every major and minor was fixed in `29a2d3b`. The major was a refusal sentence that could say « nothing was declared » after part of a parcel moved. The notes are kept in the private batch record.
+
+**Found by GitHub, fixed before the report.** The pull request's first CI run (on `2a5346a`) was red on two tests only:
+- *The lost-parcel seam test found no Séra custody bundle.* The workflow built only Séra's logistics bundle beside the checkout. `7085e87` builds both from one filtered install. Proof: those two steps on a fresh clone of Séra's branch (`0429259`), then the seam test with `CI=1` against it: 5/5.
+- *The Fonds-zone walk against the real Fund book raced again*, as on main ci 395's first attempt. After the balance is saved, the loading line also lacks « Pas encore déclaré », so the wait could end before the re-read landed. `40e8fb9` waits until « Nouvelle réclamation » can be pressed. Red first: with the book's re-read slowed by 400 ms, the old wait fails with the CI's own message, and the new wait passes. At normal speed, five runs in a row: 5/5 each.
+- Full board on `40e8fb9` (`TURBO_FORCE=true`, `TURBO_CONCURRENCY=1`): ALL GATES GREEN, supplier app 1 388 passed and 4 skipped.
+
+**Release order.** Séra's founder door must be live first. This repository's CI clones Séra's main, so its seam test is green on GitHub only after Séra merges.
+
+**Where it stands.** On the branch, not merged, not deployed.
+
+---
+
+## 2026-11-27 · LOIS-PARTOUT-1 — MERGED
+
+**Founder.** « Merge all four » (2026-11-27 09:50 UTC, decision card, on the rules-check report).
+
+**No deploy.** Gate files only.
+
+**Merge.** PR #7 merged as `9ffa0c8` (merge commit, the branch shas kept). On main:
+- expo-preview 266 (supplier app, unchanged inside): green.
+- ci 395: green on its second attempt. The first attempt was red on one test only: the Fonds-zone walk against the real Fund book, 1 failed and 1 337 passed. After « Enregistrer le solde daté » the zone re-reads and shows its loading line. The walk waits for « Pas encore déclaré » to go, which the loading line also satisfies, and so it pressed « Nouvelle réclamation » too early. The test is not in this change's files. Only the failed job was run again.
+
+---
+
 ## 2026-11-27 · LOIS-PARTOUT-1 — every tracked file refuses the retired names; an earner's balance is caught as a whole word or with its currency · lane O4 · on the branch, NOT merged
 
 **Founder.** « after everything is released, you can start the next batch 3 » (2026-11-27 04:21 UTC, project chat). The plan he approved says « every repository checks for the retired names ».

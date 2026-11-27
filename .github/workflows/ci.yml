@@ -67,12 +67,14 @@ jobs:
       - name: Clone shop-plus beside the checkout
         working-directory: ${{ github.workspace }}/..
         run: git clone --depth 1 https://github.com/beurni2/shop-plus shop-plus
-      - name: Build sera's logistics bundle
+      # The lost-parcel walk binds Séra's logistics Worker to Séra's own custody Worker, so both are built.
+      - name: Build sera's logistics and custody bundles
         working-directory: ${{ github.workspace }}/../sera
         run: |
           set -euo pipefail
-          pnpm install --frozen-lockfile --filter @sera/logistics-service...
+          pnpm install --frozen-lockfile --filter @sera/logistics-service... --filter @sera/custody-service...
           pnpm --filter @sera/logistics-service bundle:worker
+          pnpm --filter @sera/custody-service bundle:worker
       - name: Build platform's protection bundle
         working-directory: ${{ github.workspace }}/../platform
         run: |
