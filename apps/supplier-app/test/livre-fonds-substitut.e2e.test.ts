@@ -36,7 +36,8 @@ import {
  *     — a build of the book live before it, which ignores every parameter;
  *     the `ancien` mode is checked on it.
  * Each is skipped, with the reason in its title, where its build is absent
- * (this repo's CI checks out one repo).
+ * on a laptop. Under CI, which clones both beside this one, an absent build
+ * fails with that reason instead of skipping.
  *
  * AND THE SEAM ITSELF: the real « Fonds » zone, mounted, its fetch routed
  * into the same real book — the first view, « Voir les réclamations plus

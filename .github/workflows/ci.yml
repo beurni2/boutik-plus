@@ -50,6 +50,41 @@ jobs:
           fi
           trap 'rm -f "$GIT_CONFIG_GLOBAL"' EXIT
           pnpm install --frozen-lockfile
+      # The cross-repo proofs read their neighbours beside this checkout, never through an env var: turbo's strict env drops it from the test tasks.
+      - name: Clone sera beside the checkout
+        working-directory: ${{ github.workspace }}/..
+        run: git clone --depth 1 https://github.com/beurni2/sera sera
+      - name: Clone platform beside the checkout
+        working-directory: ${{ github.workspace }}/..
+        run: git clone --depth 1 https://github.com/beurni2/platform platform
+      - name: Clone platform-ancien (the fund book's previous reading, ae0b76e) beside the checkout
+        working-directory: ${{ github.workspace }}/..
+        run: |
+          set -euo pipefail
+          git init platform-ancien
+          git -C platform-ancien fetch --depth 1 https://github.com/beurni2/platform ae0b76ecf02d8581f5ab5bcef0210ad8b9f576c9
+          git -C platform-ancien checkout FETCH_HEAD
+      - name: Clone shop-plus beside the checkout
+        working-directory: ${{ github.workspace }}/..
+        run: git clone --depth 1 https://github.com/beurni2/shop-plus shop-plus
+      - name: Build sera's logistics bundle
+        working-directory: ${{ github.workspace }}/../sera
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --filter @sera/logistics-service...
+          pnpm --filter @sera/logistics-service bundle:worker
+      - name: Build platform's protection bundle
+        working-directory: ${{ github.workspace }}/../platform
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --filter @platform/protection-service...
+          pnpm --filter @platform/protection-service bundle:worker
+      - name: Build platform-ancien's protection bundle
+        working-directory: ${{ github.workspace }}/../platform-ancien
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --filter @platform/protection-service...
+          pnpm --filter @platform/protection-service bundle:worker
       - run: pnpm build
       - name: Run every invariant gate (positives + negative fixtures)
         run: bash scripts/run-gates.sh

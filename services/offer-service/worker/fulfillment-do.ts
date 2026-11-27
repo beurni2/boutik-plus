@@ -187,6 +187,31 @@ function progressBackoffMs(attempts: number): number {
   return attempts - 1 < ladder.length ? ladder[attempts - 1]! : 3_600_000;
 }
 
+/**
+ * Every call to Séra ends on this side's clock. A Séra that takes a request
+ * and never answers would otherwise hold the outbox walk on one row (every
+ * row behind it waits in the same walk), or hold a handover check after the
+ * phone that asked has given up.
+ *
+ * Readiness: Shop+'s flusher ceiling. A call that runs out is one failed try
+ * on the ladder above.
+ */
+const SERA_READINESS_TIMEOUT_MS = 10_000;
+/**
+ * The pickup check: the one-hop ceiling the phone gives a call to our own
+ * Worker (12 s), which leaves the phone 13 s of its 25 s wait for the whole
+ * check, so it reads « Séra injoignable » from this door before its own wait
+ * runs out.
+ */
+const SERA_VERIFY_TIMEOUT_MS = 12_000;
+/**
+ * The return check waits longer. Once Séra has confirmed a return, the
+ * rider's handover closes the course, and a retry after that hears « non
+ * confirmé ». So this door keeps Séra's answer as long as it can, and still
+ * answers before the phone's 25 s wait for the whole check runs out.
+ */
+const SERA_RETOUR_TIMEOUT_MS = 20_000;
+
 /*
  * ═══════════════════════════════════════════════════════════════════════════
  * READINESS-WIRE-1b-i — THE PERSONAL CODE: each supplier's own door.
@@ -843,9 +868,9 @@ export class FulfillmentDO {
       .catch(() => undefined);
   }
 
-  /** SE-LIVE-2b — the Séra leg. Same « undefined = never attempted » rule, so
-   *  a Boutik+ deployed before Séra's door exists keeps every readiness fact
-   *  queued instead of burning attempts against a URL it does not have. */
+  /** SE-LIVE-2b — the Séra leg. `undefined` means no answer: the door is not
+   *  wired here (base or secret unset), Séra could not be reached, or it did
+   *  not answer in time. The walk counts it as one failed try. */
   private async deliverToSera(fact: unknown): Promise<Response | undefined> {
     const base = (this.env?.SERA_INTAKE_BASE ?? '').replace(/\/+$/, '');
     const secret = this.env?.SERA_INTAKE_SECRET ?? '';
@@ -854,6 +879,7 @@ export class FulfillmentDO {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
       body: JSON.stringify(fact),
+      signal: AbortSignal.timeout(SERA_READINESS_TIMEOUT_MS),
     }).catch(() => undefined);
   }
 
@@ -1771,6 +1797,7 @@ export class FulfillmentDO {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
           body: JSON.stringify({ command_id: `cmd-boutik-ramassage-${orderId}-${norme}`, orderId, code: dit }),
+          signal: AbortSignal.timeout(SERA_VERIFY_TIMEOUT_MS),
         });
       } catch {
         return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });
@@ -1843,6 +1870,7 @@ export class FulfillmentDO {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
           body: JSON.stringify({ command_id: `cmd-boutik-retour-${orderId}-${norme}`, orderId, code: dit }),
+          signal: AbortSignal.timeout(SERA_RETOUR_TIMEOUT_MS),
         });
       } catch {
         return Response.json({ ok: false, reason: 'sera_unreachable' }, { status: 503 });

@@ -39,7 +39,7 @@ const ORDER = 'ord-ramv-0001';
 const codesRamassage: Record<string, string> = { [ORDER]: 'KVN-38M' };
 /** Every verify request the double received, verbatim. */
 const verifyPosts: { auth: string | null; body: string }[] = [];
-let seraMode: 'ok' | 'down' | 'garbage' = 'ok';
+let seraMode: 'ok' | 'down' | 'garbage' | 'silent' = 'ok';
 let seraServer: Server;
 let seraBase = '';
 
@@ -59,6 +59,8 @@ beforeAll(async () => {
         return;
       }
       verifyPosts.push({ auth: req.headers['authorization'] ?? null, body });
+      // Taken, and never answered.
+      if (seraMode === 'silent') return;
       if (seraMode === 'down') {
         res.writeHead(503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false }));
@@ -122,6 +124,7 @@ function makeMf(persistDir: string, wired: boolean): Miniflare {
 afterAll(async () => {
   await mf?.dispose();
   await unwired?.dispose();
+  seraServer.closeAllConnections();
   await new Promise<void>((resolve) => seraServer.close(() => resolve()));
   rmSync(persist, { recursive: true, force: true });
   rmSync(persistUnwired, { recursive: true, force: true });
@@ -367,4 +370,34 @@ describe('the delivery arrives from Shop+, and the supplier’s own list moves',
       expect(res.json).toEqual({ ok: false, reason: 'event_not_canonical' });
     }
   });
+});
+
+/**
+ * The coursier stands at the stall while this door asks Séra. A Séra that
+ * takes the check and never answers must end in « Séra injoignable » from this
+ * door, on its own clock (12 s), before his phone's 25 s wait for the whole
+ * check runs out. Giving up is safe: Séra works the verdict out again from the
+ * live course on every call, and its confirmation instant is first-wins, so
+ * while the course is live his retry hears « confirmé » again.
+ */
+describe('a silent Séra: the pickup check answers sera_unreachable on its own clock', () => {
+  it('503 sera_unreachable after at least 11.5 s and within 15 s', async () => {
+    seraMode = 'silent';
+    try {
+      const avant = verifyPosts.length;
+      const debut = Date.now();
+      const res = await Promise.race([
+        verifier(mf, codeA, ORDER, 'KVN-38M'),
+        new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
+      ]);
+      const duree = Date.now() - debut;
+      expect(verifyPosts.length, 'Séra was asked').toBe(avant + 1);
+      expect(res, 'no answer from this door within 15 s: his phone would be left waiting on it').not.toBeNull();
+      expect(res!.status).toBe(503);
+      expect(res!.json).toEqual({ ok: false, reason: 'sera_unreachable' });
+      expect(duree, 'the door waited its ceiling before giving up').toBeGreaterThanOrEqual(11_500);
+    } finally {
+      seraMode = 'ok';
+    }
+  }, 40_000);
 });

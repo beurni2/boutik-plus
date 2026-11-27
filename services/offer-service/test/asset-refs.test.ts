@@ -135,7 +135,8 @@ describe('THE CAP — six wire refs, refused at the create command, never trunca
     expect(next).toBeDefined();
     if (!next) return;
     const built = buildSupplyProjection(next.product, next.offer, next.available, NOW, next.assets);
-    if (!built.ok) return;
+    expect(built.ok).toBe(true);
+    if (!built.ok) throw new Error('setup');
     expect(built.projection.assetRefs.length).toBeLessThanOrEqual(ASSET_REFS_MAX);
   });
 });
@@ -168,7 +169,8 @@ describe('the images reach the wire, and the guards still hold on a NON-empty ar
     if (!next) throw new Error('setup');
     expect(next.assets).toBeUndefined();
     const built = buildSupplyProjection(next.product, next.offer, next.available, NOW, next.assets);
-    if (!built.ok) return;
+    expect(built.ok).toBe(true);
+    if (!built.ok) throw new Error('setup');
     expect(built.projection.assetRefs).toEqual([]);
   });
 });
