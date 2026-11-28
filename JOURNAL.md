@@ -3,6 +3,45 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · REMBOURSEMENT-HORS-CARNET-1 — an order not in the book shows its refund on the founder's console until the provider confirms it; the red banner counts only refunds it can send him to · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « you can start the next batch » (2026-11-28 06:17 UTC), and his choice on the card « How should money taken on a failed order get back to the buyer? »: « Refund it automatically » — « When the provider says it took money for an order we already closed as failed, Shop+ refunds every franc, like a refused delivery. Your console shows it until the refund is confirmed. »
+
+**Lane.** Lane B, slice B12, two local commits on `1b8c012`, integrated unchanged by fast-forward: `e61fdb9` (the card, the banner count, the walk, the re-captured rows) and `b8f76f6` (the review's fixes). The coordinator's own commit: `1b8c012` (the recorded answers pinned at Shop+'s record run, platform-contracts `e8ba886`), and this entry.
+
+**Spec.**
+- Shop+ Build Spec SP6 (canon 3.29.0, platform-contracts `docs/Shop-Plus-Build-Spec.md` l.189): « **Money the provider confirms for an order whose payment had already failed is refunded in full the same way** … that money never pays the order. The charge is refunded under its own refund key, for exactly the amount the order asked the provider for, to the franc … a confirmation naming any other amount is not refunded by itself and stays on the founder's console … ».
+- Ten Laws #2: no app computes another domain's amounts. Shop+'s row carries the refund's state and no amount; the card shows no franc.
+- Ten Laws #6: every string from the catalog with its register. No new string.
+
+**What changed.**
+- *The card for an order not in the book* (`CarteHorsCarnet`). It reads the refund Shop+ already sends on the row and shows it beside « À vérifier », with the same four words and tones as the card in the book: « Remboursement en cours », « Cliente remboursée », « Rien à rembourser », « Remboursement bloqué ». A blocked refund also shows why, with the sentence the book card uses, which asks him to call the payment service with the order number. The order number now sits on its own line, shown whole, with the pills under it.
+- *The choice is one pure function*, `pilluleRemboursement` in `view.ts`, beside `pilluleCommande`, which is untouched. A unit test pins it equal to the book card's own pill for every state.
+- *The red banner* « Un remboursement est bloqué. Il est dans « Incidents ». » now counts only orders in the book. Before, a blocked refund on an order not in the book raised it while « Incidents » held nothing.
+- *The rows the walk reads* were re-captured by Shop+'s own seam at `e295c2a`, never edited by hand: `paye_apres_echec` now carries `{etat:'bloque', raison:'sans_confirmation'}` and its stuck-refund alert; a new row, `montant_faux_apres_echec`, carries the alert and no refund. Every other row is byte for byte what it was.
+
+**Evidence.**
+- Lane: every new test red first for the right reason (the function absent; the card without its refund; the banner raised over an empty « Incidents »), then green. Re-capture rc=0, 12 of 12, none skipped; it is also the seam test, Shop+'s real Worker read through this app's own dispatch port.
+- The walk, on the real rows, fakes only `fetch`: the `paye_apres_echec` card pinned whole and in order; the six other cards not in the book pinned exactly; « Remboursement bloqué » once on the view; no franc anywhere. One case built from the captured row (marked « CONSTRUCTED, NOT CAPTURED ») walks « Remboursement en cours » with no reason line; the harness accepted that recorded form and refuses an unrecorded one.
+- Mutations, each anchor matched once, red, restored byte-identical: (a) the refund pill removed from the card, 3 tests red; (b) the reason line removed; (c) the banner counting orders not in the book again; (d) « en cours » given the wrong word.
+- Suite: supplier-app 1466 passed, 4 skipped (the older platform copy absent off CI); typecheck clean. The coordinator read the diff line by line and re-ran the walk, the unit test and the view tests: 42 of 42.
+- Console first load: 532 166 → 532 329 B gzip (+163). Projected deploy figure 540 280 B of the signed 542 720 B. Projected, not measured on a deploy.
+- Full board on `b8f76f6` in a fresh clone, with Séra, platform and the older platform beside it: every gate green but one, and that one not from this slice. A photo-service test reads the service's bundle while another test of the same service rebuilds that bundle, and it read an empty file once. The photo service is untouched here; re-run alone, 214 of 214. On the board, supplier-app 1470 passed, the older-platform proofs included.
+
+**Verifier.** One fresh-context pass, handled once, never re-verified: PASS, 0 blocker, 0 major, 2 minor, 4 notes.
+- Minor, fixed here: a long order number could be cut on a narrow phone. It now has its own line.
+- Minor, fixed here: no walk covered a refund still under way. The constructed case above covers it.
+- Note, fixed here: one test comment did not say what was true.
+- Note, journalled: `pilluleRemboursement` repeats the refund branch of `pilluleCommande`. The equivalence test guards it; no refactor in this slice.
+- Note, journalled: the « refus_illisible » sentence speaks of Séra; Shop+ gives that reason only for a Séra refusal, which an order that never paid cannot reach.
+- Note, journalled: a late payment naming the wrong amount shows the alert and no refund, which is the canon's « stays on the founder's console ».
+
+**Not checked.** The live services were not called from here. Appearance is for the founder's eye on a real phone: on a 360 dp screen the order number wraps to two lines; on a card with no refund, « À vérifier » starts 6 px in, from the shared pill's own margin.
+
+**Still open.** Nothing in this slice. Outside it: the photo-service test that reads the bundle another test rebuilds can fail a board by chance. A follow-on gives the rebuild its own file.
+
+---
+
 ## 2026-11-28 · CLE-SUIVANTE-1 — every key the offer and photo services check can change with no gap; the secret scan treats a next value as a key; every release names a key change still open · lane B · on the branch, NOT merged, NOT deployed
 
 **Founder.** « you can start the next batch » (2026-11-28 06:17 UTC), batch 8 of the plan he approved: « During a change, the old and new keys both work for a short window, so nothing stops. »
