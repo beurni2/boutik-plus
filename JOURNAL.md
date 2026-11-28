@@ -3,6 +3,34 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · PHOTOS-LEGERES-1 + JOURNAL-SERVICES-1 — every photo that leaves the phone fits its budget; the offer and media services keep a log with no personal data · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « done, now you can start the next batch » (2026-11-28 00:38 UTC), batch 7 of the plan he approved: « Every service, one lane per app. Each one keeps a log of what it did and what went wrong, with no personal data in it. » and « Photos sent and downloaded are held to their phone budgets, and the buyer page's total weight is measured. »
+
+**Lane.** Lane B, local commits `2639ffb` and `9f1669f` (photos), `69ec678` and `aa90908` (logs), on `d1ecbbe`. Integrated on `claude/project-thread-jqj97g` as `7ec6a42` (photos) and `77329f9` (logs) on `70d3808`, files byte-identical to the lane's `aa90908`; then `babe6d0`, the no-buyer-shop check's allowed list.
+
+**Spec.** `docs/PERF-BUDGETS.md` « Image sizes | thumbnail ≤ 15 KB · hero ≤ 80 KB · full view ≤ 150 KB »; Execution Contract §6 « **Standards:** structured logs »; CLAUDE.md Law 7 (performance budgets enforced) and Law 3 (no code or secret in any line).
+
+**What changed.**
+- *Photos (supplier app).* Each save over its budget is saved again by a fixed ladder: quality 0.8 → 0.5, then a smaller long edge (photos 1280 → 720, vignettes 320 → 240), never under the media service's short-edge floor. At the floor the photo still ships: a byte budget never blocks a publish. Fit is judged on the bytes that upload. Budgets: both hero crops 81 920 B; the proof, the details, a camera shot and a readiness proof 153 600 B; every vignette 15 360 B. On the web, every save the ladder sets aside is freed.
+- *Media service.* The vignette door answers `too_large` one byte over 15 360 B. The photograph door is unchanged: it also takes Séra's rider proof photos.
+- *Logs (offer and media services).* One JSON line per request (route template, method from a closed set, status, duration, correlation id cut to 64), the order id only on the evidence read and only in Shop+'s minted shape; one line per fault that used to pass in silence (an outbox delivery that did not land, an alarm re-arm refused, an outbox write refused), an error named by its class only; `[observability]` on in both `wrangler.toml` at full sampling, queries redacted, the per-invocation log off.
+
+**Evidence.** Lane: every new test red first for the right reason, then green; mutations each red with the anchor matched once, restored byte-identical (photos: the ladder, the hero, the vignette, the photo, the floor and the ceiling; logs: the wrapper's call, the fault line, the raw path, the query). The image library's double is held to a byte bound certified against a desktop encoder measurement made outside the repository on a synthetic frame. Coordinator: each diff read line by line; decisive tests re-run at the lane heads. Full board on `babe6d0` with the siblings beside the clone, `CI=true`: ALL GATES GREEN. Its first run went red on the no-buyer-shop check only: the two new log tests name Shop+'s delivery outbox, as eleven allowed tests already do. The founder approved their two allow-list lines (2026-11-28 03:59 UTC, decision card); they are committed on their own, each with its reason. The console's first load, measured the deploy's way, is 537 902 B of the 542 720 B ceiling (the logs change no console code).
+
+**Verifier.** One fresh-context pass per slice, handled once. Photos: no blocker; the hollow hero-preview assertions were rewritten, the fit on stripped bytes, the between-rows bound and the web freeing were proven, and the app's floors were tied to the media service's own limits by a test. Logs: pass with notes; the two untested lines (a refused Séra outbox write on « prêt », a retryable delivery at warn) are now asserted field by field.
+
+**Release.** The merge, then the console, the supplier web page and the supplier app, then the offer service, then the media service LAST, after the founder has reloaded his console.
+
+**Still open.**
+- The two hero crops are made at « Publier » and are never previewed; they can now differ from the preview in sharpness as well as framing.
+- The phone's own JPEG encoder and the time the ladder takes on a low-end phone are not measured; the web ladder path is not walked.
+- Photos stored before this change are not re-encoded. An older supplier app, or a console tab opened before the media deploy, has its heavy vignettes refused; the tile then serves the full photograph until the product is listed again.
+- The `projection_omitted` line carries a fresh correlation id, not the browse request's. Route labels are by path, not by method. Two best-effort lookups in the offer Worker stay silent.
+- Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-27 · SORTIES-SURES-1 — MERGED; media and offer services DEPLOYED
 
 **Founder.** « Release all five » (2026-11-27 22:43 UTC, decision card, on the batch 6 report), which named for Boutik+: the merge, then the media and offer services, so the morning watch starts green. The two consoles and the supplier web page did not change in this batch and were not deployed.
