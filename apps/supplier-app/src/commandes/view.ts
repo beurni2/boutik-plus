@@ -159,6 +159,22 @@ export function pilluleCommande(
     : { label: 'commandes.pill_attente', ton: 'attente' };
 }
 
+/**
+ * The refund pill of an order the supplier's book does not hold (money the
+ * provider took after its payment had failed, refunded by Shop+): the same word
+ * and tone the book's own card gives that state, so one refund never reads under
+ * two names. `null` when Shop+'s row carries no refund. A state, never a franc.
+ */
+export function pilluleRemboursement(
+  r: RemboursementOperateur | undefined,
+): { readonly label: string; readonly ton: 'attente' | 'ok' | 'alerte' } | null {
+  if (r?.etat === 'bloque') return { label: 'commandes.pill_remb_bloque', ton: 'alerte' };
+  if (r?.etat === 'en_cours') return { label: 'commandes.pill_remb_en_cours', ton: 'attente' };
+  if (r?.etat === 'fait') return { label: 'commandes.pill_rembourse', ton: 'ok' };
+  if (r?.etat === 'rien') return { label: 'commandes.pill_rien_a_rembourser', ton: 'ok' };
+  return null;
+}
+
 /** REMBOURSEMENT-2 — why a refund is blocked, in his words (a catalog key). */
 export function raisonBlocage(r: RemboursementOperateur | undefined): string | null {
   if (r?.etat !== 'bloque') return null;

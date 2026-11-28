@@ -3,6 +3,106 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · REMBOURSEMENT-HORS-CARNET-1 — an order not in the book shows its refund on the founder's console until the provider confirms it; the red banner counts only refunds it can send him to · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « you can start the next batch » (2026-11-28 06:17 UTC), and his choice on the card « How should money taken on a failed order get back to the buyer? »: « Refund it automatically » — « When the provider says it took money for an order we already closed as failed, Shop+ refunds every franc, like a refused delivery. Your console shows it until the refund is confirmed. »
+
+**Lane.** Lane B, slice B12, two local commits on `1b8c012`, integrated unchanged by fast-forward: `e61fdb9` (the card, the banner count, the walk, the re-captured rows) and `b8f76f6` (the review's fixes). The coordinator's own commit: `1b8c012` (the recorded answers pinned at Shop+'s record run, platform-contracts `e8ba886`), and this entry.
+
+**Spec.**
+- Shop+ Build Spec SP6 (canon 3.29.0, platform-contracts `docs/Shop-Plus-Build-Spec.md` l.189): « **Money the provider confirms for an order whose payment had already failed is refunded in full the same way** … that money never pays the order. The charge is refunded under its own refund key, for exactly the amount the order asked the provider for, to the franc … a confirmation naming any other amount is not refunded by itself and stays on the founder's console … ».
+- Ten Laws #2: no app computes another domain's amounts. Shop+'s row carries the refund's state and no amount; the card shows no franc.
+- Ten Laws #6: every string from the catalog with its register. No new string.
+
+**What changed.**
+- *The card for an order not in the book* (`CarteHorsCarnet`). It reads the refund Shop+ already sends on the row and shows it beside « À vérifier », with the same four words and tones as the card in the book: « Remboursement en cours », « Cliente remboursée », « Rien à rembourser », « Remboursement bloqué ». A blocked refund also shows why, with the sentence the book card uses, which asks him to call the payment service with the order number. The order number now sits on its own line, shown whole, with the pills under it.
+- *The choice is one pure function*, `pilluleRemboursement` in `view.ts`, beside `pilluleCommande`, which is untouched. A unit test pins it equal to the book card's own pill for every state.
+- *The red banner* « Un remboursement est bloqué. Il est dans « Incidents ». » now counts only orders in the book. Before, a blocked refund on an order not in the book raised it while « Incidents » held nothing.
+- *The rows the walk reads* were re-captured by Shop+'s own seam at `e295c2a`, never edited by hand: `paye_apres_echec` now carries `{etat:'bloque', raison:'sans_confirmation'}` and its stuck-refund alert; a new row, `montant_faux_apres_echec`, carries the alert and no refund. Every other row is byte for byte what it was.
+
+**Evidence.**
+- Lane: every new test red first for the right reason (the function absent; the card without its refund; the banner raised over an empty « Incidents »), then green. Re-capture rc=0, 12 of 12, none skipped; it is also the seam test, Shop+'s real Worker read through this app's own dispatch port.
+- The walk, on the real rows, fakes only `fetch`: the `paye_apres_echec` card pinned whole and in order; the six other cards not in the book pinned exactly; « Remboursement bloqué » once on the view; no franc anywhere. One case built from the captured row (marked « CONSTRUCTED, NOT CAPTURED ») walks « Remboursement en cours » with no reason line; the harness accepted that recorded form and refuses an unrecorded one.
+- Mutations, each anchor matched once, red, restored byte-identical: (a) the refund pill removed from the card, 3 tests red; (b) the reason line removed; (c) the banner counting orders not in the book again; (d) « en cours » given the wrong word.
+- Suite: supplier-app 1466 passed, 4 skipped (the older platform copy absent off CI); typecheck clean. The coordinator read the diff line by line and re-ran the walk, the unit test and the view tests: 42 of 42.
+- Console first load: 532 166 → 532 329 B gzip (+163). Projected deploy figure 540 280 B of the signed 542 720 B. Projected, not measured on a deploy.
+- Full board on `b8f76f6` in a fresh clone, with Séra, platform and the older platform beside it: every gate green but one, and that one not from this slice. A photo-service test reads the service's bundle while another test of the same service rebuilds that bundle, and it read an empty file once. The photo service is untouched here; re-run alone, 214 of 214. On the board, supplier-app 1470 passed, the older-platform proofs included.
+
+**Verifier.** One fresh-context pass, handled once, never re-verified: PASS, 0 blocker, 0 major, 2 minor, 4 notes.
+- Minor, fixed here: a long order number could be cut on a narrow phone. It now has its own line.
+- Minor, fixed here: no walk covered a refund still under way. The constructed case above covers it.
+- Note, fixed here: one test comment did not say what was true.
+- Note, journalled: `pilluleRemboursement` repeats the refund branch of `pilluleCommande`. The equivalence test guards it; no refactor in this slice.
+- Note, journalled: the « refus_illisible » sentence speaks of Séra; Shop+ gives that reason only for a Séra refusal, which an order that never paid cannot reach.
+- Note, journalled: a late payment naming the wrong amount shows the alert and no refund, which is the canon's « stays on the founder's console ».
+
+**Not checked.** The live services were not called from here. Appearance is for the founder's eye on a real phone: on a 360 dp screen the order number wraps to two lines; on a card with no refund, « À vérifier » starts 6 px in, from the shared pill's own margin.
+
+**Still open.** Nothing in this slice. Outside it: the photo-service test that reads the bundle another test rebuilds can fail a board by chance. A follow-on gives the rebuild its own file.
+
+---
+
+## 2026-11-28 · CLE-SUIVANTE-1 — every key the offer and photo services check can change with no gap; the secret scan treats a next value as a key; every release names a key change still open · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « you can start the next batch » (2026-11-28 06:17 UTC), batch 8 of the plan he approved: « During a change, the old and new keys both work for a short window, so nothing stops. »
+
+**Lane.** Lane B, slice B11, one local commit `5ab8444` on `0a61068`, integrated unchanged as `325e9ff`. The coordinator's own commits: `30bfb47` (the two deploys name any key change still open), `713ac63` (the secret scan), and this entry's commit with the review's fixes (`b955093`).
+
+**Spec.**
+- Execution Contract §3 (l.90): « Token/contract versions support **overlapping validation windows** + explicit **deprecation/retirement**. »; §11 (l.190): « secrets management · **key rotation incl. attribution-token signing key (custody, rotation, overlapping windows, compromise response, version retirement)** · … dependency + secret scanning … ».
+- The house rules in `packages/service-auth`: fail closed, constant-time compare, one identical 401.
+- The batch 8 key rule: a Worker that checks a key `X` also accepts `X_NEXT` while it is set; it passes iff (`X` non-empty and equal) or (`X_NEXT` non-empty and equal); both constant-time compares always run; `X_NEXT` opens exactly what `X` opens; the one 401 is unchanged; nothing says which value matched. Senders do not change.
+
+**What changed.**
+- *The shared gates.* `keyAuthorizedAgainst`, `rejectUnauthorizedWriteAgainst`, `bearerAuthorizedAgainst` and `rejectUnauthorizedBearer` take a required `next` (a string or `undefined`); `matchesKeyOrNext` awaits both house compares, each fail-closed on its own, and only then combines them. A call site that forgets `next` does not compile.
+- *Offer service.* `SUPPLY_READ_SECRET`, `FULFILLMENT_WRITE_SECRET`, `FULFILLMENT_OPS_SECRET`, each with its `_NEXT`, at every door that checks it (25 call sites and 3 adapters); each door reads the `_NEXT` of its own key only.
+- *Photo service.* `MEDIA_WRITE_SECRET` (uploads) and `MEDIA_REVOKE_SECRET` (`/media/revoke`), each with its `_NEXT`; neither next value opens the other door.
+- *Keys set by hand.* No deploy writes a checked key or its `_NEXT`. Both `wrangler.toml` files say the four steps of a change. The two keys the offer service only sends (`PROGRESS_WRITE_SECRET`, `SERA_INTAKE_SECRET`) take their `_NEXT` on the Worker that checks them.
+- *Deploys (coordinator).* After `wrangler deploy`, each release names any `_NEXT` still set on the Worker, names only. If Cloudflare does not list the keys, the step says so and the provenance check still runs. On the offer service, a `_NEXT` for a key it only sends is named as misplaced, not as an open change.
+- *Secret scan (coordinator).* A name ending in `_NEXT` is held to the same rule as its key. New negative fixture `gates/fixtures/negative/secret-scan/next-key.ts` (red first); the legal workflow fixture gains a `_NEXT` reference read through `secrets.`.
+
+**Evidence.**
+- Lane: every new test red first for the right reason, then green; mutations M1–M5 (the next compare removed, its length guard dropped, a call site reading the wrong `_NEXT`, and two more), each anchor matched once, red, restored byte-identical.
+- Coordinator: diff read line by line; decisive suites re-run at the integrated head: service-auth 186, media 214, offer 603. Full board on `325e9ff` in a fresh clone, Séra, platform and the older platform beside it: « ALL GATES GREEN ».
+- The review's workflow fixes, run offline against a stand-in tool: a failed listing warns and exits 0; no next key prints « No key change open »; an open change and a misplaced next key each print their own warning; `bash -n` and a YAML parse clean.
+
+**Verifier.** One fresh-context pass, handled once, never re-verified: 0 blocker, 0 major, 2 minor, 3 notes. It checked every call site, re-ran the mutations itself on copies (each red; three of its anchors did not match the first time, it drew nothing from them and re-ran them, all red), and nine more written forms of a next value against the scan (all caught).
+- Minor, fixed here: the information step could stop a release after a good deploy, before the provenance check, when Cloudflare did not answer the listing.
+- Minor, fixed here: on the offer service, a `_NEXT` set for a key it only sends was reported as an open change window. It is now reported as misplaced.
+- Note, folded into the first fix: the listing is asked for in JSON by name, not by the tool's default.
+- Note, journalled: the rollback workflow's re-arm text says the offer deploy writes every key; it never wrote the hand-set checked keys. And a rollback to a version from before this entry, in the middle of a change, ignores `_NEXT`. Roll back only before a change starts or after it ends. A follow-on corrects the re-arm text.
+- Note: held in the private batch record.
+
+**Not checked.** The live services were not called from here.
+
+**Still open.** Senders keep one value each, as designed: a change moves them one at a time.
+
+---
+
+## 2026-11-28 · PHOTOS-LEGERES-1 + JOURNAL-SERVICES-1 + ALERTES-CONSOLE-1 — MERGED; console, supplier page, offer and media services DEPLOYED; supplier app PUBLISHED; console alerts LIVE
+
+**Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), which named for Boutik+: the merge, then the console and the supplier page, then the offer service, then the photo service last; then the console alerts once their checks pass on the new Séra. « Yes, merge when green » (05:33 UTC, decision card) for the checks fix below, which was not in the report. Every deploy below waited for his approval in the `production` environment before it ran.
+
+**Merge.** PR #12 merged as `1798093` (merge commit, the branch shas kept). On main, ci 406 RED, and expo-preview 271 was skipped, as designed. The cause: the step that clones Séra beside this checkout bundled Séra's two Workers without building Séra's own workspace packages, which Séra's Workers import since Séra's batch 7 merge. The local board had passed because its Séra sibling was already built. Rehearsed in a fresh clone of Séra's main: red without a build line, green with it.
+
+**The checks fix.** PR #13 (`509d5d2`, two lines in `.github/workflows/ci.yml`: build the two Workers' workspace dependencies, then bundle as before), its ci 407 green, merged as `5b253dc`. On main: ci 408 green · expo-preview 272 (id 46113176810) green, the supplier-app preview update published from main's newest commit.
+
+**Deployed from main at `5b253dc`.**
+- web-deploy 95 (id 46113368641) green: « web-size OK — console first load: 525.4 KB gzip (537968 B) … within the signed ceiling of 530.0 KB (542720 B) », the offline shell OK, deployed to Pages.
+- fournisseur-web-deploy 32 (id 46113370643) green: the capability ruling, the size and the offline shell asserted on the exact dist it deployed.
+- offer-deploy 55 (id 46113531347) green: « PROVENANCE OK — live Worker is 5b253dc1b9822ddbf365f4833fb86d53520fa0d4 speaking canon 3.26.0. »
+- media-deploy 17 (id 46113662795) green, last, after the founder was asked to reload his console: « PROVENANCE OK — live media Worker is 5b253dc1b9822ddbf365f4833fb86d53520fa0d4 speaking canon 3.26.0. »
+
+**The console alerts.** PR #14 (lane `fc9d374`, `17dc045`; coordinator `f5802b2`; journal `2bd1e99`), its ci 409 green against Séra's main, merged as `0a61068` after media-deploy. On main: ci 410 green · expo-preview 273 (id 46114418117) green, published from `0a61068`. web-deploy 96 (id 46114576286), after his approval, green: « web-size OK — console first load: 527.5 KB gzip (540117 B) … within the signed ceiling of 530.0 KB (542720 B) » (room 2 603 B), the offline shell OK, deployed to Pages.
+
+**Not checked.** The live services were not called from here. Whether the logging service adds anything of its own to each line is read on one real line before anyone says the log holds no address. A real supplier photo from a low-end phone, and the alerts card on the founder's own console with a real alert, are the checks still to make.
+
+**Follow-on.** Every cross-repository step in the checks is rehearsed in a fresh clone of the other repository's main before a release, never only against a sibling already built here.
+
+**Still open.** As named in the slice entries below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-28 · ALERTES-CONSOLE-1 — the founder's console shows Séra's open alerts, and he closes each one with « J'ai vu » · lane B · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), whose option named « then the console alerts once their checks pass on the new Séra ». Batch 7 of the plan he approved on « done, now you can start the next batch » (2026-11-28 00:38 UTC): « Séra: … The problem detectors run on the live service. » Séra's half (the detectors, the list and the close on its ops door) is live and merged; this is the screen.

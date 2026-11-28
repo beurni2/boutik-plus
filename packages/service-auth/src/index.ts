@@ -15,6 +15,8 @@
  * THE PROPERTIES, unchanged from the offer gate:
  *   · FAIL CLOSED — an unset or empty secret refuses every write. A Worker
  *     deployed before its secret is set is shut, not open.
+ *   · NO GAP WHEN A KEY CHANGES — each gate also accepts the secret's `_NEXT`
+ *     while it is set, on the same doors and nothing more (`matchesKeyOrNext`).
  *   · CONSTANT TIME — the compare leaks neither length nor content through timing.
  *   · ONE IDENTICAL 401 — the same body for a bad key, a missing key and an unset
  *     secret, computed BEFORE any storage touch or existence lookup, so the 401
@@ -78,17 +80,37 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 }
 
 /**
- * The shared key check, FAIL CLOSED. True iff a non-empty secret is configured AND
- * the request's `X-Write-Key` matches it (constant-time). The compare runs
- * unconditionally (even with no secret configured) so timing does not reveal
- * whether a secret exists; the length guard keeps it fail-closed — an unset/empty
- * secret can never match a non-empty presented key.
+ * A KEY CHANGES WITH NO GAP (Execution Contract §11, « overlapping windows »).
+ * Every gate checks its key `X` and, while it is set, `X_NEXT` — the change is:
+ * set X_NEXT beside X · move the sender · put the new value in X · delete
+ * X_NEXT. True iff (X non-empty AND equal) OR (X_NEXT non-empty AND equal).
+ *
+ * BOTH compares run on every call, one after the other, whatever the first
+ * found — so timing says neither which value matched nor whether a next value
+ * is set. Each length guard keeps an unset or empty value from ever matching
+ * (an empty presented key equals an empty secret). Nothing here says, logs or
+ * answers which of the two matched.
  */
-export async function keyAuthorizedAgainst(request: Request, secret: string | undefined): Promise<boolean> {
+async function matchesKeyOrNext(provided: string, secret: string | undefined, next: string | undefined): Promise<boolean> {
   const configured = secret ?? '';
-  const provided = request.headers.get(WRITE_KEY_HEADER) ?? '';
-  const match = await timingSafeEqual(provided, configured);
-  return configured.length > 0 && match;
+  const suivante = next ?? '';
+  const matchCurrent = await timingSafeEqual(provided, configured);
+  const matchNext = await timingSafeEqual(provided, suivante);
+  return (configured.length > 0 && matchCurrent) || (suivante.length > 0 && matchNext);
+}
+
+/**
+ * The shared key check, FAIL CLOSED. True iff the request's `X-Write-Key` matches
+ * a non-empty configured secret or a non-empty next value (constant-time, both
+ * compared every time — see `matchesKeyOrNext`). A Worker with neither set is
+ * shut. `next` is required so that no caller can forget to name its `_NEXT`.
+ */
+export async function keyAuthorizedAgainst(
+  request: Request,
+  secret: string | undefined,
+  next: string | undefined,
+): Promise<boolean> {
+  return matchesKeyOrNext(request.headers.get(WRITE_KEY_HEADER) ?? '', secret, next);
 }
 
 /** The one 401 — IDENTICAL for every rejection, so it can never leak. */
@@ -104,9 +126,10 @@ export function unauthorized(): Response {
 export async function rejectUnauthorizedWriteAgainst(
   request: Request,
   secret: string | undefined,
+  next: string | undefined,
 ): Promise<Response | null> {
   if (!isWrite(request.method)) return null;
-  return (await keyAuthorizedAgainst(request, secret)) ? null : unauthorized();
+  return (await keyAuthorizedAgainst(request, secret, next)) ? null : unauthorized();
 }
 
 // ─── SERVICE-TO-SERVICE READ AUTH (SUPPLY-READ-AUTH) ─────────────────────────
@@ -140,18 +163,20 @@ export function bearerTokenFrom(request: Request): string {
 }
 
 /**
- * Fail-closed bearer check. True iff a non-empty secret is configured AND the
- * request's bearer token matches it (constant-time, via the SAME
- * `timingSafeEqual` the write gate uses — one primitive, not two).
+ * Fail-closed bearer check. True iff the request's bearer token matches a
+ * non-empty configured secret or a non-empty next value (constant-time, via the
+ * SAME `matchesKeyOrNext` the write gate uses — one rule, not two).
  *
- * The compare runs unconditionally, even with no secret configured, so timing
- * never reveals whether a secret exists; the length guard keeps it fail-closed.
+ * Both compares run unconditionally, even with nothing configured, so timing
+ * never reveals whether a secret or a next value exists; the length guards keep
+ * it fail-closed.
  */
-export async function bearerAuthorizedAgainst(request: Request, secret: string | undefined): Promise<boolean> {
-  const configured = secret ?? '';
-  const provided = bearerTokenFrom(request);
-  const match = await timingSafeEqual(provided, configured);
-  return configured.length > 0 && match;
+export async function bearerAuthorizedAgainst(
+  request: Request,
+  secret: string | undefined,
+  next: string | undefined,
+): Promise<boolean> {
+  return matchesKeyOrNext(bearerTokenFrom(request), secret, next);
 }
 
 /**
@@ -165,6 +190,7 @@ export async function bearerAuthorizedAgainst(request: Request, secret: string |
 export async function rejectUnauthorizedBearer(
   request: Request,
   secret: string | undefined,
+  next: string | undefined,
 ): Promise<Response | null> {
-  return (await bearerAuthorizedAgainst(request, secret)) ? null : unauthorized();
+  return (await bearerAuthorizedAgainst(request, secret, next)) ? null : unauthorized();
 }

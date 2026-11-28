@@ -99,6 +99,32 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm exec wrangler deploy
 
+      # KEY CHANGE WINDOW (batch 8) — the keys this Worker checks are set by
+      # hand (MEDIA_WRITE_SECRET, MEDIA_REVOKE_SECRET). A change sets X_NEXT beside X, moves the sender, puts
+      # the new value in X and deletes X_NEXT. A forgotten X_NEXT would keep an
+      # old value open, so every release says which ones are still set.
+      # Names only.
+      - name: Say which key changes are still open (names only)
+        working-directory: services/media-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          # This step only informs: a listing Cloudflare does not give must
+          # never redden a good deploy or skip the check that follows.
+          if ! LISTED=$(pnpm exec wrangler secret list --format json); then
+            echo "::warning title=Changement de clé : liste indisponible::Cloudflare did not list this Worker's keys, so this run cannot say whether a key change is still open. Look at the Worker's keys by hand for any name ending in _NEXT."
+            exit 0
+          fi
+          OPEN=$(grep -o '"name": *"[A-Z0-9_]*_NEXT"' <<<"$LISTED" | sed 's/.*"\([A-Z0-9_]*\)"$/\1/' || true)
+          if [ -z "$OPEN" ]; then
+            echo "No key change open on this Worker."
+          else
+            for NAME in $OPEN; do
+              echo "::warning title=Changement de clé en cours::$NAME is set on the Worker — the old and the new value of ${NAME%_NEXT} both open its doors. Finish the change and delete $NAME."
+            done
+          fi
+
       # ═══ AUDIT-B+1 F9 — THE ASSERTION offer-deploy HAS AND THIS ONE DID NOT ═══
       #
       # This workflow ended at `wrangler deploy`, which proves the UPLOAD was

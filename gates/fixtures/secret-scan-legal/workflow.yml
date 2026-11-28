@@ -2,6 +2,7 @@
 # holding one. The gate must pass this directory.
 env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  FULFILLMENT_OPS_SECRET_NEXT: ${{ secrets.FULFILLMENT_OPS_SECRET_NEXT }}
   SERA_INTAKE_SECRET: $SERA_INTAKE_SECRET
   FULFILLMENT_OPS_SECRET: <value>
   MEDIA_REVOKE_SECRET: unset

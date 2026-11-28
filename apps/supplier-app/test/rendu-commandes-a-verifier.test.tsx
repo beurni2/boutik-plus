@@ -1,8 +1,9 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { ReactTestInstance } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mountEcran, storage, wire, wiredEnv, type Route } from './rendu';
+import { mountEcran, storage, wire, wiredEnv, type Route, type Screen } from './rendu';
 import { SCommandesReel } from '../src/commandes/screen';
 
 /**
@@ -12,8 +13,8 @@ import { SCommandesReel } from '../src/commandes/screen';
  * the real tab over the dispatch page the REAL Shop+ Worker served (captured by
  * its own seam test, `a-verifier.e2e.test.ts`, and never edited by hand) and
  * answers:
- *   · did the tree survive — the tab mounts over six real rows, two of them in
- *     his book and four not yet;
+ *   · did the tree survive — the tab mounts over nine real rows, two of them in
+ *     his book and seven not yet;
  *   · present AND wired — the key-C rows and the count of refused payment
  *     messages are both CALLED with his key C, and what they say is on screen;
  *   · an order with a blocked refund keeps its refund pill AND gains « À
@@ -21,6 +22,9 @@ import { SCommandesReel } from '../src/commandes/screen';
  *   · pressing an order opens its alerts in plain words, with how long ago;
  *   · the orders the book does not hold yet are listed above the segments with
  *     no contact, and open the same way;
+ *   · one of them, whose payment had failed after the provider took the money,
+ *     shows its refund as Shop+ gives it beside « À vérifier », until the
+ *     provider confirms it — and no franc Shop+ did not give;
  *   · a count that cannot be read is said so, never shown as zero.
  *
  * Only `globalThis.fetch` is faked. The book rows are the offer-service's
@@ -35,14 +39,17 @@ const capture = JSON.parse(
 ) as { roles: Record<string, string>; pages: string[] };
 const R = capture.roles as Record<
   | 'montant_faux' | 'paye_apres_echec' | 'paiement_en_attente' | 'propre' | 'remboursement_bloque' | 'fiche_pleine'
-  | 'fournisseur_jamais_prevenu' | 'fiche_pleine_fournisseur',
+  | 'fournisseur_jamais_prevenu' | 'fiche_pleine_fournisseur' | 'montant_faux_apres_echec',
   string
 >;
 const PAGE = JSON.parse(capture.pages[0]!) as { ok: true; orders: Record<string, unknown>[] };
 /** The buyer's contact the seam gave the orders that carry one. */
 const CONTACT = { phone: '70 33 44 55', quartier: 'Tampouy', repere: 'Derrière la mosquée' };
-/** The two in-book orders, the six off-book ones, the seven flagged — from the capture. */
-const HORS_CARNET = [R.montant_faux, R.paye_apres_echec, R.paiement_en_attente, R.fiche_pleine, R.fournisseur_jamais_prevenu, R.fiche_pleine_fournisseur];
+/** The two in-book orders, the seven off-book ones, the eight flagged — from the capture. */
+const HORS_CARNET = [
+  R.montant_faux, R.paye_apres_echec, R.paiement_en_attente, R.fiche_pleine, R.fournisseur_jamais_prevenu, R.fiche_pleine_fournisseur,
+  R.montant_faux_apres_echec,
+];
 
 const BASE = {
   productPhotoRef: '',
@@ -86,6 +93,27 @@ const dlqUn: Route = (path, _b, search) => {
 };
 const dlqRefuse: Route = (path) => (path === '/checkout/dlq' ? { status: 401, json: { error: 'unauthorized' } } : null);
 
+/** The strings on the ONE card whose control carries this order number, so
+ *  « beside » means on the same card, never only somewhere on the screen. */
+const surLaCarte = (screen: Screen, orderId: string): string[] => {
+  const brut = (n: ReactTestInstance): string => n.children.map((c) => (typeof c === 'string' ? c : brut(c))).join('');
+  const portant = screen.tree.root.findAll((n) => typeof n.props['onPress'] === 'function' && brut(n).includes(orderId));
+  const cartes = portant.filter((h) => !portant.some((o) => o !== h && h.findAll((x) => x === o).length > 0));
+  expect(cartes, `one card carries ${orderId}`).toHaveLength(1);
+  return cartes[0]!.findAllByType('Text' as never).map(brut).filter((t) => t !== '');
+};
+/** Shop+ gives the console a refund STATE, never a franc: no figure in francs anywhere. */
+const sansMontant = (screen: Screen): void => {
+  for (const t of screen.texts()) expect(/\d[\s\u00a0\u202f]?(F|FCFA)\b/.test(t), `an amount on screen: « ${t} »`).toBe(false);
+};
+const BANNIERE_BLOQUE_UN = 'Un remboursement est bloqué. Il est dans « Incidents ».';
+/** His book holds only the clean order: every captured blocked refund is then on
+ *  an order Shop+ flags that the book does not hold, listed above the segments. */
+const livreSansBloquee = (): Route[] => [
+  (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [PROPRE] } } : null),
+  ...routesAvec(dlqUn),
+];
+
 beforeEach(() => {
   wiredEnv();
   requetesDlq.length = 0;
@@ -101,7 +129,7 @@ afterEach(() => {
 });
 
 describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes tab', () => {
-  it('the head counts seven orders and one refused payment message, both read with his key C', async () => {
+  it('the head counts eight orders and one refused payment message, both read with his key C', async () => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
     const fil = wire(routesAvec(dlqUn));
     const screen = await mountEcran(<SCommandesReel />);
@@ -115,13 +143,13 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     // Exactly the count, never the full book.
     expect(requetesDlq).toEqual(['compte=1']);
 
-    // Seven of the eight real rows carry alerts; the clean one does not.
-    expect(screen.texts(), `On screen: ${JSON.stringify(screen.texts())}`).toContain('7 commandes à vérifier');
+    // Eight of the nine real rows carry alerts; the clean one does not.
+    expect(screen.texts(), `On screen: ${JSON.stringify(screen.texts())}`).toContain('8 commandes à vérifier');
     expect(screen.texts()).toContain('Un message de paiement refusé à lire');
-    // Under « À traiter »: the six off-book cards carry the pill; the clean
+    // Under « À traiter »: the seven off-book cards carry the pill; the clean
     // order there carries none.
     expect(screen.shows('Bazin riche')).toBe(true);
-    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(6);
+    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(7);
     screen.unmount();
   });
 
@@ -133,11 +161,15 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
 
     // The clean order, in « À traiter »: no second pill on its card.
     expect(screen.shows('Bazin riche')).toBe(true);
+    // The one blocked refund in his book is counted, exactly, and pointed at
+    // « Incidents »; the blocked one not in his book is not counted there.
+    expect(screen.texts().filter((t) => t === BANNIERE_BLOQUE_UN)).toHaveLength(1);
+    expect(screen.shows('remboursements sont bloqués')).toBe(false);
     await screen.press('Incidents');
     expect(screen.shows('Sac en cuir')).toBe(true);
     expect(screen.texts()).toContain('Remboursement bloqué');
-    // Its card: both pills. Six off-book cards + this one = seven « À vérifier ».
-    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(7);
+    // Its card: both pills. Seven off-book cards + this one = eight « À vérifier ».
+    expect(screen.texts().filter((t) => t === 'À vérifier').length).toBe(8);
 
     await screen.press('Sac en cuir');
     expect(screen.canPress('Retirer cette commande'), 'the card did not open').toBe(true);
@@ -157,7 +189,7 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     for (const id of HORS_CARNET) {
       expect(screen.texts(), `${id} missing`).toContain(id);
     }
-    expect(screen.texts().filter((t) => t === 'Cette commande n\'apparaît pas dans le carnet ci-dessous.').length).toBe(6);
+    expect(screen.texts().filter((t) => t === 'Cette commande n\'apparaît pas dans le carnet ci-dessous.').length).toBe(7);
     // Never her contact: two of these rows carry it (the seam's own input), and
     // not one of its bytes reaches the screen — nor any phone shape at all.
     const jamais = () => {
@@ -197,6 +229,118 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     screen.unmount();
   });
 
+  it('the order whose payment had failed after the provider took the money shows its refund as Shop+ gives it, beside the alert; the other one shows the alert and no refund', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // Shop+'s own word on both orders, as captured: a re-capture that changes it
+    // goes red here, never quietly under the screen.
+    const ligne = (id: string) => PAGE.orders.find((r) => r['orderId'] === id)!;
+    expect(ligne(R.paye_apres_echec)['state']).toBe('payment_failed');
+    expect(ligne(R.paye_apres_echec)['remboursement']).toEqual({ etat: 'bloque', raison: 'sans_confirmation' });
+    expect(ligne(R.montant_faux_apres_echec)['state']).toBe('payment_failed');
+    expect(ligne(R.montant_faux_apres_echec)['remboursement']).toBeNull();
+    wire(routesAvec(dlqUn));
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+
+    const SANS_CONFIRMATION =
+      "Le service de paiement n'a pas encore confirmé ce remboursement. Appelez le service de paiement avec ce numéro de commande.";
+    const HORS = "Cette commande n'apparaît pas dans le carnet ci-dessous.";
+    // Its card, whole and in order: the refund pill, then « À vérifier » beside it,
+    // then why the refund cannot finish by itself.
+    expect(surLaCarte(screen, R.paye_apres_echec)).toEqual([
+      R.paye_apres_echec, 'Remboursement bloqué', 'À vérifier', 'pv-rr-1 · Ouagadougou', SANS_CONFIRMATION, HORS,
+    ]);
+    // Every other card not in his book is exactly what it was: no refund pill, no reason.
+    for (const id of HORS_CARNET.filter((x) => x !== R.paye_apres_echec)) {
+      expect(surLaCarte(screen, id), id).toEqual([id, 'À vérifier', 'pv-rr-1 · Ouagadougou', HORS]);
+    }
+    // One refund pill on the whole « À traiter » view, the one Shop+ gave.
+    expect(screen.texts().filter((t) => t === 'Remboursement bloqué')).toHaveLength(1);
+    for (const autre of ['Remboursement en cours', 'Cliente remboursée', 'Rien à rembourser']) {
+      expect(screen.shows(autre), autre).toBe(false);
+    }
+    sansMontant(screen);
+
+    // Opened: both of its alerts in his words, the refund still said on its card.
+    await screen.press(R.paye_apres_echec);
+    const PAYE_APRES_ECHEC =
+      'Le service de paiement dit que la cliente a payé. Mais la commande était déjà notée comme non payée. · il y a 2 heures';
+    expect(screen.texts()).toContain(PAYE_APRES_ECHEC);
+    // The refund's stuck mark carries the time the Worker's own clock wrote when it
+    // was captured (a real time no test can choose; the seam checks only its form),
+    // so the sentence is pinned and not how long ago.
+    expect(screen.shows(
+      "Le remboursement a été demandé, mais le service de paiement ne l'a pas confirmé à temps. · ",
+    ), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
+    expect(surLaCarte(screen, R.paye_apres_echec)).toContain('Remboursement bloqué');
+    sansMontant(screen);
+
+    // The one whose amount was wrong: its alert, and still no refund anywhere but the other card.
+    await screen.press(R.montant_faux_apres_echec);
+    expect(screen.texts().filter((t) => t === PAYE_APRES_ECHEC)).toHaveLength(1);
+    expect(screen.shows('Le remboursement a été demandé')).toBe(false);
+    expect(surLaCarte(screen, R.montant_faux_apres_echec)).toEqual([R.montant_faux_apres_echec, 'À vérifier', 'pv-rr-1 · Ouagadougou', HORS]);
+    expect(screen.texts().filter((t) => t === 'Remboursement bloqué')).toHaveLength(1);
+    sansMontant(screen);
+    screen.unmount();
+  });
+
+  it('a refund still under way on an order not in his book reads « Remboursement en cours », with no reason line and no franc', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // CONSTRUCTED, NOT CAPTURED: the captured row of the order paid after a failed
+    // payment, with only its refund and its alerts set to the form Shop+ gives
+    // before its stuck limit (a refund under way, the one alert). That row form
+    // is in Shop+'s recording, and the harness checks it like any captured page.
+    const capturee = PAGE.orders.find((r) => r['orderId'] === R.paye_apres_echec)!;
+    const alerte = (capturee['aVerifier'] as { elements: { classe: string }[] }).elements.find(
+      (e) => e.classe === 'genuine_webhook_after_local_failure',
+    )!;
+    const enCours = { ...capturee, remboursement: { etat: 'en_cours' }, aVerifier: { elements: [alerte], coupees: 0 } };
+    wire([
+      (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [PROPRE] } } : null),
+      (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
+      (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dispatch' ? { status: 200, json: { ok: true, orders: [enCours] } } : null),
+      dlqUn,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+
+    expect(surLaCarte(screen, R.paye_apres_echec), `On screen: ${JSON.stringify(screen.texts())}`).toEqual([
+      R.paye_apres_echec, 'Remboursement en cours', 'À vérifier', 'pv-rr-1 · Ouagadougou',
+      "Cette commande n'apparaît pas dans le carnet ci-dessous.",
+    ]);
+    // Under way is not blocked: no red banner, and no « Appelez le service de paiement ».
+    expect(screen.shows('Remboursement bloqué')).toBe(false);
+    expect(screen.shows('bloqué')).toBe(false);
+    expect(screen.shows('Appelez le service de paiement')).toBe(false);
+    sansMontant(screen);
+
+    await screen.press(R.paye_apres_echec);
+    expect(screen.texts()).toContain(
+      'Le service de paiement dit que la cliente a payé. Mais la commande était déjà notée comme non payée. · il y a 2 heures',
+    );
+    expect(surLaCarte(screen, R.paye_apres_echec)).toContain('Remboursement en cours');
+    sansMontant(screen);
+    screen.unmount();
+  });
+
+  it('a blocked refund on an order not in his book never sends him to « Incidents », where it is not', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // Both captured blocked refunds are then off his book; each says so on its own card.
+    wire(livreSansBloquee());
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+    expect(surLaCarte(screen, R.remboursement_bloque)).toContain('Remboursement bloqué');
+    expect(surLaCarte(screen, R.paye_apres_echec)).toContain('Remboursement bloqué');
+    expect(screen.shows('Il est dans « Incidents »'), `On screen: ${JSON.stringify(screen.texts())}`).toBe(false);
+    expect(screen.shows('Ils sont dans « Incidents »')).toBe(false);
+    // The tree stands, and « Incidents » holds no order of his book.
+    await screen.press('Incidents');
+    expect(screen.shows('Sac en cuir')).toBe(false);
+    screen.unmount();
+  });
+
   it('a count that cannot be read is said so — never shown as zero — and the rest of the tab stands', async () => {
     storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
     // The line drops on the count alone: fetch rejects, as it does offline.
@@ -210,7 +354,7 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
       'Le nombre de messages de paiement refusés n\'a pas pu être lu. Réessayez plus tard.',
     );
     expect(screen.shows('message de paiement refusé à lire')).toBe(false);
-    expect(screen.texts()).toContain('7 commandes à vérifier');
+    expect(screen.texts()).toContain('8 commandes à vérifier');
     await screen.press('Incidents');
     expect(screen.texts()).toContain('Remboursement bloqué');
     screen.unmount();
