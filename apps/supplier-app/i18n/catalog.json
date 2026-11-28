@@ -5812,5 +5812,131 @@
     "fr": "Séra a refusé la déclaration. Une partie est peut-être déjà faite : regardez la course dans « Coursiers » avant de recommencer.",
     "register": "neutral",
     "screenClass": "status"
+  },
+  {
+    "key": "alertes.titre_pret",
+    "fr": "Colis prêt, sans course",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.titre_garde",
+    "fr": "Suivi du colis à vérifier",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.titre_preuve",
+    "fr": "Preuve de livraison pas encore validée",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.commande",
+    "fr": "Commande {ref}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.colis",
+    "fr": "Colis de {n} commandes · commande {ref}",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.pret_depuis",
+    "fr": "Prêt depuis {quand}, heure de Ouagadougou.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_depuis",
+    "fr": "Vu par Séra {quand}, heure de Ouagadougou.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.preuve_depuis",
+    "fr": "Preuve reçue par Séra {quand}, heure de Ouagadougou.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.suite_pret",
+    "fr": "Créez sa course dans Commandes, puis confiez-la à un coursier.",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "alertes.garde_existing_command_log_without_chain",
+    "fr": "Les étapes du colis sont notées, mais leur chaîne de contrôle manque.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_head_missing_for_existing_record",
+    "fr": "La dernière étape notée du colis manque.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_chain_tampered",
+    "fr": "La chaîne de contrôle du colis a été changée après coup.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_command_log_tampered",
+    "fr": "La liste des étapes du colis a été changée après coup.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_replay_diverged",
+    "fr": "Séra relit les étapes du colis et ne retrouve pas le même résultat.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.garde_chain_does_not_name_this_object",
+    "fr": "La chaîne de contrôle notée ici parle d'un autre colis.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.vu",
+    "fr": "J'ai vu",
+    "register": "neutral",
+    "screenClass": "label"
+  },
+  {
+    "key": "alertes.ack_echec",
+    "fr": "Séra n'a pas confirmé. L'alerte reste là. Réessayez.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.sans_cle",
+    "fr": "Les alertes Séra ont besoin de la clé Séra. Tapez-la dans « Coursiers ».",
+    "register": "neutral",
+    "screenClass": "instruction"
+  },
+  {
+    "key": "alertes.pas_relie",
+    "fr": "Les alertes Séra ne peuvent pas s'afficher : cette console n'est pas reliée à Séra.",
+    "register": "neutral",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.illisible",
+    "fr": "Les alertes Séra n'ont pas pu être lues. La console réessaie toute seule.",
+    "register": "money",
+    "screenClass": "status"
+  },
+  {
+    "key": "alertes.illisible_depuis",
+    "fr": "Les alertes Séra n'ont pas pu être relues. Dernière lecture réussie {quand}, heure de Ouagadougou.",
+    "register": "money",
+    "screenClass": "status"
   }
 ]

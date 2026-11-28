@@ -93,8 +93,9 @@ function planche(lignes: { orderId: string; riderId: string; nom: string; readin
 }
 
 /**
- * The SOS strip reads `/ops/sos` on every boot; that read is not this walk's
- * subject, so it meets a network fault (the network's word, not Séra's).
+ * The SOS strip reads `/ops/sos` on every boot, and Séra's alerts section
+ * reads `/ops/alertes` on Opérations; neither read is this walk's subject, so
+ * each meets a network fault (the network's word, not Séra's).
  *
  * The declare door has no recorded answer yet. `porte` is the network's fault
  * (no answer, a stall, a body that is not JSON) or one of the door's answers
@@ -116,6 +117,7 @@ function brancher(routes: readonly Route[], porte?: Porte) {
   (globalThis as { fetch: unknown }).fetch = async (input: string, init?: RequestInit): Promise<Response> => {
     const path = new URL(input).pathname;
     if (path === '/ops/sos') throw new TypeError('Failed to fetch');
+    if (path === '/ops/alertes') throw new TypeError('Failed to fetch');
     if (path === '/ops/colis/perdu') {
       envois.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       if (porte === undefined) throw new Error('no answer was set for the declare door in this walk');
