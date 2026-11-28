@@ -3,6 +3,41 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · ALERTES-CONSOLE-1 — the founder's console shows Séra's open alerts, and he closes each one with « J'ai vu » · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), whose option named « then the console alerts once their checks pass on the new Séra ». Batch 7 of the plan he approved on « done, now you can start the next batch » (2026-11-28 00:38 UTC): « Séra: … The problem detectors run on the live service. » Séra's half (the detectors, the list and the close on its ops door) is live and merged; this is the screen.
+
+**Lane.** Lane B, local commits `ec74e41` (the section) and `2a04177` (the review's fixes) on `aa90908`. Integrated on `claude/project-thread-jqj97g` commit for commit on `5b253dc` as `fc9d374` and `17dc045`, files byte-identical to the lane's `2a04177`, then `f5802b2` by the coordinator: two test lines the full board's scans flagged (a test name beside « colis » read as packaging wording, and a test key written after « Bearer » read as a secret); renamed, no product code changed, no scan changed.
+
+**Spec.**
+- Execution Contract §6 (l.127): « **Alert when (minimum):** … a ready package has no task past SLA · a package has an impossible custody sequence · evidence is uploaded but not validated · … ».
+- CLAUDE.md §5 « **Honest states are designed states.** » and the trust test; Law 6 (French Voice, strings in the catalog with `register`); §6bis the screen walk and the seam test.
+
+**What changed.**
+- *The port (`apps/supplier-app/src/alertes/service.ts`).* Reads Séra logistics `GET /ops/alertes` and closes one with `POST /ops/alertes/ack` (`{ id, by: 'founder' }`), on the base, the stored Séra key, the time limit and the 60 s re-read the SOS strip already uses. A 401 clears the stored key only while it is still the key that was refused. An alert leaves the screen only on Séra's 200 (`duplicate` included); any other answer keeps it with « Réessayez ».
+- *The section (`src/alertes/section.tsx`, `view.ts`), mounted at the top of Opérations, above « Colis perdu ».* One card per open alert, in plain words: a ready parcel waiting for a course (« En attente d'une course depuis … », Ouagadougou time), a custody record to check (its meaning in a sentence, never the raw code), a proof of delivery not yet decided. « J'ai vu » with no key on this browser sends nothing and says where the key goes. Nothing open takes no space; Séra unreachable says so and when it last read; entries it cannot read are said, never silently dropped. An open SOS still shows first.
+- *Strings.* New catalog entries `alertes.*`, each with its `register` (custody, proof and failure lines in the money register). No other screen, port or string changed.
+
+**Evidence.**
+- Red first: the seam and the words red at import on the lane's base; the real-Worker walk red at the alert.
+- The seam (`test/alertes-console.e2e.test.ts`) on the REAL Séra logistics Worker: an alert raised through Séra's own intake doors and wires, read through the console's own port, closed, then Séra's list no longer shows it and the record names the founder.
+- The walk on the REAL Séra Worker (`test/rendu-alertes.e2e.test.tsx`, 13 cases) and its state walk (`test/rendu-alertes.test.tsx`): the card shows, « J'ai vu » is present, pressable and sends one close; on 200 it leaves; a refused or failed close keeps it and the retry works; no key, unreachable and empty each say their sentence and every tab stays usable; real 401 and 404 answers from the Worker, no stand-in.
+- Mutations, each red with its anchor matched once, restored byte-identical: the alert removed on press instead of on Séra's 200; the port reading the SOS path instead of the alerts path; the 401 not clearing the key; the section mounted where the walk says it must not be. The coordinator's own (removed on any answer to the close) went red; after `f5802b2`, the key-header assertion goes red when the header is wrong.
+- Console first load 539 956 B on the lane, under the signed ceiling of 542 720 B (room about 2.7 KB).
+- Coordinator's full board on the integrated head, with Séra, platform and Shop+ at their mains beside it: first run two scans red on two test lines (above); after `f5802b2`, ALL GATES GREEN, 0 cached (supplier app 1465 tests, offer 506, media 195); console first load on the board 532 166 B of the 542 720 B ceiling.
+
+**Verifier.** One fresh-context pass, handled once, never re-verified: pass with notes (0 blocker, 0 major, 1 minor, 3 notes), all four fixed in `2a04177`: a test for the « clear only the refused key » rule; the ready line names the moment Séra counts from; a press with no key says where the key goes; unreadable entries are said.
+
+**Release.** After Séra's batch 7 merge (done) and Boutik+'s batch 7 deploys: this pull request, its checks green against Séra's main, the merge, then web-deploy (the console). No Séra deploy.
+
+**Still open.**
+- With no key on this browser, the card and the section can say the « where the key goes » sentence twice.
+- The console is about 2.7 KB under its size ceiling; the next console feature needs room.
+- The acknowledged history, a sound or a browser notification, and the night SMS for these alerts are not built.
+- Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-28 · PHOTOS-LEGERES-1 + JOURNAL-SERVICES-1 — every photo that leaves the phone fits its budget; the offer and media services keep a log with no personal data · lane B · on the branch, NOT merged, NOT deployed
 
 **Founder.** « done, now you can start the next batch » (2026-11-28 00:38 UTC), batch 7 of the plan he approved: « Every service, one lane per app. Each one keeps a log of what it did and what went wrong, with no personal data in it. » and « Photos sent and downloaded are held to their phone budgets, and the buyer page's total weight is measured. »
