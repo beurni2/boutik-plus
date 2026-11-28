@@ -123,5 +123,15 @@ runScanGate({
     { file: 'services/offer-service/test/ramassage-verify.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding' },
     { file: 'services/offer-service/test/retour-verify.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding (the ramassage seam’s twin)' },
     { file: 'services/offer-service/test/colis.e2e.test.ts', pattern: 'storefront', ruling: 'names the Shop+ storefront Worker as the DELIVERY TARGET binding (COLIS-FOURNISSEUR-1 seam)' },
+    /**
+     * JOURNAL-SERVICES-1 — the same class, approved by the founder on
+     * 2026-11-28: the log tests drive the real `FulfillmentDO` with its
+     * `STOREFRONT` delivery binding and assert the fault line names that
+     * outbox by its fixed name, the one the allowed `fulfillment-do.ts`
+     * writes. No buyer surface, no checkout, no cart, no order created in
+     * Boutik+; `checkout`/`cart` stay banned in these files.
+     */
+    { file: 'services/offer-service/test/journal-fautes.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery outbox’s fixed name the fault line carries (JOURNAL-SERVICES-1)' },
+    { file: 'services/offer-service/test/journal-requetes.e2e.test.ts', pattern: 'storefront', ruling: 'the Shop+ delivery binding the log walk constructs, and the outbox name its line carries (JOURNAL-SERVICES-1)' },
   ],
 });
