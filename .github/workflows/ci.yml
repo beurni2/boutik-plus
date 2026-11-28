@@ -78,6 +78,8 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --filter @sera/logistics-service... --filter @sera/custody-service...
+          # Séra's Workers import Séra's own workspace packages (its log writer), which resolve to their built output.
+          pnpm --filter "@sera/logistics-service^..." --filter "@sera/custody-service^..." build
           pnpm --filter @sera/logistics-service bundle:worker
           pnpm --filter @sera/custody-service bundle:worker
       - name: Build platform's protection bundle
