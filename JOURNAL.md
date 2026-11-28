@@ -3,6 +3,30 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · PHOTOS-LEGERES-1 + JOURNAL-SERVICES-1 + ALERTES-CONSOLE-1 — MERGED; console, supplier page, offer and media services DEPLOYED; supplier app PUBLISHED; console alerts LIVE
+
+**Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), which named for Boutik+: the merge, then the console and the supplier page, then the offer service, then the photo service last; then the console alerts once their checks pass on the new Séra. « Yes, merge when green » (05:33 UTC, decision card) for the checks fix below, which was not in the report. Every deploy below waited for his approval in the `production` environment before it ran.
+
+**Merge.** PR #12 merged as `1798093` (merge commit, the branch shas kept). On main, ci 406 RED, and expo-preview 271 was skipped, as designed. The cause: the step that clones Séra beside this checkout bundled Séra's two Workers without building Séra's own workspace packages, which Séra's Workers import since Séra's batch 7 merge. The local board had passed because its Séra sibling was already built. Rehearsed in a fresh clone of Séra's main: red without a build line, green with it.
+
+**The checks fix.** PR #13 (`509d5d2`, two lines in `.github/workflows/ci.yml`: build the two Workers' workspace dependencies, then bundle as before), its ci 407 green, merged as `5b253dc`. On main: ci 408 green · expo-preview 272 (id 46113176810) green, the supplier-app preview update published from main's newest commit.
+
+**Deployed from main at `5b253dc`.**
+- web-deploy 95 (id 46113368641) green: « web-size OK — console first load: 525.4 KB gzip (537968 B) … within the signed ceiling of 530.0 KB (542720 B) », the offline shell OK, deployed to Pages.
+- fournisseur-web-deploy 32 (id 46113370643) green: the capability ruling, the size and the offline shell asserted on the exact dist it deployed.
+- offer-deploy 55 (id 46113531347) green: « PROVENANCE OK — live Worker is 5b253dc1b9822ddbf365f4833fb86d53520fa0d4 speaking canon 3.26.0. »
+- media-deploy 17 (id 46113662795) green, last, after the founder was asked to reload his console: « PROVENANCE OK — live media Worker is 5b253dc1b9822ddbf365f4833fb86d53520fa0d4 speaking canon 3.26.0. »
+
+**The console alerts.** PR #14 (lane `fc9d374`, `17dc045`; coordinator `f5802b2`; journal `2bd1e99`), its ci 409 green against Séra's main, merged as `0a61068` after media-deploy. On main: ci 410 green · expo-preview 273 (id 46114418117) green, published from `0a61068`. web-deploy 96 (id 46114576286), after his approval, green: « web-size OK — console first load: 527.5 KB gzip (540117 B) … within the signed ceiling of 530.0 KB (542720 B) » (room 2 603 B), the offline shell OK, deployed to Pages.
+
+**Not checked.** The live services were not called from here. Whether the logging service adds anything of its own to each line is read on one real line before anyone says the log holds no address. A real supplier photo from a low-end phone, and the alerts card on the founder's own console with a real alert, are the checks still to make.
+
+**Follow-on.** Every cross-repository step in the checks is rehearsed in a fresh clone of the other repository's main before a release, never only against a sibling already built here.
+
+**Still open.** As named in the slice entries below. Other open items are held in the private batch record until their fixes deploy.
+
+---
+
 ## 2026-11-28 · ALERTES-CONSOLE-1 — the founder's console shows Séra's open alerts, and he closes each one with « J'ai vu » · lane B · on the branch, NOT merged, NOT deployed
 
 **Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), whose option named « then the console alerts once their checks pass on the new Séra ». Batch 7 of the plan he approved on « done, now you can start the next batch » (2026-11-28 00:38 UTC): « Séra: … The problem detectors run on the live service. » Séra's half (the detectors, the list and the close on its ops door) is live and merged; this is the screen.
