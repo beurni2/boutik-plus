@@ -170,9 +170,12 @@ jobs:
           echo "attestations written to the Worker's encrypted store."
 
       # KEY CHANGE WINDOW (batch 8) — the keys this Worker checks are set by
-      # hand (SUPPLY_READ_SECRET, FULFILLMENT_WRITE_SECRET, FULFILLMENT_OPS_SECRET, PROGRESS_WRITE_SECRET and the others its wrangler.toml names). A change sets X_NEXT beside X, moves the sender, puts
+      # hand (SUPPLY_READ_SECRET, FULFILLMENT_WRITE_SECRET, FULFILLMENT_OPS_SECRET). A change sets X_NEXT beside X, moves the sender, puts
       # the new value in X and deletes X_NEXT. A forgotten X_NEXT would keep an
       # old value open, so every release says which ones are still set.
+      # The two keys this Worker only SENDS (PROGRESS_WRITE_SECRET to Shop+,
+      # SERA_INTAKE_SECRET to Séra) take their X_NEXT on the Worker that checks
+      # them, never here: one set here opens nothing and is named below.
       # Names only.
       - name: Say which key changes are still open (names only)
         working-directory: services/offer-service

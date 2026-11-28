@@ -18,7 +18,9 @@ import { inflateRawSync } from 'node:zlib';
  *
  *   1. a literal value assigned to a credential name — SECRET, TOKEN,
  *      PASSWORD, API_KEY alone or at the end of a name, anything ending in
- *      _WRITE_KEY, _REVOKE_KEY or _OPS_KEY, plus VERIFIED_SUPPLIERS — in any
+ *      _WRITE_KEY, _REVOKE_KEY or _OPS_KEY, each also with _NEXT after it (the
+ *      next value of a key being changed is as secret as the key), plus
+ *      VERIFIED_SUPPLIERS — in any
  *      `NAME=value`, `NAME: value`, `"NAME": "value"` form, or as the default
  *      of a shell `${NAME:-value}`; and a literal after `Bearer `. In code files only a QUOTED value counts (an
  *      unquoted one is a variable); elsewhere an unquoted one counts too. A
@@ -48,7 +50,7 @@ import { inflateRawSync } from 'node:zlib';
  * Exit 0 clean · 1 a secret-shaped value found · 2 could not run.
  */
 const CODE = /\.(m?[jt]sx?|cjs|json|html)$/;
-const NAME = /\b((?:[A-Z][A-Z0-9_]*_)?(?:SECRET|TOKEN|PASSWORD|API_KEY)|[A-Z][A-Z0-9_]*(?:_WRITE_KEY|_REVOKE_KEY|_OPS_KEY)|VERIFIED_SUPPLIERS)\b/;
+const NAME = /\b((?:(?:[A-Z][A-Z0-9_]*_)?(?:SECRET|TOKEN|PASSWORD|API_KEY)|[A-Z][A-Z0-9_]*(?:_WRITE_KEY|_REVOKE_KEY|_OPS_KEY))(?:_NEXT)?|VERIFIED_SUPPLIERS)\b/;
 const ASSIGN = new RegExp(
   String.raw`["']?` + NAME.source + String.raw`["']?\s*(?::|=|\?\?=)\s*(?:(["'\`])([^"'\`\n]*)\2|([^\s"'\`,;)}\]]+))`,
   'g',
