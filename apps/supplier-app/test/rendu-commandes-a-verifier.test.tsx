@@ -266,7 +266,9 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     const PAYE_APRES_ECHEC =
       'Le service de paiement dit que la cliente a payé. Mais la commande était déjà notée comme non payée. · il y a 2 heures';
     expect(screen.texts()).toContain(PAYE_APRES_ECHEC);
-    // The refund's stuck mark carries the Worker's own clock (masked in the capture): the sentence is pinned.
+    // The refund's stuck mark carries the time the Worker's own clock wrote when it
+    // was captured (a real time no test can choose; the seam checks only its form),
+    // so the sentence is pinned and not how long ago.
     expect(screen.shows(
       "Le remboursement a été demandé, mais le service de paiement ne l'a pas confirmé à temps. · ",
     ), `On screen: ${JSON.stringify(screen.texts())}`).toBe(true);
@@ -279,6 +281,46 @@ describe('« À vérifier » — what Shop+ flags, on the founder’s Commandes 
     expect(screen.shows('Le remboursement a été demandé')).toBe(false);
     expect(surLaCarte(screen, R.montant_faux_apres_echec)).toEqual([R.montant_faux_apres_echec, 'À vérifier', 'pv-rr-1 · Ouagadougou', HORS]);
     expect(screen.texts().filter((t) => t === 'Remboursement bloqué')).toHaveLength(1);
+    sansMontant(screen);
+    screen.unmount();
+  });
+
+  it('a refund still under way on an order not in his book reads « Remboursement en cours », with no reason line and no franc', async () => {
+    storage({ [OPS_KEY_SLOT]: 'cle-ops', [CLE_C_SLOT]: 'cle-c' });
+    // CONSTRUCTED, NOT CAPTURED: the captured row of the order paid after a failed
+    // payment, with only its refund and its alerts set to the form Shop+ gives
+    // before its stuck limit (a refund under way, the one alert). That row form
+    // is in Shop+'s recording, and the harness checks it like any captured page.
+    const capturee = PAGE.orders.find((r) => r['orderId'] === R.paye_apres_echec)!;
+    const alerte = (capturee['aVerifier'] as { elements: { classe: string }[] }).elements.find(
+      (e) => e.classe === 'genuine_webhook_after_local_failure',
+    )!;
+    const enCours = { ...capturee, remboursement: { etat: 'en_cours' }, aVerifier: { elements: [alerte], coupees: 0 } };
+    wire([
+      (path) => (path === '/fulfillment/orders' ? { status: 200, json: { ok: true, orders: [PROPRE] } } : null),
+      (path) => (path === '/fulfillment/supplier-contacts' ? { status: 200, json: { ok: true, contacts: [] } } : null),
+      (path) => (path === '/checkout/gains' ? { status: 200, json: { ok: true, gains: [] } } : null),
+      (path) => (path === '/checkout/dispatch' ? { status: 200, json: { ok: true, orders: [enCours] } } : null),
+      dlqUn,
+    ]);
+    const screen = await mountEcran(<SCommandesReel />);
+    await screen.settle();
+
+    expect(surLaCarte(screen, R.paye_apres_echec), `On screen: ${JSON.stringify(screen.texts())}`).toEqual([
+      R.paye_apres_echec, 'Remboursement en cours', 'À vérifier', 'pv-rr-1 · Ouagadougou',
+      "Cette commande n'apparaît pas dans le carnet ci-dessous.",
+    ]);
+    // Under way is not blocked: no red banner, and no « Appelez le service de paiement ».
+    expect(screen.shows('Remboursement bloqué')).toBe(false);
+    expect(screen.shows('bloqué')).toBe(false);
+    expect(screen.shows('Appelez le service de paiement')).toBe(false);
+    sansMontant(screen);
+
+    await screen.press(R.paye_apres_echec);
+    expect(screen.texts()).toContain(
+      'Le service de paiement dit que la cliente a payé. Mais la commande était déjà notée comme non payée. · il y a 2 heures',
+    );
+    expect(surLaCarte(screen, R.paye_apres_echec)).toContain('Remboursement en cours');
     sansMontant(screen);
     screen.unmount();
   });

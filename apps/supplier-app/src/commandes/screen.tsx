@@ -821,8 +821,11 @@ function CarteHorsCarnet({ row, nowMs, ouvert, onToggle }: {
   return (
     <Card variant="Llg">
       <Pressable onPress={onToggle} accessibilityRole="button">
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={[NOM_FORT, { flexShrink: 1 }]} numberOfLines={1}>{row.orderId}</Text>
+        {/* The order number is the ONLY name this card has, and the reason line
+            asks him to read it out on the phone: shown whole, on its own line,
+            the pills on the row under it. */}
+        <Text style={NOM_FORT}>{row.orderId}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
           {remb !== null ? (
             <View
               style={{
@@ -830,7 +833,6 @@ function CarteHorsCarnet({ row, nowMs, ouvert, onToggle }: {
                 borderRadius: 10,
                 paddingHorizontal: 10,
                 paddingVertical: 5,
-                marginLeft: 8,
               }}
             >
               <Text style={[role({ f: 'BG', w: 800, s: 11 }, remb.ton === 'ok' ? P.successFg : remb.ton === 'alerte' ? P.dangerFg : P.warnDeep)]}>
