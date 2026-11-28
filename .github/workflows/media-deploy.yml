@@ -110,7 +110,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          LISTED=$(pnpm exec wrangler secret list)
+          # This step only informs: a listing Cloudflare does not give must
+          # never redden a good deploy or skip the check that follows.
+          if ! LISTED=$(pnpm exec wrangler secret list --format json); then
+            echo "::warning title=Changement de clé : liste indisponible::Cloudflare did not list this Worker's keys, so this run cannot say whether a key change is still open. Look at the Worker's keys by hand for any name ending in _NEXT."
+            exit 0
+          fi
           OPEN=$(grep -o '"name": *"[A-Z0-9_]*_NEXT"' <<<"$LISTED" | sed 's/.*"\([A-Z0-9_]*\)"$/\1/' || true)
           if [ -z "$OPEN" ]; then
             echo "No key change open on this Worker."

@@ -183,13 +183,23 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          LISTED=$(pnpm exec wrangler secret list)
+          # This step only informs: a listing Cloudflare does not give must
+          # never redden a good deploy or skip the check that follows.
+          if ! LISTED=$(pnpm exec wrangler secret list --format json); then
+            echo "::warning title=Changement de clé : liste indisponible::Cloudflare did not list this Worker's keys, so this run cannot say whether a key change is still open. Look at the Worker's keys by hand for any name ending in _NEXT."
+            exit 0
+          fi
           OPEN=$(grep -o '"name": *"[A-Z0-9_]*_NEXT"' <<<"$LISTED" | sed 's/.*"\([A-Z0-9_]*\)"$/\1/' || true)
           if [ -z "$OPEN" ]; then
             echo "No key change open on this Worker."
           else
             for NAME in $OPEN; do
-              echo "::warning title=Changement de clé en cours::$NAME is set on the Worker — the old and the new value of ${NAME%_NEXT} both open its doors. Finish the change and delete $NAME."
+              case "$NAME" in
+                PROGRESS_WRITE_SECRET_NEXT|SERA_INTAKE_SECRET_NEXT)
+                  echo "::warning title=Clé suivante au mauvais endroit::$NAME is set on this Worker, but nothing here reads it: this Worker only sends ${NAME%_NEXT}. Its next value belongs on the Worker that checks ${NAME%_NEXT}, so no change window is open. Delete $NAME here." ;;
+                *)
+                  echo "::warning title=Changement de clé en cours::$NAME is set on the Worker — the old and the new value of ${NAME%_NEXT} both open its doors. Finish the change and delete $NAME." ;;
+              esac
             done
           fi
 
