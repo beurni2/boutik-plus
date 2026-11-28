@@ -134,6 +134,8 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — a real Séra a
           { id: ID_PREUVE, scenario: 'evidence_not_validated_aging', orderId: P, orderIds: null, depuis: soumise, detail: null },
           { id: ID_GARDE, scenario: 'impossible_custody', orderId: G, orderIds: null, depuis: vueA, detail: 'replay_diverged' },
         ],
+        // Every entry the real Worker sends is one the port reads.
+        entreesIllisibles: false,
       });
       expect(appels.map((a) => a.cle), 'one read, of the alerts door').toEqual(['GET /ops/alertes']);
       expect(appels[0]!.auth, 'on his Séra key, in the Authorization header').toBe(`Bearer ${OPS}`);
@@ -155,7 +157,7 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — a real Séra a
       const tache = await direct('/ops/task', OPS, { command_id: 't-alertes-seam', orderId: O, location: LOC, window: { start: iso(0), end: iso(8 * 60 * MINUTE) } });
       expect(tache.status, JSON.stringify(tache.json)).toBe(200);
       expect(await port.marquerVu(ID), 'an alert Séra no longer holds is not « vu »').toEqual({ kind: 'refused', reason: 'alerte_inconnue' });
-      expect(await port.lire()).toEqual({ kind: 'ok', alertes: [] });
+      expect(await port.lire()).toEqual({ kind: 'ok', alertes: [], entreesIllisibles: false });
 
       // A key Séra refuses, on its real answer; and a network that never answers.
       expect(await httpAlertesService(BASE, 'une-cle-que-sera-refuse', surveille).lire()).toEqual({ kind: 'bad_key' });

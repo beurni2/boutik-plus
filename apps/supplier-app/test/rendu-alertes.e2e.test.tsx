@@ -298,7 +298,7 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — Séra\'s alert
     const screen = await ouvrirOperations();
     await attendre(screen, () => screen.shows(TITRE), 'Séra\'s alert on screen');
     expect(screen.shows(`Commande ${O}`), 'which order').toBe(true);
-    expect(screen.shows(`Prêt depuis ${quandOuaga(depuis, new Date())}, heure de Ouagadougou.`), 'since when, on the Ouagadougou clock').toBe(true);
+    expect(screen.shows(`En attente d'une course depuis ${quandOuaga(depuis, new Date())}, heure de Ouagadougou.`), 'since when, on the Ouagadougou clock').toBe(true);
     expect(screen.shows(SUITE), 'and the next step he can take').toBe(true);
     expect(screen.texts().some((t) => t.includes('ready_package_no_task')), 'no raw Séra word on screen').toBe(false);
     // First card under the masthead, above « Colis perdu en route ».
@@ -450,6 +450,53 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — Séra\'s alert
     await screen.press(VU);
     await attendre(screen, () => !screen.shows(TITRE), 'the alert leaving on Séra\'s answer');
     expect(await l.fermeePar(id), 'ASK THE BOOK: closed by the founder').toBe('founder');
+    screen.unmount();
+  }, 60_000);
+
+  it('a key refused on his press, while he typed the good one in « Coursiers »: the good key stays, and no « key » sentence', async () => {
+    const l = await livre();
+    const { id } = await l.lever('ord-alertes-walk-11');
+    const stored = storage({ [CLE_OPS]: 'cle-ops-boutik', [CLE_SERA]: OPS });
+    const screen = await ouvrirOperations();
+    await attendre(screen, () => screen.shows(TITRE), 'Séra\'s alert on screen');
+
+    // His press leaves on a key Séra refuses; while it is on its way he types the good one.
+    stored.set(CLE_SERA, 'une-cle-que-sera-refuse');
+    const relacher = l.retenir('POST /ops/alertes/ack', 'avant');
+    await screen.press(VU);
+    await attendre(screen, () => acks(l) === 1, 'his close leaving');
+    stored.set(CLE_SERA, OPS);
+    relacher();
+    await attendre(screen, () => screen.shows(PAS_CONFIRME), 'Séra\'s refusal of that close');
+    await laisser(screen);
+    expect(stored.get(CLE_SERA), 'the key typed meanwhile is not the refused one: it stays').toBe(OPS);
+    expect(screen.shows(SANS_CLE), 'a key is there: no sentence asks for one').toBe(false);
+    expect(screen.shows(TITRE), 'still open in the book, still on screen').toBe(true);
+    expect(await l.ouvertes(), 'ASK THE BOOK: still open').toContain(id);
+
+    await screen.press(VU);
+    await attendre(screen, () => !screen.shows(TITRE), 'the alert leaving on the good key');
+    expect(await l.fermeePar(id), 'ASK THE BOOK: closed by the founder').toBe('founder');
+    screen.unmount();
+  }, 60_000);
+
+  it('no key on this browser when he presses: nothing is sent, the alert stays, and its card says where the key goes', async () => {
+    const l = await livre();
+    const { id } = await l.lever('ord-alertes-walk-12');
+    const stored = storage({ [CLE_OPS]: 'cle-ops-boutik', [CLE_SERA]: OPS });
+    const screen = await ouvrirOperations();
+    await attendre(screen, () => screen.shows(TITRE), 'Séra\'s alert on screen');
+
+    stored.delete(CLE_SERA);
+    await screen.press(VU);
+    await attendre(screen, () => screen.shows(SANS_CLE), 'the sentence saying where the key goes');
+    await laisser(screen);
+    expect(acks(l), 'no key, no close sent').toBe(0);
+    expect(rang(screen, SANS_CLE), 'said on the card he pressed').toBeGreaterThan(rang(screen, TITRE));
+    expect(screen.shows(PAS_CONFIRME), 'not « Séra did not confirm »: Séra was never asked').toBe(false);
+    expect(screen.shows(TITRE), 'the alert stays').toBe(true);
+    expect(screen.canPress(VU), 'the button is there for when the key is back').toBe(true);
+    expect(await l.ouvertes(), 'ASK THE BOOK: still open').toContain(id);
     screen.unmount();
   }, 60_000);
 

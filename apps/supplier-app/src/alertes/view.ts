@@ -9,7 +9,7 @@ const TITRES = {
 } as const;
 
 const DEPUIS = {
-  ready_package_no_task: 'alertes.pret_depuis',
+  ready_package_no_task: 'alertes.attente_course_depuis',
   impossible_custody: 'alertes.garde_depuis',
   evidence_not_validated_aging: 'alertes.preuve_depuis',
 } as const;

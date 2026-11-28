@@ -5844,8 +5844,8 @@
     "screenClass": "status"
   },
   {
-    "key": "alertes.pret_depuis",
-    "fr": "Prêt depuis {quand}, heure de Ouagadougou.",
+    "key": "alertes.attente_course_depuis",
+    "fr": "En attente d'une course depuis {quand}, heure de Ouagadougou.",
     "register": "neutral",
     "screenClass": "status"
   },

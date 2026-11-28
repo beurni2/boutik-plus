@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ligneCommande, phraseDepuis, phraseGarde, suiteAlerte, titreAlerte } from '../src/alertes/view';
-import { ALERTES_PAR, ALERTES_RELECTURE_MS, type AlerteOuverte } from '../src/alertes/service';
+import { ALERTES_PAR, ALERTES_RELECTURE_MS, httpAlertesService, type AlerteOuverte } from '../src/alertes/service';
 
 /**
  * The words of Séra's alerts on the founder's console, decided purely. Séra
@@ -62,8 +62,8 @@ describe('ligneCommande — which order, by the reference Séra gave', () => {
 });
 
 describe('phraseDepuis — since when, on the Ouagadougou clock, said for what it is', () => {
-  it('the ready parcel: since it was ready', () => {
-    expect(phraseDepuis(pret(), MAINTENANT)).toBe("Prêt depuis aujourd'hui à 13 h 55, heure de Ouagadougou.");
+  it('the ready parcel: since it has waited for a course', () => {
+    expect(phraseDepuis(pret(), MAINTENANT)).toBe("En attente d'une course depuis aujourd'hui à 13 h 55, heure de Ouagadougou.");
   });
   it('the custody file: since Séra saw it', () => {
     expect(phraseDepuis(garde('replay_diverged'), MAINTENANT)).toBe('Vu par Séra le 27/11 à 23 h 50, heure de Ouagadougou.');
@@ -113,5 +113,26 @@ describe('the two fixed values of the alerts section', () => {
     // change the coordinator rules and the founder is told.
     expect(ALERTES_RELECTURE_MS).toBe(60_000);
     expect(ALERTES_PAR).toBe('founder');
+  });
+});
+
+describe('the port reads every entry it can, and says when it skipped one', () => {
+  // Harsher than the real Worker, which only sends entries the port reads
+  // (pinned in `alertes-console.e2e.test.ts`): one Séra might name later.
+  const BON = { id: 'ready_package_no_task:ord-1:2026-11-28T13:55:00.000Z', scenario: 'ready_package_no_task', orderId: 'ord-1', since: '2026-11-28T13:55:00.000Z' };
+  const INCONNU = { id: 'un_probleme_nouveau:ord-9', scenario: 'un_probleme_nouveau', orderId: 'ord-9', since: '2026-11-28T14:00:00.000Z' };
+  const lire = (alertes: unknown[]) =>
+    httpAlertesService('http://sera.test', 'cle-sera', async () => Response.json({ alertes })).lire();
+  const LU_BON: AlerteOuverte = { id: BON.id, scenario: 'ready_package_no_task', orderId: 'ord-1', orderIds: null, depuis: BON.since, detail: null };
+
+  it('an entry it cannot read beside a good one: the good one, and the skip said', async () => {
+    expect(await lire([BON, INCONNU])).toEqual({ kind: 'ok', alertes: [LU_BON], entreesIllisibles: true });
+  });
+  it('only entries it cannot read: no alert, and the skip said, never « nothing open »', async () => {
+    expect(await lire([INCONNU, null, { id: 'sans-commande', scenario: 'impossible_custody' }])).toEqual({ kind: 'ok', alertes: [], entreesIllisibles: true });
+  });
+  it('every entry read: nothing skipped', async () => {
+    expect(await lire([BON])).toEqual({ kind: 'ok', alertes: [LU_BON], entreesIllisibles: false });
+    expect(await lire([])).toEqual({ kind: 'ok', alertes: [], entreesIllisibles: false });
   });
 });

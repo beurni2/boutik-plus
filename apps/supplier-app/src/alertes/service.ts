@@ -43,7 +43,8 @@ export interface AlerteOuverte {
 }
 
 export type AlertesLecture =
-  | { kind: 'ok'; alertes: readonly AlerteOuverte[] }
+  /** `entreesIllisibles`: Séra's list held an entry this port could not read, so « nothing shown » is not « nothing open ». */
+  | { kind: 'ok'; alertes: readonly AlerteOuverte[]; entreesIllisibles: boolean }
   | { kind: 'unreachable' }
   | { kind: 'bad_key' }
   | { kind: 'refused'; reason: string };
@@ -70,8 +71,8 @@ function reasonOf(body: unknown): string {
   return texte((body as Record<string, unknown>)['reason']) ?? 'unknown';
 }
 
-/** The open alerts in Séra's order (oldest first); null when the answer is not the list. */
-function alertesDe(body: unknown): AlerteOuverte[] | null {
+/** The open alerts in Séra's order (oldest first), and whether any entry was skipped; null when the answer is not the list. */
+function alertesDe(body: unknown): { alertes: AlerteOuverte[]; entreesIllisibles: boolean } | null {
   const liste = body !== null && typeof body === 'object' ? (body as Record<string, unknown>)['alertes'] : undefined;
   if (!Array.isArray(liste)) return null;
   const alertes: AlerteOuverte[] = [];
@@ -92,7 +93,7 @@ function alertesDe(body: unknown): AlerteOuverte[] | null {
       detail: texte(a['detail']),
     });
   }
-  return alertes;
+  return { alertes, entreesIllisibles: alertes.length < liste.length };
 }
 
 export function httpAlertesService(
@@ -121,8 +122,8 @@ export function httpAlertesService(
     async lire() {
       const r = await call('/ops/alertes', { method: 'GET' });
       if (r.kind !== 'ok') return r;
-      const alertes = alertesDe(r.body);
-      return alertes === null ? { kind: 'refused', reason: 'unreadable' } : { kind: 'ok', alertes };
+      const lu = alertesDe(r.body);
+      return lu === null ? { kind: 'refused', reason: 'unreadable' } : { kind: 'ok', ...lu };
     },
 
     async marquerVu(id) {

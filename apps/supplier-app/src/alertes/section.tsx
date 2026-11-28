@@ -17,8 +17,9 @@ import { ligneCommande, phraseDepuis, phraseGarde, suiteAlerte, titreAlerte } fr
  * the rider SOS strip that sits above every tab. While Séra holds an alert
  * open, it shows here, in Séra's order, until Séra itself answers his
  * « J'ai vu » with the alert closed. Every state is said, never implied: not
- * linked to Séra, no Séra key on this browser, Séra not answering. With
- * nothing open, the section takes no space.
+ * linked to Séra, no Séra key on this browser, Séra not answering, an entry
+ * of Séra's list it could not read. With nothing open, the section takes no
+ * space.
  *
  * A refused key never takes an alert away: what was shown was read from Séra,
  * and Séra still holds it open. It re-reads once a minute while the page is
@@ -28,7 +29,7 @@ import { ligneCommande, phraseDepuis, phraseGarde, suiteAlerte, titreAlerte } fr
 const TITRE = role({ f: 'BG', w: 800, s: 15 }, P.ink);
 const CORPS = role({ f: 'IS', w: 400, s: 13 }, P.sub);
 
-type Envoi = 'envoi' | 'echec';
+type Envoi = 'envoi' | 'echec' | 'sans_cle';
 
 export function SAlertesSera() {
   const base = process.env.EXPO_PUBLIC_SERA_LOGISTICS_BASE;
@@ -36,6 +37,7 @@ export function SAlertesSera() {
   const [cle, setCle] = useState<string | null>(() => readStoredCleCoursiers());
   const [alertes, setAlertes] = useState<readonly AlerteOuverte[]>([]);
   const [illisible, setIllisible] = useState(false);
+  const [entreesIllisibles, setEntreesIllisibles] = useState(false);
   const [dernierLu, setDernierLu] = useState<string | null>(null);
   const [envois, setEnvois] = useState<Readonly<Record<string, Envoi>>>({});
   const lectureEnCours = useRef(false);
@@ -86,6 +88,7 @@ export function SAlertesSera() {
         return;
       }
       setAlertes(lu.alertes.filter((a) => !fermees.current.has(a.id)));
+      setEntreesIllisibles(lu.entreesIllisibles);
       setIllisible(false);
       setDernierLu(new Date().toISOString());
     } finally {
@@ -108,9 +111,13 @@ export function SAlertesSera() {
   const marquerVu = useCallback(async (id: string): Promise<void> => {
     if (envoisEnCours.current.has(id)) return;
     const k = readStoredCleCoursiers();
-    const service = k === null ? null : resolveAlertesService(k);
-    if (k === null || service === null) {
-      // No key to close it with: say so on the card, never a button that does nothing.
+    if (k === null) {
+      // No key to close it with: the card says where the key goes, and nothing is sent.
+      setEnvois((e) => ({ ...e, [id]: 'sans_cle' }));
+      return;
+    }
+    const service = resolveAlertesService(k);
+    if (service === null) {
       setEnvois((e) => ({ ...e, [id]: 'echec' }));
       return;
     }
@@ -139,7 +146,7 @@ export function SAlertesSera() {
 
   if (!relie) return <Ligne texte={t('alertes.pas_relie')} />;
   if (cle === null && alertes.length === 0) return <Ligne texte={t('alertes.sans_cle')} />;
-  if (alertes.length === 0 && !illisible) return null;
+  if (alertes.length === 0 && !illisible && !entreesIllisibles) return null;
   const maintenant = new Date();
   return (
     <>
@@ -150,6 +157,8 @@ export function SAlertesSera() {
             ? t('alertes.illisible')
             : t('alertes.illisible_depuis').replace('{quand}', quandOuaga(dernierLu, maintenant))}
         />
+      ) : entreesIllisibles ? (
+        <Ligne texte={t('alertes.illisible')} />
       ) : null}
       {alertes.map((a) => (
         <CarteAlerte key={a.id} a={a} maintenant={maintenant} envoi={envois[a.id]} onVu={() => void marquerVu(a.id)} />
@@ -174,6 +183,7 @@ function CarteAlerte({ a, maintenant, envoi, onVu }: { a: AlerteOuverte; mainten
       {garde !== null ? <Text style={CORPS}>{garde}</Text> : null}
       {suite !== null ? <Text style={CORPS}>{suite}</Text> : null}
       {envoi === 'echec' ? <Text style={CORPS}>{t('alertes.ack_echec')}</Text> : null}
+      {envoi === 'sans_cle' ? <Text style={CORPS}>{t('alertes.sans_cle')}</Text> : null}
       <C07BtnPrimary
         label={envoi === 'envoi' ? t('sos.envoi') : t('alertes.vu')}
         icon="check"

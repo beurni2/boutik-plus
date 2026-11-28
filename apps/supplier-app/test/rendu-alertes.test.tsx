@@ -12,8 +12,10 @@ import { AppV2 } from '../src/v2/AppV2';
  * not linked to Séra, no Séra key on this browser, or Séra not answering.
  *
  * Every door at Séra's base meets a network fault here — no recording exists
- * for the alerts door, and an outage is never kinder than the door. What the
- * real Worker answers is walked in `rendu-alertes.e2e.test.tsx`. Boutik+'s own
+ * for the alerts door, and an outage is never kinder than the door. The one
+ * exception answers the list with an entry the real Worker never sends, one
+ * the console cannot read: harsher than the door, never kinder. What the real
+ * Worker answers is walked in `rendu-alertes.e2e.test.tsx`. Boutik+'s own
  * services go to the harness's routes, unrouted.
  *
  * Bound: nothing here claims how anything LOOKS.
@@ -29,9 +31,10 @@ const ILLISIBLE = "Les alertes Séra n'ont pas pu être lues. La console réessa
 const MASTHEAD = 'La page se met à jour toute seule, chaque minute.';
 const PERDU = 'Colis perdu en route';
 const VU = "J'ai vu";
+const TITRE = 'Colis prêt, sans course';
 
-/** Séra's base answers nothing; every request to it is kept, with its key. */
-function brancher(): { sera: { path: string; auth: string | null }[] } {
+/** Séra's base answers nothing (or, when given, this list on the alerts door); every request to it is kept, with its key. */
+function brancher(liste?: unknown[]): { sera: { path: string; auth: string | null }[] } {
   wire([]);
   const viaWire = (globalThis as { fetch: (i: string, init?: RequestInit) => Promise<Response> }).fetch;
   const sera: { path: string; auth: string | null }[] = [];
@@ -39,6 +42,7 @@ function brancher(): { sera: { path: string; auth: string | null }[] } {
     const url = new URL(input);
     if (url.origin === new URL(SERA_BASE).origin) {
       sera.push({ path: url.pathname, auth: new Headers(init?.headers).get('Authorization') });
+      if (liste !== undefined && url.pathname === '/ops/alertes') return Response.json({ alertes: liste });
       throw new TypeError('Failed to fetch');
     }
     return viaWire(input, init);
@@ -135,6 +139,32 @@ describe('Séra\'s alerts on Opérations: each state it cannot read says so, and
     const lus = w.sera.filter((c) => c.path === '/ops/alertes');
     expect(lus.length, 'the alerts were asked for').toBeGreaterThan(0);
     expect(lus.every((c) => c.auth === 'Bearer cle-sera-du-fondateur'), 'on his Séra key, in the Authorization header').toBe(true);
+    screen.unmount();
+  }, 20_000);
+
+  const BON = { id: 'ready_package_no_task:ord-lisible:2026-11-28T13:55:00.000Z', scenario: 'ready_package_no_task', orderId: 'ord-lisible', since: '2026-11-28T13:55:00.000Z' };
+  const INCONNU = { id: 'un_probleme_nouveau:ord-9', scenario: 'un_probleme_nouveau', orderId: 'ord-9', since: '2026-11-28T14:00:00.000Z' };
+
+  it('an entry it cannot read beside a good one: the good alert shows, and so does the « could not be read » sentence', async () => {
+    storage({ [CLE_OPS]: 'cle-ops-fondateur', [CLE_SERA]: 'cle-sera-du-fondateur' });
+    brancher([BON, INCONNU]);
+    const screen = await ouvrirOperations();
+    await attendre(screen, () => screen.shows(TITRE) && screen.shows(ILLISIBLE), 'the good alert and the sentence');
+    expect(screen.shows('Commande ord-lisible')).toBe(true);
+    expect(screen.canPress(VU), 'the alert it read can be closed').toBe(true);
+    expect(rang(screen, ILLISIBLE), 'the sentence first, above the alert').toBeLessThan(rang(screen, TITRE));
+    expect(screen.texts().some((t) => t.includes('un_probleme_nouveau') || t.includes('ord-9')), 'nothing of the unread entry is guessed').toBe(false);
+    await partout(screen);
+    screen.unmount();
+  }, 20_000);
+
+  it('only entries it cannot read: the « could not be read » sentence, never an empty section that looks like nothing open', async () => {
+    storage({ [CLE_OPS]: 'cle-ops-fondateur', [CLE_SERA]: 'cle-sera-du-fondateur' });
+    brancher([INCONNU]);
+    const screen = await ouvrirOperations();
+    await partout(screen);
+    await attendre(screen, () => screen.shows(ILLISIBLE), 'the « could not be read » sentence');
+    enTete(screen, ILLISIBLE);
     screen.unmount();
   }, 20_000);
 });
