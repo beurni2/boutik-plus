@@ -18,3 +18,7 @@ import type { ImageRef } from 'expo-image-manipulator';
 export async function surPapier(image: ImageRef): Promise<ImageRef> {
   return image;
 }
+
+/** PHOTOS LÉGÈRES — the phone's half: its renders and saves hold no object
+ *  URL, so there is nothing to free (`papier.web.ts` frees the web's). */
+export function libererImage(_rendu: object): void {}

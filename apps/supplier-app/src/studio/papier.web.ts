@@ -30,3 +30,14 @@ export async function surPapier(image: ImageRef): Promise<ImageRef> {
   if (typeof uri === 'string' && uri.startsWith('blob:')) URL.revokeObjectURL(uri);
   return pose;
 }
+
+/**
+ * PHOTOS LÉGÈRES — free a render or a save the budget ladder is done with.
+ * Each one the library made holds an object URL for the page's life, and the
+ * ladder can save one photo sixteen times. Only a `blob:` URL is freed; a data
+ * URI holds nothing to free.
+ */
+export function libererImage(rendu: object): void {
+  const uri = (rendu as { uri?: unknown }).uri;
+  if (typeof uri === 'string' && uri.startsWith('blob:')) URL.revokeObjectURL(uri);
+}

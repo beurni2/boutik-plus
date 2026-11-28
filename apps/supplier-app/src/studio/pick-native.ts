@@ -1,6 +1,6 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { surPapier } from './papier';
-import { DERIVATIVE_SPEC_V1, type ResizeAction } from './normalization';
+import { libererImage, surPapier } from './papier';
+import { PHOTO_LADDER, saveWithinBudget, type ResizeAction } from './normalization';
 import type { ImageSourcePort } from './pick';
 
 /**
@@ -82,11 +82,15 @@ export const nativeImageSource: ImageSourcePort = {
     for (const action of actions) ctx.resize(action.resize);
     // A gallery PNG or WebP can be see-through: laid on paper, never black (F-49).
     const rendered = await surPapier(await ctx.renderAsync());
-    const saved = await rendered.saveAsync({
-      compress: DERIVATIVE_SPEC_V1.compress,
-      format: SaveFormat.JPEG,
-      base64: true,
-    });
+    // Its role is not known yet (proof, detail, or a readiness proof): held to
+    // the full-view row. A smaller edge resizes this render, never the file.
+    const saved = await saveWithinBudget(
+      rendered,
+      PHOTO_LADDER,
+      (image, compress) => image.saveAsync({ compress, format: SaveFormat.JPEG, base64: true }),
+      (image, step) => ImageManipulator.manipulate(image).resize(step.resize).renderAsync(),
+      libererImage,
+    );
     return { base64: saved.base64 ?? '', width: saved.width, height: saved.height };
   },
 };

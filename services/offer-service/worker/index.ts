@@ -1,6 +1,7 @@
 import offerRouter, { OfferDO } from './offer-do.js';
-import { BOOK_NAME, FulfillmentDO, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderAnnuler, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
-import { makeSupplyFetch, OPAQUE_MEDIA_REF } from '../src/supply-endpoint.js';
+import { BOOK_NAME, FulfillmentDO, ORDER_ID_MINTED, nomDErreur, forwardOpsCodeAdmin, forwardSupplierAct, handleDeliveredIntake, handleOrderConfirmedIntake, handleRefusedIntake, handleOrderAnnuler, handleOrderEvidence, handleOrderRetirer, handlePaidOrdersList, handleRelance, handleSupplierCodesList, handleSupplierContactSet, handleSupplierContactsList, resolveSupplierIdByCode, supplierHasActiveCode } from './fulfillment-do.js';
+import { CORRELATION_HEADER, createLogger, makeHealthFetch, type LogSink } from '@boutik/observability';
+import { makeSupplyFetch, OPAQUE_MEDIA_REF, SERVICE_NAME } from '../src/supply-endpoint.js';
 import { handleSupplyGrouping } from '../src/supply-grouping.js';
 import { stockDueMs } from '../src/stock-freeze.js';
 import type { AttestedSuppliersEnv } from '../src/attested-suppliers.js';
@@ -431,10 +432,75 @@ function withCors(res: Response): Response {
   return new Response(res.body, { status: res.status, headers });
 }
 
+/** Matches the value the Shop+ logger uses: a correlation id longer than this is cut on the line. */
+const CORRELATION_ID_MAX = 64;
+
+/** Every route this Worker answers, by its template: the only route a line may name. */
+const ROUTES = new Set([
+  '/supply-grouping', '/supply-projections',
+  '/fulfillment/order-confirmed', '/fulfillment/delivered', '/fulfillment/delivery-refused',
+  '/fulfillment/stock-hold', '/fulfillment/stock-hold/release',
+  '/fulfillment/orders', '/fulfillment/order-evidence', '/fulfillment/repere-audio',
+  '/fulfillment/supplier-contact', '/fulfillment/supplier-contacts', '/fulfillment/relance',
+  '/fulfillment/order/retirer', '/fulfillment/order/annuler',
+  '/offers/inventaire', '/offers/stock', '/offers/stock/attente', '/offers/prolonger', '/offers/journal',
+  '/fulfillment/supplier-codes', '/fulfillment/supplier-code', '/fulfillment/supplier/effacer',
+  '/fulfillment/supplier-code/revoke', '/fulfillment/supplier-acces/suite', '/fulfillment/supplier-code/reveal',
+  '/fulfillment/mine', '/offers/mine',
+  '/fulfillment/accept', '/fulfillment/refuse', '/fulfillment/ready/challenge', '/fulfillment/ready',
+  '/fulfillment/ramassage/verify', '/fulfillment/retour/verify',
+  '/offers', '/offers/assets', '/offers/delete',
+  '/health',
+]);
+const ROUTE_PROJECTION = /^\/supply-projection\/[^/]+$/;
+const routeDe = (pathname: string): string =>
+  ROUTES.has(pathname) ? pathname : ROUTE_PROJECTION.test(pathname) ? '/supply-projection/:id' : 'unmatched';
+
+const METHODES = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+const niveauDe = (status: number): 'info' | 'warn' | 'error' =>
+  status >= 500 ? 'error' : status === 401 || status === 403 || status === 413 || status === 429 ? 'warn' : 'info';
+
+/** The health door's own lines are muted: the request line below is its line. */
+const sansLigne: LogSink = () => {};
+
+/**
+ * One JSON line per request: the route's template, the method, the status and
+ * the time it took — never the path, the query, a header or a body. The order
+ * id rides only on the evidence read, from its query, in the shape Shop+ mints.
+ */
+function journalRequete(request: Request, debut: number, issue: { reponse: Response } | { erreur: unknown }): void {
+  const url = new URL(request.url);
+  const reponse = 'reponse' in issue ? issue.reponse : null;
+  const correlationId = (reponse?.headers.get(CORRELATION_HEADER) ?? request.headers.get(CORRELATION_HEADER) ?? crypto.randomUUID())
+    .slice(0, CORRELATION_ID_MAX);
+  const route = routeDe(url.pathname);
+  const orderId = request.method === 'GET' && route === '/fulfillment/order-evidence' ? url.searchParams.get('orderId') : null;
+  const status = reponse?.status ?? 500;
+  const fields = {
+    route,
+    method: METHODES.has(request.method) ? request.method : 'OTHER',
+    status,
+    durationMs: Date.now() - debut,
+    ...(orderId !== null && ORDER_ID_MINTED.test(orderId) ? { orderId } : {}),
+    ...('erreur' in issue ? { error: nomDErreur(issue.erreur) } : {}),
+  };
+  createLogger({ service: SERVICE_NAME, correlationId })[niveauDe(status)]('request', fields);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
-    return withCors(await handle(request, env));
+    const debut = Date.now();
+    let reponse: Response;
+    try {
+      reponse = request.method === 'OPTIONS'
+        ? new Response(null, { status: 204, headers: CORS_HEADERS })
+        : withCors(await handle(request, env));
+    } catch (erreur) {
+      journalRequete(request, debut, { erreur });
+      throw erreur;
+    }
+    journalRequete(request, debut, { reponse });
+    return reponse;
   },
 };
 
@@ -873,5 +939,5 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // STOCK-JOURNAL-1 — the reconfirmation window rides into the SAME ladder
     // his list reads, so Shop+ and his console can never disagree about a
     // frozen product.
-    return makeSupplyFetch(store, undefined, undefined, undefined, env, stockDueMs(env))(request);
+    return makeSupplyFetch(store, undefined, makeHealthFetch(SERVICE_NAME, sansLigne), undefined, env, stockDueMs(env))(request);
 }

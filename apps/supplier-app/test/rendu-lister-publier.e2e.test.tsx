@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { act } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { mountEcran, storage, wiredEnv, type Screen } from './rendu';
-import { armerManipulateur } from './doubles/expo-image-manipulator';
+import { armerManipulateur, armerManipulateurMesure, journalManipulateur, jpegDeTaille, octetsBornes } from './doubles/expo-image-manipulator';
 import { armerLectureDataUri, desarmerLecture } from './doubles/expo-file-system';
 import { armerSelecteur, desarmerSelecteur } from './doubles/expo-image-picker';
 import { armerPermissionCamera } from './doubles/expo-camera';
@@ -402,4 +402,100 @@ describe('a clip that still says where it was filmed — refused by the real med
     expect((await inventaire()).some((r) => r.name === nom), 'ASK THE LEDGER: the product is published').toBe(true);
     screen.unmount();
   }, 30_000);
+});
+
+/* ───────────── photos légères: what uploads fits its budget ───────────── */
+
+/**
+ * PERF-BUDGETS « Image sizes » on the real publish: both hero crops ≤ 80 KB,
+ * the proof and the detail ≤ 150 KB, every vignette ≤ 15 KB — asked of the
+ * media Worker's own read route, never of the screen. The image library is
+ * doubled in MEASURED mode at `densite` 2 (a photograph twice as busy as the
+ * measured frame), so every first save at 0.8 is over its budget.
+ */
+describe('photos légères — every photograph « Publier » sends fits its budget, and the preview is what shipped', () => {
+  /** A gallery master: a tiny JPEG whose own SOF says 4000×3000, as a 12 MP phone photo. */
+  const MAITRE = `data:image/jpeg;base64,${bytesToBase64(jpegDeTaille(4000, 3000, 400))}`;
+  const HERO = 80 * 1024;
+  const PLEINE = 150 * 1024;
+  const VIGNETTE = 15 * 1024;
+
+  it('hero crops ≤ 80 KB · proof and detail ≤ 150 KB · each vignette ≤ 15 KB and stored · the proof that shipped is the one he saw', async () => {
+    expect(octetsBornes(1280, 1280, 0.8, 2), 'precondition: the hero’s first save is over budget').toBeGreaterThan(HERO);
+    expect(octetsBornes(1280, 960, 0.8, 2), 'precondition: the proof’s first save is over budget').toBeGreaterThan(PLEINE);
+    expect(octetsBornes(320, 320, 0.8, 2), 'precondition: a vignette’s first save is over budget').toBeGreaterThan(VIGNETTE);
+    const code = await resolveOperationsService()!.mintCode(OPS, SUPPLIER_ID);
+    expect(code.ok, JSON.stringify(code)).toBe(true);
+    armerManipulateurMesure({ source: { width: 4000, height: 3000 }, densite: 2 });
+    appels.length = 0;
+
+    const nom = 'Sac en raphia, photos légères';
+    const screen = await mountEcran(<Coquille />);
+    await screen.press('Continuer');
+    await screen.type(nom, t('publier.champ_nom'));
+    await screen.press('Continuer');
+    await screen.type('12000', t('publier.champ_prix'));
+    await screen.type('1000', t('publier.ligne_commission'));
+    await attendre(screen, () => screen.canPress('Continuer'), '« Continuer » after his figures');
+    await screen.press('Continuer');
+    await screen.press(t('publier.ouvrir_studio'));
+    armerSelecteur(Array.from({ length: 3 }, (_, i) => ({ uri: MAITRE, mimeType: 'image/jpeg', fileName: `sac-${i + 1}.jpg` })));
+    await screen.press(t('studio.depuis_telephone'));
+    await attendre(screen, () => screen.canPress(t('studio.continuer')), 'the Studio taking his three photos');
+    await screen.press(t('studio.continuer'));
+    await attendre(screen, () => etat.st?.view?.s === 'add', 'the Studio handing his photos back');
+    await screen.press('Continuer');
+    // What his last check shows: the photographs he is about to send.
+    const vues = new Set(screen.images().filter((u) => u.startsWith('data:image/jpeg;base64,')).map((u) => u.slice(u.indexOf(',') + 1)));
+    expect(vues.size, 'the last check shows his photographs').toBeGreaterThan(0);
+    // His first photograph is held at the media door. Both hero crops render
+    // before it goes, so by then their extra saves have run — and what he sees
+    // while they run is the send's one honest line, with nothing to press.
+    const sauvegardes = (): number => journalManipulateur().filter((e) => e[0] === 'saveAsync').length;
+    let lacher!: () => void;
+    const porte = new Promise<void>((r) => { lacher = r; });
+    let tenue = false;
+    const routee = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (!tenue && init?.method === 'POST' && new URL(String(url)).pathname === '/media') {
+        tenue = true;
+        await porte;
+      }
+      return routee(url, init);
+    }) as typeof globalThis.fetch;
+    await screen.press(CONFIRMATION);
+    const avantPublier = sauvegardes();
+    await screen.press(PUBLIER);
+    await attendre(screen, () => tenue, 'his first photograph reaching the media door');
+    // 15 for the square (it ships at 720 px, q0.6) and 12 for the 4:5 (900 px, q0.5).
+    expect(sauvegardes() - avantPublier, 'both hero crops saved again, under the pending line').toBe(27);
+    expect(screen.shows(t('publier.envoi')), 'while they run: « Envoi en cours… »').toBe(true);
+    expect(screen.canPress(PUBLIER), 'no live-looking « Publier » under it').toBe(false);
+    lacher();
+    await attendre(screen, () => screen.shows(t('publier.publie')), '« C’est publié »');
+
+    const ligne = (await inventaire()).find((r) => r.name === nom);
+    expect(ligne, 'ASK THE LEDGER: the product is published').toBeDefined();
+    const refs = ligne!.assetRefs.filter((r) => !r.startsWith('private/'));
+    expect(refs, 'heroSquare · heroVertical · proof · detail').toHaveLength(4);
+    const lire = async (url: string): Promise<Uint8Array> => {
+      const res = await media.dispatchFetch(url);
+      expect(res.status, url).toBe(200);
+      return new Uint8Array(await res.arrayBuffer());
+    };
+    const budgets = [HERO, HERO, PLEINE, PLEINE];
+    for (const [i, ref] of refs.entries()) {
+      const photo = await lire(`http://media/${ref}`);
+      expect(photo.byteLength, `ASK THE MEDIA WORKER: ${['heroSquare', 'heroVertical', 'proof', 'detail'][i]} as stored`).toBeLessThanOrEqual(budgets[i]!);
+      const petite = await lire(`http://media/${ref}?v=thumb`);
+      expect(petite.byteLength, `the vignette of ${ref}`).toBeLessThanOrEqual(VIGNETTE);
+      expect(petite.byteLength, 'a stored vignette, not the photograph served in its place').not.toBe(photo.byteLength);
+    }
+    const preuve = Buffer.from(await lire(`http://media/${refs[2]}`)).toString('base64');
+    expect(vues.has(preuve), 'the proof that shipped is the photograph his last check showed').toBe(true);
+    const qualites = journalManipulateur().filter((e) => e[0] === 'saveAsync').map((e) => (e[1] as { compress: number }).compress);
+    expect(qualites[0]).toBe(0.8);
+    expect(qualites.some((q) => q < 0.8), 'a save over budget was saved again').toBe(true);
+    screen.unmount();
+  }, 60_000);
 });

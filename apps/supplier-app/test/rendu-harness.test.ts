@@ -16,6 +16,7 @@ import { createElement, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 import { mountEcran, substitutsRefuses, wire } from './rendu';
 import { avecLimite } from '../src/ui/limite-erreur';
+import { metricsActions, stripJpegMetadata } from '../src/studio/normalization';
 
 /**
  * ═══ RENDU-RÉEL — the harness holds ITSELF to the mock-certification law ═══
@@ -351,5 +352,94 @@ describe('sansNom — the harness can tell a nameless control from a named one',
     expect(trouves, 'the picture-only button must be reported — else every « every control has a name » walk is blind').toHaveLength(1);
     expect(trouves[0]).toMatch(/Pressable.*Image/);
     screen.unmount();
+  });
+});
+
+/**
+ * PHOTOS LÉGÈRES — the image stand-in's MEASURED mode is certified against the
+ * one measurement made: a desktop libjpeg-turbo (IJG quality scale, 4:2:0, no
+ * Huffman optimisation) over a synthetic photo-like frame, outside this
+ * repository. The values below are that measurement — the LARGEST bits per
+ * pixel over every geometry each rung meets. The stand-in may be harsher than
+ * them, never kinder. A real phone's encoder was not measured.
+ */
+describe('the image stand-in’s byte bound is never kinder than the measured encoder', () => {
+  const MESURE_BPP: Record<number, Record<number, number>> = {
+    1280: { 0.8: 0.739, 0.7: 0.5724, 0.6: 0.4755, 0.5: 0.4175 },
+    1080: { 0.8: 0.7712, 0.7: 0.6085, 0.6: 0.5093, 0.5: 0.4478 },
+    900: { 0.8: 0.8238, 0.7: 0.6587, 0.6: 0.554, 0.5: 0.4883 },
+    720: { 0.8: 0.8848, 0.7: 0.7143, 0.6: 0.6071, 0.5: 0.542 },
+    320: { 0.8: 1.172, 0.7: 0.9585, 0.6: 0.8184, 0.5: 0.7314 },
+    280: { 0.8: 1.2178, 0.7: 0.9995, 0.6: 0.8687, 0.5: 0.7788 },
+    240: { 0.8: 1.3409, 0.7: 1.1031, 0.6: 0.9378, 0.5: 0.8309 },
+  };
+  /** The heaviest measured saves, in bytes, at their own size. */
+  const MESURE_OCTETS: readonly [number, number, number, number][] = [
+    [1280, 1280, 0.8, 130_477], [1280, 1280, 0.7, 100_522], [1280, 1280, 0.6, 83_817], [1280, 1280, 0.5, 74_109],
+    [960, 1280, 0.8, 113_512], [960, 1280, 0.7, 87_921], [960, 1280, 0.6, 73_035], [960, 1280, 0.5, 64_122],
+    [320, 320, 0.8, 13_144], [280, 280, 0.8, 10_698], [240, 240, 0.8, 8_452],
+  ];
+
+  it('every cell of the bound is at or above the measured value, and every heaviest measured save fits under it', () => {
+    expect(Object.keys(imgDouble.BORNE_BPP).map(Number).sort()).toEqual(Object.keys(MESURE_BPP).map(Number).sort());
+    for (const [bord, ligne] of Object.entries(MESURE_BPP)) {
+      for (const [q, mesure] of Object.entries(ligne)) {
+        expect(imgDouble.BORNE_BPP[Number(bord)]![Number(q)], `${bord} px at ${q}`).toBeGreaterThanOrEqual(mesure);
+      }
+    }
+    for (const [w, h, q, octets] of MESURE_OCTETS) {
+      expect(imgDouble.octetsBornes(w, h, q), `${w}×${h} at ${q}`).toBeGreaterThanOrEqual(octets);
+    }
+  });
+
+  it('refuses to be kinder: a density under 1 and a quality nobody measured both throw', () => {
+    expect(() => imgDouble.octetsBornes(1280, 960, 0.8, 0.5)).toThrow(/kinder/);
+    expect(() => imgDouble.armerManipulateurMesure({ source: { width: 4000, height: 3000 }, densite: 0.9 })).toThrow(/kinder/);
+    expect(() => imgDouble.octetsBornes(1280, 960, 0.75)).toThrow(/uncertified/);
+    imgDouble.armerManipulateur(null);
+  });
+
+  it('its frame is a JPEG the app’s own strip keeps byte for byte, at exactly the length and size it claims', () => {
+    const jpeg = imgDouble.jpegDeTaille(1080, 810, 5_000);
+    expect(jpeg.byteLength).toBe(5_000);
+    expect(stripJpegMetadata(jpeg)).toEqual(jpeg);
+    // SOI (2) + DQT (69) → the SOF marker at 71; height at 76-77, width at 78-79.
+    expect([jpeg[71], jpeg[72]]).toEqual([0xff, 0xc0]);
+    expect([(jpeg[76]! << 8) | jpeg[77]!, (jpeg[78]! << 8) | jpeg[79]!], 'SOF height, width').toEqual([810, 1080]);
+  });
+
+  it('between two measured rows it is held to the HEAVIER neighbour, never the lighter one', () => {
+    const rangs = Object.keys(imgDouble.BORNE_BPP).map(Number).sort((a, b) => b - a);
+    for (const long of [1200, 1000, 800, 500, 300, 260]) {
+      const dessus = rangs.filter((e) => e > long).at(-1)!;
+      const dessous = rangs.find((e) => e < long)!;
+      for (const q of [0.8, 0.7, 0.6, 0.5]) {
+        const bpp = Math.max(imgDouble.BORNE_BPP[dessus]![q]!, imgDouble.BORNE_BPP[dessous]![q]!);
+        for (const [w, h] of [[long, long], [long, Math.round((long * 3) / 4)], [Math.round((long * 3) / 4), long]] as const) {
+          expect(imgDouble.octetsBornes(w, h, q), `${w}×${h} at ${q}, between ${dessus} and ${dessous} px`).toBeGreaterThanOrEqual(Math.ceil((w * h * bpp) / 8));
+        }
+      }
+    }
+  });
+
+  it('under its smallest measured row it refuses — except the guidance frame, which never uploads', async () => {
+    type Rendu = { saveAsync(o: { compress: number }): Promise<{ base64: string }> };
+    type Ctx = { resize(s: { width?: number; height?: number }): Ctx; renderAsync(): Promise<Rendu> };
+    const ouvrir = (): Ctx => imgDouble.ImageManipulator.manipulate('file:///maitre.jpg') as unknown as Ctx;
+    expect(() => imgDouble.octetsBornes(239, 179, 0.8)).toThrow(/uncertified/);
+    expect(() => imgDouble.octetsBornes(200, 200, 0.5)).toThrow(/uncertified/);
+    for (const source of [{ width: 4000, height: 3000 }, { width: 3000, height: 4000 }]) {
+      imgDouble.armerManipulateurMesure({ source });
+      await expect((await ouvrir().resize({ width: 200, height: 150 }).renderAsync()).saveAsync({ compress: 0.8 }), 'a 200 px save').rejects.toThrow(/uncertified/);
+      const trame = await (await ouvrir().resize(metricsActions()[0]!.resize).renderAsync()).saveAsync({ compress: 0.8 });
+      expect(trame.base64.length, `the guidance frame of a ${source.width}×${source.height} master`).toBeGreaterThan(0);
+    }
+    imgDouble.armerManipulateur(null);
+  });
+
+  it('and it states its own bound — measured on a synthetic frame, not on a phone', () => {
+    const src = readFileSync(join(appDir, 'test/doubles/expo-image-manipulator.ts'), 'utf8');
+    expect(src).toContain("a real phone's encoder was not measured");
+    expect(src).toContain('SYNTHETIC photo-like');
   });
 });

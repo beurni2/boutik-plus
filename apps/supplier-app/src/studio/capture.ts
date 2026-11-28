@@ -1,16 +1,21 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import type { CameraView } from 'expo-camera';
 import {
   DERIVATIVE_SPEC_V1,
+  HERO_LADDER,
+  PHOTO_LADDER,
+  VIGNETTE_LADDER,
   assertExifFree,
   base64ToBytes,
   bytesToBase64,
   derivativeActions,
   metricsActions,
+  saveWithinBudget,
   stripJpegMetadata,
   thumbActions,
+  type ResizeAction,
 } from './normalization';
-import { surPapier } from './papier';
+import { libererImage, surPapier } from './papier';
 import { guidanceFor, type FrameMetrics, type GuidanceVerdict } from './guidance';
 
 /**
@@ -48,13 +53,20 @@ export interface CaptureResult {
   guidance: { verdict: GuidanceVerdict; key: string };
 }
 
+/** One step down a budget ladder: the image ALREADY rendered, resized — never
+ *  a second decode of the master, and on the web already laid on paper. */
+function plusPetite(image: ImageRef, step: ResizeAction): Promise<ImageRef> {
+  return ImageManipulator.manipulate(image).resize(step.resize).renderAsync();
+}
+
 /** The single transform seam — exactly one manipulator render for the
- * derivative; a second tiny render for the metrics frame only. */
+ * derivative; a second tiny render for the metrics frame only. A camera shot is
+ * held to the full-view row, like every photograph that is not a hero crop. */
 async function renderDerivative(masterUri: string, width: number, height: number) {
   const ctx = ImageManipulator.manipulate(masterUri);
   for (const action of derivativeActions(width, height)) ctx.resize(action.resize);
   const image = await ctx.renderAsync();
-  return image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
+  return saveWithinBudget(image, PHOTO_LADDER, (im, compress) => im.saveAsync({ compress, format: SaveFormat.JPEG, base64: true }), plusPetite, libererImage);
 }
 
 async function renderMetricsFrame(masterUri: string) {
@@ -126,7 +138,8 @@ export async function renderCropDerivative(
   for (const action of derivativeActions(rect.width, rect.height)) ctx.resize(action.resize);
   // A picked master can be see-through: on the web it is laid on paper (F-49).
   const image = await surPapier(await ctx.renderAsync());
-  const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
+  // Both hero crops are held to the hero row: the buyer site shows them large.
+  const saved = await saveWithinBudget(image, HERO_LADDER, (im, compress) => im.saveAsync({ compress, format: SaveFormat.JPEG, base64: true }), plusPetite, libererImage);
   const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
   assertExifFree(stripped); // fail-closed — a crop that cannot be proven clean does not exist
   return {
@@ -163,7 +176,7 @@ export async function renderThumbDerivative(
   const ctx = ImageManipulator.manipulate(derivativeUri);
   for (const action of thumbActions(width, height)) ctx.resize(action.resize);
   const image = await ctx.renderAsync();
-  const saved = await image.saveAsync({ compress: DERIVATIVE_SPEC_V1.compress, format: SaveFormat.JPEG, base64: true });
+  const saved = await saveWithinBudget(image, VIGNETTE_LADDER, (im, compress) => im.saveAsync({ compress, format: SaveFormat.JPEG, base64: true }), plusPetite, libererImage);
   const stripped = stripJpegMetadata(base64ToBytes(saved.base64 ?? ''));
   assertExifFree(stripped); // fail-closed, same post-condition as every derivative
   return {

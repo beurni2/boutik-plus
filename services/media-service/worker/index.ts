@@ -1,4 +1,4 @@
-import { makeHealthFetch } from '@boutik/observability';
+import { CORRELATION_HEADER, createLogger, makeHealthFetch, type LogSink } from '@boutik/observability';
 import { isOpaqueMediaKey, MEDIA_KEY_PREFIX } from '../src/media-key.js';
 import { resolveMediaStore, type R2BucketLike, type R2RangeLike } from '../src/media-store.js';
 import { ProductMediaService, THUMB_WRITE_WINDOW_MS, thumbKeyFor } from '../src/media.js';
@@ -418,7 +418,10 @@ export async function handleAudioRead(request: Request, env: MediaWorkerEnv): Pr
   });
 }
 
-const health = makeHealthFetch('media-service');
+const SERVICE_NAME = 'media-service';
+/** The health door's own lines are muted: the request line below is its line. */
+const sansLigne: LogSink = () => {};
+const health = makeHealthFetch(SERVICE_NAME, sansLigne);
 
 /** The upload route's path. A bare collection path — it can never carry a key. */
 export const UPLOAD_PATH = '/media';
@@ -683,10 +686,51 @@ function withCors(res: Response): Response {
   return new Response(res.body, { status: res.status, headers });
 }
 
+/** Matches the value the Shop+ logger uses: a correlation id longer than this is cut on the line. */
+const CORRELATION_ID_MAX = 64;
+
+/** Every route this Worker answers, by its template: never a key, never the raw path. */
+const ROUTES = new Set([UPLOAD_PATH, VIDEO_UPLOAD_PATH, AUDIO_UPLOAD_PATH, THUMB_UPLOAD_PATH, REVOKE_PATH, '/health']);
+const ROUTE_CLE = /^\/media\/[^/]+$/;
+const routeDe = (pathname: string): string =>
+  ROUTES.has(pathname) ? pathname : ROUTE_CLE.test(pathname) ? '/media/:key' : 'unmatched';
+
+const METHODES = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+const niveauDe = (status: number): 'info' | 'warn' | 'error' =>
+  status >= 500 ? 'error' : status === 401 || status === 403 || status === 413 || status === 429 ? 'warn' : 'info';
+
+/**
+ * One JSON line per request: the route's template, the method, the status and
+ * the time it took — never the path, the query, a header or a body.
+ */
+function journalRequete(request: Request, debut: number, issue: { reponse: Response } | { erreur: unknown }): void {
+  const reponse = 'reponse' in issue ? issue.reponse : null;
+  const correlationId = (reponse?.headers.get(CORRELATION_HEADER) ?? request.headers.get(CORRELATION_HEADER) ?? crypto.randomUUID())
+    .slice(0, CORRELATION_ID_MAX);
+  const status = reponse?.status ?? 500;
+  createLogger({ service: SERVICE_NAME, correlationId })[niveauDe(status)]('request', {
+    route: routeDe(new URL(request.url).pathname),
+    method: METHODES.has(request.method) ? request.method : 'OTHER',
+    status,
+    durationMs: Date.now() - debut,
+    ...('erreur' in issue ? { error: issue.erreur instanceof Error ? issue.erreur.name : 'error' } : {}),
+  });
+}
+
 export default {
   async fetch(request: Request, env: MediaWorkerEnv & MediaWriteAuthEnv, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
-    return withCors(await handle(request, env, ctx));
+    const debut = Date.now();
+    let reponse: Response;
+    try {
+      reponse = request.method === 'OPTIONS'
+        ? new Response(null, { status: 204, headers: CORS_HEADERS })
+        : withCors(await handle(request, env, ctx));
+    } catch (erreur) {
+      journalRequete(request, debut, { erreur });
+      throw erreur;
+    }
+    journalRequete(request, debut, { reponse });
+    return reponse;
   },
 };
 
