@@ -42,6 +42,7 @@ import {
   phraseCoupees,
   pilluleAVerifier,
   pilluleCommande,
+  pilluleRemboursement,
   raisonBlocage,
   segmenter,
   tonAttente,
@@ -348,7 +349,9 @@ function LivreCommandes({
   const segments = segmenter(read.orders, claims ?? new Set(), enRoute, livrees, new Set(remboursements.keys()));
   const rows = segments[segment];
   const now = Date.now();
-  const bloques = [...remboursements.values()].filter((r) => r.etat === 'bloque').length;
+  // The banner points at « Incidents »: only orders in his book are ever there (an
+  // off-book blocked refund says so on its own card above the segments).
+  const bloques = [...remboursements].filter(([id, r]) => r.etat === 'bloque' && read.orders.some((o) => o.orderId === id)).length;
   const livraisonDe = (orderId: string): LivraisonRow | 'chargement' | 'cle_c_absente' | 'echec' =>
     typeof livraisons === 'object' ? (livraisons.get(orderId) ?? 'echec') : livraisons;
   const aVerifier = typeof livraisons === 'object'
@@ -811,16 +814,36 @@ function CarteHorsCarnet({ row, nowMs, ouvert, onToggle }: {
   onToggle: () => void;
 }) {
   const pill = pilluleAVerifier(row.aVerifier);
+  // The canon's own refund word and reason, as on the book's card: the founder
+  // watches this refund here until the provider confirms it (SP6).
+  const remb = pilluleRemboursement(row.remboursement);
+  const raison = raisonBlocage(row.remboursement);
   return (
     <Card variant="Llg">
       <Pressable onPress={onToggle} accessibilityRole="button">
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={[NOM_FORT, { flexShrink: 1 }]} numberOfLines={1}>{row.orderId}</Text>
+          {remb !== null ? (
+            <View
+              style={{
+                backgroundColor: remb.ton === 'ok' ? P.successBg : remb.ton === 'alerte' ? P.dangerBg : P.warnBg,
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                marginLeft: 8,
+              }}
+            >
+              <Text style={[role({ f: 'BG', w: 800, s: 11 }, remb.ton === 'ok' ? P.successFg : remb.ton === 'alerte' ? P.dangerFg : P.warnDeep)]}>
+                {t(remb.label)}
+              </Text>
+            </View>
+          ) : null}
           {pill !== null ? <PilluleAVerifier label={pill.label} /> : null}
         </View>
         <Text style={[CORPS, { marginTop: 4 }]} numberOfLines={1}>
           {row.productVersionId} · {row.zoneTo}
         </Text>
+        {raison !== null ? <Text style={[CORPS, { marginTop: 4 }]}>{t(raison)}</Text> : null}
         <Text style={[PETIT, { marginTop: 2 }]}>{t('commandes.a_verifier_hors_carnet')}</Text>
       </Pressable>
       {ouvert && row.aVerifier !== undefined ? <ElementsAVerifier av={row.aVerifier} nowMs={nowMs} /> : null}
