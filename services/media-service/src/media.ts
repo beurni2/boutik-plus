@@ -108,9 +108,10 @@ export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export const THUMB_MAX_DIM = 320;
 /** A floor, so a truncated or junk file cannot pass as a vignette. */
 export const THUMB_MIN_DIM = 32;
-/** ~320×320 at the derivative's own quality is 20–35 KB; 96 KB is the ceiling,
- *  and it is what makes the founder's board cheap rather than merely smaller. */
-export const THUMB_MAX_BYTES = 96 * 1024;
+/** The canon thumbnail row (PERF-BUDGETS « Image sizes »: thumbnail ≤ 15 KB):
+ *  every buyer tile and his board load the vignette, so this door is the wall.
+ *  The app aims under it (`VIGNETTE_BUDGET_BYTES`); one byte more is `too_large`. */
+export const THUMB_MAX_BYTES = 15 * 1024;
 
 /**
  * HOW LONG A PHOTOGRAPH'S VIGNETTE SLOT STAYS OPEN. Fifteen minutes: the app

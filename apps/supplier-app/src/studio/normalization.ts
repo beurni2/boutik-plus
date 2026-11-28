@@ -100,6 +100,128 @@ export function thumbActions(sourceWidth: number, sourceHeight: number): ResizeA
   return sourceWidth >= sourceHeight ? [{ resize: { width: THUMB_EDGE_PX } }] : [{ resize: { height: THUMB_EDGE_PX } }];
 }
 
+/*
+ * PHOTOS LÉGÈRES — every photograph that leaves the phone fits its canon row:
+ * PERF-BUDGETS « Image sizes », thumbnail ≤ 15 KB · hero ≤ 80 KB · full view
+ * ≤ 150 KB, on the reference 3G network. KB = 1024, as every byte gate in these
+ * repositories counts it.
+ */
+
+/** Canon row « thumbnail ≤ 15 KB » — every vignette. The media service refuses
+ *  one byte more (`THUMB_MAX_BYTES`); this is what the phone aims under. */
+export const VIGNETTE_BUDGET_BYTES = 15 * 1024;
+/** Canon row « hero ≤ 80 KB » — both hero crops, square and 4:5. The buyer site
+ *  shows the square large (« À la une », the product page) and its gallery shows
+ *  those same bytes: there is no third, heavier copy of it. */
+export const HERO_BUDGET_BYTES = 80 * 1024;
+/** Canon row « full view ≤ 150 KB » — every other photograph that ships: the
+ *  proof, the details, a camera shot, a readiness proof. Its role is not known
+ *  when it is picked, so it is held to the row every gallery photo opens at. */
+export const PHOTO_BUDGET_BYTES = 150 * 1024;
+
+/** The qualities a save is tried at, highest first. 0.8 is the derivative
+ *  spec's own; 0.5 is the floor, so an inspection photo is never coarser. */
+export const QUALITY_STEPS = [0.8, 0.7, 0.6, 0.5] as const;
+/** The long edges a photograph steps down through once every quality is over
+ *  its budget. 720 is the floor: 360 css px at 2× on the reference phone. */
+export const PHOTO_EDGE_STEPS = [1280, 1080, 900, 720] as const;
+/** The vignette's own steps; 240 is still above the 162 px his 54 px rows paint at 3×. */
+export const VIGNETTE_EDGE_STEPS = [320, 280, 240] as const;
+
+/** One budget's ladder: its byte row, its edges, and the short edge it may never step under. */
+export interface JpegLadder {
+  readonly budgetBytes: number;
+  readonly edgeSteps: readonly number[];
+  /** MUST STAY ≥ the media service's own floor (`IMAGE_MIN_DIM` 200 for a
+   *  photograph, `THUMB_MIN_DIM` 32 for a vignette): it refuses anything smaller. */
+  readonly minShortEdgePx: number;
+}
+export const HERO_LADDER: JpegLadder = { budgetBytes: HERO_BUDGET_BYTES, edgeSteps: PHOTO_EDGE_STEPS, minShortEdgePx: 200 };
+export const PHOTO_LADDER: JpegLadder = { budgetBytes: PHOTO_BUDGET_BYTES, edgeSteps: PHOTO_EDGE_STEPS, minShortEdgePx: 200 };
+export const VIGNETTE_LADDER: JpegLadder = { budgetBytes: VIGNETTE_BUDGET_BYTES, edgeSteps: VIGNETTE_EDGE_STEPS, minShortEdgePx: 32 };
+
+/**
+ * The next step down a ladder from an image of this size: the largest edge
+ * below its long edge, as a resize bounded by the LONG edge (as
+ * `derivativeActions` is) — or `null` at the floor. A step that would leave the
+ * short edge under the ladder's minimum is the floor too; it is judged rounded
+ * DOWN, so never kinder than the resize itself.
+ */
+export function nextEdgeAction(width: number, height: number, ladder: JpegLadder): ResizeAction | null {
+  const longest = Math.max(width, height);
+  const edge = ladder.edgeSteps.find((e) => e < longest);
+  if (edge === undefined) return null;
+  if (Math.floor((Math.min(width, height) * edge) / longest) < ladder.minShortEdgePx) return null;
+  return width >= height ? { resize: { width: edge } } : { resize: { height: edge } };
+}
+
+/** What a ladder reads of a rendered image: its own decoded size. */
+export interface LadderImage {
+  readonly width: number;
+  readonly height: number;
+}
+/** What a ladder reads of a save: its JPEG, as base64. */
+export interface LadderSave {
+  readonly base64?: string | null;
+}
+
+/**
+ * Save a rendered image as JPEG until it fits its budget — largest edge first,
+ * then quality. Every quality at this edge, highest first; only when all are
+ * over budget does it step down an edge, resizing the image ALREADY rendered
+ * (never a second decode of the master). The first save whose bytes fit AFTER
+ * our strip — the bytes that upload — is the one returned, so whatever the
+ * caller builds from it is what ships.
+ *
+ * AT THE FLOOR THE LAST SAVE IS RETURNED ANYWAY: a byte budget never blocks a
+ * publish on the phone. Deterministic: same image, same saves, same choice.
+ *
+ * `liberer` is handed every save the ladder refused, every image it made and
+ * then stepped past (once the smaller one has rendered), and the last image it
+ * made (once the save it keeps exists): on the web each is an object URL the
+ * library would keep for the tab's life. Never the save it returns, and never
+ * `first`, which is the caller's.
+ */
+export async function saveWithinBudget<I extends LadderImage, S extends LadderSave>(
+  first: I,
+  ladder: JpegLadder,
+  save: (image: I, compress: number) => Promise<S>,
+  resize: (image: I, step: ResizeAction) => Promise<I>,
+  liberer: (rendu: I | S) => void,
+): Promise<S> {
+  let image = first;
+  let refusee: S | undefined;
+  const garder = (kept: S): S => {
+    if (image !== first) liberer(image);
+    return kept;
+  };
+  for (;;) {
+    for (const compress of QUALITY_STEPS) {
+      if (refusee !== undefined) liberer(refusee);
+      const saved = await save(image, compress);
+      if (shippedLength(saved.base64) <= ladder.budgetBytes) return garder(saved);
+      refusee = saved;
+    }
+    const step = nextEdgeAction(image.width, image.height, ladder);
+    // At the floor the last refused save is the one that ships: not freed.
+    if (step === null) return garder(refusee!);
+    const plusPetite = await resize(image, step);
+    if (image !== first) liberer(image);
+    image = plusPetite;
+  }
+}
+
+/** The length that would upload: the save after OUR strip. Bytes the strip
+ *  cannot read count as fitting, so the caller's own strip refuses them exactly
+ *  where it always has (fail-closed) instead of the ladder quietly stepping on. */
+function shippedLength(base64: string | null | undefined): number {
+  try {
+    return stripJpegMetadata(base64ToBytes(base64 ?? '')).byteLength;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * B1.2 SEAMS — declared, identity, tested as such. Later slices implement
  * them; nothing here may change bytes today.
