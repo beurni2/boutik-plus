@@ -3,6 +3,43 @@ Continuity ledger per CTO charter §6/§6bis. Every entry is evidence-grounded.
 
 Format per entry:
 
+## 2026-11-28 · CLE-SUIVANTE-1 — every key the offer and photo services check can change with no gap; the secret scan treats a next value as a key; every release names a key change still open · lane B · on the branch, NOT merged, NOT deployed
+
+**Founder.** « you can start the next batch » (2026-11-28 06:17 UTC), batch 8 of the plan he approved: « During a change, the old and new keys both work for a short window, so nothing stops. »
+
+**Lane.** Lane B, slice B11, one local commit `5ab8444` on `0a61068`, integrated unchanged as `325e9ff`. The coordinator's own commits: `30bfb47` (the two deploys name any key change still open), `713ac63` (the secret scan), and this entry's commit with the review's fixes (`b955093`).
+
+**Spec.**
+- Execution Contract §3 (l.90): « Token/contract versions support **overlapping validation windows** + explicit **deprecation/retirement**. »; §11 (l.190): « secrets management · **key rotation incl. attribution-token signing key (custody, rotation, overlapping windows, compromise response, version retirement)** · … dependency + secret scanning … ».
+- The house rules in `packages/service-auth`: fail closed, constant-time compare, one identical 401.
+- The batch 8 key rule: a Worker that checks a key `X` also accepts `X_NEXT` while it is set; it passes iff (`X` non-empty and equal) or (`X_NEXT` non-empty and equal); both constant-time compares always run; `X_NEXT` opens exactly what `X` opens; the one 401 is unchanged; nothing says which value matched. Senders do not change.
+
+**What changed.**
+- *The shared gates.* `keyAuthorizedAgainst`, `rejectUnauthorizedWriteAgainst`, `bearerAuthorizedAgainst` and `rejectUnauthorizedBearer` take a required `next` (a string or `undefined`); `matchesKeyOrNext` awaits both house compares, each fail-closed on its own, and only then combines them. A call site that forgets `next` does not compile.
+- *Offer service.* `SUPPLY_READ_SECRET`, `FULFILLMENT_WRITE_SECRET`, `FULFILLMENT_OPS_SECRET`, each with its `_NEXT`, at every door that checks it (25 call sites and 3 adapters); each door reads the `_NEXT` of its own key only.
+- *Photo service.* `MEDIA_WRITE_SECRET` (uploads) and `MEDIA_REVOKE_SECRET` (`/media/revoke`), each with its `_NEXT`; neither next value opens the other door.
+- *Keys set by hand.* No deploy writes a checked key or its `_NEXT`. Both `wrangler.toml` files say the four steps of a change. The two keys the offer service only sends (`PROGRESS_WRITE_SECRET`, `SERA_INTAKE_SECRET`) take their `_NEXT` on the Worker that checks them.
+- *Deploys (coordinator).* After `wrangler deploy`, each release names any `_NEXT` still set on the Worker, names only. If Cloudflare does not list the keys, the step says so and the provenance check still runs. On the offer service, a `_NEXT` for a key it only sends is named as misplaced, not as an open change.
+- *Secret scan (coordinator).* A name ending in `_NEXT` is held to the same rule as its key. New negative fixture `gates/fixtures/negative/secret-scan/next-key.ts` (red first); the legal workflow fixture gains a `_NEXT` reference read through `secrets.`.
+
+**Evidence.**
+- Lane: every new test red first for the right reason, then green; mutations M1–M5 (the next compare removed, its length guard dropped, a call site reading the wrong `_NEXT`, and two more), each anchor matched once, red, restored byte-identical.
+- Coordinator: diff read line by line; decisive suites re-run at the integrated head: service-auth 186, media 214, offer 603. Full board on `325e9ff` in a fresh clone, Séra, platform and the older platform beside it: « ALL GATES GREEN ».
+- The review's workflow fixes, run offline against a stand-in tool: a failed listing warns and exits 0; no next key prints « No key change open »; an open change and a misplaced next key each print their own warning; `bash -n` and a YAML parse clean.
+
+**Verifier.** One fresh-context pass, handled once, never re-verified: 0 blocker, 0 major, 2 minor, 3 notes. It checked every call site, re-ran the mutations itself on copies (each red; three of its anchors did not match the first time, it drew nothing from them and re-ran them, all red), and nine more written forms of a next value against the scan (all caught).
+- Minor, fixed here: the information step could stop a release after a good deploy, before the provenance check, when Cloudflare did not answer the listing.
+- Minor, fixed here: on the offer service, a `_NEXT` set for a key it only sends was reported as an open change window. It is now reported as misplaced.
+- Note, folded into the first fix: the listing is asked for in JSON by name, not by the tool's default.
+- Note, journalled: the rollback workflow's re-arm text says the offer deploy writes every key; it never wrote the hand-set checked keys. And a rollback to a version from before this entry, in the middle of a change, ignores `_NEXT`. Roll back only before a change starts or after it ends. A follow-on corrects the re-arm text.
+- Note: held in the private batch record.
+
+**Not checked.** The live services were not called from here.
+
+**Still open.** Senders keep one value each, as designed: a change moves them one at a time.
+
+---
+
 ## 2026-11-28 · PHOTOS-LEGERES-1 + JOURNAL-SERVICES-1 + ALERTES-CONSOLE-1 — MERGED; console, supplier page, offer and media services DEPLOYED; supplier app PUBLISHED; console alerts LIVE
 
 **Founder.** « Release everything » (2026-11-28 05:13 UTC, decision card, on the batch 7 report), which named for Boutik+: the merge, then the console and the supplier page, then the offer service, then the photo service last; then the console alerts once their checks pass on the new Séra. « Yes, merge when green » (05:33 UTC, decision card) for the checks fix below, which was not in the report. Every deploy below waited for his approval in the `production` environment before it ran.
