@@ -314,6 +314,8 @@ interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
    *  value and presents it as Bearer). UNSET ⇒ every intake is 401 — fail
    *  closed; the emitter's outbox retries until the founder sets both sides. */
   FULFILLMENT_WRITE_SECRET?: string;
+  /** Set only while the intake key changes: opens exactly the doors FULFILLMENT_WRITE_SECRET opens. */
+  FULFILLMENT_WRITE_SECRET_NEXT?: string;
   /**
    * THE OPERATOR'S OWN CREDENTIAL (verifier MINOR, closed structurally): the
    * ops read returns `supplierId`, and gating it with the intake secret would
@@ -323,6 +325,8 @@ interface Env extends SupplyReadAuthEnv, AttestedSuppliersEnv {
    * with it. UNSET ⇒ the ops read is 401 for everyone, including Shop+.
    */
   FULFILLMENT_OPS_SECRET?: string;
+  /** Set only while the founder's key changes: opens exactly the doors FULFILLMENT_OPS_SECRET opens. */
+  FULFILLMENT_OPS_SECRET_NEXT?: string;
   /** AUDIO-READ — media-service's `AudioRead` entrypoint (service binding, no
    *  URL): the only road to a buyer's voice note. */
   MEDIA_AUDIO?: { fetch(request: Request): Promise<Response> };
@@ -522,7 +526,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return handleSupplyGrouping(request, store);
     }
     if (request.method === 'POST' && fp === '/fulfillment/order-confirmed') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET, env.FULFILLMENT_WRITE_SECRET_NEXT);
       if (refused) return refused;
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
       return handleOrderConfirmedIntake(request, store, env);
@@ -536,7 +540,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
      * new secret, no third road: the fact travels the wire that exists.
      */
     if (request.method === 'POST' && fp === '/fulfillment/delivered') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET, env.FULFILLMENT_WRITE_SECRET_NEXT);
       if (refused) return refused;
       return handleDeliveredIntake(request, env);
     }
@@ -550,7 +554,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
      * third road.
      */
     if (request.method === 'POST' && fp === '/fulfillment/delivery-refused') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET, env.FULFILLMENT_WRITE_SECRET_NEXT);
       if (refused) return refused;
       const store = resolveOfferStore({ OFFER_DO: { fetch: (req: Request): Promise<Response> => offerRouter.fetch(req, env) } });
       return handleRefusedIntake(request, store, env);
@@ -566,7 +570,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
      * a hold is a buyer's act relayed by Shop+, nobody else's.
      */
     if (request.method === 'POST' && (fp === '/fulfillment/stock-hold' || fp === '/fulfillment/stock-hold/release')) {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_WRITE_SECRET, env.FULFILLMENT_WRITE_SECRET_NEXT);
       if (refused) return refused;
       const body = (await request.json().catch(() => null)) as { productVersionId?: unknown } | null;
       const pv = body?.productVersionId;
@@ -587,7 +591,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // the intake secret: the list carries `supplierId`, and the intake secret
     // is held by Shop+ to deliver. Two capabilities, two keys, structurally.
     if (request.method === 'GET' && fp === '/fulfillment/orders') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       // PHOTO-À-TRAITER — the board read now joins each row's product
       // photograph from the offer entry, so the store is composed here exactly
@@ -601,7 +605,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // deliberately never carries it), and his own supplier contact card
     // (name + phone — founder decision 2026-08-08; no other book holds either).
     if (request.method === 'GET' && fp === '/fulfillment/order-evidence') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleOrderEvidence(request, env);
     }
@@ -610,17 +614,17 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // binding. Never cached: her voice says how to find her home. Any ref his
     // console holds came from Shop+'s dispatch view, so no book check here.
     if (request.method === 'GET' && fp === '/fulfillment/repere-audio') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleRepereAudio(new URL(request.url).searchParams.get('ref') ?? '', env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-contact') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleSupplierContactSet(request, env);
     }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-contacts') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleSupplierContactsList(env);
     }
@@ -629,7 +633,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // it is emphatically NOT readiness — canon readiness (B+I-06, photo +
     // sellerReadinessChallenge) gates custody and lives in fulfillment-service.
     if (request.method === 'POST' && fp === '/fulfillment/relance') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleRelance(request, env);
     }
@@ -641,7 +645,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // un-deliver what it delivered). The object bounds what a purge means;
     // this line bounds who may ask.
     if (request.method === 'POST' && fp === '/fulfillment/order/retirer') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleOrderRetirer(request, env);
     }
@@ -649,7 +653,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // credential alone, like the retire door above. The supplier's code opens
     // his own refusal, never this one; Shop+'s intake secret opens neither.
     if (request.method === 'POST' && fp === '/fulfillment/order/annuler') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleOrderAnnuler(request, env);
     }
@@ -681,7 +685,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // the founder's read alone — the same credential and the same reasoning as
     // the paid-order book two routes above.
     if (request.method === 'GET' && fp === '/offers/inventaire') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       // CATALOGUE-PAGES-1 — `limit`/`cursor` ride through; none = the whole list, as before.
       return offerRouter.fetch(new Request(`https://do/offers/inventaire${new URL(request.url).search}`), env);
@@ -694,7 +698,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // he watches, he edits nothing). The body is forwarded as-is: the router
     // owns `offerId`, the object owns `commandId`/`available`, one home each.
     if (request.method === 'POST' && fp === '/offers/stock') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       const raw = await request.text();
       const cmd = lireObjet(raw);
@@ -721,7 +725,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // STOCK-VRAI-1 (F-03) — the count sheet's « N colis vendus attendent le
     // coursier », by the same join and the same rule the confirm act applies.
     if (request.method === 'GET' && fp === '/offers/stock/attente') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       const offerId = new URL(request.url).searchParams.get('offerId');
       if (offerId === null || offerId.trim() === '') return Response.json({ error: 'malformed', param: 'offerId' }, { status: 400 });
@@ -739,7 +743,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // STOCK-VRAI-1 (F-12) — « Prolonger d'un an »: HIS key alone, like the
     // stock act (the audit's safest default: nobody else renews an offer).
     if (request.method === 'POST' && fp === '/offers/prolonger') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return offerRouter.fetch(
         new Request('https://do/offers/prolonger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: await request.text() }),
@@ -747,17 +751,17 @@ async function handle(request: Request, env: Env): Promise<Response> {
       );
     }
     if (request.method === 'GET' && fp === '/offers/journal') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return offerRouter.fetch(new Request(`https://do/offers/journal${new URL(request.url).search}`), env);
     }
     if (request.method === 'GET' && fp === '/fulfillment/supplier-codes') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return handleSupplierCodesList(env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return acteSurAcces(request, env, 'mint');
     }
@@ -767,26 +771,26 @@ async function handle(request: Request, env: Env): Promise<Response> {
      * credential like every other act on this screen.
      */
     if (request.method === 'POST' && fp === '/fulfillment/supplier/effacer') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return effacerFournisseur(request, env);
     }
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code/revoke') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return acteSurAcces(request, env, 'revoke');
     }
     // CATALOGUE-PAGES-1 (F-05) — the rest of a cut's (or a re-mint's) product
     // walk, one page per call. HIS credential, like the act it continues.
     if (request.method === 'POST' && fp === '/fulfillment/supplier-acces/suite') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return suiteAcces(request, env);
     }
     // CODE-REVU (founder ruling 2026-08-09): reread a code already given —
     // the same founder-only door as the mint it rereads.
     if (request.method === 'POST' && fp === '/fulfillment/supplier-code/reveal') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return forwardOpsCodeAdmin(request, env, '/code/reveal');
     }
@@ -860,7 +864,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // any dispatch or existence lookup, so the 401 is never an oracle; an unset
     // secret refuses every write.
     if (isWrite(request.method)) {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
     }
 
@@ -908,7 +912,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // founder key before any dispatch (CLE-FONDATEUR-1: it used to open to the
     // retired shared key).
     if (request.method === 'GET' && pathname === '/offers') {
-      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET);
+      const refused = await rejectUnauthorizedBearer(request, env.FULFILLMENT_OPS_SECRET, env.FULFILLMENT_OPS_SECRET_NEXT);
       if (refused) return refused;
       return offerRouter.fetch(request, env);
     }

@@ -25,6 +25,8 @@ import {
  */
 export interface SupplyReadAuthEnv {
   readonly SUPPLY_READ_SECRET?: string;
+  /** Set only while the supply-read key changes: opens exactly the doors SUPPLY_READ_SECRET opens. */
+  readonly SUPPLY_READ_SECRET_NEXT?: string;
 }
 
 export { BEARER_HEADER, BEARER_PREFIX, isWrite, unauthorized, rejectUnauthorizedBearer };
@@ -44,5 +46,5 @@ export async function rejectUnauthorizedSupplyRead(
   request: Request,
   env: SupplyReadAuthEnv,
 ): Promise<Response | null> {
-  return rejectUnauthorizedBearer(request, env.SUPPLY_READ_SECRET);
+  return rejectUnauthorizedBearer(request, env.SUPPLY_READ_SECRET, env.SUPPLY_READ_SECRET_NEXT);
 }

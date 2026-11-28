@@ -18,6 +18,8 @@ import { rejectUnauthorizedWriteAgainst } from '@boutik/service-auth';
 
 export interface MediaWriteAuthEnv {
   readonly MEDIA_WRITE_SECRET?: string;
+  /** Set only while the upload key changes: opens exactly the doors MEDIA_WRITE_SECRET opens. */
+  readonly MEDIA_WRITE_SECRET_NEXT?: string;
   /**
    * MEDIA-KEY-SPLIT (verifier M1 follow-through, founder-ordered 2026-08-02):
    * `/media/revoke` is DESTRUCTIVE and answers to ITS OWN secret, never the
@@ -29,6 +31,8 @@ export interface MediaWriteAuthEnv {
    * fail-closed rule: unset ⇒ every revoke is 401, upload untouched.
    */
   readonly MEDIA_REVOKE_SECRET?: string;
+  /** Set only while the revoke key changes: opens exactly the door MEDIA_REVOKE_SECRET opens. */
+  readonly MEDIA_REVOKE_SECRET_NEXT?: string;
 }
 
 /** WRITE gate for media-service. `null` iff authorised; else the one identical 401. */
@@ -36,16 +40,16 @@ export async function rejectUnauthorizedWrite(
   request: Request,
   env: MediaWriteAuthEnv,
 ): Promise<Response | null> {
-  return rejectUnauthorizedWriteAgainst(request, env.MEDIA_WRITE_SECRET);
+  return rejectUnauthorizedWriteAgainst(request, env.MEDIA_WRITE_SECRET, env.MEDIA_WRITE_SECRET_NEXT);
 }
 
 /** REVOKE gate — the founder-only secret. `null` iff authorised. The upload
  *  key answers the same identical 401 as no key at all: the compare is
- *  against MEDIA_REVOKE_SECRET alone, so holding the upload credential
+ *  against MEDIA_REVOKE_SECRET (and its _NEXT) alone, so holding the upload credential
  *  reveals nothing about the revoke one. */
 export async function rejectUnauthorizedRevoke(
   request: Request,
   env: MediaWriteAuthEnv,
 ): Promise<Response | null> {
-  return rejectUnauthorizedWriteAgainst(request, env.MEDIA_REVOKE_SECRET);
+  return rejectUnauthorizedWriteAgainst(request, env.MEDIA_REVOKE_SECRET, env.MEDIA_REVOKE_SECRET_NEXT);
 }

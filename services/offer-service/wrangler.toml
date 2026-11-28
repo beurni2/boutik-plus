@@ -122,6 +122,19 @@ entrypoint = "AudioRead"
 # never falsely marked delivered — it simply waits for the founder to set both
 # sides.
 
+# A KEY CHANGES WITH NO GAP (Execution Contract §11, « overlapping windows »).
+# Each key this Worker CHECKS — SUPPLY_READ_SECRET, FULFILLMENT_WRITE_SECRET,
+# FULFILLMENT_OPS_SECRET — also accepts the same name ending in _NEXT while that
+# one is set, on exactly the same doors and no other. A change, by hand:
+#   1. `wrangler secret put X_NEXT` with the new value, beside X;
+#   2. move the sender to the new value;
+#   3. `wrangler secret put X` with the new value;
+#   4. `wrangler secret delete X_NEXT`.
+# Unset or empty never matches. Step 4 is part of the change: while X_NEXT is
+# set, two values open the same doors (the deploy names any X_NEXT still set).
+# PROGRESS_WRITE_SECRET and SERA_INTAKE_SECRET are SENT from here, not checked:
+# their _NEXT belongs on the Worker that checks them, never on this one.
+
 # THE LOG. One JSON line per request and one per delivery fault, written by the
 # Worker itself and never carrying a person's data (see `journalRequete` in
 # worker/index.ts). Every request is kept (sampling 1), the platform's own

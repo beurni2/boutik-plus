@@ -25,6 +25,19 @@ bucket_name = "beurni-boutik-product-media"
 # `wrangler secret put` only. (This comment once said no upload route existed —
 # stale from a pre-upload slice; corrected in W5, per the W4 verifier's note.)
 
+# A KEY CHANGES WITH NO GAP (Execution Contract §11, « overlapping windows »).
+# Each key this Worker CHECKS — MEDIA_WRITE_SECRET (the uploads) and
+# MEDIA_REVOKE_SECRET (`/media/revoke`) — also accepts the same name ending in
+# _NEXT while that one is set, on exactly the same doors and no other: the
+# upload key's next value never opens revoke, nor the other way round. A change,
+# by hand:
+#   1. `wrangler secret put X_NEXT` with the new value, beside X;
+#   2. move the sender to the new value;
+#   3. `wrangler secret put X` with the new value;
+#   4. `wrangler secret delete X_NEXT`.
+# Unset or empty never matches. Step 4 is part of the change: while X_NEXT is
+# set, two values open the same doors (the deploy names any X_NEXT still set).
+
 # THE LOG. One JSON line per request, written by the Worker itself and never
 # carrying a person's data or a media key (see `journalRequete` in
 # worker/index.ts). Every request is kept (sampling 1), the platform's own
