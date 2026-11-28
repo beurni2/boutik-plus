@@ -24,3 +24,16 @@ bucket_name = "beurni-boutik-product-media"
 # shared-secret write gate (worker/auth.ts, MEDIA_WRITE_SECRET), set via
 # `wrangler secret put` only. (This comment once said no upload route existed —
 # stale from a pre-upload slice; corrected in W5, per the W4 verifier's note.)
+
+# THE LOG. One JSON line per request, written by the Worker itself and never
+# carrying a person's data or a media key (see `journalRequete` in
+# worker/index.ts). Every request is kept (sampling 1), the platform's own
+# per-invocation lines are off (the Worker's request line stands in for them),
+# and any query string the platform records is redacted.
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true
+
+[observability.logs]
+invocation_logs = false

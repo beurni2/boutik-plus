@@ -121,3 +121,16 @@ entrypoint = "AudioRead"
 # supplier's accept/ready still succeeds, and the fact is never dropped and
 # never falsely marked delivered — it simply waits for the founder to set both
 # sides.
+
+# THE LOG. One JSON line per request and one per delivery fault, written by the
+# Worker itself and never carrying a person's data (see `journalRequete` in
+# worker/index.ts). Every request is kept (sampling 1), the platform's own
+# per-invocation lines are off (the Worker's request line stands in for them),
+# and any query string the platform records is redacted.
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true
+
+[observability.logs]
+invocation_logs = false

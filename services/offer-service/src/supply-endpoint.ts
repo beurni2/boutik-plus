@@ -1,4 +1,4 @@
-import { CORRELATION_HEADER, correlationIdFrom, makeHealthFetch } from '@boutik/observability';
+import { CORRELATION_HEADER, correlationIdFrom, createLogger, makeHealthFetch } from '@boutik/observability';
 import {
   makeReadModelSchema,
   ProductVersionSchema,
@@ -123,7 +123,9 @@ export function assertAssetRefsIdentityFree(assetRefs: readonly string[], suppli
     // and refusing it took the whole reseller collection down.
     if (OPAQUE_MEDIA_REF.test(ref)) continue;
     if (ref.includes(needle)) {
-      throw new SupplyLeakError(`asset ref encodes supplier identity: ${ref}`);
+      // Fixed text: the ref holds the supplier's id, and this message is printed
+      // whenever the error goes uncaught.
+      throw new SupplyLeakError('asset ref encodes supplier identity');
     }
   }
 }
@@ -271,12 +273,12 @@ export function serveProjections(
   for (const entry of entries) {
     // F-32 — a throw (the leak guard, the strict parse) OMITS this entry, the
     // same as any refusal; it used to escape and 500 every reseller's browse.
-    // The single read still throws for it. Logged by offer id only.
+    // The single read still throws for it. Logged by the error's class only.
     let outcome: ServeOutcome;
     try {
       outcome = serveProjection(service, entry, nowIso, attested, dueMs);
     } catch (err) {
-      console.error(`supply-projections: entry omitted (${err instanceof Error ? err.name : 'error'}) offer=${entry.offerId}`);
+      createLogger({ service, correlationId: crypto.randomUUID() }).warn('projection_omitted', { error: err instanceof Error ? err.name : 'error' });
       continue;
     }
     if (outcome.ok) items.push(outcome.body);

@@ -8,9 +8,9 @@ import {
   type OrderConfirmedEvent,
   type PackageReadinessConfirmation,
 } from '@platform/contracts';
-import { provenance } from '@boutik/observability';
+import { createLogger, provenance } from '@boutik/observability';
 import { restockOnRefusal } from '../src/offer-core.js';
-import { OPAQUE_MEDIA_REF } from '../src/supply-endpoint.js';
+import { OPAQUE_MEDIA_REF, SERVICE_NAME } from '../src/supply-endpoint.js';
 import { resolveOfferStore, type OfferStore } from '../src/offer-store.js';
 import offerRouter from './offer-do.js';
 
@@ -128,6 +128,39 @@ export interface SupplierContactRecord {
 }
 /** READINESS-RETURN-1 — one outbox row per (order, fact). */
 const PROGRESS_OUTBOX_PREFIX = 'progressoutbox:';
+
+/**
+ * The shape Shop+ mints its order ids in (`ord-quote-<uuid>`). It is the only
+ * order id a log line may carry: anything else could be a typed or hostile
+ * value, and is never logged.
+ */
+export const ORDER_ID_MINTED = /^ord-quote-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** An error, as a log line may name it: its class, never its message. */
+export const nomDErreur = (err: unknown): string => (err instanceof Error ? err.name : 'error');
+
+/**
+ * One fault, as one JSON line: fixed fields, the order only in its minted shape
+ * (and then `corr-<orderId>` as the correlation id, else a fresh one) — never
+ * an error message, never a body.
+ */
+function journalFaute(level: 'warn' | 'error', msg: string, orderId: string | undefined, fields: Record<string, unknown>): void {
+  const montree = orderId !== undefined && ORDER_ID_MINTED.test(orderId);
+  createLogger({ service: SERVICE_NAME, correlationId: montree ? `corr-${orderId}` : crypto.randomUUID() })[level](msg, {
+    ...(montree ? { orderId } : {}),
+    ...fields,
+  });
+}
+
+/** A re-arm the platform refused: the row stays pending, and the line says so. */
+const rearmEchoue = (orderId: string | undefined) => (err: unknown): void =>
+  journalFaute('error', 'alarm_rearm_failed', orderId, { error: nomDErreur(err) });
+
+/** The order an outbox row is about, read off its key `progressoutbox:{orderId}:{fact}`. */
+const commandeDeLaCle = (key: string): string => key.slice(PROGRESS_OUTBOX_PREFIX.length, key.lastIndexOf(':'));
+
+/** A leg with nothing to send through here (no binding, base or key) — told apart from no answer. */
+const NON_CONFIGURE = 'not_configured' as const;
 /**
  * CROISSANCE-1 (AUDIT-B+2 F-89 a) — ONE POINTER PER FACT STILL WAITING,
  * `progresspending:{orderId}:{fact}`, beside its outbox row. Every wake used to
@@ -604,7 +637,7 @@ export class FulfillmentDO {
           // pointer: a row written by a build without pointers, under a release
           // whose sweep already ran (a same-version rollback), is found here.
           await this.state.storage.put(pointeurDe(key), 1);
-          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
         }
         return;
       }
@@ -638,11 +671,12 @@ export class FulfillmentDO {
         // CROISSANCE-1 — the pointer lands in the SAME write as the row.
         [pointeurDe(key)]: 1,
       });
-      await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
-    } catch {
+      await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
+    } catch (err) {
       // The supplier's readiness is already durably recorded; a queueing
       // problem must never fail it. Both readiness call sites re-enter here on
       // every re-assertion, which is what makes the recovery real.
+      journalFaute('error', 'outbox_enqueue_failed', orderId, { outbox: 'sera', error: nomDErreur(err) });
     }
   }
 
@@ -702,7 +736,7 @@ export class FulfillmentDO {
         if (existing.status === 'pending') {
           // CROISSANCE-1 (verifier MINOR 6) — and re-files its pointer, see above.
           await this.state.storage.put(pointeurDe(key), 1);
-          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+          if ((await this.state.storage.getAlarm()) === null) await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
         }
         return;
       }
@@ -711,13 +745,14 @@ export class FulfillmentDO {
         : { status: 'unsendable' as const, reason: 'not_canonical', attempts: 0, nextAttemptAt: 0 };
       // CROISSANCE-1 — a pending row and its pointer land in ONE write.
       await this.state.storage.put(composed.success ? { [key]: row, [pointeurDe(key)]: 1 } : { [key]: row });
-      if (composed.success) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
-    } catch {
+      if (composed.success) await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
+    } catch (err) {
       // The supplier's act is already durably recorded and must never fail on
       // a queueing problem. RECOVERY IS REAL, not asserted: both call sites
       // re-enter this method every time the fact is re-asserted (verifier B1),
       // so a row lost to a transient failure is recreated on the next accept
       // or readiness confirmation for the same order.
+      journalFaute('error', 'outbox_enqueue_failed', orderId, { outbox: 'storefront', error: nomDErreur(err) });
     }
   }
 
@@ -781,11 +816,13 @@ export class FulfillmentDO {
        * first-wins key) is shared, so the two wires cannot drift apart.
        */
       const seraRow = (row as { target?: string }).target === 'sera';
-      const res = seraRow
+      const rayonRow = (row as { target?: string }).target === 'rayon';
+      const sortie = seraRow
         ? await this.deliverToSera(row.event)
-        : (row as { target?: string }).target === 'rayon'
+        : rayonRow
           ? await this.deliverToRayon(row.event)
           : await this.deliverToStorefront(row.event);
+      const res = sortie === NON_CONFIGURE ? undefined : sortie;
       if (res !== undefined) {
         delivered = res.ok;
         /**
@@ -830,16 +867,23 @@ export class FulfillmentDO {
         perimes.push(pointeurDe(key));
         continue;
       }
+      // Not delivered: one line, the far side's status or why there was none.
+      const outbox = seraRow ? 'sera' : rayonRow ? 'rayon' : 'storefront';
+      const issue = res !== undefined ? { status: res.status } : { reason: sortie === NON_CONFIGURE ? NON_CONFIGURE : 'no_answer' };
       if (permanentRefusal) {
         await this.state.storage.put(key, {
           ...row, status: 'unsendable', reason: 'refused_by_consumer', attempts: row.attempts + 1,
         });
+        journalFaute('error', 'outbox_undelivered', commandeDeLaCle(key), { outbox, attempts: row.attempts + 1, ...issue, parked: true });
         perimes.push(pointeurDe(key));
         continue;
       }
       const attempts = row.attempts + 1;
       const next = progressBackoffMs(attempts);
       await this.state.storage.put(key, { ...row, attempts, nextAttemptAt: now + next });
+      // A refused key or a leg never configured will not mend by waiting.
+      const grave = res !== undefined ? res.status === 401 || res.status === 403 : sortie === NON_CONFIGURE;
+      journalFaute(grave ? 'error' : 'warn', 'outbox_undelivered', commandeDeLaCle(key), { outbox, attempts, ...issue });
       retryIn = retryIn === null ? next : Math.min(retryIn, next);
     }
     // AFTER the rows: a pointer is only ever dropped once its row says it no
@@ -847,16 +891,17 @@ export class FulfillmentDO {
     for (let i = 0; i < perimes.length; i += STORAGE_BATCH_MAX) {
       await this.state.storage.delete(perimes.slice(i, i + STORAGE_BATCH_MAX));
     }
-    if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(() => undefined);
+    if (retryIn !== null) await this.state.storage.setAlarm(Date.now() + retryIn).catch(rearmEchoue(undefined));
   }
 
   /** The Shop+ leg — the service binding, unchanged from READINESS-RETURN-1.
-   *  `undefined` means « not even attempted » (binding or secret absent), which
-   *  is NOT a refusal: the row stays pending and the ladder retries. */
-  private async deliverToStorefront(event: unknown): Promise<Response | undefined> {
+   *  `NON_CONFIGURE` means « not even attempted » (binding or secret absent) and
+   *  `undefined` that the call threw; neither is a refusal: the row stays
+   *  pending and the ladder retries. */
+  private async deliverToStorefront(event: unknown): Promise<Response | typeof NON_CONFIGURE | undefined> {
     const target = this.env?.STOREFRONT;
     const secret = this.env?.PROGRESS_WRITE_SECRET;
-    if (target === undefined || secret === undefined || secret === '') return undefined;
+    if (target === undefined || secret === undefined || secret === '') return NON_CONFIGURE;
     return target
       .fetch(
         new Request('https://storefront/fulfillment/progress', {
@@ -868,13 +913,13 @@ export class FulfillmentDO {
       .catch(() => undefined);
   }
 
-  /** SE-LIVE-2b — the Séra leg. `undefined` means no answer: the door is not
-   *  wired here (base or secret unset), Séra could not be reached, or it did
-   *  not answer in time. The walk counts it as one failed try. */
-  private async deliverToSera(fact: unknown): Promise<Response | undefined> {
+  /** SE-LIVE-2b — the Séra leg. `NON_CONFIGURE`: the door is not wired here
+   *  (base or secret unset). `undefined`: Séra could not be reached, or it did
+   *  not answer in time. The walk counts either as one failed try. */
+  private async deliverToSera(fact: unknown): Promise<Response | typeof NON_CONFIGURE | undefined> {
     const base = (this.env?.SERA_INTAKE_BASE ?? '').replace(/\/+$/, '');
     const secret = this.env?.SERA_INTAKE_SECRET ?? '';
-    if (base === '' || secret === '') return undefined;
+    if (base === '' || secret === '') return NON_CONFIGURE;
     return fetch(`${base}/intake/readiness`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
@@ -887,14 +932,14 @@ export class FulfillmentDO {
    * RETOUR-RAYON-1 — the counter leg: the offer's own restock door, through
    * the SAME router and store the composition root composes (one road to the
    * counter). That door adds one only for an order that consumed there, once
-   * (its `rendu-` marker), so a replay never adds twice. `undefined` = not
+   * (its `rendu-` marker), so a replay never adds twice. `NON_CONFIGURE` = not
    * attempted (no binding): the row waits. An offer gone, or an order that
    * never took a unit there, answers 409 — nothing will ever go back, and the
    * ladder parks the row rather than retrying it forever.
    */
-  private async deliverToRayon(event: unknown): Promise<Response | undefined> {
+  private async deliverToRayon(event: unknown): Promise<Response | typeof NON_CONFIGURE> {
     const env = this.env;
-    if (env?.OFFER === undefined) return undefined;
+    if (env?.OFFER === undefined) return NON_CONFIGURE;
     const orderId = (event as { orderId?: unknown } | null)?.orderId;
     if (typeof orderId !== 'string' || orderId === '') return Response.json({ ok: false }, { status: 400 });
     const order = await this.state.storage.get<PaidOrderRecord>(`${ORDER_PREFIX}${orderId}`);
@@ -1716,7 +1761,7 @@ export class FulfillmentDO {
         ...(rendre ? FulfillmentDO.rangeeRayon(orderId) : {}),
       };
       if (Object.keys(ecrire).length > 0) await this.state.storage.put(ecrire);
-      if (rendre) await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+      if (rendre) await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
       const rayon = (lus.get(rayonDe(orderId)) as { status?: string } | undefined)?.status;
       return Response.json({
         ok: true,
@@ -1914,7 +1959,7 @@ export class FulfillmentDO {
         for (const p of aRearmer) ecrire[p] = 1;
         if (Object.keys(ecrire).length > 0) await this.state.storage.put(ecrire);
         if (Object.keys(ecrire).some((k) => k.endsWith(':rayon')) || aRearmer.length > 0) {
-          await this.state.storage.setAlarm(Date.now()).catch(() => undefined);
+          await this.state.storage.setAlarm(Date.now()).catch(rearmEchoue(orderId));
         }
       }
       return Response.json({ ok: true, verdict });
