@@ -130,7 +130,8 @@ describe('Séra\'s alerts on Opérations: each state it cannot read says so, and
   }, 20_000);
 
   it('Séra not answering: it says the alerts could not be read and that it tries again by itself; nothing is invented', async () => {
-    storage({ [CLE_OPS]: 'cle-ops-fondateur', [CLE_SERA]: 'cle-sera-du-fondateur' });
+    const cleSera = 'cle-sera-du-fondateur';
+    storage({ [CLE_OPS]: 'cle-ops-fondateur', [CLE_SERA]: cleSera });
     const w = brancher();
     const screen = await ouvrirOperations();
     await partout(screen);
@@ -138,7 +139,7 @@ describe('Séra\'s alerts on Opérations: each state it cannot read says so, and
     enTete(screen, ILLISIBLE);
     const lus = w.sera.filter((c) => c.path === '/ops/alertes');
     expect(lus.length, 'the alerts were asked for').toBeGreaterThan(0);
-    expect(lus.every((c) => c.auth === 'Bearer cle-sera-du-fondateur'), 'on his Séra key, in the Authorization header').toBe(true);
+    expect(lus.every((c) => c.auth === `Bearer ${cleSera}`), 'on his Séra key, in the Authorization header').toBe(true);
     screen.unmount();
   }, 20_000);
 

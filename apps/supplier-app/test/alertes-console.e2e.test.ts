@@ -113,7 +113,7 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — a real Séra a
       await intake('/intake/funding', { orderId: B, status: 'funded', paymentMode: 'FULL_PREPAY', asOf: iso(-70 * MINUTE), package: colis });
       await intake('/intake/readiness', { orderId: B, ready: true, asOf: dernier, supplierRef: SUPPLIER });
       const ID = `ready_package_no_task:${O}:${readyAt}`;
-      const ID_COLIS = `ready_package_no_task:${A}:${dernier}`;
+      const ID_PRET = `ready_package_no_task:${A}:${dernier}`;
       // Proof received 31 minutes ago with no decision; a custody file whose replay differs, seen 5 minutes ago.
       const P = 'ord-alertes-preuve';
       const soumise = iso(-31 * MINUTE);
@@ -123,13 +123,13 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — a real Séra a
       await produire('impossible_custody', G, vueA, { package_id: `pkg-${G}`, task_id: `task-${G}`, detail: 'replay_diverged' });
       const ID_PREUVE = `evidence_not_validated_aging:${P}`;
       const ID_GARDE = `impossible_custody:${G}`;
-      expect(await ouvertes(), 'Séra raised all four, oldest first').toEqual([ID_COLIS, ID, ID_PREUVE, ID_GARDE]);
+      expect(await ouvertes(), 'Séra raised all four, oldest first').toEqual([ID_PRET, ID, ID_PREUVE, ID_GARDE]);
 
       const port = httpAlertesService(BASE, OPS, surveille);
       expect(await port.lire(), 'the port reads what Séra raised, in Séra\'s order').toEqual({
         kind: 'ok',
         alertes: [
-          { id: ID_COLIS, scenario: 'ready_package_no_task', orderId: A, orderIds: [A, B], depuis: dernier, detail: null },
+          { id: ID_PRET, scenario: 'ready_package_no_task', orderId: A, orderIds: [A, B], depuis: dernier, detail: null },
           { id: ID, scenario: 'ready_package_no_task', orderId: O, orderIds: null, depuis: readyAt, detail: null },
           { id: ID_PREUVE, scenario: 'evidence_not_validated_aging', orderId: P, orderIds: null, depuis: soumise, detail: null },
           { id: ID_GARDE, scenario: 'impossible_custody', orderId: G, orderIds: null, depuis: vueA, detail: 'replay_diverged' },
@@ -140,11 +140,11 @@ describe.skipIf(SERA.raisonSaut !== null)(SERA.titre('ALERTES — a real Séra a
       expect(appels.map((a) => a.cle), 'one read, of the alerts door').toEqual(['GET /ops/alertes']);
       expect(appels[0]!.auth, 'on his Séra key, in the Authorization header').toBe(`Bearer ${OPS}`);
 
-      expect(await port.marquerVu(ID_COLIS)).toEqual({ kind: 'vu' });
-      expect(appels[1], 'one ack, naming the alert and the founder').toEqual({ cle: 'POST /ops/alertes/ack', auth: `Bearer ${OPS}`, corps: { id: ID_COLIS, by: 'founder' } });
+      expect(await port.marquerVu(ID_PRET)).toEqual({ kind: 'vu' });
+      expect(appels[1], 'one ack, naming the alert and the founder').toEqual({ cle: 'POST /ops/alertes/ack', auth: `Bearer ${OPS}`, corps: { id: ID_PRET, by: 'founder' } });
       expect(await ouvertes(), 'ASK THE BOOK: closed, the others still open').toEqual([ID, ID_PREUVE, ID_GARDE]);
-      expect(await fermeePar(ID_COLIS), 'ASK THE BOOK: closed by the founder').toBe('founder');
-      expect(await port.marquerVu(ID_COLIS), 'closed twice is still closed').toEqual({ kind: 'vu' });
+      expect(await fermeePar(ID_PRET), 'ASK THE BOOK: closed by the founder').toBe('founder');
+      expect(await port.marquerVu(ID_PRET), 'closed twice is still closed').toEqual({ kind: 'vu' });
 
       // Custody's two close the same way, on the same door.
       expect(await port.marquerVu(ID_PREUVE)).toEqual({ kind: 'vu' });
